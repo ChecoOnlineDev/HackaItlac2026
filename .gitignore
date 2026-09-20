@@ -1,0 +1,43 @@
+# --- Sistema y editores ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+
+# --- Variables de entorno y secretos ---
+.env
+.env.*
+!.env.example
+
+# --- Backend / Python ---
+backend/.venv/
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.pyright/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# --- Frontend / Node ---
+frontend/node_modules/
+frontend/build/
+frontend/.react-router/
+frontend/.vite/
+frontend/coverage/
+frontend/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Otros artefactos locales ---
+*.log
+*.tmp
+*.swp
