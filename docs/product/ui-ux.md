@@ -54,6 +54,10 @@ Cómo se presenta y se comporta cada pantalla del [app flow](app-flow.md). Cubre
 
 **Estado de una lista.** Carga con esqueleto; vacío con mensaje y acción sugerida; error con "Reintentar".
 
+**Indicador de carga.** El logotipo de IMHOTEP con tres puntos que brincan en cascada. Hay tres variantes: de pantalla completa (al abrir la aplicación o una ruta), solo los puntos dentro de un botón que espera respuesta, y en línea para una sección. Con "reducir movimiento" activo, los puntos parpadean en lugar de brincar.
+
+**Navegación por ancho.** Computadora desde 1024 px: menú lateral. Celular y tableta (menos de 1024 px): sin menú lateral; el inicio es la cuadrícula de botones y un botón "Menú" abre una hoja con todas las secciones permitidas. El menú y los botones del inicio salen de los permisos de la sesión, nunca del nombre del rol.
+
 ## Pantallas
 
 ### Entrar

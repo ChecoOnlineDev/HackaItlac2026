@@ -10,25 +10,28 @@ import {
 import type { Route } from "./+types/root";
 import "./app.css";
 
+import { BandaSinConexion } from "~/componentes/ui/banda-sin-conexion";
+import { Cargando } from "~/componentes/ui/cargando";
+import { EstadoError } from "~/componentes/ui/estado-error";
+import { Toaster } from "~/components/ui/toast";
+import { SesionProvider } from "~/sesion/sesion";
+
 export const links: Route.LinksFunction = () => [
-  { rel: "preconnect", href: "https://fonts.googleapis.com" },
-  {
-    rel: "preconnect",
-    href: "https://fonts.gstatic.com",
-    crossOrigin: "anonymous",
-  },
-  {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
-  },
+  { rel: "icon", type: "image/png", href: "/logo-imhotep.png" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="es">
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* interactive-widget: en celular, el teclado reduce la pantalla en lugar de tapar el botón. */}
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, interactive-widget=resizes-content"
+        />
+        <meta name="theme-color" content="#0054A6" />
+        <title>IMHOTEP</title>
         <Meta />
         <Links />
       </head>
@@ -41,35 +44,35 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Lo que se ve mientras la aplicación carga por primera vez. */
+export function HydrateFallback() {
+  return <Cargando variante="pantalla" />;
+}
+
 export default function App() {
-  return <Outlet />;
+  return (
+    <SesionProvider>
+      <Toaster>
+        <BandaSinConexion />
+        <Outlet />
+      </Toaster>
+    </SesionProvider>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Oops!";
-  let details = "An unexpected error occurred.";
-  let stack: string | undefined;
-
-  if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "404" : "Error";
-    details =
-      error.status === 404
-        ? "The requested page could not be found."
-        : error.statusText || details;
-  } else if (import.meta.env.DEV && error && error instanceof Error) {
-    details = error.message;
-    stack = error.stack;
-  }
-
+  const noEncontrada = isRouteErrorResponse(error) && error.status === 404;
   return (
-    <main className="pt-16 p-4 container mx-auto">
-      <h1>{message}</h1>
-      <p>{details}</p>
-      {stack && (
-        <pre className="w-full p-4 overflow-x-auto">
-          <code>{stack}</code>
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 p-6">
+      <EstadoError
+        mensaje={noEncontrada ? "No encontramos esa pantalla." : "Algo salió mal en esta pantalla."}
+        alReintentar={() => window.location.assign("/")}
+      />
+      {import.meta.env.DEV && error instanceof Error ? (
+        <pre className="w-full overflow-x-auto rounded-lg bg-muted p-3 text-xs">
+          <code>{error.stack}</code>
         </pre>
-      )}
+      ) : null}
     </main>
   );
 }
