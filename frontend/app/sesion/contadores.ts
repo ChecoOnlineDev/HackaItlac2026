@@ -20,6 +20,13 @@ function contar(datos: unknown): number | undefined {
   return undefined;
 }
 
+const EVENTO_CONTADORES = "imhotep:contadores";
+
+/** Pide al inicio y al menú volver a contar ya (por ejemplo, tras confirmar una recepción). */
+export function refrescarContadores(): void {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(EVENTO_CONTADORES));
+}
+
 /**
  * Cuentas que muestran los botones del inicio. Si un endpoint aún no existe o falla,
  * la cuenta simplemente no aparece (sin traspasos, "Recibir" va sin contador).
@@ -44,6 +51,8 @@ function useCargarContadores(): Contadores {
       if (!control.signal.aborted) setContadores({ porRecibir, porAutorizar });
     };
     void cargar();
+    const alRefrescar = () => void cargar();
+    window.addEventListener(EVENTO_CONTADORES, alRefrescar);
     // Quien resuelve autorizaciones ve el número subir casi al instante; los demás, cada 30 s.
     // Con la pestaña oculta no se pregunta.
     const intervalo = window.setInterval(
@@ -54,6 +63,7 @@ function useCargarContadores(): Contadores {
     );
     return () => {
       control.abort();
+      window.removeEventListener(EVENTO_CONTADORES, alRefrescar);
       window.clearInterval(intervalo);
     };
   }, [verTraspasos, verAutorizaciones]);
