@@ -14,10 +14,14 @@ export interface DatosCredencial {
   numero_empleado: string;
 }
 
-/** Tamaño del nombre en mm según su largo (Poppins es ancha); lo comparten la pantalla y el PNG. */
-export function ajustarNombre(nombre: string): { tamano: number; interlinea: number } {
+/**
+ * Tamaño del nombre en mm según su largo (Poppins es ancha) y renglones que se reservan: el nombre
+ * va completo, sin cortarse; si es largo, baja el tamaño y usa tres renglones. Lo comparten la
+ * pantalla y el PNG.
+ */
+export function ajustarNombre(nombre: string): { tamano: number; interlinea: number; lineas: number } {
   const largo = nombre.trim().length;
-  if (largo <= 16) return { tamano: 4.8, interlinea: 5.6 };
-  if (largo <= 26) return { tamano: 4.1, interlinea: 4.8 };
-  return { tamano: 3.5, interlinea: 4.2 };
+  if (largo <= 16) return { tamano: 4.8, interlinea: 5.6, lineas: 2 };
+  if (largo <= 26) return { tamano: 4.1, interlinea: 4.8, lineas: 2 };
+  return { tamano: 3.4, interlinea: 4, lineas: 3 };
 }

@@ -27,8 +27,8 @@ export function textoDeEtiqueta(d: DatosCredencial): string {
 }
 
 /**
- * Credencial de trabajador, tamaño tarjeta (85.6 × 54 mm): banda azul marino con el logo, nombre,
- * puesto, número de empleado, QR y el código en texto legible. El QR contiene exactamente el código
+ * Credencial de trabajador, tamaño tarjeta (85.6 × 54 mm): banda azul marino con el logo, nombre completo,
+ * puesto, número de empleado (único por trabajador), QR y el código en texto legible; sin pie. El QR contiene exactamente el código
  * registrado. Nunca lleva CURP ni NSS (RG-13). Las medidas van en milímetros: en papel sale a su
  * tamaño real; para verla más grande en pantalla se escala el contenedor.
  *
@@ -37,7 +37,7 @@ export function textoDeEtiqueta(d: DatosCredencial): string {
  * ```
  */
 export function TarjetaCredencial({ datos, className }: { datos: DatosCredencial; className?: string }) {
-  const { tamano, interlinea } = ajustarNombre(datos.nombre);
+  const { tamano, interlinea, lineas } = ajustarNombre(datos.nombre);
   const mm = (n: number) => `${n}mm`;
   return (
     <div
@@ -61,33 +61,27 @@ export function TarjetaCredencial({ datos, className }: { datos: DatosCredencial
 
       {/* Datos */}
       <p
-        className="absolute m-0 line-clamp-2 overflow-hidden font-bold wrap-break-word"
-        style={{ left: mm(5), top: mm(15.1), width: mm(46.5), height: mm(interlinea * 2), fontSize: mm(tamano), lineHeight: mm(interlinea), color: "#111827" }}
+        className="absolute m-0 overflow-hidden font-bold wrap-break-word"
+        style={{ left: mm(5), top: mm(17.1), width: mm(46.5), height: mm(interlinea * lineas), fontSize: mm(tamano), lineHeight: mm(interlinea), color: "#111827" }}
       >
         {datos.nombre}
       </p>
-      <p className="absolute m-0 truncate font-semibold leading-none" style={{ left: mm(5), top: mm(29.9), width: mm(46.5), fontSize: mm(3.1), color: AZUL, lineHeight: mm(4) }}>
+      <p className="absolute m-0 truncate font-semibold leading-none" style={{ left: mm(5), top: mm(31.9), width: mm(46.5), fontSize: mm(3.1), color: AZUL, lineHeight: mm(4) }}>
         {datos.puesto?.trim() || "Sin puesto registrado"}
       </p>
-      <p className="absolute m-0 leading-none" style={{ left: mm(5), top: mm(36.4), fontSize: mm(2.2), color: "#4b5563" }}>
+      <p className="absolute m-0 leading-none" style={{ left: mm(5), top: mm(38.4), fontSize: mm(2.2), color: "#4b5563" }}>
         Número de empleado
       </p>
-      <p className="absolute m-0 truncate font-bold leading-none" style={{ left: mm(5), top: mm(39.4), width: mm(46.5), fontSize: mm(3.9), lineHeight: mm(4.6), color: "#111827" }}>
+      <p className="absolute m-0 truncate font-bold leading-none" style={{ left: mm(5), top: mm(41.4), width: mm(46.5), fontSize: mm(3.9), lineHeight: mm(4.6), color: "#111827" }}>
         {datos.numero_empleado}
       </p>
 
       {/* QR: contiene exactamente el código registrado. */}
-      <div className="absolute rounded-[1.4mm] border border-slate-300 bg-white" style={{ left: mm(54.6), top: mm(16.4), width: mm(27.2), height: mm(27.2) }}>
+      <div className="absolute rounded-[1.4mm] border border-slate-300 bg-white" style={{ left: mm(54.6), top: mm(18.4), width: mm(27.2), height: mm(27.2) }}>
         <CodigoQR valor={datos.codigo} tamano={104} nivel="M" titulo={`Código QR de ${datos.codigo}`} className="absolute top-[0.6mm] left-[0.6mm] size-[26mm]!" />
       </div>
-      <p className="absolute m-0 truncate text-center font-bold leading-none" style={{ left: mm(54.6), top: mm(44.4), width: mm(27.2), fontSize: mm(2.9), lineHeight: mm(3.4), color: "#111827" }}>
+      <p className="absolute m-0 truncate text-center font-bold leading-none" style={{ left: mm(54.6), top: mm(46.4), width: mm(27.2), fontSize: mm(2.9), lineHeight: mm(3.4), color: "#111827" }}>
         {datos.codigo}
-      </p>
-
-      {/* Pie */}
-      <div className="absolute inset-x-0 bottom-0 bg-gray-100" style={{ height: mm(ALTO_MM - 49.2) }} />
-      <p className="absolute inset-x-0 m-0 text-center font-medium leading-none" style={{ top: mm(50.6), fontSize: mm(2.1), color: "#4b5563" }}>
-        Credencial de acceso al almacén
       </p>
     </div>
   );

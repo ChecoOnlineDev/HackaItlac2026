@@ -137,13 +137,13 @@ export async function credencialComoPng(datos: DatosCredencial): Promise<Blob> {
   ctx.fillStyle = AZUL;
   ctx.fillRect(0, 13.5, ANCHO_MM, 0.7);
 
-  // Nombre (hasta 2 renglones, el tamaño baja si es largo).
+  // Nombre completo (2 o 3 renglones; el tamaño baja si es largo, nunca se corta).
   const anchoTexto = 46.5;
-  const { tamano, interlinea } = ajustarNombre(datos.nombre);
+  const { tamano, interlinea, lineas: maxLineas } = ajustarNombre(datos.nombre);
   ctx.fillStyle = TEXTO;
   ctx.font = `700 ${tamano}px ${FAMILIA}`;
-  const lineas = partirEnLineas(ctx, datos.nombre, anchoTexto, 2);
-  let y = 14.2 + 0.9 + tamano * 0.95;
+  const lineas = partirEnLineas(ctx, datos.nombre, anchoTexto, maxLineas);
+  let y = 14.2 + 2.9 + tamano * 0.95;
   for (const linea of lineas) {
     ctx.fillText(linea, 5, y);
     y += interlinea;
@@ -152,35 +152,28 @@ export async function credencialComoPng(datos: DatosCredencial): Promise<Blob> {
   // Puesto y número de empleado, en posiciones fijas para que no se muevan según el nombre.
   ctx.fillStyle = AZUL;
   ctx.font = `600 3.1px ${FAMILIA}`;
-  ctx.fillText(ajustarLinea(ctx, datos.puesto?.trim() || "Sin puesto registrado", anchoTexto), 5, 33.2);
+  ctx.fillText(ajustarLinea(ctx, datos.puesto?.trim() || "Sin puesto registrado", anchoTexto), 5, 35.2);
   ctx.fillStyle = GRIS;
   ctx.font = `400 2.2px ${FAMILIA}`;
-  ctx.fillText("Número de empleado", 5, 38.6);
+  ctx.fillText("Número de empleado", 5, 40.6);
   ctx.fillStyle = TEXTO;
   ctx.font = `700 3.9px ${FAMILIA}`;
-  ctx.fillText(ajustarLinea(ctx, datos.numero_empleado, anchoTexto), 5, 43);
+  ctx.fillText(ajustarLinea(ctx, datos.numero_empleado, anchoTexto), 5, 45);
 
   // QR a la derecha, con su marco y el código en texto legible.
   ctx.strokeStyle = "#d1d5db";
   ctx.lineWidth = 0.25;
-  rectRedondeado(ctx, 54.6, 16.4, 27.2, 27.2, 1.4);
+  rectRedondeado(ctx, 54.6, 18.4, 27.2, 27.2, 1.4);
   ctx.fillStyle = "#ffffff";
   ctx.fill();
   ctx.stroke();
-  ctx.drawImage(qr, 55.2, 17, 26, 26);
+  ctx.drawImage(qr, 55.2, 19, 26, 26);
   ctx.fillStyle = TEXTO;
   ctx.textAlign = "center";
   ctx.font = `700 2.9px ${FAMILIA}`;
-  ctx.fillText(ajustarLinea(ctx, datos.codigo, 27), 68.2, 47);
+  ctx.fillText(ajustarLinea(ctx, datos.codigo, 27), 68.2, 49);
   ctx.textAlign = "left";
 
-  // Pie.
-  ctx.fillStyle = "#f3f4f6";
-  ctx.fillRect(0, 49.2, ANCHO_MM, ALTO_MM - 49.2);
-  ctx.fillStyle = GRIS;
-  ctx.font = `500 2.1px ${FAMILIA}`;
-  ctx.textAlign = "center";
-  ctx.fillText("Credencial de acceso al almacén", ANCHO_MM / 2, 52.2);
   ctx.restore();
 
   // Contorno fino de la tarjeta.
