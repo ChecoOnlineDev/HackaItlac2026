@@ -1,4 +1,329 @@
-"""Contratos de entrada y salida (Create, Update, Response, ListItem, Filters).
+"""Contratos de entrada y salida del módulo `movimientos` (Create, Out, ListItem, Filters).
 
-Modulo `movimientos`. PENDIENTE: lo llena el agente del modulo.
+Ningún contrato de este módulo lleva costos: ni el cuerpo los acepta (`extra="forbid"`) ni la
+respuesta de un vale los muestra (F-12, RG-12).
 """
+
+import uuid
+from datetime import UTC, date, datetime
+from typing import Annotated, Any
+
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, field_validator
+
+from app.modulos.inspecciones.models import ResultadoInspeccion
+from app.modulos.movimientos.models import Condicion, EstadoVale, FirmaModo, Nivel, TipoVale
+from app.modulos.trabajadores.schemas import FichaBreveOut
+
+
+def _a_utc(valor: datetime) -> str:
+    return valor.replace(tzinfo=UTC).isoformat().replace("+00:00", "Z")
+
+
+# Las fechas de la base son UTC sin zona; se envían con la `Z` (api-contracts: horas en UTC).
+FechaUtc = Annotated[datetime, PlainSerializer(_a_utc, return_type=str)]
+
+CANTIDAD_MAXIMA = 1_000_000
+
+
+def _vacio_a_none(valor: Any) -> Any:
+    if isinstance(valor, str):
+        valor = valor.strip()
+        return valor or None
+    return valor
+
+
+# ------------------------------------------------------------------------------ entrada
+
+
+class _Estricto(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+
+class InspeccionInicialIn(_Estricto):
+    """Inspección inicial de una pieza que entra (I-03). Sin `fecha`, es la de hoy."""
+
+    fecha: date | None = None
+    resultado: ResultadoInspeccion
+    observacion: str | None = Field(default=None, max_length=1000)
+
+    _limpiar = field_validator("observacion", mode="before")(_vacio_a_none)
+
+
+class PiezaEntradaIn(_Estricto):
+    """La pieza que entra en un renglón de ENTRADA de un artículo por pieza (I-02)."""
+
+    codigo: str = Field(min_length=1, max_length=64)
+    numero_serie: str | None = Field(default=None, max_length=80)
+    inspeccion: InspeccionInicialIn | None = None
+
+    _limpiar = field_validator("numero_serie", mode="before")(_vacio_a_none)
+
+
+class RenglonIn(_Estricto):
+    codigo: str = Field(min_length=1, max_length=64)
+    cantidad: int = Field(default=1, ge=1, le=CANTIDAD_MAXIMA)
+    condicion: Condicion | None = None
+    observacion: str | None = Field(default=None, max_length=1000)
+    pieza: PiezaEntradaIn | None = None
+
+    _limpiar = field_validator("observacion", mode="before")(_vacio_a_none)
+
+
+class ValeIn(_Estricto):
+    """Cuerpo común de `evaluar` y de `confirmar` para todos los tipos de vale.
+
+    `almacen_id` solo lo indica quien tiene `almacenes.todos`; el resto opera su almacén
+    asignado (si lo manda y ya no es el suyo, 409 `ALMACEN_CAMBIO`, AC-13).
+    """
+
+    tipo: TipoVale
+    almacen_id: uuid.UUID | None = None
+    trabajador_id: uuid.UUID | None = None
+    destino_almacen_id: uuid.UUID | None = None
+    vale_origen_id: uuid.UUID | None = None
+    autorizacion_id: uuid.UUID | None = None
+    renglones: list[RenglonIn] = Field(default_factory=list, max_length=500)
+
+
+class FirmaIn(_Estricto):
+    modo: FirmaModo
+    imagen: str | None = Field(default=None, max_length=4_000_000)
+    trazo: list[Any] = Field(default_factory=list)
+
+
+class EvaluarIn(ValeIn):
+    """El cuerpo de `evaluar` es el mismo que el de confirmar: acepta los campos de la
+    confirmación (`id_cliente`, `observacion`, `firma`) para que la interfaz mande un solo
+    cuerpo, pero los ignora (evaluar nunca escribe)."""
+
+    id_cliente: uuid.UUID | None = None
+    observacion: str | None = Field(default=None, max_length=1000)
+    firma: FirmaIn | None = None
+
+
+class ConfirmarIn(ValeIn):
+    """Lo que agrega la confirmación (api-contracts, Vales)."""
+
+    id_cliente: uuid.UUID
+    observacion: str | None = Field(default=None, max_length=1000)
+    firma: FirmaIn | None = None
+
+    _limpiar = field_validator("observacion", mode="before")(_vacio_a_none)
+
+
+class NoAdeudoIn(_Estricto):
+    """`POST /api/trabajadores/{id}/no-adeudo` (B-04). Lo interpreta el tipo NO_ADEUDO."""
+
+    id_cliente: uuid.UUID
+    observacion: str | None = Field(default=None, max_length=1000)
+
+
+class CancelacionIn(_Estricto):
+    """`POST /api/vales/{id}/cancelacion` (K-01 a K-05). Lo interpreta el tipo CANCELACION."""
+
+    motivo: str = Field(min_length=1, max_length=1000)
+    id_cliente: uuid.UUID
+    rehacer: bool = False
+
+
+# ------------------------------------------------------------------------ salida: evaluar
+
+
+class MotivoOut(BaseModel):
+    regla: str
+    nivel: Nivel
+    mensaje: str
+
+
+class ArticuloEvaluadoOut(BaseModel):
+    id: uuid.UUID
+    codigo: str
+    nombre: str
+    marca: str | None
+    modelo: str | None
+    talla: str | None
+    unidad: str
+    control: str
+    retornable: bool
+    activo: bool
+    motivo_uso_especial: str | None
+
+
+class PiezaEvaluadaOut(BaseModel):
+    """`id` va vacío en una pieza que todavía no existe (renglón de ENTRADA)."""
+
+    id: uuid.UUID | None
+    codigo: str
+    numero_serie: str | None
+    estado: str | None
+    inspeccion_vigente_hasta: date | None
+    pendiente_inspeccion: bool = False
+
+
+class TitularOut(BaseModel):
+    """Dónde está una pieza que no está en este almacén (E-03)."""
+
+    tipo: str | None
+    id: uuid.UUID | None
+    nombre: str
+    descripcion: str
+    numero_empleado: str | None = None
+
+
+class RenglonEvaluadoOut(BaseModel):
+    renglon: int
+    codigo: str
+    articulo: ArticuloEvaluadoOut | None
+    pieza: PiezaEvaluadaOut | None
+    titular: TitularOut | None
+    cantidad: int
+    disponible: int | None
+    nivel: Nivel
+    motivos: list[MotivoOut]
+    pide_observacion: bool
+    autorizable: bool
+    requiere_confirmacion: bool
+    # Un naranja que la autorización indicada ya cubre.
+    autorizado: bool = False
+
+
+class AlmacenResumenOut(BaseModel):
+    id: uuid.UUID
+    clave: str
+    nombre: str
+
+
+class EvaluacionOut(BaseModel):
+    nivel: Nivel
+    puede_confirmar: bool
+    # Motivos que valen para todo el vale (por ejemplo E-12) y no para un renglón.
+    motivos: list[MotivoOut]
+    almacen: AlmacenResumenOut
+    trabajador: FichaBreveOut | None = None
+    # Si el cuerpo trae `autorizacion_id` y no sirve para este vale, por qué (A-03).
+    autorizacion_error: str | None = None
+    renglones: list[RenglonEvaluadoOut]
+
+
+# ----------------------------------------------------------------------- salida: confirmar
+
+
+class RenglonConfirmadoOut(BaseModel):
+    renglon: int
+    codigo: str
+    articulo: str
+    cantidad: int
+    nivel: Nivel
+    reglas: list[str]
+
+
+class ValeConfirmadoOut(BaseModel):
+    """201 al confirmar (o 200 si el `id_cliente` ya existía): `{id, folio, token, creado_en,
+    renglones}`."""
+
+    id: uuid.UUID
+    folio: str
+    token: str
+    creado_en: FechaUtc
+    renglones: list[RenglonConfirmadoOut]
+
+
+# ------------------------------------------------------------------------- salida: consulta
+
+
+class PersonaOut(BaseModel):
+    id: uuid.UUID
+    nombre: str
+
+
+class TrabajadorValeOut(BaseModel):
+    id: uuid.UUID
+    numero_empleado: str
+    nombre: str
+    puesto: str | None
+    area_obra: str | None
+
+
+class UbicacionOut(BaseModel):
+    tipo: str
+    nombre: str
+    clave: str | None = None
+
+
+class RenglonValeOut(BaseModel):
+    """Un renglón del vale. Descripción con marca, código o serie, cantidad y condición (E-24).
+    Nunca trae costos."""
+
+    renglon: int
+    articulo_id: uuid.UUID
+    articulo: str
+    marca: str | None
+    modelo: str | None
+    talla: str | None
+    codigo_articulo: str
+    pieza_id: uuid.UUID | None
+    codigo_pieza: str | None
+    numero_serie: str | None
+    cantidad: int
+    condicion: str | None
+    nivel: Nivel
+    reglas: list[str]
+    observacion: str | None
+    origen: UbicacionOut
+    destino: UbicacionOut
+    saldo_origen: int | None
+    saldo_destino: int | None
+
+
+class ValidoOut(BaseModel):
+    """ "Validó" (A-04): quién pidió, quién autorizó, cuándo, por qué medio y el motivo."""
+
+    autorizacion_id: uuid.UUID
+    solicito: PersonaOut | None
+    autorizo: PersonaOut
+    medio: str
+    resuelta_en: FechaUtc
+    motivo: str
+
+
+class ValeDetalleOut(BaseModel):
+    id: uuid.UUID
+    folio: str
+    token: str
+    tipo: TipoVale
+    estado: EstadoVale
+    almacen: AlmacenResumenOut
+    destino_almacen: AlmacenResumenOut | None
+    trabajador: TrabajadorValeOut | None
+    responsable: PersonaOut
+    observacion: str | None
+    firma_modo: FirmaModo | None
+    tiene_firma: bool
+    valido: ValidoOut | None
+    vale_origen_id: uuid.UUID | None
+    vale_origen_folio: str | None
+    dispositivo: str | None
+    creado_en: FechaUtc
+    renglones: list[RenglonValeOut]
+
+
+class ValeListItem(BaseModel):
+    id: uuid.UUID
+    folio: str
+    tipo: TipoVale
+    estado: EstadoVale
+    almacen: AlmacenResumenOut
+    trabajador: PersonaOut | None
+    numero_empleado: str | None
+    responsable: PersonaOut
+    renglones: int
+    creado_en: FechaUtc
+
+
+class ValeFilters(BaseModel):
+    tipo: TipoVale | None = None
+    almacen_id: uuid.UUID | None = None
+    desde: date | None = None
+    hasta: date | None = None
+    trabajador_id: uuid.UUID | None = None
+    usuario_id: uuid.UUID | None = None
