@@ -27,6 +27,7 @@ from app.modulos.movimientos.evaluador import (
     excedente_limite,
     regla_e02_vigencia,
     regla_e12_pendientes_anteriores,
+    tiene_para_limite,
 )
 from app.modulos.movimientos.exceptions import FirmaRequerida
 from app.modulos.movimientos.models import Condicion, FirmaModo, TipoVale
@@ -157,6 +158,8 @@ class EntregaTipo(ManejadorTipo):
                         "condicion": renglon.condicion,
                         "observacion": renglon.observacion,
                         "excedente": excedente_limite(hechos),
+                        "limite": hechos.articulo.limite_cantidad if hechos.articulo else None,
+                        "tiene": tiene_para_limite(hechos),
                     },
                 )
             )

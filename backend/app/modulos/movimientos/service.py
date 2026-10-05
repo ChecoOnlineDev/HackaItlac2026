@@ -34,7 +34,6 @@ from app.modulos.archivos.service import ArchivoService, decodificar_data_url
 from app.modulos.autorizaciones.exceptions import (
     AutorizacionInvalida,
     AutorizacionPropia,
-    RenglonNoAutorizable,
 )
 from app.modulos.autorizaciones.models import Autorizacion
 from app.modulos.autorizaciones.service import AutorizacionService, RenglonVale
@@ -222,30 +221,6 @@ class MovimientoService:
         ctx = self._contexto(usuario, almacen_id)
         evaluacion, _ = self._evaluar(manejador, ctx, cuerpo)
         return evaluacion
-
-    def verificar_renglones_autorizables(
-        self,
-        usuario: Usuario,
-        almacen_id: uuid.UUID,
-        trabajador_id: uuid.UUID,
-        renglones: list[tuple[str, int]],
-    ) -> None:
-        """A-06 y SM-04: lanza `RenglonNoAutorizable` si alguno de los renglones está en rojo
-        en la evaluación real (pieza no apta, inspección vencida, trabajador no vigente,
-        código desconocido, sin existencia...)."""
-        evaluacion = self.evaluar_para_autorizacion(usuario, almacen_id, trabajador_id, renglones)
-        for r in evaluacion.renglones:
-            rojos = [m for m in r.motivos if m.nivel == Nivel.ROJO]
-            if rojos:
-                raise RenglonNoAutorizable(
-                    f"El renglón {r.codigo} está en rojo y no se puede enviar a autorización "
-                    f"({rojos[0].mensaje}) (A-06).",
-                    {
-                        "codigo": r.codigo,
-                        "regla": rojos[0].regla,
-                        "motivos": [{"regla": m.regla, "mensaje": m.mensaje} for m in rojos],
-                    },
-                )
 
     def _aplicar_autorizacion(
         self,
