@@ -574,12 +574,7 @@ class MovimientoService:
         return self.detalle(vale)
 
     def _en_alcance(self, usuario: Usuario, vale: Vale) -> bool:
-        if self.acceso.puede_operar_todos_los_almacenes(usuario):
-            return True
-        return usuario.almacen_id is not None and usuario.almacen_id in (
-            vale.almacen_id,
-            vale.destino_almacen_id,
-        )
+        return self.acceso.en_alcance(usuario, vale.almacen_id, vale.destino_almacen_id)
 
     def listar(
         self, usuario: Usuario, filtros: ValeFilters, paginacion: Paginacion

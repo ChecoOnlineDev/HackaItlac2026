@@ -119,6 +119,13 @@ class AccesoService:
         """AC-06: con `almacenes.todos` el usuario elige almacén; sin él, solo el suyo."""
         return self.tiene_permiso(usuario, P.ALMACENES_TODOS)
 
+    def en_alcance(self, usuario: Usuario, *almacenes_id: uuid.UUID | None) -> bool:
+        """AC-06: el usuario ve algo que pertenece a esos almacenes (origen y, si lo hay, destino
+        de un traspaso en tránsito) si tiene `almacenes.todos` o si el suyo es uno de ellos."""
+        if self.puede_operar_todos_los_almacenes(usuario):
+            return True
+        return usuario.almacen_id is not None and usuario.almacen_id in almacenes_id
+
     def resolver_almacen(self, usuario: Usuario, almacen_id: uuid.UUID | None = None) -> uuid.UUID:
         """El almacén sobre el que opera el usuario (RG-07, AC-06).
 
