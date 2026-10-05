@@ -307,9 +307,93 @@ La autorización aprobada se usa una sola vez (A-03) con `POST /api/vales` y `au
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
 | `POST /api/importacion/vista-previa` | `inventario.entradas` | Recibe `{filas, columnas}` y devuelve filas válidas, filas con error y artículos que se crearían. No escribe. |
-| `POST /api/importacion` | `inventario.entradas` | Confirma: crea artículos faltantes y un vale de entrada por almacén. |
+| `POST /api/importacion/archivo` | `inventario.entradas` | Recibe un `.xlsx` (multipart, campo `archivo`), lo convierte en las mismas filas y responde `{hoja, encabezados, columnas, primera_fila, filas, vista_previa}`. No escribe ni guarda el archivo. |
+| `POST /api/importacion` | `inventario.entradas` | Confirma: crea artículos faltantes y un vale de entrada por almacén. 201; con un `id_lote` ya confirmado, 200 con `repetida: true`. |
 
-La tabla se lee en el navegador; al servidor llegan filas ya separadas en columnas.
+La tabla se lee en el navegador (pegada desde Excel, o un `.xlsx` leído allá); al servidor llegan filas ya separadas en columnas. Con `POST /archivo` el servidor lee el `.xlsx` y devuelve las filas ya separadas para reenviarlas a los otros dos endpoints.
+
+**Cuerpo** (vista previa y confirmación):
+
+```json
+{
+  "filas": [["MART-01", "Martillo", "Truper", "Herramienta manual", "12", "Kepler", "", "85.50", ""]],
+  "columnas": {"codigo": 0, "nombre": 1, "marca": 2, "categoria": 3, "cantidad": 4,
+               "almacen": 5, "serie": 6, "costo": 7, "codigo_pieza": 8},
+  "primera_fila": 2,
+  "categoria_por_defecto_id": null,
+  "mapa_categorias": {"Cosas raras": "<categoria_id>"},
+  "almacen_por_defecto": null,
+  "id_lote": "<uuid>"
+}
+```
+
+- `filas` son solo las de datos (máximo 5 000, 30 columnas, 500 caracteres por celda); cada celda es texto, número o vacía. `columnas` da el índice (desde 0) de cada dato; solo `codigo` es obligatorio y una columna no puede ser dos datos. Sin `columnas`, se acepta `encabezados` (el nombre de cada columna) y el servidor las propone; sin la del código, 422. `codigo` es el del artículo; `codigo_pieza`, el de cada pieza en artículos por pieza.
+- `primera_fila` es el número que tiene la primera fila de `filas` en la hoja (2 si la hoja traía encabezados; por defecto 1): los errores se reportan con ese número.
+- `categoria_por_defecto_id` y `mapa_categorias` ({nombre de categoría en el archivo: `categoria_id`}) dan la categoría de los artículos nuevos cuya categoría no existe o viene vacía. Una categoría elegida que no existe o está inactiva da 422. `almacen_por_defecto` (clave o nombre) es el almacén de las filas sin almacén; sin él, Kepler (o el almacén asignado si no se tiene `almacenes.todos`).
+- `id_lote` (UUID del cliente) es obligatorio al confirmar y se ignora en la vista previa.
+
+**Reglas que revisa el servidor en cada fila** (la misma revisión en la vista previa y al confirmar; cada motivo lleva el ID de su regla):
+
+| Regla | Qué rechaza |
+|---|---|
+| I-06 | Falta el código o el nombre (de un artículo nuevo); un dato pasa del largo permitido. |
+| I-01 | Cantidad vacía, no entera o ≤ 0 (en artículos por cantidad); almacén desconocido, cerrado o vacío sin almacén por defecto. |
+| AC-06 | Sin `almacenes.todos`, un almacén que no es el asignado. |
+| CF-02 | Categoría desconocida o vacía en un artículo nuevo (`CATEGORIA_DESCONOCIDA`): se elige una con `categoria_por_defecto_id` o `mapa_categorias`. El artículo nuevo copia la plantilla de su categoría. |
+| I-09 | Artículo inactivo. |
+| RG-10 | Código de artículo que ya identifica una pieza, un trabajador o un vale; el mismo artículo por cantidad dos veces en el mismo almacén de la tabla (otro almacén es otra fila); código de pieza igual al de un artículo. |
+| I-02 | Pieza sin código de pieza o sin número de serie; código de pieza ya usado (en la base o antes en la tabla); serie repetida del mismo artículo. Cada fila de un artículo por pieza es una pieza (cantidad 1). Sin inspección inicial la pieza entra pendiente (I-03, se avisa). |
+| RG-05 | Una pieza con cantidad distinta de 1. |
+| I-04 / RG-12 | Con `catalogo.costos`: un costo inválido (no es un número ≥ 0) rechaza la fila; el costo solo se guarda en artículos nuevos (en uno que ya existe se avisa que no cambia). Sin `catalogo.costos`: la columna de costo se ignora con un aviso, las filas entran y el costo nunca vuelve en las respuestas (ni en `datos` de una fila con error). Ningún vale lleva costos. |
+
+Las filas vacías se ignoran (cuentan en `vacias`). Un artículo que ya existe solo recibe la entrada (su nombre, marca y categoría del archivo no lo cambian). Las filas con error no se importan y se listan con su motivo; las buenas sí entran.
+
+**Respuesta de la vista previa** (200):
+
+```json
+{
+  "columnas": {"codigo": 0, "nombre": 1, "...": null},
+  "avisos": ["Se ignoró la columna de costo: no tienes permiso para capturar costos."],
+  "resumen": {"total": 4, "validas": 3, "con_error": 1, "vacias": 0,
+              "articulos_nuevos": 2, "piezas": 1, "unidades": 15, "almacenes": 2},
+  "filas_validas": [{"fila": 2, "codigo": "MART-01", "nombre": "Martillo", "marca": "Truper",
+                     "categoria": {"id": "...", "nombre": "Herramienta manual"},
+                     "control": "CANTIDAD", "articulo_nuevo": true, "cantidad": 12,
+                     "almacen": {"id": "...", "clave": "KEP", "nombre": "Kepler"},
+                     "codigo_pieza": null, "numero_serie": null,
+                     "costo": "85.50", "avisos": []}],
+  "filas_error": [{"fila": 3, "datos": {"codigo": "X", "cantidad": "mucho", "...": ""},
+                   "motivos": [{"regla": "I-01", "campo": "cantidad",
+                                "codigo": "CANTIDAD_INVALIDA", "mensaje": "..."}]}],
+  "articulos_nuevos": [{"codigo": "MART-01", "nombre": "Martillo", "marca": "Truper",
+                        "categoria": {"id": "...", "nombre": "..."}, "control": "CANTIDAD",
+                        "filas": 1, "costo": "85.50"}],
+  "categorias_desconocidas": [{"nombre": "Cosas raras", "filas": [3, 5]}]
+}
+```
+
+`costo` (en filas válidas y artículos nuevos) solo aparece con `catalogo.costos` y si la fila lo trae. `codigo` de los motivos: `FALTA_CODIGO`, `FALTA_NOMBRE`, `CODIGO_REPETIDO`, `ARTICULO_REPETIDO`, `ARTICULO_INACTIVO`, `CATEGORIA_DESCONOCIDA`, `ALMACEN_DESCONOCIDO`, `ALMACEN_CERRADO`, `ALMACEN_AJENO`, `FALTA_ALMACEN`, `FALTA_CANTIDAD`, `CANTIDAD_INVALIDA`, `FALTA_CODIGO_PIEZA`, `FALTA_SERIE`, `SERIE_REPETIDA`, `COSTO_INVALIDO`, `DEMASIADO_LARGO`.
+
+**Respuesta de `POST /archivo`** (200): `{hoja, encabezados, columnas, primera_fila, filas, vista_previa}`. `filas` son las de datos (texto, ya separadas en columnas); `columnas` es la relación propuesta por el nombre de cada encabezado (sin acentos ni mayúsculas); `vista_previa` es la de arriba, o `null` si no se encontró la columna del código. El archivo se lee en memoria: solo `.xlsx` sin macros (se rechazan `.xlsm`, `.xls`, `.csv` y lo que no sea un `.xlsx` válido por su contenido), hasta 5 MB, 5 000 filas, 30 columnas, 500 caracteres por celda y 50 MB descomprimido (zip bomb). Una fórmula nunca se ejecuta: se lee el último valor que Excel guardó (o queda vacía). Un archivo malo da 422 `DATOS_INVALIDOS` con un mensaje en español, nunca un 500. Se lee la primera hoja; las filas vacías de arriba se saltan (el primer renglón con datos son los encabezados).
+
+**Confirmación** (`POST /api/importacion`). Crea con `CatalogoService` los artículos que faltan y, con el motor de movimientos, **un vale de ENTRADA por almacén** (un almacén con más de 500 renglones se parte en vales de 500). Todo en una sola transacción: si falla cualquier entrada no se guarda nada (RG-09) y el error es el del motor (por ejemplo 409 `VALE_CAMBIO`) o 409 si algo cambió desde la vista previa. Los folios salen del contador del almacén (RG-06). Las filas con error no se importan. Sin ninguna fila válida: 422 con `detalles.filas_error`.
+
+```json
+{
+  "id_lote": "<uuid>", "repetida": false,
+  "resumen": {"filas_importadas": 3, "filas_con_error": 1, "articulos_creados": 2,
+              "vales": 2, "piezas": 1, "unidades": 15},
+  "articulos_creados": [{"id": "...", "codigo": "MART-01", "nombre": "Martillo",
+                         "categoria": "Herramienta manual", "control": "CANTIDAD"}],
+  "vales": [{"id": "...", "folio": "KEP-ING-000012",
+             "almacen": {"id": "...", "clave": "KEP", "nombre": "Kepler"},
+             "renglones": 2, "piezas": 0, "unidades": 14}],
+  "filas_error": [],
+  "avisos": []
+}
+```
+
+`filas_error` tiene la misma forma que en la vista previa. **Idempotencia:** el `id_cliente` de cada vale es determinista por (`id_lote`, almacén, parte). Confirmar de nuevo el mismo `id_lote` responde **200** con `repetida: true`, los mismos vales (con sus folios) y `articulos_creados: []`, sin crear nada; el `id_lote` de otra persona da 409. Un lote nuevo con las mismas filas no duplica artículos (los existentes solo reciben otra entrada) y rechaza como error las piezas cuyo código o serie ya existen. La interfaz genera un `id_lote` por importación y lo reutiliza si el usuario reintenta. Cada confirmación deja un renglón de auditoría `importacion.confirmar`.
 
 ## Reportes
 

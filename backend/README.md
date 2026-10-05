@@ -64,6 +64,19 @@ También carga las existencias iniciales de los artículos por cantidad en Keple
 
 `app/modulos/movimientos/` es el motor: evaluar el semáforo, confirmar vales y consultarlos. Su diseño, el contrato para agregar un tipo de vale (`ManejadorTipo`) y lo que falta de cada tipo están en `app/modulos/movimientos/README.md`; el porqué de sus bloqueos, en [ADR-008](../docs/architecture/decisions/ADR-008-bloqueos-del-motor-de-vales.md).
 
+## Importación de inventario
+
+`app/modulos/importacion/` carga inventario desde una tabla de Excel (US-IMP-001). Contrato en `docs/architecture/api-contracts.md` (sección Importación). No tiene tablas propias: crea artículos con `CatalogoService.crear_articulo` y un vale de ENTRADA por almacén con `MovimientoService.confirmar` (`aislar=False, commit=False`), todo en una sola transacción (todo o nada, RG-09).
+
+| Archivo | Qué es |
+|---|---|
+| `analisis.py` | La revisión fila por fila (la misma en la vista previa y al confirmar). Cada motivo lleva el ID de su regla. |
+| `lectura.py` | Texto de las celdas, propuesta de columnas por encabezado y lectura segura de `.xlsx` (`openpyxl` con `read_only=True, data_only=True`; rechaza macros, archivos que no son `.xlsx` por su contenido, zip bombs, más de 5 MB o 5 000 filas; en memoria, sin escribir en disco). |
+| `service.py` | Vista previa, archivo y confirmación (`id_cliente` determinista por lote, almacén y parte; idempotencia). |
+| `repository.py` | Consultas de solo lectura, en bloques. |
+
+Decisiones: el costo se acepta solo con `catalogo.costos` y se guarda únicamente en artículos nuevos; sin el permiso la columna se ignora con un aviso y las filas entran (RG-12). Un almacén con más de 500 renglones se parte en vales de 500. `openpyxl` es la única dependencia agregada.
+
 ## Pruebas
 
 Corren contra MySQL real. La base se llama `{MYSQL_DATABASE}_test_{TEST_DB_SUFFIX}`, se vuelve a
