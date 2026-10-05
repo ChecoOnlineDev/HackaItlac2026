@@ -5,6 +5,7 @@ import { useNavigate } from "react-router";
 import { api, apiGet, apiPost } from "~/api/cliente";
 import { esErrorApi, mensajeDeError } from "~/api/errores";
 import type { Pagina } from "~/api/tipos";
+import { VistaCredencial } from "~/componentes/dominio/credencial";
 import { SelectorFoto } from "~/componentes/personas/foto";
 import { fechaCorta, hoyMx } from "~/componentes/personas/formato";
 import { InsigniaSituacion, InsigniaVigencia } from "~/componentes/personas/insignias";
@@ -62,6 +63,9 @@ export default function AltaTrabajador() {
   // Avance del alta: si un paso falla, lo ya hecho no se repite.
   const [creadoId, setCreadoId] = useState<string | null>(null);
   const [credencialLista, setCredencialLista] = useState(false);
+  const [codigoLigado, setCodigoLigado] = useState<string | null>(null);
+  // Alta terminada: si quien la hizo puede imprimir etiquetas, se le ofrece la credencial antes de ir a la ficha.
+  const [terminado, setTerminado] = useState<{ id: string; codigo: string } | null>(null);
   const [fotoLista, setFotoLista] = useState(false);
 
   // Número de empleado que ya existe: se ofrece el reingreso.
@@ -152,6 +156,7 @@ export default function AltaTrabajador() {
     setGuardando(true);
 
     let id = creadoId;
+    let codigoFinal = codigoLigado; // el estado no se actualiza dentro de esta misma función
     try {
       // 1. Alta.
       if (!id) {
@@ -189,7 +194,9 @@ export default function AltaTrabajador() {
       // 2. Credencial.
       if (!credencialLista && (codigo.trim() || generar)) {
         try {
-          await apiPost<CodigoLigado>(`/trabajadores/${id}/codigos`, codigo.trim() ? { codigo: codigo.trim() } : {});
+          const ligado = await apiPost<CodigoLigado>(`/trabajadores/${id}/codigos`, codigo.trim() ? { codigo: codigo.trim() } : {});
+          codigoFinal = ligado.codigo;
+          setCodigoLigado(ligado.codigo);
           setCredencialLista(true);
         } catch (causa) {
           setErrores({ codigo: mensajeDeError(causa) });
@@ -217,7 +224,8 @@ export default function AltaTrabajador() {
       }
 
       aviso({ titulo: `Se registró a ${nombre.trim()}`, tipo: "exito" });
-      void navegar(`/trabajadores/${id}`);
+      if (codigoFinal && puede("etiquetas.imprimir")) setTerminado({ id, codigo: codigoFinal });
+      else void navegar(`/trabajadores/${id}`);
     } finally {
       setGuardando(false);
     }
@@ -252,6 +260,19 @@ export default function AltaTrabajador() {
   }
 
   const yaRegistrado = creadoId !== null;
+
+  if (terminado) {
+    return (
+      <Pantalla titulo="Trabajador registrado" descripcion={`${nombre.trim()} ya quedó en el sistema. Imprime su credencial o solo el código QR.`} ancho="formulario">
+        <div className="flex flex-col gap-5">
+          <VistaCredencial datos={{ codigo: terminado.codigo, nombre: nombre.trim(), puesto: puesto.trim(), numero_empleado: numero.trim() }} />
+          <Boton variante="principal" onClick={() => navegar(`/trabajadores/${terminado.id}`)}>
+            Ir a su ficha
+          </Boton>
+        </div>
+      </Pantalla>
+    );
+  }
 
   return (
     <Pantalla titulo="Alta de trabajador" descripcion="Registra a una persona nueva o reingresa a una anterior." ancho="formulario">

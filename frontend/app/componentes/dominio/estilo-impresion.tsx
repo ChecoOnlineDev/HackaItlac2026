@@ -3,7 +3,25 @@
  * (menús, botones, avisos) y quita los encabezados del navegador con un margen de página propio.
  * Se pone una vez por componente imprimible; repetirlo no estorba.
  */
+import { type ReactNode } from "react";
+import { createPortal } from "react-dom";
+
 export const CLASE_IMPRESION = "zona-impresion";
+
+/**
+ * Pone lo que se va a imprimir fuera de la pantalla visible: en la pantalla no se ve y al imprimir
+ * es lo único que sale. Sirve cuando la acción de imprimir está dentro de una ventana o un panel
+ * (que el estilo de impresión oculta). Va al final de `body`, como hermano de la aplicación.
+ */
+export function ImpresionAparte({ children }: { children: ReactNode }) {
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div aria-hidden="true" className="hidden print:block">
+      {children}
+    </div>,
+    document.body,
+  );
+}
 
 export function EstiloImpresion() {
   return (
