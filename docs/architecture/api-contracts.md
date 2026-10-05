@@ -421,7 +421,7 @@ Todos aceptan `formato=csv` y las listas, `pagina` y `tamano`. Las fechas (`desd
 
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
-| `GET /api/etiquetas?tipo=` | `etiquetas.imprimir` | `{elementos: [{codigo, texto}], total}` (sin paginar) para `tipo` = `credenciales` (códigos de trabajadores no inactivos), `piezas` (las que no están de baja) o `estantes` (artículos activos por cantidad). Las credenciales piden además `trabajadores.ver`; piezas y estantes, `catalogo.ver`. El QR contiene exactamente `codigo`; lo dibuja el navegador. |
+| `GET /api/etiquetas?tipo=` | `etiquetas.imprimir` | `{elementos: [{codigo, texto}], total}` (sin paginar) para `tipo` = `credenciales` (códigos de trabajadores no inactivos), `piezas` (las que no están de baja) o `estantes` (artículos activos por cantidad). `etiquetas.imprimir` basta para los tres tipos: una etiqueta solo lleva el código y un texto breve (en credenciales, nombre y número de empleado; nunca CURP ni NSS, RG-13). El QR contiene exactamente `codigo`; lo dibuja el navegador. |
 
 ## Previsto por la segunda ola
 

@@ -642,12 +642,11 @@ class CatalogoService:
     # ------------------------------------------------------------------ etiquetas
 
     def listar_etiquetas(self, tipo: TipoEtiqueta, usuario: Usuario) -> EtiquetasOut:
-        """US-ETQ-001. Credenciales piden además `trabajadores.ver`; el resto, `catalogo.ver`.
+        """US-ETQ-001. El permiso `etiquetas.imprimir` (ya exigido por el router) basta.
 
-        El QR contiene exactamente `codigo` (RG-10); `texto` es lo legible junto a él.
+        El QR contiene exactamente `codigo` (RG-10); `texto` es lo legible junto a él. Una
+        credencial solo lleva nombre y número de empleado, nunca CURP ni NSS (RG-13).
         """
-        extra = P.TRABAJADORES_VER if tipo == TipoEtiqueta.CREDENCIALES else P.CATALOGO_VER
-        self.acceso.exigir_permiso(usuario, extra)
         if tipo == TipoEtiqueta.PIEZAS:
             filas = self.etiquetas.piezas()
         elif tipo == TipoEtiqueta.ESTANTES:

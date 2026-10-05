@@ -1023,23 +1023,45 @@ def test_T_05_las_etiquetas_de_credenciales_son_los_codigos_de_los_trabajadores(
     assert {"codigo": "CRED-ETQ-1", "texto": "Ana Ruiz · ETQ-001"} in r.json()["elementos"]
 
 
-def test_AC_01_etiquetas_piden_etiquetas_imprimir_y_el_permiso_del_tipo(cliente_con, session):
+def test_AC_01_etiquetas_exigen_etiquetas_imprimir_y_ningun_otro_permiso(cliente_con, session):
     _trabajador_con_credencial(session, "ETQ-002", "Luis Soto", "CRED-ETQ-2")
     ruta = "/api/etiquetas"
 
+    # Sin `etiquetas.imprimir` no hay etiquetas, aunque se pueda ver el catálogo y los trabajadores.
     sin_imprimir = cliente_con({P.CATALOGO_VER, P.TRABAJADORES_VER})
     for tipo in ("piezas", "estantes", "credenciales"):
         assert sin_imprimir.get(ruta, params={"tipo": tipo}).status_code == 403
 
-    solo_catalogo = cliente_con({P.ETIQUETAS_IMPRIMIR, P.CATALOGO_VER})
-    assert solo_catalogo.get(ruta, params={"tipo": "piezas"}).status_code == 200
-    assert solo_catalogo.get(ruta, params={"tipo": "estantes"}).status_code == 200
-    assert solo_catalogo.get(ruta, params={"tipo": "credenciales"}).status_code == 403
+    # Con solo ese permiso, los tres tipos (US-ETQ-001, tabla 8.2).
+    solo_imprimir = cliente_con({P.ETIQUETAS_IMPRIMIR})
+    for tipo in ("piezas", "estantes", "credenciales"):
+        assert solo_imprimir.get(ruta, params={"tipo": tipo}).status_code == 200
 
-    solo_trabajadores = cliente_con({P.ETIQUETAS_IMPRIMIR, P.TRABAJADORES_VER})
-    assert solo_trabajadores.get(ruta, params={"tipo": "credenciales"}).status_code == 200
-    assert solo_trabajadores.get(ruta, params={"tipo": "piezas"}).status_code == 403
-    assert solo_trabajadores.get(ruta, params={"tipo": "estantes"}).status_code == 403
+
+def test_AC_01_compras_rh_y_supervisor_imprimen_los_tres_tipos_de_etiqueta(cliente_como, session):
+    _trabajador_con_credencial(session, "ETQ-003", "Rosa Vega", "CRED-ETQ-3")
+    for rol in ("Compras", "Recursos Humanos", "Supervisor"):
+        cliente = cliente_como(rol)
+        for tipo in ("piezas", "estantes", "credenciales"):
+            r = cliente.get("/api/etiquetas", params={"tipo": tipo})
+            assert r.status_code == 200, (rol, tipo, r.text)
+    # El almacenista no tiene `etiquetas.imprimir`.
+    for tipo in ("piezas", "estantes", "credenciales"):
+        r = cliente_como("Almacenista").get("/api/etiquetas", params={"tipo": tipo})
+        assert r.status_code == 403
+
+
+def test_RG_13_la_etiqueta_de_credencial_no_lleva_curp_ni_nss(cliente_como, session):
+    trabajador = Trabajador(
+        numero_empleado="ETQ-004", nombre="Mario Paz", curp="PAXM800101HDFRZR09", nss="12345678901"
+    )
+    session.add(trabajador)
+    session.flush()
+    CodigoService(session).registrar("CRED-ETQ-4", TipoCodigo.TRABAJADOR, trabajador.id)
+    r = cliente_como("Compras").get("/api/etiquetas", params={"tipo": "credenciales"})
+    assert r.status_code == 200
+    assert "PAXM800101HDFRZR09" not in r.text and "12345678901" not in r.text
+    assert {"codigo": "CRED-ETQ-4", "texto": "Mario Paz · ETQ-004"} in r.json()["elementos"]
 
 
 def test_US_ETQ_001_sin_elementos_la_lista_viene_vacia(cliente_como):
