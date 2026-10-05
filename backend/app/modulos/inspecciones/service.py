@@ -208,6 +208,42 @@ class InspeccionService:
             usuario_id=usuario_id,
         )
 
+    def registrar_cambio_de_estado(
+        self,
+        pieza_id: uuid.UUID,
+        *,
+        estado: EstadoPieza,
+        observacion: str,
+        usuario_id: uuid.UUID,
+    ) -> EventoPieza | None:
+        """Cambio de estado de una pieza que `movimientos` provoca con un vale (una devolución
+        dañada, V-05): deja su evento en el historial y cambia el estado vía `CatalogoService`.
+        Solo `flush`; el commit es de quien llama. No hace nada (y devuelve `None`) si la pieza
+        ya está en ese estado o está dada de baja."""
+        pieza = self.catalogo.obtener_pieza(pieza_id)
+        if pieza.estado in (estado, EstadoPieza.BAJA):
+            return None
+        anterior = pieza.estado
+        evento = self.repository.add_evento(
+            EventoPieza(
+                pieza_id=pieza.id,
+                estado_anterior=anterior,
+                estado_nuevo=estado,
+                observacion=observacion,
+                usuario_id=usuario_id,
+            )
+        )
+        self.catalogo.actualizar_estado_pieza(pieza.id, estado=estado, actor_id=usuario_id)
+        self.auditoria.registrar(
+            usuario_id=usuario_id,
+            accion="pieza.cambio_de_estado",
+            entidad="evento_pieza",
+            entidad_id=evento.id,
+            antes={"estado": anterior},
+            despues={"pieza_id": pieza.id, "estado": estado.value, "origen": "movimiento"},
+        )
+        return evento
+
     # ------------------------------------------------------------- endpoints
 
     def registrar(
