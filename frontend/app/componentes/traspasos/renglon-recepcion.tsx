@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { CheckIcon, MinusIcon, PlusIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 import { useId } from "react";
 
+import { Checkbox } from "~/components/ui/checkbox";
 import type { MotivoRegla, NivelSemaforo } from "~/componentes/dominio/tipos";
 import { Boton } from "~/componentes/ui/boton";
 import type { RenglonPorRecibirApi } from "./tipos";
@@ -57,13 +58,12 @@ export function RenglonRecepcion({ renglon, marcado, alMarcar, nivel, motivos = 
                   {completo ? (
                     <CheckIcon aria-hidden="true" className="size-6 text-semaforo-verde" strokeWidth={3} />
                   ) : (
-                    <input
+                    <Checkbox
                       id={idCasilla}
-                      type="checkbox"
                       checked={marcada}
                       disabled={!puedeMarcar}
-                      onChange={(e) => alMarcar?.(e.target.checked ? renglon.cantidad_pendiente : 0)}
-                      className="size-7 shrink-0 cursor-pointer accent-primary disabled:cursor-not-allowed"
+                      onCheckedChange={(marcar) => alMarcar?.(marcar ? renglon.cantidad_pendiente : 0)}
+                      className="size-7 rounded-md [&_svg]:size-5"
                     />
                   )}
                 </span>

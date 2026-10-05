@@ -1,6 +1,9 @@
 import { CircleAlertIcon, UploadIcon } from "lucide-react";
 import { useId, useMemo, useRef, useState } from "react";
 
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
+import { Checkbox } from "~/components/ui/checkbox";
+import { Textarea } from "~/components/ui/textarea";
 import { api } from "~/api/cliente";
 import { mensajeDeError } from "~/api/errores";
 import { AccionPrincipal } from "~/componentes/pantalla";
@@ -88,7 +91,7 @@ export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, a
         <label htmlFor={idTexto} className="sr-only">
           Tabla copiada de Excel
         </label>
-        <textarea
+        <Textarea
           id={idTexto}
           value={texto}
           rows={8}
@@ -116,38 +119,37 @@ export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, a
                 Se leyeron {filas.length.toLocaleString("es-MX")} {filas.length === 1 ? "fila" : "filas"} y {columnas} {columnas === 1 ? "columna" : "columnas"}.
               </p>
               <label className="flex min-h-12 cursor-pointer items-center gap-3 text-base font-medium">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={conEncabezados}
-                  onChange={(e) => setConEncabezadosElegido(e.target.checked)}
-                  className="size-6 shrink-0 accent-primary"
+                  onCheckedChange={(marcado) => setConEncabezadosElegido(marcado)}
+                  className="size-6 rounded-md [&_svg]:size-4"
                 />
                 La primera fila trae los encabezados
               </label>
               <div className="overflow-x-auto [contain:inline-size] rounded-xl border">
-                <table className="w-full text-left text-base">
-                  <caption className="sr-only">Primeras filas de lo pegado</caption>
-                  <thead className="bg-muted">
-                    <tr>
+                <Table className="w-full text-left text-base">
+                  <TableCaption className="sr-only">Primeras filas de lo pegado</TableCaption>
+                  <TableHeader className="bg-muted">
+                    <TableRow>
                       {Array.from({ length: columnas }, (_, i) => (
-                        <th key={i} scope="col" className="px-3 py-2 font-semibold whitespace-nowrap">
+                        <TableHead key={i} scope="col" className="px-3 py-2 font-semibold whitespace-nowrap">
                           {nombreDeColumna(conEncabezados ? filas[0] : null, i)}
-                        </th>
+                        </TableHead>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {filas.slice(conEncabezados ? 1 : 0, (conEncabezados ? 1 : 0) + 3).map((f, i) => (
-                      <tr key={i} className="border-t">
+                      <TableRow key={i} className="border-t">
                         {f.map((c, j) => (
-                          <td key={j} className="max-w-56 truncate px-3 py-2">
+                          <TableCell key={j} className="max-w-56 truncate px-3 py-2">
                             {c}
-                          </td>
+                          </TableCell>
                         ))}
-                      </tr>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </>
           ) : null}

@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { CheckIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
+import { Textarea } from "~/components/ui/textarea";
 import { Boton } from "~/componentes/ui/boton";
 import { Campo } from "~/componentes/ui/campo";
 import type { ArticuloFichaEntrada, InspeccionBorrador, PiezaBorrador, ResultadoInspeccion } from "./tipos";
@@ -143,7 +144,7 @@ export function CapturaPieza({ articulo, inicial, codigoLeido, alGuardar, alCanc
               <label htmlFor={`${id}-obs`} className="text-base font-medium">
                 ¿Por qué no es apta?
               </label>
-              <textarea
+              <Textarea
                 id={`${id}-obs`}
                 value={observacion}
                 maxLength={300}

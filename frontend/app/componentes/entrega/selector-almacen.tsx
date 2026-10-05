@@ -3,6 +3,7 @@ import { useEffect, useId, useState } from "react";
 
 import { apiGet } from "~/api/cliente";
 import { mensajeDeError } from "~/api/errores";
+import { ListaDesplegable } from "~/componentes/ui/lista-desplegable";
 import type { AlmacenResumen } from "./tipos";
 
 interface AlmacenLista extends AlmacenResumen {
@@ -48,25 +49,17 @@ export function SelectorAlmacen({ valor, alCambiar, deshabilitado, className }: 
         <WarehouseIcon aria-hidden="true" className="size-5 text-marino" />
         Almacén que opera
       </label>
-      <select
+      <ListaDesplegable
         id={id}
-        value={valor ?? ""}
-        disabled={deshabilitado || almacenes === null}
-        onChange={(e) => {
-          const elegido = almacenes?.find((a) => a.id === e.target.value);
-          if (elegido) alCambiar({ id: elegido.id, clave: elegido.clave, nombre: elegido.nombre });
+        valor={valor ?? ""}
+        deshabilitado={deshabilitado || almacenes === null}
+        marcador={almacenes === null && !error ? "Cargando almacenes…" : "Elige un almacén"}
+        opciones={(almacenes ?? []).map((a) => ({ valor: a.id, texto: `${a.nombre} (${a.clave})` }))}
+        alCambiar={(elegido) => {
+          const a = almacenes?.find((x) => x.id === elegido);
+          if (a) alCambiar({ id: a.id, clave: a.clave, nombre: a.nombre });
         }}
-        className="h-12 w-full rounded-lg border border-input bg-background px-3 text-base disabled:opacity-60"
-      >
-        <option value="" disabled>
-          {almacenes === null && !error ? "Cargando almacenes…" : "Elige un almacén"}
-        </option>
-        {(almacenes ?? []).map((a) => (
-          <option key={a.id} value={a.id}>
-            {a.nombre} ({a.clave})
-          </option>
-        ))}
-      </select>
+      />
       {error ? (
         <p role="alert" className="mt-1.5 text-sm font-medium text-destructive">
           {error}

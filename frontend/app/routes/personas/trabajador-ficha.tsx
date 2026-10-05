@@ -16,6 +16,7 @@ import { Avatar } from "~/componentes/ui/avatar";
 import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
 import { Campo } from "~/componentes/ui/campo";
+import { CampoFecha } from "~/componentes/ui/campo-fecha";
 import { Confirmacion } from "~/componentes/ui/confirmacion";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { EstadoVacio } from "~/componentes/ui/estado-vacio";
@@ -372,8 +373,8 @@ export default function FichaTrabajador() {
         }
       >
         <div className="flex flex-col gap-4">
-          <Campo etiqueta="Inicio" type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />
-          <Campo etiqueta="Fin" type="date" value={fin} onChange={(e) => { setFin(e.target.value); setErrorFecha(null); }} error={errorFecha} />
+          <CampoFecha etiqueta="Inicio" value={inicio} alCambiar={(v) => setInicio(v)} />
+          <CampoFecha etiqueta="Fin" value={fin} alCambiar={(v) => { setFin(v); setErrorFecha(null); }} error={errorFecha} />
           <Campo etiqueta="Puesto" value={puesto} onChange={(e) => setPuesto(e.target.value)} />
           <Campo etiqueta="Área u obra" value={area} onChange={(e) => setArea(e.target.value)} />
           {panel === "reingreso" && errorPanel ?<p role="alert" className="text-base font-semibold text-destructive">{errorPanel}</p> : null}

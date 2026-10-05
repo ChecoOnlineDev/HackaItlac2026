@@ -1,8 +1,9 @@
 import { cn } from "cn";
 import { LogOutIcon, MenuIcon } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 
+import { ConfirmarSalida } from "~/componentes/navegacion/confirmar-salida";
 import { MenuHoja } from "~/componentes/navegacion/menu-hoja";
 import { Pantalla } from "~/componentes/pantalla";
 import { Boton } from "~/componentes/ui/boton";
@@ -42,10 +43,10 @@ function BotonInicio({ elemento, contador, ultimoImpar, esFlujo }: { elemento: E
 
 /** Inicio según los permisos: botones grandes para operar, o las secciones de gestión del rol. */
 export default function Inicio() {
-  const { sesion, puede, puedeAlguno, cerrarSesion } = useSesionActiva();
+  const { sesion, puede, puedeAlguno } = useSesionActiva();
+  const [confirmandoSalida, setConfirmandoSalida] = useState(false);
   const contadores = useContadores();
   const esEscritorio = useEsEscritorio();
-  const navigate = useNavigate();
   const [menuAbierto, setMenuAbierto] = useState(false);
 
   const elementos = elementosDeInicio(menuPermitido(puedeAlguno));
@@ -54,11 +55,6 @@ export default function Inicio() {
   useEffect(() => {
     document.title = "Inicio · IMHOTEP";
   }, []);
-
-  const salir = async () => {
-    await cerrarSesion();
-    navigate("/entrar", { replace: true });
-  };
 
   // Los botones azules son las operaciones del almacén; quien no opera uno (Compras, RH) ve botones suaves.
   const operaAlmacen = elementos.some((e) => e.inicio === "flujo" && e.id !== "consultar");
@@ -96,13 +92,14 @@ export default function Inicio() {
           <Boton variante="texto" aria-label="Menú" onClick={() => setMenuAbierto(true)}>
             <MenuIcon aria-hidden="true" />
           </Boton>
-          <Boton variante="texto" aria-label="Salir" onClick={salir}>
+          <Boton variante="texto" aria-label="Salir" onClick={() => setConfirmandoSalida(true)}>
             <LogOutIcon aria-hidden="true" />
           </Boton>
         </div>
       </header>
       {elementos.length ? cuadricula : <EstadoVacio titulo="Todavía no tienes pantallas asignadas" descripcion="Pídele a tu supervisor que revise los permisos de tu rol." />}
       <MenuHoja abierta={menuAbierto} alCambiar={setMenuAbierto} />
+      <ConfirmarSalida abierta={confirmandoSalida} alCambiar={setConfirmandoSalida} />
     </div>
   );
 }

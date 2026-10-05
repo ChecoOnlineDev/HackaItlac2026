@@ -4,12 +4,15 @@ import { useId, type ComponentProps, type ReactNode } from "react";
 
 import { Boton } from "~/componentes/ui/boton";
 import { Campo } from "~/componentes/ui/campo";
+import { ListaDesplegable } from "~/componentes/ui/lista-desplegable";
 import { Label } from "~/components/ui/label";
 import { Switch } from "~/components/ui/switch";
 
-interface PropiedadesSeleccion extends Omit<ComponentProps<"select">, "children"> {
+interface PropiedadesSeleccion {
   etiqueta: string;
   opciones: { valor: string; texto: string }[];
+  value: string;
+  alCambiar: (valor: string) => void;
   /** Texto de la primera opción vacía ("Todas las categorías"). Sin él no hay opción vacía. */
   vacio?: string;
   error?: string | null;
@@ -17,9 +20,12 @@ interface PropiedadesSeleccion extends Omit<ComponentProps<"select">, "children"
   claseContenedor?: string;
   /** Oculta la etiqueta a la vista (sigue disponible para lectores de pantalla). */
   etiquetaOculta?: boolean;
+  id?: string;
+  disabled?: boolean;
+  className?: string;
 }
 
-/** Lista desplegable del sistema, de 48 px, con etiqueta y error junto al campo. */
+/** Lista desplegable (`Select` de shadcn), de 48 px, con etiqueta y error junto al campo. */
 export function Seleccion({
   etiqueta,
   opciones,
@@ -30,7 +36,9 @@ export function Seleccion({
   etiquetaOculta,
   id,
   className,
-  ...props
+  value,
+  alCambiar,
+  disabled,
 }: PropiedadesSeleccion) {
   const generado = useId();
   const idCampo = id ?? generado;
@@ -39,23 +47,17 @@ export function Seleccion({
       <Label htmlFor={idCampo} className={cn("text-base font-medium text-foreground", etiquetaOculta && "sr-only")}>
         {etiqueta}
       </Label>
-      <select
+      <ListaDesplegable
         id={idCampo}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${idCampo}-error` : undefined}
-        className={cn(
-          "h-12 w-full rounded-lg border border-input bg-background px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-70 aria-invalid:border-destructive",
-          className,
-        )}
-        {...props}
-      >
-        {vacio !== undefined ? <option value="">{vacio}</option> : null}
-        {opciones.map((o) => (
-          <option key={o.valor} value={o.valor}>
-            {o.texto}
-          </option>
-        ))}
-      </select>
+        valor={value}
+        alCambiar={alCambiar}
+        opciones={opciones}
+        vacio={vacio}
+        deshabilitado={disabled}
+        invalido={Boolean(error)}
+        descritoPor={error ? `${idCampo}-error` : undefined}
+        className={className}
+      />
       {ayuda ? <p className="text-sm text-muted-foreground">{ayuda}</p> : null}
       {error ? (
         <p id={`${idCampo}-error`} role="alert" className="flex items-start gap-1.5 text-sm font-medium text-destructive">

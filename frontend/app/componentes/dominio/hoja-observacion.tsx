@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { CircleAlertIcon, InfoIcon } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 
+import { Textarea } from "~/components/ui/textarea";
 import { Boton } from "~/componentes/ui/boton";
 import { Hoja } from "~/componentes/ui/hoja";
 
@@ -90,7 +91,7 @@ export function HojaObservacion({
           <label htmlFor={`${id}-texto`} className="text-base font-medium">
             ¿Qué debemos anotar?
           </label>
-          <textarea
+          <Textarea
             id={`${id}-texto`}
             value={texto}
             maxLength={maxLargo}

@@ -57,7 +57,7 @@ export function FiltroLista({
       vacio={vacio}
       value={valor}
       opciones={opciones}
-      onChange={(e) => alCambiar(e.target.value)}
+      alCambiar={(v) => alCambiar(v)}
     />
   );
 }

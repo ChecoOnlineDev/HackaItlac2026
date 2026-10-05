@@ -1,3 +1,4 @@
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { apiGet, descargarCsv } from "~/api/cliente";
 import { FilaInterruptor } from "~/componentes/catalogo/campos";
 import { useConsulta } from "~/componentes/catalogo/usar-consulta";
@@ -99,35 +100,35 @@ export default function ReporteAdeudos() {
         nota={<NotaAlcance almacen={alcance.almacen} />}
         tabla={(elementos) => (
           <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full text-left">
-              <caption className="sr-only">Equipo pendiente por trabajador</caption>
-              <thead className="bg-muted text-sm">
-                <tr>
-                  <th scope="col" className="p-3 font-semibold">Trabajador</th>
-                  <th scope="col" className="p-3 font-semibold">Lo que tiene</th>
-                  <th scope="col" className="p-3 text-right font-semibold">Cantidad</th>
-                  <th scope="col" className="p-3 font-semibold">Desde</th>
-                  <th scope="col" className="p-3 font-semibold">Vale</th>
-                  <th scope="col" className="p-3 font-semibold">Almacén</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="w-full text-left">
+              <TableCaption className="sr-only">Equipo pendiente por trabajador</TableCaption>
+              <TableHeader className="bg-muted text-sm">
+                <TableRow>
+                  <TableHead scope="col" className="p-3 font-semibold">Trabajador</TableHead>
+                  <TableHead scope="col" className="p-3 font-semibold">Lo que tiene</TableHead>
+                  <TableHead scope="col" className="p-3 text-right font-semibold">Cantidad</TableHead>
+                  <TableHead scope="col" className="p-3 font-semibold">Desde</TableHead>
+                  <TableHead scope="col" className="p-3 font-semibold">Vale</TableHead>
+                  <TableHead scope="col" className="p-3 font-semibold">Almacén</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {elementos.map((a, i) => (
-                  <tr key={`${a.trabajador_id}-${a.articulo_id}-${a.numero_serie ?? i}-${a.folio ?? ""}`} className="border-t align-top">
-                    <th scope="row" className="p-3">
+                  <TableRow key={`${a.trabajador_id}-${a.articulo_id}-${a.numero_serie ?? i}-${a.folio ?? ""}`} className="border-t align-top">
+                    <TableHead scope="row" className="p-3">
                       <Trabajador a={a} />
-                    </th>
-                    <td className="p-3">
+                    </TableHead>
+                    <TableCell className="p-3">
                       <Articulo a={a} />
-                    </td>
-                    <td className="p-3 text-right font-bold tabular-nums">{a.cantidad}</td>
-                    <td className="p-3 whitespace-nowrap tabular-nums">{a.desde ? formatearFecha(comoUtc(a.desde)) : "—"}</td>
-                    <td className="p-3">{a.folio ?? "—"}</td>
-                    <td className="p-3">{a.almacen ?? "—"}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="p-3 text-right font-bold tabular-nums">{a.cantidad}</TableCell>
+                    <TableCell className="p-3 whitespace-nowrap tabular-nums">{a.desde ? formatearFecha(comoUtc(a.desde)) : "—"}</TableCell>
+                    <TableCell className="p-3">{a.folio ?? "—"}</TableCell>
+                    <TableCell className="p-3">{a.almacen ?? "—"}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
         tarjetas={(elementos) => (

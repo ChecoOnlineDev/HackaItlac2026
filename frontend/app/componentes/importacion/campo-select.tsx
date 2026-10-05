@@ -1,6 +1,8 @@
 import { cn } from "cn";
 import { useId, type ReactNode } from "react";
 
+import { ListaDesplegable } from "~/componentes/ui/lista-desplegable";
+
 interface PropiedadesCampoSelect {
   etiqueta: ReactNode;
   ayuda?: string;
@@ -21,21 +23,15 @@ export function CampoSelect({ etiqueta, ayuda, valor, alCambiar, opciones, vacio
       <label htmlFor={id} className="text-base font-medium">
         {etiqueta}
       </label>
-      <select
+      <ListaDesplegable
         id={id}
-        value={valor}
-        disabled={deshabilitado}
-        aria-describedby={ayuda ? `${id}-ayuda` : undefined}
-        onChange={(e) => alCambiar(e.target.value)}
-        className="h-12 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-base disabled:opacity-60"
-      >
-        {vacio !== undefined ? <option value="">{vacio}</option> : null}
-        {opciones.map((o) => (
-          <option key={o.valor} value={o.valor}>
-            {o.texto}
-          </option>
-        ))}
-      </select>
+        valor={valor}
+        alCambiar={alCambiar}
+        opciones={opciones}
+        vacio={vacio}
+        deshabilitado={deshabilitado}
+        descritoPor={ayuda ? `${id}-ayuda` : undefined}
+      />
       {ayuda ? (
         <p id={`${id}-ayuda`} className="text-sm text-muted-foreground">
           {ayuda}

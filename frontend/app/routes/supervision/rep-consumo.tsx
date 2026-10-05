@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { ChevronDownIcon } from "lucide-react";
 import { Fragment, useState } from "react";
 
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { apiGet, descargarCsv } from "~/api/cliente";
 import { useConsulta } from "~/componentes/catalogo/usar-consulta";
 import { Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
@@ -151,23 +152,23 @@ export default function ReporteConsumo() {
         }
         tabla={(elementos) => (
           <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full text-left">
-              <caption className="sr-only">Consumo por artículo</caption>
-              <thead className="bg-muted text-sm">
-                <tr>
-                  <th scope="col" className="p-3 font-semibold">Artículo</th>
-                  <th scope="col" className="p-3 font-semibold">Categoría</th>
-                  <th scope="col" className="p-3 text-right font-semibold">Total consumido</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="w-full text-left">
+              <TableCaption className="sr-only">Consumo por artículo</TableCaption>
+              <TableHeader className="bg-muted text-sm">
+                <TableRow>
+                  <TableHead scope="col" className="p-3 font-semibold">Artículo</TableHead>
+                  <TableHead scope="col" className="p-3 font-semibold">Categoría</TableHead>
+                  <TableHead scope="col" className="p-3 text-right font-semibold">Total consumido</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {elementos.map((c) => {
                   const abierto = abiertos.has(c.articulo_id);
                   const idDetalle = `consumo-${c.articulo_id}`;
                   return (
                     <Fragment key={c.articulo_id}>
-                      <tr className={cn("border-t", abierto && "bg-muted/40")}>
-                        <th scope="row" className="p-0 font-semibold">
+                      <TableRow className={cn("border-t", abierto && "bg-muted/40")}>
+                        <TableHead scope="row" className="p-0 font-semibold">
                           <button
                             type="button"
                             aria-expanded={abierto}
@@ -181,24 +182,24 @@ export default function ReporteConsumo() {
                               <span className="block text-sm font-normal text-muted-foreground">{c.codigo}</span>
                             </span>
                           </button>
-                        </th>
-                        <td className="p-3">{c.categoria}</td>
-                        <td className="p-3 text-right">
+                        </TableHead>
+                        <TableCell className="p-3">{c.categoria}</TableCell>
+                        <TableCell className="p-3 text-right">
                           <Total c={c} />
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                       {abierto ? (
-                        <tr className="bg-muted/40">
-                          <td colSpan={3} className="px-3 pb-4 pl-10">
+                        <TableRow className="bg-muted/40">
+                          <TableCell colSpan={3} className="px-3 pb-4 pl-10">
                             <Desglose c={c} id={idDetalle} />
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ) : null}
                     </Fragment>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
         tarjetas={(elementos) => (

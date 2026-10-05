@@ -215,7 +215,7 @@ export function HojaArticulo({ abierta, alCambiar, articulo, categorias, puedeCo
           opciones={opcionesCategoria}
           vacio="Elige una categoría"
           value={categoriaId}
-          onChange={(e) => elegirCategoria(e.target.value)}
+          alCambiar={(v) => elegirCategoria(v)}
           error={errores.categoria_id}
         />
         {articulo && categoria && categoriaId !== articulo.categoria_id ? (
@@ -261,7 +261,7 @@ export function HojaArticulo({ abierta, alCambiar, articulo, categorias, puedeCo
           opciones={OPCIONES_CONTROL}
           value={control}
           disabled={bloqueado}
-          onChange={(e) => setControl(e.target.value as Control)}
+          alCambiar={(v) => setControl(v as Control)}
           error={errores.control}
         />
         <Seleccion
@@ -269,7 +269,7 @@ export function HojaArticulo({ abierta, alCambiar, articulo, categorias, puedeCo
           opciones={OPCIONES_RETORNO}
           value={retornable ? "si" : "no"}
           disabled={bloqueado}
-          onChange={(e) => setRetornable(e.target.value === "si")}
+          alCambiar={(v) => setRetornable(v === "si")}
           error={errores.retornable}
         />
         {bloqueado ? (

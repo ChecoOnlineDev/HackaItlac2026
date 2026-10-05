@@ -2,6 +2,7 @@ import { FolderTree, PencilIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { apiGet } from "~/api/cliente";
 import type { Pagina } from "~/api/tipos";
 import { HojaCategoria } from "~/componentes/catalogo/hoja-categoria";
@@ -70,43 +71,43 @@ export default function Categorias() {
       <>
         {/* Computadora: tabla */}
         <div className="hidden overflow-hidden rounded-xl border lg:block">
-          <table className="w-full text-left">
-            <thead className="bg-muted text-sm">
-              <tr>
-                <th scope="col" className="p-3 font-semibold">Categoría</th>
-                <th scope="col" className="p-3 font-semibold">Tipo</th>
-                <th scope="col" className="p-3 font-semibold">Control y entrega</th>
-                <th scope="col" className="p-3 font-semibold">Reglas de la plantilla</th>
-                <th scope="col" className="p-3 font-semibold"><span className="sr-only">Acciones</span></th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="w-full text-left">
+            <TableHeader className="bg-muted text-sm">
+              <TableRow>
+                <TableHead scope="col" className="p-3 font-semibold">Categoría</TableHead>
+                <TableHead scope="col" className="p-3 font-semibold">Tipo</TableHead>
+                <TableHead scope="col" className="p-3 font-semibold">Control y entrega</TableHead>
+                <TableHead scope="col" className="p-3 font-semibold">Reglas de la plantilla</TableHead>
+                <TableHead scope="col" className="p-3 font-semibold"><span className="sr-only">Acciones</span></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {categorias.map((c) => (
-                <tr key={c.id} className="border-t align-top">
-                  <th scope="row" className="p-3 font-semibold">
+                <TableRow key={c.id} className="border-t align-top">
+                  <TableHead scope="row" className="p-3 font-semibold">
                     <Link to={`/catalogo/articulos?categoria=${c.id}`} className="underline-offset-4 hover:underline">
                       {c.nombre}
                     </Link>
-                  </th>
-                  <td className="p-3"><Insignia estado="neutra">{TEXTO_TIPO[c.tipo]}</Insignia></td>
-                  <td className="p-3">
+                  </TableHead>
+                  <TableCell className="p-3"><Insignia estado="neutra">{TEXTO_TIPO[c.tipo]}</Insignia></TableCell>
+                  <TableCell className="p-3">
                     {TEXTO_CONTROL[c.control]}
                     <br />
                     <span className="text-muted-foreground">{textoRetorno(c.retornable)}</span>
-                  </td>
-                  <td className="p-3"><Resumen categoria={c} /></td>
-                  <td className="p-3 text-right">
+                  </TableCell>
+                  <TableCell className="p-3"><Resumen categoria={c} /></TableCell>
+                  <TableCell className="p-3 text-right">
                     {puedeEditar ? (
                       <Boton variante="contorno" onClick={() => abrir(c)} aria-label={`Editar ${c.nombre}`}>
                         <PencilIcon aria-hidden="true" />
                         Editar
                       </Boton>
                     ) : null}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
         {/* Celular y tableta: tarjetas */}

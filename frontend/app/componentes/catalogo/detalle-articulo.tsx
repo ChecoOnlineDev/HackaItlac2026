@@ -1,6 +1,7 @@
 import { ArrowLeftIcon, PencilIcon, PowerIcon, Trash2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { apiDelete, apiGet, apiPatch, apiPost } from "~/api/cliente";
 import { mensajeDeError } from "~/api/errores";
 import { aviso } from "~/componentes/ui/aviso";
@@ -264,31 +265,31 @@ export function DetalleArticulo({ articuloId, categorias, puedeEditar, puedeCost
           <EstadoVacio titulo="Todavía no hay existencias" descripcion="Aparecen cuando se registra una entrada de este artículo." />
         ) : (
           <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full text-left">
-              <thead className="bg-muted text-sm">
-                <tr>
-                  <th scope="col" className="p-3 font-semibold">Almacén</th>
-                  <th scope="col" className="p-3 text-right font-semibold">Existencia</th>
-                  <th scope="col" className="p-3 text-right font-semibold">Disponible</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="w-full text-left">
+              <TableHeader className="bg-muted text-sm">
+                <TableRow>
+                  <TableHead scope="col" className="p-3 font-semibold">Almacén</TableHead>
+                  <TableHead scope="col" className="p-3 text-right font-semibold">Existencia</TableHead>
+                  <TableHead scope="col" className="p-3 text-right font-semibold">Disponible</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {articulo.existencias.map((e) => (
-                  <tr key={e.almacen_id} className="border-t">
-                    <th scope="row" className="p-3 font-medium">{e.nombre}</th>
-                    <td className="p-3 text-right">{e.cantidad}</td>
-                    <td className="p-3 text-right">{e.disponible}</td>
-                  </tr>
+                  <TableRow key={e.almacen_id} className="border-t">
+                    <TableHead scope="row" className="p-3 font-medium">{e.nombre}</TableHead>
+                    <TableCell className="p-3 text-right">{e.cantidad}</TableCell>
+                    <TableCell className="p-3 text-right">{e.disponible}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t bg-muted/50 font-semibold">
-                  <th scope="row" className="p-3">Total</th>
-                  <td className="p-3 text-right">{total}</td>
-                  <td className="p-3 text-right">{articulo.existencias.reduce((s, e) => s + e.disponible, 0)}</td>
-                </tr>
-              </tfoot>
-            </table>
+              </TableBody>
+              <TableFooter>
+                <TableRow className="border-t bg-muted/50 font-semibold">
+                  <TableHead scope="row" className="p-3">Total</TableHead>
+                  <TableCell className="p-3 text-right">{total}</TableCell>
+                  <TableCell className="p-3 text-right">{articulo.existencias.reduce((s, e) => s + e.disponible, 0)}</TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
           </div>
         )}
       </Seccion>

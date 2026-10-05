@@ -1,6 +1,7 @@
 import { PackageCheckIcon, PencilIcon, UsersIcon, WarehouseIcon } from "lucide-react";
 import { Link, useParams } from "react-router";
 
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { Dato, Seccion, VolverAConsultar } from "~/componentes/consulta/bloques";
 import { textoControl } from "~/componentes/consulta/formato";
 import type { FichaArticulo } from "~/componentes/consulta/tipos";
@@ -103,33 +104,33 @@ export default function FichaArticulo() {
         ) : (
           <>
             <div className="overflow-x-auto rounded-xl border">
-              <table className="w-full text-left text-base">
-                <thead className="bg-muted text-sm">
-                  <tr>
-                    <th scope="col" className="px-3 py-2 font-semibold">Almacén</th>
-                    <th scope="col" className="px-3 py-2 text-right font-semibold">Hay</th>
-                    <th scope="col" className="px-3 py-2 text-right font-semibold">Disponible</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
+              <Table className="w-full text-left text-base">
+                <TableHeader className="bg-muted text-sm">
+                  <TableRow>
+                    <TableHead scope="col" className="px-3 py-2 font-semibold">Almacén</TableHead>
+                    <TableHead scope="col" className="px-3 py-2 text-right font-semibold">Hay</TableHead>
+                    <TableHead scope="col" className="px-3 py-2 text-right font-semibold">Disponible</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y">
                   {articulo.existencias.map((e) => (
-                    <tr key={e.almacen_id}>
-                      <th scope="row" className="px-3 py-3 font-semibold">{e.nombre}</th>
-                      <td className="px-3 py-3 text-right tabular-nums">{e.cantidad}</td>
-                      <td className="px-3 py-3 text-right font-bold tabular-nums">{e.disponible}</td>
-                    </tr>
+                    <TableRow key={e.almacen_id}>
+                      <TableHead scope="row" className="px-3 py-3 font-semibold">{e.nombre}</TableHead>
+                      <TableCell className="px-3 py-3 text-right tabular-nums">{e.cantidad}</TableCell>
+                      <TableCell className="px-3 py-3 text-right font-bold tabular-nums">{e.disponible}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
+                </TableBody>
                 {articulo.existencias.length > 1 ? (
-                  <tfoot className="border-t-2 bg-muted/50">
-                    <tr>
-                      <th scope="row" className="px-3 py-2 font-semibold">Total</th>
-                      <td className="px-3 py-2 text-right font-semibold tabular-nums">{totalCantidad}</td>
-                      <td className="px-3 py-2 text-right font-bold tabular-nums">{totalDisponible}</td>
-                    </tr>
-                  </tfoot>
+                  <TableFooter className="border-t-2 bg-muted/50">
+                    <TableRow>
+                      <TableHead scope="row" className="px-3 py-2 font-semibold">Total</TableHead>
+                      <TableCell className="px-3 py-2 text-right font-semibold tabular-nums">{totalCantidad}</TableCell>
+                      <TableCell className="px-3 py-2 text-right font-bold tabular-nums">{totalDisponible}</TableCell>
+                    </TableRow>
+                  </TableFooter>
                 ) : null}
-              </table>
+              </Table>
             </div>
             <p className="text-sm text-muted-foreground">
               {articulo.control === "PIEZA"

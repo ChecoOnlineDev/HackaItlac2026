@@ -312,7 +312,7 @@ export default function EntradaNueva() {
             value={borrador.almacen_id}
             opciones={almacenes.opciones}
             disabled={bloqueado}
-            onChange={(e) => b.cambiarAlmacen(e.target.value)}
+            alCambiar={(v) => b.cambiarAlmacen(v)}
             ayuda="Las compras entran por Kepler."
           />
         ) : !puedeElegirAlmacen && sesion.almacen ? (

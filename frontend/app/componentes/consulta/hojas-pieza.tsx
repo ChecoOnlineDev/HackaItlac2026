@@ -2,11 +2,13 @@ import { cn } from "cn";
 import { CheckIcon, CircleAlertIcon, XIcon } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 
+import { Textarea } from "~/components/ui/textarea";
 import { apiPost } from "~/api/cliente";
 import { esErrorApi, mensajeDeError } from "~/api/errores";
 import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
 import { Campo } from "~/componentes/ui/campo";
+import { CampoFecha } from "~/componentes/ui/campo-fecha";
 import { Confirmacion } from "~/componentes/ui/confirmacion";
 import { Hoja } from "~/componentes/ui/hoja";
 import { formatearFecha, hoyMexico, sumarDias } from "~/componentes/dominio/fechas";
@@ -52,7 +54,7 @@ function CampoObservacion({
         {etiqueta}
         {obligatoria ? "" : " (opcional)"}
       </label>
-      <textarea
+      <Textarea
         id={id}
         value={valor}
         rows={3}
@@ -366,14 +368,13 @@ export function HojaAjusteVigencia({ pieza, abierta, alCambiar, alGuardar }: Pro
             {limite ? `Puede llegar, como máximo, hasta el ${formatearFecha(limite)}. ` : ""}
             Acortarla no tiene límite. El resultado de la inspección no cambia.
           </p>
-          <Campo
+          <CampoFecha
             etiqueta="Fecha nueva"
-            type="date"
             value={fecha}
             min={hoyMexico()}
             max={limite ?? undefined}
-            onChange={(e) => {
-              setFecha(e.target.value);
+            alCambiar={(v) => {
+              setFecha(v);
               setErrorFecha(null);
             }}
             error={errorFecha ?? faltaFecha}

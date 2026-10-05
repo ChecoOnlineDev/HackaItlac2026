@@ -1,5 +1,6 @@
 import { InfoIcon } from "lucide-react";
 
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { AccionPrincipal } from "~/componentes/pantalla";
 import { Boton } from "~/componentes/ui/boton";
 import { CampoSelect } from "./campo-select";
@@ -74,37 +75,37 @@ export function PasoColumnas({ tabla, columnas, alCambiar, puedeCostos, alContin
           Primeras filas
         </h2>
         <div className="overflow-x-auto [contain:inline-size] rounded-xl border">
-          <table className="w-full text-left text-base">
-            <caption className="sr-only">Primeras filas de la tabla, con el dato que trae cada columna</caption>
-            <thead className="bg-muted">
-              <tr>
-                <th scope="col" className="px-3 py-2 font-semibold whitespace-nowrap">
+          <Table className="w-full text-left text-base">
+            <TableCaption className="sr-only">Primeras filas de la tabla, con el dato que trae cada columna</TableCaption>
+            <TableHeader className="bg-muted">
+              <TableRow>
+                <TableHead scope="col" className="px-3 py-2 font-semibold whitespace-nowrap">
                   Fila
-                </th>
+                </TableHead>
                 {Array.from({ length: ancho }, (_, i) => {
                   const campo = dueno(i);
                   return (
-                    <th key={i} scope="col" className="px-3 py-2 align-top font-semibold whitespace-nowrap">
+                    <TableHead key={i} scope="col" className="px-3 py-2 align-top font-semibold whitespace-nowrap">
                       {nombreDeColumna(tabla.encabezados, i)}
                       <span className="block text-sm font-medium text-marino">{campo ? `→ ${ETIQUETA_CAMPO[campo]}` : "No se usa"}</span>
-                    </th>
+                    </TableHead>
                   );
                 })}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {muestra.map((f, i) => (
-                <tr key={i} className="border-t">
-                  <td className="px-3 py-2 text-muted-foreground">{tabla.primeraFila + i}</td>
+                <TableRow key={i} className="border-t">
+                  <TableCell className="px-3 py-2 text-muted-foreground">{tabla.primeraFila + i}</TableCell>
                   {Array.from({ length: ancho }, (_, j) => (
-                    <td key={j} className="max-w-56 truncate px-3 py-2">
+                    <TableCell key={j} className="max-w-56 truncate px-3 py-2">
                       {f[j] ?? ""}
-                    </td>
+                    </TableCell>
                   ))}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
         <p className="text-sm text-muted-foreground">
           {tabla.filas.length.toLocaleString("es-MX")} {tabla.filas.length === 1 ? "fila de datos" : "filas de datos"}

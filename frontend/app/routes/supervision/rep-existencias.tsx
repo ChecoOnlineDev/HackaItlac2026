@@ -1,3 +1,4 @@
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { apiGet, descargarCsv } from "~/api/cliente";
 import { useConsulta } from "~/componentes/catalogo/usar-consulta";
 import { Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
@@ -97,35 +98,35 @@ export default function ReporteExistencias() {
         }
         tabla={(elementos) => (
           <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full text-left">
-              <caption className="sr-only">Existencias por almacén</caption>
-              <thead className="bg-muted text-sm">
-                <tr>
-                  <th scope="col" className="p-3 font-semibold">Almacén</th>
-                  <th scope="col" className="p-3 font-semibold">Artículo</th>
-                  <th scope="col" className="p-3 font-semibold">Categoría</th>
-                  <th scope="col" className="p-3 text-right font-semibold">Existencia</th>
-                  <th scope="col" className="p-3 text-right font-semibold">Disponible</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="w-full text-left">
+              <TableCaption className="sr-only">Existencias por almacén</TableCaption>
+              <TableHeader className="bg-muted text-sm">
+                <TableRow>
+                  <TableHead scope="col" className="p-3 font-semibold">Almacén</TableHead>
+                  <TableHead scope="col" className="p-3 font-semibold">Artículo</TableHead>
+                  <TableHead scope="col" className="p-3 font-semibold">Categoría</TableHead>
+                  <TableHead scope="col" className="p-3 text-right font-semibold">Existencia</TableHead>
+                  <TableHead scope="col" className="p-3 text-right font-semibold">Disponible</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {elementos.map((e) => (
-                  <tr key={`${e.almacen_id}-${e.articulo_id}`} className="border-t align-top">
-                    <td className="p-3">{e.almacen}</td>
-                    <th scope="row" className="p-3 font-semibold">
+                  <TableRow key={`${e.almacen_id}-${e.articulo_id}`} className="border-t align-top">
+                    <TableCell className="p-3">{e.almacen}</TableCell>
+                    <TableHead scope="row" className="p-3 font-semibold">
                       {e.articulo}
                       {!e.activo ? <Insignia estado="neutra" className="ml-2">Inactivo</Insignia> : null}
                       <span className="block text-sm font-normal text-muted-foreground">{e.codigo}</span>
-                    </th>
-                    <td className="p-3">{e.categoria}</td>
-                    <td className="p-3 text-right">
+                    </TableHead>
+                    <TableCell className="p-3">{e.categoria}</TableCell>
+                    <TableCell className="p-3 text-right">
                       <Cifras e={e} />
-                    </td>
-                    <td className="p-3 text-right font-bold tabular-nums">{e.disponible}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="p-3 text-right font-bold tabular-nums">{e.disponible}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
         tarjetas={(elementos) => (

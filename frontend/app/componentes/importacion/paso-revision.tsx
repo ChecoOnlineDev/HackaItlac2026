@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { CircleAlertIcon, DownloadIcon, TriangleAlertIcon, WifiOffIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { apiGet } from "~/api/cliente";
 import { useConsulta } from "~/componentes/catalogo/usar-consulta";
 import type { Categoria } from "~/componentes/catalogo/tipos";
@@ -305,23 +306,23 @@ export function PasoRevision({
             <details className="rounded-xl border p-3">
               <summary className="flex min-h-12 cursor-pointer items-center text-lg font-bold">Filas listas para importar ({vista.filas_validas.length})</summary>
               <div className="mt-2 overflow-x-auto [contain:inline-size]">
-                <table className="w-full text-left text-base">
-                  <caption className="sr-only">Filas que se importarán</caption>
-                  <thead className="bg-muted">
-                    <tr>
+                <Table className="w-full text-left text-base">
+                  <TableCaption className="sr-only">Filas que se importarán</TableCaption>
+                  <TableHeader className="bg-muted">
+                    <TableRow>
                       {["Fila", "Código", "Nombre", "Cantidad", "Almacén", "Pieza / serie"].map((t) => (
-                        <th key={t} scope="col" className="px-3 py-2 font-semibold whitespace-nowrap">
+                        <TableHead key={t} scope="col" className="px-3 py-2 font-semibold whitespace-nowrap">
                           {t}
-                        </th>
+                        </TableHead>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {(verTodasValidas ? vista.filas_validas : vista.filas_validas.slice(0, LIMITE_INICIAL)).map((f) => (
-                      <tr key={f.fila} className="border-t">
-                        <td className="px-3 py-2 text-muted-foreground">{f.fila}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{f.codigo}</td>
-                        <td className="px-3 py-2">
+                      <TableRow key={f.fila} className="border-t">
+                        <TableCell className="px-3 py-2 text-muted-foreground">{f.fila}</TableCell>
+                        <TableCell className="px-3 py-2 whitespace-nowrap">{f.codigo}</TableCell>
+                        <TableCell className="px-3 py-2">
                           {f.nombre}
                           {f.articulo_nuevo ? <span className="ml-2 text-sm font-semibold text-marino">(nuevo)</span> : null}
                           {f.avisos.map((a, i) => (
@@ -329,14 +330,14 @@ export function PasoRevision({
                               Aviso: {a}
                             </span>
                           ))}
-                        </td>
-                        <td className="px-3 py-2 tabular-nums">{f.cantidad}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{f.almacen.nombre}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{[f.codigo_pieza, f.numero_serie].filter(Boolean).join(" · ") || "—"}</td>
-                      </tr>
+                        </TableCell>
+                        <TableCell className="px-3 py-2 tabular-nums">{f.cantidad}</TableCell>
+                        <TableCell className="px-3 py-2 whitespace-nowrap">{f.almacen.nombre}</TableCell>
+                        <TableCell className="px-3 py-2 whitespace-nowrap">{[f.codigo_pieza, f.numero_serie].filter(Boolean).join(" · ") || "—"}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
               {!verTodasValidas && vista.filas_validas.length > LIMITE_INICIAL ? (
                 <Boton variante="contorno" className="mt-3" onClick={() => setVerTodasValidas(true)}>

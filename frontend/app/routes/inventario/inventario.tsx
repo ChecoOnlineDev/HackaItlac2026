@@ -3,6 +3,7 @@ import { Boxes, InfoIcon, SearchIcon } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { apiGet } from "~/api/cliente";
 import type { Pagina } from "~/api/tipos";
 import { Paginador, Seleccion } from "~/componentes/catalogo/campos";
@@ -104,19 +105,19 @@ export default function Inventario() {
     contenido = (
       <div className={cn("flex flex-col gap-4 transition-opacity", existencias.cargando && "opacity-60")} aria-busy={existencias.cargando}>
         <div className="hidden overflow-hidden rounded-xl border lg:block">
-          <table className="w-full text-left">
-            <thead className="bg-muted text-sm">
-              <tr>
-                <th scope="col" className="p-3 font-semibold">Artículo</th>
-                <th scope="col" className="p-3 font-semibold">Categoría</th>
-                <th scope="col" className="p-3 text-right font-semibold">Existencia</th>
-                <th scope="col" className="p-3 text-right font-semibold">Disponible</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="w-full text-left">
+            <TableHeader className="bg-muted text-sm">
+              <TableRow>
+                <TableHead scope="col" className="p-3 font-semibold">Artículo</TableHead>
+                <TableHead scope="col" className="p-3 font-semibold">Categoría</TableHead>
+                <TableHead scope="col" className="p-3 text-right font-semibold">Existencia</TableHead>
+                <TableHead scope="col" className="p-3 text-right font-semibold">Disponible</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filas.map((f) => (
-                <tr key={f.articulo_id} className={cn("border-t", !f.activo && "bg-muted/40 text-muted-foreground")}>
-                  <th scope="row" className="p-3">
+                <TableRow key={f.articulo_id} className={cn("border-t", !f.activo && "bg-muted/40 text-muted-foreground")}>
+                  <TableHead scope="row" className="p-3">
                     {enlace(f.articulo_id, f.nombre)}
                     <span className="block text-sm font-normal text-muted-foreground">
                       {f.codigo}
@@ -124,19 +125,19 @@ export default function Inventario() {
                       {f.talla ? ` · Talla ${f.talla}` : ""}
                     </span>
                     {!f.activo ? <Insignia estado="neutra" className="mt-1">Inactivo</Insignia> : null}
-                  </th>
-                  <td className="p-3">
+                  </TableHead>
+                  <TableCell className="p-3">
                     {f.categoria_nombre}
                     <span className="block text-sm text-muted-foreground">
                       {TEXTO_CONTROL[f.control]} · {textoRetorno(f.retornable)}
                     </span>
-                  </td>
-                  <td className="p-3 text-right text-lg font-semibold">{f.cantidad}</td>
-                  <td className="p-3 text-right text-lg font-semibold">{f.disponible}</td>
-                </tr>
+                  </TableCell>
+                  <TableCell className="p-3 text-right text-lg font-semibold">{f.cantidad}</TableCell>
+                  <TableCell className="p-3 text-right text-lg font-semibold">{f.disponible}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
         <ul className="flex flex-col gap-3 lg:hidden">
@@ -175,8 +176,8 @@ export default function Inventario() {
           etiqueta="Almacén"
           opciones={lista.map((a) => ({ valor: a.id, texto: a.nombre }))}
           value={almacenId}
-          onChange={(e) => {
-            setAlmacenElegido(e.target.value);
+          alCambiar={(v) => {
+            setAlmacenElegido(v);
             setPagina(1);
           }}
           disabled={lista.length === 0}
@@ -187,8 +188,8 @@ export default function Inventario() {
             vacio="Todas las categorías"
             opciones={categorias.datos.elementos.map((c) => ({ valor: c.id, texto: c.nombre }))}
             value={categoria}
-            onChange={(e) => {
-              setCategoria(e.target.value);
+            alCambiar={(v) => {
+              setCategoria(v);
               setPagina(1);
             }}
           />

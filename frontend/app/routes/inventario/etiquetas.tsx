@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { IdCardIcon, PackageIcon, PrinterIcon, SearchIcon, TagIcon, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { Checkbox } from "~/components/ui/checkbox";
 import { apiGet } from "~/api/cliente";
 import { esErrorApi } from "~/api/errores";
 import type { Pagina } from "~/api/tipos";
@@ -156,11 +157,10 @@ export default function Etiquetas() {
                   {visibles.map((e) => (
                     <li key={e.codigo}>
                       <label className="flex min-h-14 cursor-pointer items-center gap-3 px-3 py-2 hover:bg-muted has-[:focus-visible]:bg-muted">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={elegidos.has(e.codigo)}
-                          onChange={() => alternar(e.codigo)}
-                          className="size-6 shrink-0 accent-primary"
+                          onCheckedChange={() => alternar(e.codigo)}
+                          className="size-6 rounded-md [&_svg]:size-4"
                         />
                         <span className="flex min-w-0 flex-col">
                           <span className="text-base leading-snug font-semibold wrap-break-word">{e.texto}</span>

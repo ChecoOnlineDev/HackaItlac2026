@@ -3,6 +3,7 @@ import { Package, PlusIcon, SearchIcon } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { apiGet } from "~/api/cliente";
 import type { Pagina } from "~/api/tipos";
 import { Paginador, Seleccion } from "~/componentes/catalogo/campos";
@@ -142,21 +143,21 @@ export default function Articulos() {
       <div className={cn("flex flex-col gap-4 transition-opacity", lista.cargando && "opacity-60")} aria-busy={lista.cargando}>
         {/* Computadora: tabla */}
         <div className="hidden overflow-hidden rounded-xl border lg:block">
-          <table className="w-full text-left">
-            <thead className="bg-muted text-sm">
-              <tr>
-                <th scope="col" className="p-3 font-semibold">Artículo</th>
-                <th scope="col" className="p-3 font-semibold">Código</th>
-                <th scope="col" className="p-3 font-semibold">Categoría</th>
-                <th scope="col" className="p-3 font-semibold">Control</th>
-                {puedeCostos ? <th scope="col" className="p-3 text-right font-semibold">Costo</th> : null}
-                <th scope="col" className="p-3 font-semibold">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="w-full text-left">
+            <TableHeader className="bg-muted text-sm">
+              <TableRow>
+                <TableHead scope="col" className="p-3 font-semibold">Artículo</TableHead>
+                <TableHead scope="col" className="p-3 font-semibold">Código</TableHead>
+                <TableHead scope="col" className="p-3 font-semibold">Categoría</TableHead>
+                <TableHead scope="col" className="p-3 font-semibold">Control</TableHead>
+                {puedeCostos ? <TableHead scope="col" className="p-3 text-right font-semibold">Costo</TableHead> : null}
+                <TableHead scope="col" className="p-3 font-semibold">Estado</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {articulos.map((a) => (
-                <tr key={a.id} className={cn("border-t", !a.activo && "bg-muted/40 text-muted-foreground")}>
-                  <th scope="row" className="p-3 font-semibold">
+                <TableRow key={a.id} className={cn("border-t", !a.activo && "bg-muted/40 text-muted-foreground")}>
+                  <TableHead scope="row" className="p-3 font-semibold">
                     <button
                       type="button"
                       onClick={() => cambiarFiltro({ articulo: a.id })}
@@ -165,22 +166,22 @@ export default function Articulos() {
                       {a.nombre}
                       {a.marca ? <span className="block text-sm font-normal text-muted-foreground">{a.marca}</span> : null}
                     </button>
-                  </th>
-                  <td className="p-3">{a.codigo}</td>
-                  <td className="p-3">{a.categoria_nombre}</td>
-                  <td className="p-3">
+                  </TableHead>
+                  <TableCell className="p-3">{a.codigo}</TableCell>
+                  <TableCell className="p-3">{a.categoria_nombre}</TableCell>
+                  <TableCell className="p-3">
                     {TEXTO_CONTROL[a.control]}
                     <br />
                     <span className="text-sm">{textoRetorno(a.retornable)}</span>
-                  </td>
-                  {puedeCostos ? <td className="p-3 text-right">{textoCosto(a.costo_unitario)}</td> : null}
-                  <td className="p-3">
+                  </TableCell>
+                  {puedeCostos ? <TableCell className="p-3 text-right">{textoCosto(a.costo_unitario)}</TableCell> : null}
+                  <TableCell className="p-3">
                     <Insignia estado="neutra">{a.activo ? "Activo" : "Inactivo"}</Insignia>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
         {/* Celular y tableta: tarjetas */}
@@ -237,14 +238,14 @@ export default function Articulos() {
           vacio="Todas las categorías"
           opciones={todasCategorias.map((c) => ({ valor: c.id, texto: c.nombre }))}
           value={categoriaFiltro}
-          onChange={(e) => cambiarFiltro({ categoria: e.target.value })}
+          alCambiar={(v) => cambiarFiltro({ categoria: v })}
         />
         <Seleccion
           etiqueta="Estado"
           opciones={OPCIONES_ESTADO}
           value={estado}
-          onChange={(e) => {
-            setEstado(e.target.value);
+          alCambiar={(v) => {
+            setEstado(v);
             setPagina(1);
           }}
         />

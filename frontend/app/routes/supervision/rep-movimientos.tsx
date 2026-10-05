@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import { Link } from "react-router";
 
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { apiGet, descargarCsv } from "~/api/cliente";
 import { useConsulta } from "~/componentes/catalogo/usar-consulta";
 import { formatearFechaHora } from "~/componentes/dominio/fechas";
@@ -148,45 +149,45 @@ export default function ReporteMovimientos() {
         nota={<NotaAlcance almacen={alcance.almacen} />}
         tabla={(elementos) => (
           <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full text-left">
-              <caption className="sr-only">Movimientos de inventario</caption>
-              <thead className="bg-muted text-sm">
-                <tr>
-                  <th scope="col" className="p-3 font-semibold">Fecha y hora</th>
-                  <th scope="col" className="p-3 font-semibold">Folio</th>
-                  <th scope="col" className="p-3 font-semibold">Tipo</th>
-                  <th scope="col" className="p-3 font-semibold">Artículo</th>
-                  <th scope="col" className="p-3 text-right font-semibold">Cantidad</th>
-                  <th scope="col" className="p-3 font-semibold">De</th>
-                  <th scope="col" className="p-3 font-semibold">A</th>
-                  <th scope="col" className="p-3 font-semibold">Responsable</th>
-                  <th scope="col" className="p-3 font-semibold">Saldo</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="w-full text-left">
+              <TableCaption className="sr-only">Movimientos de inventario</TableCaption>
+              <TableHeader className="bg-muted text-sm">
+                <TableRow>
+                  <TableHead scope="col" className="p-3 font-semibold">Fecha y hora</TableHead>
+                  <TableHead scope="col" className="p-3 font-semibold">Folio</TableHead>
+                  <TableHead scope="col" className="p-3 font-semibold">Tipo</TableHead>
+                  <TableHead scope="col" className="p-3 font-semibold">Artículo</TableHead>
+                  <TableHead scope="col" className="p-3 text-right font-semibold">Cantidad</TableHead>
+                  <TableHead scope="col" className="p-3 font-semibold">De</TableHead>
+                  <TableHead scope="col" className="p-3 font-semibold">A</TableHead>
+                  <TableHead scope="col" className="p-3 font-semibold">Responsable</TableHead>
+                  <TableHead scope="col" className="p-3 font-semibold">Saldo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {elementos.map((m) => (
-                  <tr key={m.id} className="border-t align-top">
-                    <td className="p-3 whitespace-nowrap tabular-nums">{formatearFechaHora(comoUtc(m.fecha))}</td>
-                    <th scope="row" className="p-3 font-semibold whitespace-nowrap">
+                  <TableRow key={m.id} className="border-t align-top">
+                    <TableCell className="p-3 whitespace-nowrap tabular-nums">{formatearFechaHora(comoUtc(m.fecha))}</TableCell>
+                    <TableHead scope="row" className="p-3 font-semibold whitespace-nowrap">
                       <Link to={`/vales/${m.vale_id}`} className="inline-flex min-h-12 items-center underline underline-offset-4">
                         {m.folio}
                       </Link>
-                    </th>
-                    <td className="p-3">{m.tipo_texto}</td>
-                    <td className="p-3">
+                    </TableHead>
+                    <TableCell className="p-3">{m.tipo_texto}</TableCell>
+                    <TableCell className="p-3">
                       <Articulo m={m} />
-                    </td>
-                    <td className="p-3 text-right font-semibold tabular-nums">{m.cantidad}</td>
-                    <td className="p-3">{m.origen}</td>
-                    <td className="p-3">{m.destino}</td>
-                    <td className="p-3">{m.responsable}</td>
-                    <td className="p-3">
+                    </TableCell>
+                    <TableCell className="p-3 text-right font-semibold tabular-nums">{m.cantidad}</TableCell>
+                    <TableCell className="p-3">{m.origen}</TableCell>
+                    <TableCell className="p-3">{m.destino}</TableCell>
+                    <TableCell className="p-3">{m.responsable}</TableCell>
+                    <TableCell className="p-3">
                       <Saldo m={m} />
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
         tarjetas={(elementos) => (

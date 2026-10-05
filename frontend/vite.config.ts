@@ -11,6 +11,11 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
   },
+  // Sin esto, Vite descubre las dependencias al abrir cada pantalla por primera vez y recarga
+  // la página completa: en desarrollo, cada módulo nuevo se sentía lento y tosco.
+  optimizeDeps: {
+    entries: ["app/root.tsx", "app/routes/**/*.tsx"],
+  },
   server: {
     port: 21010,
     strictPort: true,

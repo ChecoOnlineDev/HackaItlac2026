@@ -15,6 +15,7 @@ import { AccionPrincipal, Pantalla, type ManejadorRuta } from "~/componentes/pan
 import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
 import { Campo } from "~/componentes/ui/campo";
+import { CampoFecha } from "~/componentes/ui/campo-fecha";
 import { useSesion } from "~/sesion/sesion";
 
 export const handle: ManejadorRuta = { permiso: "trabajadores.administrar" };
@@ -298,8 +299,8 @@ export default function AltaTrabajador() {
               </p>
             ) : null}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Campo etiqueta="Inicio del nuevo periodo" type="date" value={reInicio} onChange={(e) => setReInicio(e.target.value)} error={errores.re_inicio} />
-              <Campo etiqueta="Fin del nuevo periodo" type="date" value={reFin} onChange={(e) => setReFin(e.target.value)} error={errores.re_fin} />
+              <CampoFecha etiqueta="Inicio del nuevo periodo" value={reInicio} alCambiar={(v) => setReInicio(v)} error={errores.re_inicio} />
+              <CampoFecha etiqueta="Fin del nuevo periodo" value={reFin} alCambiar={(v) => setReFin(v)} error={errores.re_fin} />
               <Campo etiqueta="Puesto" value={rePuesto} onChange={(e) => setRePuesto(e.target.value)} />
               <Campo etiqueta="Área u obra" value={reArea} onChange={(e) => setReArea(e.target.value)} />
             </div>
@@ -327,8 +328,8 @@ export default function AltaTrabajador() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <Campo etiqueta="Puesto" value={puesto} onChange={(e) => { setPuesto(e.target.value); limpiar("puesto"); }} error={errores.puesto} disabled={yaRegistrado || guardando} />
                 <Campo etiqueta="Área u obra" value={area} onChange={(e) => { setArea(e.target.value); limpiar("area_obra"); }} error={errores.area_obra} disabled={yaRegistrado || guardando} />
-                <Campo etiqueta="Inicio del contrato" type="date" value={inicio} onChange={(e) => { setInicio(e.target.value); limpiar("inicio"); limpiar("fin"); }} error={errores.inicio} disabled={yaRegistrado || guardando} />
-                <Campo etiqueta="Fin del contrato" type="date" value={fin} onChange={(e) => { setFin(e.target.value); limpiar("fin"); }} error={errores.fin ?? (fin && inicio && fin < inicio ? "La fecha de fin no puede ser anterior a la de inicio." : undefined)} disabled={yaRegistrado || guardando} />
+                <CampoFecha etiqueta="Inicio del contrato" value={inicio} alCambiar={(v) => { setInicio(v); limpiar("inicio"); limpiar("fin"); }} error={errores.inicio} disabled={yaRegistrado || guardando} />
+                <CampoFecha etiqueta="Fin del contrato" value={fin} alCambiar={(v) => { setFin(v); limpiar("fin"); }} error={errores.fin ?? (fin && inicio && fin < inicio ? "La fecha de fin no puede ser anterior a la de inicio." : undefined)} disabled={yaRegistrado || guardando} />
               </div>
             </Seccion>
 

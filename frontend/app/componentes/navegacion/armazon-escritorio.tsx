@@ -1,5 +1,6 @@
 import { HomeIcon, LogOutIcon } from "lucide-react";
-import { NavLink, useLocation, useNavigate } from "react-router";
+import { useState } from "react";
+import { NavLink, useLocation } from "react-router";
 
 import { Avatar } from "~/componentes/ui/avatar";
 import { Boton } from "~/componentes/ui/boton";
@@ -18,6 +19,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "~/components/ui/sidebar";
+import { ConfirmarSalida } from "./confirmar-salida";
 import { agruparMenu, menuPermitido, type ElementoMenu } from "~/sesion/menu";
 import { useContadores } from "~/sesion/contadores";
 import { useSesionActiva } from "~/sesion/sesion";
@@ -40,15 +42,10 @@ function Elemento({ elemento, contador }: { elemento: ElementoMenu; contador?: n
 
 /** Navegación de computadora: menú lateral con las secciones que permiten los permisos. */
 export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
-  const { sesion, puedeAlguno, cerrarSesion } = useSesionActiva();
+  const { sesion, puedeAlguno } = useSesionActiva();
+  const [confirmandoSalida, setConfirmandoSalida] = useState(false);
   const contadores = useContadores();
-  const navigate = useNavigate();
   const grupos = agruparMenu(menuPermitido(puedeAlguno));
-
-  const salir = async () => {
-    await cerrarSesion();
-    navigate("/entrar", { replace: true });
-  };
 
   return (
     <SidebarProvider>
@@ -98,7 +95,7 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
               <p className="truncate text-xs text-muted-foreground">{sesion.rol.nombre}</p>
             </div>
           </div>
-          <Boton variante="contorno" onClick={salir}>
+          <Boton variante="contorno" onClick={() => setConfirmandoSalida(true)}>
             <LogOutIcon aria-hidden="true" />
             Salir
           </Boton>
@@ -107,6 +104,7 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <main className="mx-auto w-full max-w-6xl flex-1 p-8">{children}</main>
       </SidebarInset>
+      <ConfirmarSalida abierta={confirmandoSalida} alCambiar={setConfirmandoSalida} />
     </SidebarProvider>
   );
 }

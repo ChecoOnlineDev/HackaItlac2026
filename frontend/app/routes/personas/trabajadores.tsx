@@ -2,6 +2,7 @@ import { SearchIcon, UserPlusIcon, UsersIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { apiGet } from "~/api/cliente";
 import type { Pagina } from "~/api/tipos";
 import { formatearPeriodo } from "~/componentes/personas/formato";
@@ -120,19 +121,19 @@ export default function Trabajadores() {
 
           {/* Computadora: tabla */}
           <div className="hidden overflow-hidden rounded-xl border md:block">
-            <table className="w-full text-left text-base">
-              <thead className="bg-muted text-sm font-semibold text-marino">
-                <tr>
-                  <th scope="col" className="px-4 py-3">Nombre</th>
-                  <th scope="col" className="px-4 py-3">Puesto</th>
-                  <th scope="col" className="px-4 py-3">Vigencia</th>
-                  <th scope="col" className="px-4 py-3">Situación</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="w-full text-left text-base">
+              <TableHeader className="bg-muted text-sm font-semibold text-marino">
+                <TableRow>
+                  <TableHead scope="col" className="px-4 py-3">Nombre</TableHead>
+                  <TableHead scope="col" className="px-4 py-3">Puesto</TableHead>
+                  <TableHead scope="col" className="px-4 py-3">Vigencia</TableHead>
+                  <TableHead scope="col" className="px-4 py-3">Situación</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {datos.elementos.map((t) => (
-                  <tr key={t.id} className="border-t hover:bg-accent/40">
-                    <td className="px-4 py-3">
+                  <TableRow key={t.id} className="border-t hover:bg-accent/40">
+                    <TableCell className="px-4 py-3">
                       <Link to={`/trabajadores/${t.id}`} className="flex min-h-12 items-center gap-3 font-semibold text-marino hover:underline">
                         <Avatar nombre={t.nombre} fotoUrl={t.tiene_foto ? `/api/trabajadores/${t.id}/foto` : null} />
                         <span className="flex flex-col">
@@ -140,24 +141,24 @@ export default function Trabajadores() {
                           <span className="text-sm font-normal text-muted-foreground">{t.numero_empleado}</span>
                         </span>
                       </Link>
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
                       <div>{t.puesto ?? "—"}</div>
                       <div className="text-sm text-muted-foreground">{t.area_obra ?? ""}</div>
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
                       <div className="flex flex-col items-start gap-1">
                         <InsigniaVigencia vigencia={t.vigencia} />
                         <span className="text-sm text-muted-foreground">{formatearPeriodo(t.periodo_inicio, t.periodo_fin)}</span>
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
                       <InsigniaSituacion situacion={t.situacion} texto={t.situacion_texto} />
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
           {/* Celular: tarjetas */}

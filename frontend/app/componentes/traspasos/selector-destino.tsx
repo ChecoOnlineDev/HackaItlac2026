@@ -4,6 +4,7 @@ import { useId } from "react";
 import { apiGet } from "~/api/cliente";
 import { useConsulta } from "~/componentes/catalogo/usar-consulta";
 import type { AlmacenResumen } from "~/componentes/entrega/tipos";
+import { ListaDesplegable } from "~/componentes/ui/lista-desplegable";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
 import type { AlmacenRedApi } from "./tipos";
@@ -34,11 +35,11 @@ export function SelectorDestino({ origenId, valor, alCambiar, deshabilitado, cla
   const esHabitual = (a: AlmacenRedApi) => Boolean(origen) && (origen!.padre_id === a.id || a.padre_id === origen!.id);
   const habituales = activos.filter(esHabitual);
   const otros = activos.filter((a) => !esHabitual(a));
-  const opcion = (a: AlmacenRedApi) => (
-    <option key={a.id} value={a.id}>
-      {a.nombre} ({a.clave})
-    </option>
-  );
+  const opcion = (grupo: string) => (a: AlmacenRedApi) => ({ valor: a.id, texto: `${a.nombre} (${a.clave})`, grupo });
+  const opciones = [
+    ...habituales.map(opcion("Rutas habituales")),
+    ...otros.map(opcion("Otras rutas (se avisa antes de enviar)")),
+  ];
 
   return (
     <div className={className}>
@@ -46,22 +47,17 @@ export function SelectorDestino({ origenId, valor, alCambiar, deshabilitado, cla
         <TruckIcon aria-hidden="true" className="size-5 text-marino" />
         ¿A qué almacén se envía?
       </label>
-      <select
+      <ListaDesplegable
         id={id}
-        value={valor ?? ""}
-        disabled={deshabilitado || !origenId}
-        onChange={(e) => {
-          const elegido = activos.find((a) => a.id === e.target.value);
-          if (elegido) alCambiar({ id: elegido.id, clave: elegido.clave, nombre: elegido.nombre });
+        valor={valor ?? ""}
+        deshabilitado={deshabilitado || !origenId}
+        marcador={origenId ? "Elige el destino" : "Primero elige el almacén que opera"}
+        opciones={opciones}
+        alCambiar={(elegido) => {
+          const a = activos.find((x) => x.id === elegido);
+          if (a) alCambiar({ id: a.id, clave: a.clave, nombre: a.nombre });
         }}
-        className="h-12 w-full rounded-lg border border-input bg-background px-3 text-base disabled:opacity-60"
-      >
-        <option value="" disabled>
-          {origenId ? "Elige el destino" : "Primero elige el almacén que opera"}
-        </option>
-        {habituales.length > 0 ? <optgroup label="Rutas habituales">{habituales.map(opcion)}</optgroup> : null}
-        {otros.length > 0 ? <optgroup label="Otras rutas (se avisa antes de enviar)">{otros.map(opcion)}</optgroup> : null}
-      </select>
+      />
     </div>
   );
 }

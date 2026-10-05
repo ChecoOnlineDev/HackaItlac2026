@@ -119,21 +119,21 @@ export function HojaCategoria({ abierta, alCambiar, categoria, alGuardar }: Prop
           etiqueta="Tipo"
           opciones={OPCIONES_TIPO}
           value={tipo}
-          onChange={(e) => setTipo(e.target.value as TipoCategoria)}
+          alCambiar={(v) => setTipo(v as TipoCategoria)}
           error={errores.tipo}
         />
         <Seleccion
           etiqueta="Cómo se controla"
           opciones={OPCIONES_CONTROL}
           value={control}
-          onChange={(e) => setControl(e.target.value as Control)}
+          alCambiar={(v) => setControl(v as Control)}
           error={errores.control}
         />
         <Seleccion
           etiqueta="Qué pasa con la entrega"
           opciones={OPCIONES_RETORNO}
           value={retornable ? "si" : "no"}
-          onChange={(e) => setRetornable(e.target.value === "si")}
+          alCambiar={(v) => setRetornable(v === "si")}
           error={errores.retornable}
         />
         <h3 className="mt-2 text-lg font-bold text-marino">Reglas de entrega</h3>
