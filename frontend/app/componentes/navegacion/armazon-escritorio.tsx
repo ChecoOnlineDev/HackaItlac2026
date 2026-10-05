@@ -20,6 +20,7 @@ import {
   SidebarProvider,
 } from "~/components/ui/sidebar";
 import { ConfirmarSalida } from "./confirmar-salida";
+import { InstalarApp } from "./instalar-app";
 import { agruparMenu, menuPermitido, type ElementoMenu } from "~/sesion/menu";
 import { useContadores } from "~/sesion/contadores";
 import { useSesionActiva } from "~/sesion/sesion";
@@ -95,6 +96,7 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
               <p className="truncate text-xs text-muted-foreground">{sesion.rol.nombre}</p>
             </div>
           </div>
+          <InstalarApp />
           <Boton variante="contorno" onClick={() => setConfirmandoSalida(true)}>
             <LogOutIcon aria-hidden="true" />
             Salir

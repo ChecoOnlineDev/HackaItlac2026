@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -14,10 +15,13 @@ import { BandaSinConexion } from "~/componentes/ui/banda-sin-conexion";
 import { Cargando } from "~/componentes/ui/cargando";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { Toaster } from "~/components/ui/toast";
+import { registrarServiceWorker } from "~/pwa/registrar";
 import { SesionProvider } from "~/sesion/sesion";
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", type: "image/png", href: "/logo-imhotep.png" },
+  { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+  { rel: "manifest", href: "/manifest.webmanifest" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -28,10 +32,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* interactive-widget: en celular, el teclado reduce la pantalla en lugar de tapar el botón. */}
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, interactive-widget=resizes-content"
+          content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
         />
         <meta name="theme-color" content="#0054A6" />
-        <title>IMHOTEP</title>
+        <meta name="description" content="Control de herramientas y equipo de protección personal: entregas, devoluciones y consultas." />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="IMHOTEP" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <title>IMHOTEP · Control de herramientas y EPP</title>
         <Meta />
         <Links />
       </head>
@@ -50,6 +59,9 @@ export function HydrateFallback() {
 }
 
 export default function App() {
+  useEffect(() => {
+    registrarServiceWorker();
+  }, []);
   return (
     <SesionProvider>
       <Toaster>
