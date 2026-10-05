@@ -14,6 +14,7 @@ import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { Hoja } from "~/componentes/ui/hoja";
 import { Insignia } from "~/componentes/ui/insignia";
 import { marcarConexion } from "~/api/red";
+import { SeccionesDominio } from "~/componentes/dominio/galeria-dominio";
 
 // Galería para revisar los componentes base. Solo existe fuera de producción (ver routes.ts).
 
@@ -131,6 +132,12 @@ export default function GaleriaComponentes() {
           <Boton onClick={() => marcarConexion(true)}>Restablecer conexión</Boton>
         </div>
       </Seccion>
+
+      <header className="pt-4">
+        <h1>Componentes de dominio</h1>
+        <p className="text-muted-foreground">Escáner, renglón con semáforo, ficha, firma, QR, vale, fechas y etiquetas, con datos de ejemplo.</p>
+      </header>
+      <SeccionesDominio />
 
       <Hoja
         abierta={hoja}
