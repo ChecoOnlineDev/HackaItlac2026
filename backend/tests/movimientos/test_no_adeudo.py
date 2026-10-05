@@ -328,6 +328,22 @@ def test_B_01_emitir_no_adeudo_a_un_activo_exige_tambien_iniciar_la_baja(
     assert r.status_code == 201 and r.json()["trabajador"]["estado"] == "INACTIVO"
 
 
+def test_AC_06_quien_opera_todos_los_almacenes_indica_el_almacen_del_no_adeudo(
+    app, crear_usuario, session, trabajador
+):
+    """Regresión: con `almacenes.todos` el cuerpo lleva `almacen_id` (antes pedía el almacén)."""
+    todos = cliente_de(
+        app,
+        crear_usuario,
+        {P.NO_ADEUDO_EMITIR, P.TRABAJADORES_INICIAR_BAJA, P.ALMACENES_TODOS},
+        None,
+    )
+    sede = almacen(session)
+    r = todos.post(ruta(trabajador), json=cuerpo(almacen_id=str(sede.id)))
+    assert r.status_code == 201, r.text
+    assert vales_nad(session, trabajador)[0].almacen_id == sede.id
+
+
 def test_un_trabajador_inexistente_es_404(almacenista):
     r = almacenista.post(f"/api/trabajadores/{uuid.uuid4()}/no-adeudo", json=cuerpo())
     assert r.status_code == 404

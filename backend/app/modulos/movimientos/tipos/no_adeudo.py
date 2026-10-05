@@ -130,6 +130,7 @@ class NoAdeudoTipo(ManejadorTipo):
         cuerpo = ConfirmarIn(
             tipo=TipoVale.NO_ADEUDO,
             trabajador_id=trabajador_id,
+            almacen_id=datos.almacen_id,
             id_cliente=datos.id_cliente,
             observacion=datos.observacion,
         )

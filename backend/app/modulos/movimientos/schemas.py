@@ -172,6 +172,7 @@ class NoAdeudoIn(_Estricto):
     """`POST /api/trabajadores/{id}/no-adeudo` (B-04). Lo interpreta el tipo NO_ADEUDO."""
 
     id_cliente: uuid.UUID
+    almacen_id: uuid.UUID | None = None
     observacion: str | None = Field(default=None, max_length=1000)
 
 

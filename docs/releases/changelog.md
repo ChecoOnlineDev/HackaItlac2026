@@ -80,7 +80,9 @@ Lo que existe en el código y está documentado en [security-model.md](../archit
 - Archivos (firmas y fotos) validados por su contenido y tamaño, con nombre generado y fuera de la carpeta pública; importación de `.xlsx` en memoria, rechazando macros, archivos que no son `.xlsx`, bombas de compresión y tamaños excesivos; CSV con celdas que empiezan por `=`, `+`, `-` o `@` neutralizadas.
 - Tabla de auditoría que nunca guarda contraseñas, PIN ni hashes.
 - Corrección: autorización para quien opera todos los almacenes y firma visible en el detalle del vale (`d51b64d`).
-- Errores con forma uniforme: métodos no permitidos (`METODO_NO_PERMITIDO`, 405) y fallas inesperadas sin detalles técnicos (`ERROR_INTERNO`, 500), ya documentados en el contrato de la API. El límite de tamaño del cuerpo de las peticiones (`CUERPO_MUY_GRANDE`, 413) y el resto del endurecimiento de seguridad que otra rama está integrando se agregan aquí, con su detalle, al integrarlos antes de etiquetar.
+- Errores con forma uniforme: métodos no permitidos (`METODO_NO_PERMITIDO`, 405) y fallas inesperadas sin detalles técnicos (`ERROR_INTERNO`, 500).
+- Endurecimiento tras una revisión independiente: sesión revocable (`usuario.version_sesion`), bloqueo de intentos sin carreras, límite de tamaño por ruta (413 `CUERPO_MUY_GRANDE`), firma validada como PNG completo con trazo, huella del cuerpo para la idempotencia (409 si el `id_cliente` cambia de cuerpo), solicitud de autorización armada por el servidor, `ENTORNO=produccion` con arranque protegido, reintento ante interbloqueos (503, nunca 500) y alcance por almacén en el escaneo de vales. Migraciones `0002_version_sesion` y `0003_huella_cuerpo`.
+- Correcciones de contradicciones entre código y documentos: el no adeudo de un Activo exige `trabajadores.iniciar_baja` (el supervisor lo recibe), las etiquetas piden solo `etiquetas.imprimir`, `ALMACEN_CAMBIO` se decide en un solo lugar, la recepción con diferencias exige observación (RG-14) y una prueba confirma que vales y movimientos no se editan. El no adeudo acepta `almacen_id` para quien opera todos los almacenes.
 
 ### Documentación y herramientas
 
