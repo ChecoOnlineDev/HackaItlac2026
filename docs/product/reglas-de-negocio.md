@@ -414,7 +414,7 @@ El trabajador devuelve en la planta la herramienta y el equipo de alturas, y en 
 | C-02 | Pieza: muestra estado, inspección, quién la tiene e historial completo. | PDF p.9 paso 7 |
 | C-03 | Artículo: muestra existencias por almacén, separando disponibles de no disponibles, y qué trabajadores lo tienen. | PDF función 5; plática min 0 y 38 |
 | C-04 | Vale: muestra su detalle y si está íntegro. | PDF p.8 paso 6 |
-| C-05 | Reportes de existencias, movimientos y adeudos, con filtros por almacén, fecha y trabajador. El de movimientos filtra además por artículo, tipo y usuario. | PDF función 8; idea del equipo |
+| C-05 | Reportes de existencias, movimientos y adeudos, con filtros por almacén, fecha y trabajador. El de movimientos filtra además por artículo, tipo y usuario. El de adeudos es una consulta de personas: lo ven completo quien tiene `almacenes.todos` o `trabajadores.administrar` (RH); el resto, solo lo entregado por su almacén, y sin almacén nada. | PDF función 8; idea del equipo |
 | C-06 | Búsqueda por texto: nombre de artículo, número de serie, nombre o número de trabajador. | Plática min 38 |
 | C-07 | EPP entregado a un trabajador, con fechas y vales. Sirve como prueba ante la Comisión Mixta de Seguridad. | Plática min 31 |
 | C-08 | Reporte de consumo: por artículo consumible y periodo, el total consumido, con el desglose por trabajador, de mayor a menor. Suma las entregas de consumibles (E-21) y resta las cancelaciones (K-02). Filtros: periodo, almacén, categoría, artículo y trabajador. Se descarga en CSV y no muestra costos (RG-12). Requiere `reportes.consumo`. | Plática min 35–36 |

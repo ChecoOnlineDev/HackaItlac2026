@@ -16,7 +16,11 @@ docker compose ps               # espera a que `app` diga (healthy)
 
 La aplicación queda en `http://127.0.0.1:21040` (la interfaz) y `http://127.0.0.1:21040/api/salud` responde `{"estado":"ok","base":"ok"}`. Al arrancar, el contenedor aplica las migraciones solo.
 
-Para entrar por `http://` (sin túnel), deja `COOKIE_SEGURA=false`.
+Para entrar por `http://` (sin túnel), deja `COOKIE_SEGURA=false` y `ENTORNO=desarrollo` (el valor por defecto): solo AVISA en el registro de una configuración insegura.
+
+### Producción (`ENTORNO=produccion`)
+
+En el servidor real pon en `.env` `ENTORNO=produccion`, `COOKIE_SEGURA=true` y una `CLAVE_SESION` propia de al menos 32 caracteres (`python -c "import secrets; print(secrets.token_urlsafe(48))"`). Con `produccion` la aplicación **se niega a arrancar** si la clave de sesión es la de ejemplo o es corta, si `COOKIE_SEGURA` no es `true`, o si `CARGAR_DATOS_PRUEBA=true` con `CLAVE_DATOS_PRUEBA` vacía; además apaga `/api/docs`, `/api/redoc` y `/api/openapi.json`. `FORWARDED_ALLOW_IPS` acota de qué redes se aceptan las cabeceras `X-Forwarded-*` (por defecto, las privadas de Docker; en el servidor, la subred real de la red de compose). El valor por defecto de `ENTORNO` en el compose es `desarrollo` porque la prueba local por `http://` exige `COOKIE_SEGURA=false`.
 
 ### Datos de prueba
 

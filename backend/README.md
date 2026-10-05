@@ -36,9 +36,12 @@ Documentación interactiva de la API: `http://localhost:21002/api/docs`.
 | `MYSQL_HOST`, `MYSQL_PUERTO` | Dónde está MySQL (puerto del host) | `localhost`, `21001` |
 | `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD` | Base y usuario de la aplicación | `imhotep`, `imhotep`, sin valor |
 | `MYSQL_ROOT_PASSWORD` | Crea el contenedor y las bases de pruebas | sin valor |
-| `CLAVE_SESION` | Firma del token de sesión | cambiarla |
+| `ENTORNO` | `desarrollo` solo avisa de una configuración insegura; `produccion` se niega a arrancar con una clave de sesión de ejemplo o de menos de 32 caracteres, sin `COOKIE_SEGURA=true`, o con `CARGAR_DATOS_PRUEBA=true` y `CLAVE_DATOS_PRUEBA` vacía, y apaga `/api/docs`, `/api/redoc` y `/api/openapi.json` | `desarrollo` |
+| `CLAVE_SESION` | Firma del token de sesión (mín. 32 caracteres en producción; `python -c "import secrets; print(secrets.token_urlsafe(48))"`) | cambiarla |
 | `SESION_HORAS` | Duración de la sesión | `12` |
 | `COOKIE_SEGURA` | `true` bajo HTTPS; `false` en desarrollo local por http | `false` |
+| `FORWARDED_ALLOW_IPS` | Redes de las que `uvicorn` acepta `X-Forwarded-*` (solo en el contenedor; acótala a la subred de la red de compose) | redes privadas |
+| `LIMITE_CUERPO_JSON`, `LIMITE_CUERPO_VALE`, `LIMITE_CUERPO_FOTO_TRABAJADOR`, `LIMITE_CUERPO_IMPORTACION` | Bytes máximos del cuerpo de una petición (413 `CUERPO_MUY_GRANDE`) | 1 MB, 12 MB, 3 MB, 6 MB |
 | `ARCHIVOS_DIR` | Volumen de firmas y fotos | `./almacenamiento` |
 | `ARCHIVO_TAMANO_MAXIMO` | Bytes máximos por archivo | `2097152` |
 | `CLAVE_DATOS_PRUEBA`, `PIN_DATOS_PRUEBA` | Contraseña y PIN de los usuarios de prueba | ver `.env.example` |

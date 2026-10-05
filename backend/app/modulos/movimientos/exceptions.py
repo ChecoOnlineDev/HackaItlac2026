@@ -31,6 +31,15 @@ class IdClienteEnUso(Conflicto):
     mensaje_defecto = "Ese identificador de vale ya se usó para otra operación."
 
 
+class IdClienteOtroCuerpo(Conflicto):
+    """El `id_cliente` ya confirmó un vale, pero con un cuerpo DISTINTO: no se devuelve ese vale
+    como si fuera lo que se acaba de pedir."""
+
+    mensaje_defecto = (
+        "Ese vale ya se guardó antes con otros datos. Revisa lo capturado o empieza un vale nuevo."
+    )
+
+
 class ExistenciaInsuficiente(Conflicto):
     """RG-04: una salida dejaría la existencia en negativo. Red de seguridad: la evaluación
     ya la detecta antes (E-04), así que solo ocurre si algo se saltó los bloqueos."""

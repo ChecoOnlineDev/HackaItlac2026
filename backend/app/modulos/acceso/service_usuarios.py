@@ -204,6 +204,8 @@ class UsuarioAdminService:
         if cambia_rol:
             usuario.rol = rol
         usuario.almacen_id = almacen.id if almacen else None
+        if activo != usuario.activo:
+            usuario.version_sesion = Usuario.version_sesion + 1  # inactivar o reactivar: sin sesión
         usuario.activo = activo
 
         despues = self._instantanea(usuario, rol, almacen)
@@ -235,6 +237,7 @@ class UsuarioAdminService:
         usuario.bloqueado_hasta = None
         usuario.pin_intentos_fallidos = 0
         usuario.pin_bloqueado_hasta = None
+        usuario.version_sesion = Usuario.version_sesion + 1  # las sesiones abiertas dejan de servir
         self.auditoria.registrar(
             usuario_id=actor.id,
             accion="usuario.restablecer",

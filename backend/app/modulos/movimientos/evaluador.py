@@ -284,6 +284,18 @@ def regla_limite(h: HechosRenglonEntrega) -> Motivo | None:
     )
 
 
+def tiene_para_limite(h: HechosRenglonEntrega) -> int | None:
+    """Lo que cuenta contra el límite antes de este renglón (lo que tiene o consumió en el periodo
+    más lo de renglones anteriores del vale); `None` si el artículo no tiene límite."""
+    art = h.articulo
+    if art is None or art.limite_cantidad is None:
+        return None
+    if art.retornable:
+        return h.cuenta.en_posesion + h.pedido_previo
+    base = h.cuenta.consumido_en_periodo if art.limite_periodo_dias is not None else 0
+    return base + h.pedido_previo
+
+
 def excedente_limite(h: HechosRenglonEntrega) -> int:
     """Cuánto pasa del límite (para la solicitud de autorización); 0 si no pasa."""
     art = h.articulo

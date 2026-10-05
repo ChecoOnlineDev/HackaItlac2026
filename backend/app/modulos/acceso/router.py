@@ -15,7 +15,7 @@ router.include_router(router_usuarios)
 def iniciar_sesion(datos: LoginIn, response: Response, service: AccesoServiceDep) -> SesionOut:
     """Público. Entra con usuario y contraseña; deja la cookie de sesión."""
     usuario = service.autenticar(datos.usuario, datos.contrasena)
-    poner_cookie_sesion(response, crear_token(usuario.id))
+    poner_cookie_sesion(response, crear_token(usuario.id, usuario.version_sesion))
     return service.construir_sesion(usuario)
 
 
@@ -26,8 +26,9 @@ def ver_sesion(usuario: UsuarioActual, service: AccesoServiceDep) -> SesionOut:
 
 
 @router.delete("/sesion", status_code=status.HTTP_204_NO_CONTENT)
-def cerrar_sesion(_: UsuarioActual) -> Response:
-    """Sesión. Sale."""
+def cerrar_sesion(usuario: UsuarioActual, service: AccesoServiceDep) -> Response:
+    """Sesión. Sale y revoca el token: cierra la sesión en todos los dispositivos del usuario."""
+    service.cerrar_sesiones(usuario)
     respuesta = Response(status_code=status.HTTP_204_NO_CONTENT)
     quitar_cookie_sesion(respuesta)
     return respuesta

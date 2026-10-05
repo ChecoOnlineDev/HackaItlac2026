@@ -14,6 +14,8 @@ from collections import defaultdict
 from app.core.excepciones import DatosInvalidos
 from app.modulos.acceso.permisos import P
 from app.modulos.almacenes.models import UbicacionVirtual
+from app.modulos.archivos.firma import validar_png_de_firma
+from app.modulos.archivos.service import decodificar_data_url
 from app.modulos.movimientos.contexto import (
     ContextoVale,
     DatosVale,
@@ -27,10 +29,16 @@ from app.modulos.movimientos.evaluador import (
     excedente_limite,
     regla_e02_vigencia,
     regla_e12_pendientes_anteriores,
+    tiene_para_limite,
 )
 from app.modulos.movimientos.exceptions import FirmaRequerida
 from app.modulos.movimientos.models import Condicion, FirmaModo, TipoVale
-from app.modulos.movimientos.schemas import RenglonIn, ValeIn
+from app.modulos.movimientos.schemas import (
+    TRAZO_PUNTOS_MINIMO,
+    RenglonIn,
+    ValeIn,
+    contar_puntos_del_trazo,
+)
 from app.modulos.movimientos.tipos.base import (
     ManejadorTipo,
     motivos_ids,
@@ -75,6 +83,14 @@ class EntregaTipo(ManejadorTipo):
             )
         if firma.modo != FirmaModo.PANTALLA:
             raise _campo("firma.modo", "La entrega se firma en pantalla.")
+        # F-02: la imagen debe ser un PNG completo y el trazo traer puntos de verdad.
+        validar_png_de_firma(decodificar_data_url(firma.imagen))
+        if contar_puntos_del_trazo(firma.trazo) < TRAZO_PUNTOS_MINIMO:
+            raise _campo(
+                "firma.trazo",
+                f"La firma debe traer su trazo (al menos {TRAZO_PUNTOS_MINIMO} puntos). "
+                "Vuelve a firmar.",
+            )
 
     def normalizar_renglones(self, ctx: ContextoVale, cuerpo: ValeIn) -> list[RenglonIn]:
         """E-15: una pieza repetida se ignora. E-16: un artículo por cantidad repetido suma."""
@@ -157,6 +173,8 @@ class EntregaTipo(ManejadorTipo):
                         "condicion": renglon.condicion,
                         "observacion": renglon.observacion,
                         "excedente": excedente_limite(hechos),
+                        "limite": hechos.articulo.limite_cantidad if hechos.articulo else None,
+                        "tiene": tiene_para_limite(hechos),
                     },
                 )
             )

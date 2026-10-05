@@ -17,8 +17,22 @@ def _a_utc(valor: datetime) -> str:
 FechaUtc = Annotated[datetime, PlainSerializer(_a_utc, return_type=str)]
 
 
+class RenglonSolicitudIn(BaseModel):
+    """Lo único que el servidor toma de un renglón de la solicitud: qué y cuánto (A-02, A-06).
+
+    Cualquier otro campo que mande el cliente (`articulo`, `limite`, `tiene`, `excedente`, `regla`,
+    `mensaje`, `autorizable`...) se ignora: el servidor los arma con su propia evaluación y eso
+    es lo que lee quien autoriza. Se ignoran, y no se rechazan, para no romper a las interfaces
+    que aún los mandan.
+    """
+
+    codigo: str = Field(min_length=1, max_length=60)
+    cantidad: int = Field(ge=1, le=1_000_000)
+
+
 class RenglonSolicitud(BaseModel):
-    """Un renglón que se pide autorizar y la regla que lo originó (límite, artículo restringido)."""
+    """Un renglón de una solicitud, tal como lo evaluó el servidor: la regla que lo originó
+    (límite, artículo restringido) y el detalle. Es SALIDA; nunca se toma del cliente."""
 
     codigo: str = Field(min_length=1, max_length=60)
     articulo_id: uuid.UUID | None = None
@@ -29,13 +43,13 @@ class RenglonSolicitud(BaseModel):
     excedente: int | None = Field(default=None, ge=0)
     regla: str = Field(min_length=1, max_length=20, description="ID de la regla, por ejemplo L-01")
     mensaje: str | None = Field(default=None, max_length=255)
-    # A-06: `movimientos` marca en falso los renglones en rojo; esos no se aceptan.
+    # Siempre verdadero: un renglón que no es naranja no llega a guardarse (A-06).
     autorizable: bool = True
 
 
 class SolicitudCreate(BaseModel):
     trabajador_id: uuid.UUID
-    renglones: list[RenglonSolicitud] = Field(min_length=1)
+    renglones: list[RenglonSolicitudIn] = Field(min_length=1, max_length=100)
     motivo: str = Field(max_length=255)
     # Solo quien opera todos los almacenes (`almacenes.todos`) lo indica; los demás usan el suyo.
     almacen_id: uuid.UUID | None = None

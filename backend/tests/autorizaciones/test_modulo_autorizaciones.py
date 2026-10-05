@@ -18,7 +18,7 @@ from app.modulos.autorizaciones.exceptions import (
     RenglonNoAutorizable,
 )
 from app.modulos.autorizaciones.models import Autorizacion, EstadoAutorizacion, MedioAutorizacion
-from app.modulos.autorizaciones.schemas import RenglonSolicitud, SolicitudCreate
+from app.modulos.autorizaciones.schemas import RenglonSolicitud, RenglonSolicitudIn, SolicitudCreate
 from app.modulos.autorizaciones.service import (
     TRANSICIONES,
     AutorizacionService,
@@ -125,9 +125,8 @@ def test_solicitar_con_trabajador_inexistente_da_404(cliente_como):
 
 
 def test_A_06_un_renglon_rojo_no_se_envia_a_autorizacion(cliente_como, trabajador):
-    r = cliente_como("Almacenista").post(
-        RUTA, json=cuerpo(trabajador, [renglon(autorizable=False, regla="E-06")])
-    )
+    # El verificador falso (conftest) trata `ROJO*` como un rojo de la evaluación del servidor.
+    r = cliente_como("Almacenista").post(RUTA, json=cuerpo(trabajador, [renglon("ROJO-1")]))
     assert r.status_code == 422 and r.json()["codigo"] == "RENGLON_NO_AUTORIZABLE"
 
 
@@ -135,7 +134,9 @@ def test_A_06_punto_de_extension_con_verificador_falso(session, crear_usuario, t
     crear_usuario({P.ENTREGAS_CREAR}, almacen="KEP")
     almacenista = UsuarioRepository(session).get_by_usuario("almacenista")
     datos = SolicitudCreate(
-        trabajador_id=trabajador.id, renglones=[RenglonSolicitud(**renglon())], motivo="m"
+        trabajador_id=trabajador.id,
+        renglones=[RenglonSolicitudIn(codigo="ALT-024", cantidad=3)],
+        motivo="m",
     )
     llamadas = []
 
@@ -143,11 +144,14 @@ def test_A_06_punto_de_extension_con_verificador_falso(session, crear_usuario, t
         llamadas.append((almacen_id, trabajador_id, [r.codigo for r in renglones]))
         raise RenglonNoAutorizable()
 
+    def evaluado(almacen_id, trabajador_id, renglones):
+        return [RenglonSolicitud(**renglon(r.codigo, r.cantidad)) for r in renglones]
+
     servicio = AutorizacionService(session)
     with pytest.raises(RenglonNoAutorizable):
         servicio.solicitar(almacenista, datos, verificador_renglones=rojo)
     assert llamadas and llamadas[0][2] == ["ALT-024"]
-    assert servicio.solicitar(almacenista, datos, verificador_renglones=lambda *a: None).id
+    assert servicio.solicitar(almacenista, datos, verificador_renglones=evaluado).id
 
 
 # ------------------------------------------------------------ ver y listar

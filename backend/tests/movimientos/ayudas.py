@@ -4,7 +4,11 @@ Todo se crea a través de los servicios o modelos de su módulo dueño (nunca sa
 existencias nacen de entradas reales por la API.
 """
 
+import base64
+import math
+import struct
 import uuid
+import zlib
 from datetime import timedelta
 
 from sqlalchemy import select
@@ -20,12 +24,57 @@ from app.modulos.catalogo.service import CatalogoService
 from app.modulos.movimientos.models import Existencia, Movimiento, Vale
 from app.modulos.trabajadores.models import EstadoTrabajador, PeriodoContrato, Trabajador
 
-# 1x1 PNG válido: es lo que la interfaz mandaría como firma.
+# 1x1 PNG válido: sirve de foto (la foto solo valida el tipo de imagen).
 PNG_B64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5E"
     "rkJggg=="
 )
-FIRMA = {"modo": "PANTALLA", "imagen": f"data:image/png;base64,{PNG_B64}", "trazo": []}
+
+
+FIRMA_PNG = bytes.fromhex("89504e470d0a1a0a")  # los 8 bytes con que empieza todo PNG
+
+
+def chunk_png(tipo: bytes, datos: bytes) -> bytes:
+    crc = zlib.crc32(tipo + datos) & 0xFFFFFFFF
+    return struct.pack(">I", len(datos)) + tipo + datos + struct.pack(">I", crc)
+
+
+def png_valido(
+    ancho: int = 300, alto: int = 150, *, con_idat: bool = True, con_iend: bool = True
+) -> bytes:
+    """Un PNG de verdad (RGB de 8 bits) con una curva negra sobre fondo blanco, como el que
+    exporta el lienzo de firma de la interfaz (que manda 900x450). Solo biblioteca estándar."""
+    filas = bytearray()
+    for y in range(alto):
+        fila = bytearray(bytes([255]) * (ancho * 3))
+        centro = int(alto / 2 + (alto / 3) * math.sin(y / 9))
+        for x in range(max(0, centro - 3), min(ancho, centro + 4)):
+            fila[x * 3 : x * 3 + 3] = bytes(3)
+        filas += bytes([0]) + fila  # filtro 0 en cada fila
+    cabecera = struct.pack(">IIBBBBB", ancho, alto, 8, 2, 0, 0, 0)
+    png = FIRMA_PNG + chunk_png(b"IHDR", cabecera)
+    if con_idat:
+        png += chunk_png(b"IDAT", zlib.compress(bytes(filas)))
+    if con_iend:
+        png += chunk_png(b"IEND", b"")
+    return png
+
+
+def a_data_url(png: bytes) -> str:
+    return "data:image/png;base64," + base64.b64encode(png).decode()
+
+
+def trazo_valido(puntos: int = 30) -> list[dict]:
+    """Un trazo de la forma que manda la interfaz: puntos `{x, y, t}` (aquí, un solo trazo)."""
+    return [{"x": 10.0 + i * 5, "y": 50.0 + (i % 7) * 3, "t": i * 16} for i in range(puntos)]
+
+
+def firma_valida(**cambios) -> dict:
+    cuerpo = {"modo": "PANTALLA", "imagen": a_data_url(png_valido()), "trazo": trazo_valido()}
+    return cuerpo | cambios
+
+
+FIRMA = firma_valida()
 
 
 def unico(prefijo: str) -> str:

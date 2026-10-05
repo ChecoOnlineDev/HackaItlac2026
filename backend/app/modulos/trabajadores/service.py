@@ -207,7 +207,7 @@ class TrabajadorService:
         """Alta (T-03): trabajador Activo, su primer periodo y su ubicación. Si el número o la
         CURP ya existen lanza `TrabajadorExiste` con la persona, para ofrecer el reingreso."""
         self._validar_periodo(datos.inicio, datos.fin)
-        self._rechazar_si_existe(datos.numero_empleado, datos.curp)
+        self._rechazar_si_existe(datos.numero_empleado, datos.curp, actor)
         try:
             trabajador = self.trabajadores.add(
                 Trabajador(
@@ -224,7 +224,7 @@ class TrabajadorService:
             if es_restriccion(exc, "uq_trabajador_numero_empleado") or es_restriccion(
                 exc, "uq_trabajador_curp"
             ):
-                self._rechazar_si_existe(datos.numero_empleado, datos.curp)
+                self._rechazar_si_existe(datos.numero_empleado, datos.curp, actor)
             raise
         self.trabajadores.add_periodo(
             PeriodoContrato(
@@ -259,7 +259,7 @@ class TrabajadorService:
         self.session.commit()
         return trabajador
 
-    def _rechazar_si_existe(self, numero_empleado: str, curp: str | None) -> None:
+    def _rechazar_si_existe(self, numero_empleado: str, curp: str | None, actor: Usuario) -> None:
         existente = self.trabajadores.get_by_numero(numero_empleado)
         campo = "numero_empleado"
         if existente is None and curp:
@@ -267,6 +267,14 @@ class TrabajadorService:
             campo = "curp"
         if existente is None:
             return
+        if campo == "curp" and not self.acceso.tiene_permiso(
+            actor, P.TRABAJADORES_VER_DATOS_PERSONALES
+        ):
+            # AC-05: la CURP es un dato reservado. Sin su permiso solo se dice que ya existe:
+            # ni que fue por la CURP ni quién es la persona.
+            raise TrabajadorExiste(
+                "Ya existe un trabajador registrado con esos datos.", {"regla": "T-02"}
+            )
         cual = "ese número de empleado" if campo == "numero_empleado" else "esa CURP"
         raise TrabajadorExiste(
             f"Ya existe un trabajador con {cual}: {existente.nombre}. ¿Quieres reingresarlo?",

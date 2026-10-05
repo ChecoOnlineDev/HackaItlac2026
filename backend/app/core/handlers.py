@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.excepciones import AppError
+from app.core.reintento import es_interbloqueo
 
 log = logging.getLogger("imhotep")
 
@@ -37,6 +38,8 @@ STATUS_POR_CODIGO: dict[str, int] = {
     "VIGENCIA_EXCEDIDA": 422,
     "DATOS_INVALIDOS": 422,
     "DEMASIADOS_INTENTOS": 429,
+    "CUERPO_MUY_GRANDE": 413,
+    "SERVICIO_NO_DISPONIBLE": 503,
     "TIPO_NO_IMPLEMENTADO": 501,
 }
 
@@ -81,6 +84,13 @@ def registrar_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def _inesperado(request: Request, exc: Exception) -> JSONResponse:
+        if es_interbloqueo(exc):  # un choque transitorio de la base no es un error interno
+            log.warning("Interbloqueo sin reintento en %s %s", request.method, request.url.path)
+            return respuesta_error(
+                503,
+                "SERVICIO_NO_DISPONIBLE",
+                "El servicio está ocupado en este momento. Intenta de nuevo.",
+            )
         log.exception("Error inesperado en %s %s", request.method, request.url.path)
         return respuesta_error(
             500, "ERROR_INTERNO", "Ocurrió un error inesperado. Intenta de nuevo."

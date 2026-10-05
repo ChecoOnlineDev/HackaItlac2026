@@ -4,11 +4,19 @@ Ningún contrato de este módulo lleva costos: ni el cuerpo los acepta (`extra="
 respuesta de un vale los muestra (F-12, RG-12).
 """
 
+import math
 import uuid
 from datetime import UTC, date, datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Self
 
-from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PlainSerializer,
+    field_validator,
+    model_validator,
+)
 
 from app.modulos.inspecciones.models import ResultadoInspeccion
 from app.modulos.movimientos.models import Condicion, EstadoVale, FirmaModo, Nivel, TipoVale
@@ -23,6 +31,10 @@ def _a_utc(valor: datetime) -> str:
 FechaUtc = Annotated[datetime, PlainSerializer(_a_utc, return_type=str)]
 
 CANTIDAD_MAXIMA = 1_000_000
+# Fotos de daño (`data:` URL en base64): cada una y todas las de un vale (H8). El cuerpo completo
+# del vale tiene además su propio tope por ruta (`LIMITE_CUERPO_VALE`, 12 MB).
+FOTO_CARACTERES_MAXIMO = 4_000_000  # ~3 MB de imagen
+FOTOS_VALE_CARACTERES_MAXIMO = 10 * 1024 * 1024  # ~7.5 MB de imagen
 
 
 def _vacio_a_none(valor: Any) -> Any:
@@ -66,7 +78,7 @@ class RenglonIn(_Estricto):
     observacion: str | None = Field(default=None, max_length=1000)
     pieza: PiezaEntradaIn | None = None
     # Solo DEVOLUCION con condición DANADO (V-05): foto del daño como `data:image/...;base64,...`.
-    foto: str | None = Field(default=None, max_length=10_000_000)
+    foto: str | None = Field(default=None, max_length=FOTO_CARACTERES_MAXIMO)
 
     _limpiar = field_validator("observacion", "foto", mode="before")(_vacio_a_none)
 
@@ -86,11 +98,54 @@ class ValeIn(_Estricto):
     autorizacion_id: uuid.UUID | None = None
     renglones: list[RenglonIn] = Field(default_factory=list, max_length=500)
 
+    @model_validator(mode="after")
+    def _fotos_del_vale_con_tope(self) -> Self:
+        total = sum(len(r.foto) for r in self.renglones if r.foto)
+        if total > FOTOS_VALE_CARACTERES_MAXIMO:
+            raise ValueError("Las fotos del vale pesan demasiado. Reduce su tamaño o quita alguna.")
+        return self
+
+
+# Trazo de la firma (F-02): hasta este número de puntos `{x, y, t}` en total.
+TRAZO_PUNTOS_MAXIMO = 20_000
+TRAZO_PUNTOS_MINIMO = 10  # al confirmar una entrega (lo exige el tipo ENTREGA)
+
+
+def _punto_valido(punto: Any) -> bool:
+    """Un punto `{x, y, t}` con tres números finitos (no booleanos)."""
+    if not isinstance(punto, dict):
+        return False
+    for clave in ("x", "y", "t"):
+        valor = punto.get(clave)
+        if isinstance(valor, bool) or not isinstance(valor, int | float):
+            return False
+        if isinstance(valor, float) and not math.isfinite(valor):
+            return False
+    return True
+
+
+def contar_puntos_del_trazo(trazo: list[Any]) -> int:
+    """Puntos en total de un trazo: lista de puntos o lista de trazos (listas de puntos)."""
+    return sum(len(e) if isinstance(e, list) else 1 for e in trazo)
+
 
 class FirmaIn(_Estricto):
     modo: FirmaModo
     imagen: str | None = Field(default=None, max_length=4_000_000)
+    # La interfaz manda una lista de trazos (cada uno, una lista de puntos `{x, y, t}`); también
+    # se acepta una lista plana de puntos. El mínimo de puntos lo exige la confirmación.
     trazo: list[Any] = Field(default_factory=list)
+
+    @field_validator("trazo")
+    @classmethod
+    def _trazo_con_forma(cls, trazo: list[Any]) -> list[Any]:
+        if contar_puntos_del_trazo(trazo) > TRAZO_PUNTOS_MAXIMO:
+            raise ValueError(f"El trazo de la firma pasa de {TRAZO_PUNTOS_MAXIMO} puntos.")
+        for elemento in trazo:
+            puntos = elemento if isinstance(elemento, list) else [elemento]
+            if not all(_punto_valido(p) for p in puntos):
+                raise ValueError("Cada punto del trazo debe traer x, y y t numéricos.")
+        return trazo
 
 
 class EvaluarIn(ValeIn):

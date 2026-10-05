@@ -121,7 +121,7 @@ Producción (un solo desplegable, ADR-002), en la raíz del repo; comprobados en
 | Respaldo de la base y de los archivos (`respaldos/`) | `./scripts/respaldo.sh` (bash) o `scripts/respaldo.ps1` (PowerShell) |
 | Restaurar (`--base NOMBRE` para probar en otra base) | `./scripts/restaurar.sh` o `scripts/restaurar.ps1` |
 
-El contenedor `app` aplica `alembic upgrade head` al arrancar y sirve con `uvicorn` en el puerto 8000 interno. FastAPI entrega la interfaz desde `INTERFAZ_DIR` (en la imagen, `/app/interfaz`; si no existe, solo la API). Con el túnel, `COOKIE_SEGURA=true`. El túnel real no se ha probado (requiere token).
+El contenedor `app` aplica `alembic upgrade head` al arrancar y sirve con `uvicorn` en el puerto 8000 interno. FastAPI entrega la interfaz desde `INTERFAZ_DIR` (en la imagen, `/app/interfaz`; si no existe, solo la API). Con el túnel, `COOKIE_SEGURA=true` y `ENTORNO=produccion` (con `produccion` la aplicación no arranca con una clave de sesión de ejemplo o corta; ver `backend/README.md`). El túnel real no se ha probado (requiere token).
 
 ## Definition of Done
 

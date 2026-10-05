@@ -92,6 +92,10 @@ class Vale(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=nuevo_id)
     # Lo genera el dispositivo para que un reintento no duplique el vale.
     id_cliente: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, unique=True)
+    # SHA-256 del cuerpo canónico con el que se confirmó (sin la imagen ni el trazo de la firma):
+    # un reintento con el mismo `id_cliente` y OTRO cuerpo se rechaza (409). Vacío en los vales
+    # anteriores a esta columna y en los que no vienen de `POST /api/vales`.
+    huella_cuerpo: Mapped[str | None] = mapped_column(String(64))
     tipo: Mapped[str] = mapped_column(String(15), nullable=False)
     # CLAVE-TIPO-CONSECUTIVO, de `serie_folio`; nunca del `id` (ADR-006).
     folio: Mapped[str] = mapped_column(String(30), nullable=False, unique=True)

@@ -38,6 +38,20 @@ class UsuarioRepository:
     def get(self, usuario_id: uuid.UUID) -> Usuario | None:
         return self.session.get(Usuario, usuario_id)
 
+    def bloquear(self, usuario_id: uuid.UUID) -> Usuario:
+        """El usuario releído de la base con su fila bloqueada (`FOR UPDATE`) hasta el commit.
+
+        Sirve para contar intentos fallidos sin carreras: quien llega después espera y ve el
+        contador y el bloqueo ya actualizados. Refresca el objeto aunque ya esté en la sesión.
+        Solo bloquea la fila de `usuario` (no la de su rol).
+        """
+        return self.session.scalars(
+            select(Usuario)
+            .where(Usuario.id == usuario_id)
+            .with_for_update(of=Usuario)
+            .execution_options(populate_existing=True)
+        ).one()
+
     def get_by_usuario(self, nombre_usuario: str) -> Usuario | None:
         return self.session.scalar(select(Usuario).where(Usuario.usuario == nombre_usuario))
 

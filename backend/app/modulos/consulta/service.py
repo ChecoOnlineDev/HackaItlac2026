@@ -189,7 +189,7 @@ class ConsultaService:
         codigo = normalizar(codigo)
         fila = self.codigos.identificar(codigo)
         if fila is not None:
-            return self._escaneo_por_codigo(fila.tipo, fila.ref_id, permisos)
+            return self._escaneo_por_codigo(fila.tipo, fila.ref_id, permisos, usuario)
         if P.TRABAJADORES_VER in permisos:
             trabajador = self.consultas.trabajador_por_numero(codigo)
             if trabajador is not None:
@@ -197,7 +197,7 @@ class ConsultaService:
         if P.VALES_VER in permisos:
             vale_id = self.consultas.vale_id_por_token_o_folio(codigo)
             if vale_id is not None:
-                return self._escaneo_vale(vale_id)
+                return self._escaneo_vale(vale_id, usuario)
         return self._desconocido()
 
     @staticmethod
@@ -205,7 +205,7 @@ class ConsultaService:
         return EscaneoOut(tipo=TipoEscaneo.DESCONOCIDO, id=None, resumen=ResumenDesconocido())
 
     def _escaneo_por_codigo(
-        self, tipo: str, ref_id: uuid.UUID, permisos: frozenset[str]
+        self, tipo: str, ref_id: uuid.UUID, permisos: frozenset[str], usuario: Usuario
     ) -> EscaneoOut:
         if tipo == TipoCodigo.TRABAJADOR and P.TRABAJADORES_VER in permisos:
             trabajador = self.consultas.trabajador(ref_id)
@@ -215,7 +215,7 @@ class ConsultaService:
         if tipo == TipoCodigo.PIEZA and P.CATALOGO_VER in permisos:
             return self._escaneo_pieza(ref_id)
         if tipo == TipoCodigo.VALE and P.VALES_VER in permisos:
-            return self._escaneo_vale(ref_id)
+            return self._escaneo_vale(ref_id, usuario)
         return self._desconocido()
 
     def _escaneo_trabajador(self, trabajador: Trabajador) -> EscaneoOut:
@@ -275,12 +275,16 @@ class ConsultaService:
         )
         return EscaneoOut(tipo=TipoEscaneo.PIEZA, id=pieza.id, resumen=resumen)
 
-    def _escaneo_vale(self, vale_id: uuid.UUID) -> EscaneoOut:
-        """C-04: el vale (su integridad es de FEAT-001)."""
+    def _escaneo_vale(self, vale_id: uuid.UUID, usuario: Usuario) -> EscaneoOut:
+        """C-04: el vale (su integridad es de FEAT-001). AC-06: igual que `GET /api/vales/{id}`,
+        un vale fuera del alcance del usuario (ni su almacén es el de origen ni el de destino de
+        un traspaso, y sin `almacenes.todos`) llega como DESCONOCIDO."""
         fila = self.consultas.vale_resumen(vale_id)
         if fila is None:
             return self._desconocido()
         vale, clave_almacen, trabajador, responsable = fila
+        if not self.acceso.en_alcance(usuario, vale.almacen_id, vale.destino_almacen_id):
+            return self._desconocido()
         resumen = ResumenVale(
             folio=vale.folio,
             tipo=vale.tipo,
@@ -648,11 +652,16 @@ class ConsultaService:
     def _adeudos(
         self, filtros: AdeudosFilters, usuario: Usuario, pagina: Paginacion | None
     ) -> tuple[list[AdeudoReporteItem], int]:
-        """El adeudo es de la persona, no de un almacén: quien no tiene almacén asignado ni
-        `almacenes.todos` (RH) ve los de todos. Con almacén asignado, solo lo entregado por él."""
-        if self.acceso.puede_operar_todos_los_almacenes(usuario) or usuario.almacen_id is None:
+        """El adeudo es de la persona, no de un almacén: se decide por PERMISO. Con
+        `almacenes.todos` (AC-06) o con `trabajadores.administrar` (RH, que administra a las
+        personas y no tiene almacén) se ven los de todos los almacenes. Sin ellos, solo lo
+        entregado por el almacén asignado; sin almacén asignado, nada."""
+        permisos = self.acceso.permisos_de(usuario)
+        if P.ALMACENES_TODOS in permisos or P.TRABAJADORES_ADMINISTRAR in permisos:
             almacen_id = filtros.almacen_id
         else:
+            if usuario.almacen_id is None:
+                return [], 0
             if filtros.almacen_id is not None and filtros.almacen_id != usuario.almacen_id:
                 return [], 0
             almacen_id = usuario.almacen_id

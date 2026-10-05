@@ -23,6 +23,7 @@ from app.config import get_settings
 from app.core import errores_bd
 from app.core.excepciones import NoEncontrado, SinPermiso
 from app.core.paginacion import Paginacion
+from app.core.reintento import reintentar_si_interbloqueo
 from app.core.tiempo import ahora_utc
 from app.modulos.acceso.exceptions import PinIncorrecto
 from app.modulos.acceso.models import Usuario
@@ -33,7 +34,6 @@ from app.modulos.autorizaciones.exceptions import (
     AutorizacionInvalida,
     AutorizacionPropia,
     AutorizacionResuelta,
-    RenglonNoAutorizable,
 )
 from app.modulos.autorizaciones.models import Autorizacion, EstadoAutorizacion, MedioAutorizacion
 from app.modulos.autorizaciones.repository import AutorizacionRepository
@@ -41,6 +41,7 @@ from app.modulos.autorizaciones.schemas import (
     AutorizacionOut,
     PersonaOut,
     RenglonSolicitud,
+    RenglonSolicitudIn,
     ResolucionIn,
     SolicitudCreate,
     SolicitudListItem,
@@ -59,11 +60,14 @@ TRANSICIONES: dict[str, frozenset[str]] = {
     E.USADA: frozenset(),
 }
 
-# Punto de extension de A-06. Recibe (almacen_id, trabajador_id, renglones) y lanza
-# `RenglonNoAutorizable` si algun renglon es rojo (o no se puede autorizar). `movimientos` pasara
-# aqui la evaluacion real del semaforo cuando exista; mientras tanto, `solicitar` ya rechaza los
-# renglones que llegan marcados `autorizable: false`.
-VerificadorRenglones = Callable[[uuid.UUID, uuid.UUID, Sequence[RenglonSolicitud]], None]
+# Punto de integracion con la evaluacion real (A-02, A-06). Recibe (almacen_id, trabajador_id,
+# renglones pedidos: solo `codigo` y `cantidad`) y devuelve los renglones tal como los evaluo el
+# SERVIDOR (articulo, limite, tiene, excedente, regla y mensaje), que son los que se guardan y lee
+# quien autoriza. Lanza `RenglonNoAutorizable` si algun renglon no es naranja (verde, amarillo o
+# rojo). Lo arma `movimientos` (`verificador.py`).
+VerificadorRenglones = Callable[
+    [uuid.UUID, uuid.UUID, Sequence[RenglonSolicitudIn]], list[RenglonSolicitud]
+]
 
 
 @dataclass(frozen=True)
@@ -88,30 +92,22 @@ class AutorizacionService:
         solicitante: Usuario,
         datos: SolicitudCreate,
         *,
-        verificador_renglones: VerificadorRenglones | None = None,
+        verificador_renglones: VerificadorRenglones,
     ) -> Autorizacion:
         """Crea una solicitud PENDIENTE (A-02: motivo obligatorio, ya validado en el schema).
 
         El almacen sale del usuario de la sesion (RG-07, AC-06). `vence_en` es ahora mas la
         vigencia general (15 min por defecto).
 
-        A-06 (un rojo no se autoriza): rechaza todo renglon marcado `autorizable=False` y,
-        si se pasa, llama a `verificador_renglones(almacen_id, trabajador_id, renglones)`, que
-        debe lanzar `RenglonNoAutorizable` ante un renglon en rojo. Es el punto de integracion
-        con la evaluacion de `movimientos`.
+        A-06 (un rojo no se autoriza) y A-02/A-04 (lo que lee el supervisor es real): del cliente
+        solo se toman `codigo` y `cantidad`; `verificador_renglones` (la evaluacion de
+        `movimientos`) devuelve los renglones con articulo, limite, excedente y regla del
+        servidor, y lanza `RenglonNoAutorizable` ante un renglon que no sea naranja.
         """
         almacen_id = self.acceso.resolver_almacen(solicitante, datos.almacen_id)
         if self.repository.trabajador(datos.trabajador_id) is None:
             raise NoEncontrado("No se encontró al trabajador.")
-        for renglon in datos.renglones:
-            if not renglon.autorizable:
-                raise RenglonNoAutorizable(
-                    f"El renglón {renglon.codigo} está en rojo y no se puede enviar a "
-                    "autorización (A-06).",
-                    {"codigo": renglon.codigo, "regla": "A-06"},
-                )
-        if verificador_renglones is not None:
-            verificador_renglones(almacen_id, datos.trabajador_id, datos.renglones)
+        renglones = verificador_renglones(almacen_id, datos.trabajador_id, datos.renglones)
 
         ahora = ahora_utc()
         vigencia = timedelta(minutes=get_settings().autorizacion_vigencia_minutos)
@@ -121,7 +117,7 @@ class AutorizacionService:
                 trabajador_id=datos.trabajador_id,
                 solicitada_por=solicitante.id,
                 motivo=datos.motivo,
-                detalle={"renglones": [r.model_dump(mode="json") for r in datos.renglones]},
+                detalle={"renglones": [r.model_dump(mode="json") for r in renglones]},
                 estado=E.PENDIENTE,
                 creado_en=ahora,
                 vence_en=ahora + vigencia,
@@ -190,6 +186,15 @@ class AutorizacionService:
     # ------------------------------------------------------------ resolución
 
     def resolver(
+        self, autorizacion_id: uuid.UUID, actor: Usuario, datos: ResolucionIn
+    ) -> AutorizacionOut:
+        """Aprueba o rechaza una solicitud pendiente (ver `_resolver`). Un interbloqueo de la base
+        se reintenta desde el principio: antes de verificar el PIN no se escribe nada."""
+        return reintentar_si_interbloqueo(
+            self.session, lambda: self._resolver(autorizacion_id, actor, datos)
+        )
+
+    def _resolver(
         self, autorizacion_id: uuid.UUID, actor: Usuario, datos: ResolucionIn
     ) -> AutorizacionOut:
         """Aprueba o rechaza una solicitud pendiente.
