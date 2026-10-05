@@ -48,7 +48,8 @@ Ligar credencial (T-05)
   -> escanear la credencial de la planta
   -> o generar un QR propio para imprimir
 Foto, opcional (T-09): tomarla con la cámara o subir una imagen
-Guardar -> ficha del trabajador
+Guardar -> con `etiquetas.imprimir` y credencial ligada: imprimir o descargar la credencial (completa o solo QR) -> ficha
+       -> si no, ficha del trabajador
 ```
 
 - **Decisiones:** número repetido; periodo con fin anterior al inicio; credencial ya ligada a otra persona.
@@ -276,7 +277,7 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 ## Flujo 16: Etiquetas (Compras)
 
 - **Entrada:** Etiquetas.
-- **Pasos:** elegir qué imprimir (credenciales, piezas o estantes) -> seleccionar -> hoja con QR y texto -> imprimir desde el navegador.
+- **Pasos:** elegir qué imprimir (credenciales, piezas o estantes; en credenciales, la credencial completa o solo el código QR) -> seleccionar -> hoja con QR y texto -> imprimir desde el navegador. Una credencial suelta también se imprime o se descarga como PNG desde la ficha del trabajador.
 
 ## Estados transversales
 

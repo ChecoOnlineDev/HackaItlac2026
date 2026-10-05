@@ -115,13 +115,15 @@ Como Compras o RH, quiero imprimir hojas de QR para piezas, estantes y credencia
 
 - Elige qué imprimir: piezas (un QR por pieza), estantes (un QR por artículo por cantidad) o credenciales (un QR por trabajador sin credencial legible).
 - Cada etiqueta muestra el QR y, en texto legible, el nombre y el código.
-- Basta el permiso `etiquetas.imprimir` (Supervisor, Compras y RH) para los tres tipos; una credencial lleva solo nombre y número de empleado, nunca CURP ni NSS.
+- Basta el permiso `etiquetas.imprimir` (Supervisor, Compras y RH; el Almacenista no lo tiene) para los tres tipos. Quien no lo tiene no ve las acciones de imprimir y el servidor responde 403.
+- De un trabajador se imprime, a elección, solo el código QR (la etiqueta de siempre) o la credencial completa: tarjeta de 85.6 × 54 mm con el logo de IMHOTEP, nombre, puesto, número de empleado, QR y el código en texto legible. Nunca lleva CURP ni NSS.
+- La credencial se puede descargar como imagen PNG o imprimir (o guardar como PDF) en hoja carta, 8 por hoja con guías de corte. Se ofrece al terminar el alta de un trabajador (si quien lo da de alta tiene el permiso) y desde su ficha.
 - La hoja se imprime desde el navegador en papel carta, sin menús ni encabezados.
 - El QR contiene exactamente el código registrado; lo leen la cámara del celular y la pistola.
 
 **Reglas:** I-07, T-05, RG-10.
 
-**Fuera de alcance:** impresoras de etiquetas; códigos de barras lineales; diseño de credencial.
+**Fuera de alcance:** impresoras de etiquetas o de tarjetas PVC; códigos de barras lineales; foto en la credencial.
 
 **Casos límite:** sin elementos, muestra "No hay nada que imprimir".
 
