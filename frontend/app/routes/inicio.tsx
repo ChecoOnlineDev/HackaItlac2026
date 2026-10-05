@@ -24,7 +24,7 @@ function BotonInicio({ elemento, contador, ultimoImpar, esFlujo }: { elemento: E
         esFlujo
           ? "bg-primary text-primary-foreground hover:bg-primary/90"
           : "border border-border bg-accent text-marino hover:bg-accent/70",
-        ultimoImpar && "col-span-2 lg:col-span-1",
+        ultimoImpar && "col-span-2 md:col-span-1",
       )}
     >
       <elemento.icono aria-hidden="true" className="size-8" strokeWidth={2} />
@@ -60,7 +60,7 @@ export default function Inicio() {
   const operaAlmacen = elementos.some((e) => e.inicio === "flujo" && e.id !== "consultar");
 
   const cuadricula = (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
       {elementos.map((e, i) => (
         <BotonInicio
           key={e.id}

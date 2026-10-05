@@ -28,7 +28,7 @@ function Resumen({ categoria }: { categoria: Categoria }) {
   const partes = resumenReglas(categoria);
   if (partes.length === 0) return <span className="text-muted-foreground">Sin reglas extra</span>;
   return (
-    <ul className="flex flex-col gap-0.5">
+    <ul className="flex flex-col gap-0.5 text-sm">
       {partes.map((p) => (
         <li key={p}>{p}</li>
       ))}
@@ -70,7 +70,7 @@ export default function Categorias() {
     contenido = (
       <>
         {/* Computadora: tabla */}
-        <div className="hidden overflow-hidden rounded-2xl border lg:block">
+        <div className="hidden lg:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -111,21 +111,21 @@ export default function Categorias() {
         </div>
 
         {/* Celular y tableta: tarjetas */}
-        <ul className="flex flex-col gap-3 lg:hidden">
+        <ul className="grid gap-3 sm:grid-cols-2 lg:hidden">
           {categorias.map((c) => (
-            <li key={c.id} className="flex flex-col gap-3 rounded-2xl border p-4">
+            <li key={c.id} className="flex flex-col gap-2 rounded-2xl border bg-card p-4 shadow-xs">
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <Link to={`/catalogo/articulos?categoria=${c.id}`} className="text-lg font-semibold text-marino">
+                <Link to={`/catalogo/articulos?categoria=${c.id}`} className="inline-flex min-h-10 items-center text-base font-semibold text-marino">
                   {c.nombre}
                 </Link>
                 <Insignia estado="neutra">{TEXTO_TIPO[c.tipo]}</Insignia>
               </div>
-              <p>
+              <p className="text-sm text-muted-foreground">
                 {TEXTO_CONTROL[c.control]} · {textoRetorno(c.retornable)}
               </p>
               <Resumen categoria={c} />
               {puedeEditar ? (
-                <Boton variante="contorno" onClick={() => abrir(c)} aria-label={`Editar ${c.nombre}`}>
+                <Boton variante="contorno" className="mt-1 self-start" onClick={() => abrir(c)} aria-label={`Editar ${c.nombre}`}>
                   <PencilIcon aria-hidden="true" />
                   Editar
                 </Boton>
@@ -140,7 +140,7 @@ export default function Categorias() {
   return (
     <Pantalla
       titulo="Categorías"
-      descripcion="Tipos de artículo y sus reglas de entrega. Cada artículo nuevo copia las reglas de su categoría."
+      descripcion="Cada artículo nuevo copia las reglas de su categoría."
       acciones={categorias.length > 0 ? botonNueva : null}
     >
       {contenido}

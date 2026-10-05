@@ -74,7 +74,7 @@ export function PasoColumnas({ tabla, columnas, alCambiar, puedeCostos, alContin
         <h2 id="muestra-titulo" className="text-lg font-semibold">
           Primeras filas
         </h2>
-        <div className="overflow-x-auto [contain:inline-size] rounded-2xl border">
+        <div className="[contain:inline-size]">
           <Table>
             <TableCaption className="sr-only">Primeras filas de la tabla, con el dato que trae cada columna</TableCaption>
             <TableHeader>

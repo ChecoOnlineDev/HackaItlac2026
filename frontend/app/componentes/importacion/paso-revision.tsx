@@ -305,7 +305,7 @@ export function PasoRevision({
           {vista.filas_validas.length > 0 ? (
             <details className="rounded-2xl border p-3">
               <summary className="flex min-h-12 cursor-pointer items-center text-base font-semibold">Filas listas para importar ({vista.filas_validas.length})</summary>
-              <div className="mt-2 overflow-x-auto [contain:inline-size]">
+              <div className="mt-2 [contain:inline-size]">
                 <Table>
                   <TableCaption className="sr-only">Filas que se importarán</TableCaption>
                   <TableHeader>

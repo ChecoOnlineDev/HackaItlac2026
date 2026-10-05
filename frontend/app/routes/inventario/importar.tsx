@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, XIcon } from "lucide-react";
+import { XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker } from "react-router";
 
@@ -21,6 +21,7 @@ import {
   type Tabla,
   type VistaPreviaApi,
 } from "~/componentes/importacion/tipos";
+import { BotonAtrasPaso, usarAtrasDePasos } from "~/componentes/navegacion/atras";
 import { AccionPrincipal, Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
 import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
@@ -194,23 +195,14 @@ export default function Importar() {
   const filasErrorResultado = resultado ? (resultado.filas_error.length > 0 ? resultado.filas_error : (vista?.filas_error ?? [])) : [];
 
   // ------------------------------------------------------------------ encabezado
-  const atras =
-    paso === 2 ? (
-      <Boton variante="texto" className="-ml-3 self-start" onClick={() => setPaso(1)}>
-        <ArrowLeftIcon aria-hidden="true" />
-        Atrás
-      </Boton>
-    ) : paso === 3 ? (
-      <Boton variante="texto" className="-ml-3 self-start" disabled={confirmando} onClick={() => setPaso(2)}>
-        <ArrowLeftIcon aria-hidden="true" />
-        Atrás
-      </Boton>
-    ) : null;
+  const volverPaso = paso === 2 ? () => setPaso(1) : paso === 3 ? () => (confirmando ? undefined : setPaso(2)) : null;
+  usarAtrasDePasos(volverPaso);
+  const atras = volverPaso ? <BotonAtrasPaso alVolver={volverPaso} deshabilitado={paso === 3 && confirmando} /> : null;
 
   return (
     <Pantalla
       titulo="Importar desde Excel"
-      descripcion={paso === 4 ? undefined : "Carga artículos y existencias pegando una tabla. No se guarda nada hasta que lo confirmes."}
+      descripcion={paso === 4 ? undefined : "Carga artículos y existencias desde una tabla. No se guarda nada hasta que confirmes."}
       acciones={
         tabla && paso !== 4 ? (
           <Boton variante="contorno" disabled={confirmando} onClick={() => setCancelando(true)}>

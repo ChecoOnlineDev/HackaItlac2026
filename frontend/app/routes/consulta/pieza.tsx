@@ -84,7 +84,7 @@ export default function FichaPiezaPantalla() {
         </p>
       </Bloque>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+      <div className="flex flex-wrap gap-2">
         {puedeInspeccionar && !enBaja ? (
           <Boton variante="normal" onClick={() => setPanel("inspeccion")}>
             <ClipboardCheckIcon aria-hidden="true" />
@@ -118,7 +118,7 @@ export default function FichaPiezaPantalla() {
       </div>
 
       <Seccion titulo="Datos de la pieza">
-        <dl className="grid grid-cols-1 gap-3 rounded-2xl border p-4 sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-3 rounded-2xl border bg-card p-4 shadow-xs sm:grid-cols-2">
           <Dato
             etiqueta="Artículo"
             valor={
@@ -141,7 +141,7 @@ export default function FichaPiezaPantalla() {
       {pieza.articulo.requiere_inspeccion ? (
         <Seccion titulo="Última inspección">
           {inspeccion ? (
-            <dl className="grid grid-cols-1 gap-3 rounded-2xl border p-4 sm:grid-cols-2">
+            <dl className="grid grid-cols-1 gap-3 rounded-2xl border bg-card p-4 shadow-xs sm:grid-cols-2">
               <Dato etiqueta="Resultado" valor={inspeccion.resultado_texto} />
               <Dato etiqueta="Fecha" valor={formatearFecha(inspeccion.fecha)} />
               <Dato etiqueta="Hecha por" valor={inspeccion.usuario} />

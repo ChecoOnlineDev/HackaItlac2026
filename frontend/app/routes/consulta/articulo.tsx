@@ -83,7 +83,7 @@ export default function FichaArticulo() {
         <p className="rounded-xl border bg-muted p-3 text-sm">No se entrega: {articulo.motivo_inactivacion}</p>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+      <div className="flex flex-wrap gap-2">
         {puede("entregas.crear") && articulo.activo ? (
           <Boton variante="normal" nativeButton={false} render={<Link to="/entregar" />}>
             <PackageCheckIcon aria-hidden="true" />
@@ -179,7 +179,7 @@ export default function FichaArticulo() {
       </Seccion>
 
       <Seccion titulo="Datos">
-        <dl className="grid grid-cols-1 gap-3 rounded-2xl border p-4 sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-3 rounded-2xl border bg-card p-4 shadow-xs sm:grid-cols-2">
           <Dato etiqueta="Unidad" valor={articulo.unidad} />
           <Dato etiqueta="Se devuelve" valor={articulo.retornable ? "Sí" : "No, se consume"} />
           {articulo.talla ? <Dato etiqueta="Talla" valor={articulo.talla} /> : null}

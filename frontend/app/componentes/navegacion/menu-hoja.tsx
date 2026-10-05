@@ -13,15 +13,15 @@ export function MenuHoja({ abierta, alCambiar }: { abierta: boolean; alCambiar: 
       <nav aria-label="Secciones" className="flex flex-col gap-5">
         {grupos.map(({ grupo, elementos }) => (
           <div key={grupo} className="flex flex-col gap-1">
-            <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">{grupo}</h2>
+            <h2 className="px-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{grupo}</h2>
             {elementos.map((e) => (
               <Link
                 key={e.id}
                 to={e.ruta}
                 onClick={() => alCambiar(false)}
-                className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-base font-medium hover:bg-accent"
+                className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium hover:bg-accent"
               >
-                <e.icono aria-hidden="true" className="size-5 text-primary" />
+                <e.icono aria-hidden="true" className="size-4.5 text-primary" />
                 {e.titulo}
               </Link>
             ))}

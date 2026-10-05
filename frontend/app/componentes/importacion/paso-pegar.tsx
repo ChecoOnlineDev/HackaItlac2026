@@ -104,7 +104,7 @@ export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, a
             alCambiarTexto(e.target.value);
             setConEncabezadosElegido(null);
           }}
-          className="min-h-48 w-full rounded-xl border border-input bg-background p-3 font-mono text-base leading-snug"
+          className="min-h-48 w-full rounded-xl border border-input bg-background p-3 text-base leading-snug"
         />
         <div id={`${idTexto}-estado`} aria-live="polite" className="flex flex-col gap-3">
           {lectura && !lectura.ok ? (
@@ -126,7 +126,7 @@ export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, a
                 />
                 La primera fila trae los encabezados
               </label>
-              <div className="overflow-x-auto [contain:inline-size] rounded-2xl border">
+              <div className="[contain:inline-size]">
                 <Table>
                   <TableCaption className="sr-only">Primeras filas de lo pegado</TableCaption>
                   <TableHeader>
