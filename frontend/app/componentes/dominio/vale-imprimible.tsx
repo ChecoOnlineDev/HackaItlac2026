@@ -59,11 +59,16 @@ export interface ValeDetalle {
   /** Quien autorizó (un renglón naranja), si hubo autorización. */
   autorizacion?: { autorizado_por: { nombre: string }; motivo?: string | null } | null;
   observacion?: string | null;
-  /** Firma del trabajador: la imagen (`data:image/png;base64,…` o una dirección). */
-  firma?: { imagen: string } | null;
+  /**
+   * Firma del trabajador: la imagen (`data:image/png;base64,…` o una dirección). `imagen` va en null
+   * cuando el vale sí está firmado pero el servidor no entrega la imagen (el detalle solo dice `tiene_firma`).
+   */
+  firma?: { imagen: string | null } | null;
+  /** Folio del vale al que corresponde (por ejemplo, el vale que cancela una cancelación). */
+  vale_origen_folio?: string | null;
   renglones: RenglonVale[];
-  /** Presente solo si el vale está cancelado. */
-  cancelacion?: { motivo: string; folio: string; creado_en?: string } | null;
+  /** Presente solo si el vale está cancelado. El motivo y el folio de la cancelación son opcionales: el detalle del servidor aún no los trae. */
+  cancelacion?: { motivo?: string | null; folio?: string | null; creado_en?: string } | null;
 }
 
 interface PropiedadesValeImprimible {
@@ -128,8 +133,10 @@ export function ValeImprimible({ vale, botonImprimir = true, acciones, className
             <BanIcon aria-hidden="true" className="mt-0.5 size-6 shrink-0" strokeWidth={3} />
             <div className="flex flex-col">
               <p className="text-lg font-extrabold tracking-wide uppercase">Cancelado</p>
-              <p className="text-base">Motivo: {vale.cancelacion!.motivo}</p>
-              <p className="text-sm font-semibold">Folio de la cancelación: {vale.cancelacion!.folio}</p>
+              {vale.cancelacion!.motivo ? <p className="text-base">Motivo: {vale.cancelacion!.motivo}</p> : null}
+              {vale.cancelacion!.folio ? (
+                <p className="text-sm font-semibold">Folio de la cancelación: {vale.cancelacion!.folio}</p>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -156,6 +163,7 @@ export function ValeImprimible({ vale, botonImprimir = true, acciones, className
               {vale.trabajador.area_obra ? <Dato etiqueta="Área u obra">{vale.trabajador.area_obra}</Dato> : null}
             </>
           ) : null}
+          {vale.vale_origen_folio ? <Dato etiqueta="Vale original">{vale.vale_origen_folio}</Dato> : null}
           {vale.almacen ? <Dato etiqueta={vale.destino_almacen ? "Almacén de origen" : "Almacén"}>{vale.almacen.nombre}</Dato> : null}
           {vale.destino_almacen ? <Dato etiqueta="Almacén de destino">{vale.destino_almacen.nombre}</Dato> : null}
         </dl>
@@ -209,8 +217,10 @@ export function ValeImprimible({ vale, botonImprimir = true, acciones, className
           {vale.trabajador || vale.firma ? (
             <div className="flex flex-col gap-1">
               <div className="flex h-28 items-end justify-center border-b-2 border-black">
-                {vale.firma ? (
+                {vale.firma?.imagen ? (
                   <img src={vale.firma.imagen} alt={`Firma de ${vale.trabajador?.nombre ?? "quien recibió"}`} className="max-h-full max-w-full object-contain" />
+                ) : vale.firma ? (
+                  <p className="pb-2 text-sm font-semibold text-neutral-700">Firmado en pantalla</p>
                 ) : null}
               </div>
               <p className="text-center text-sm font-semibold">

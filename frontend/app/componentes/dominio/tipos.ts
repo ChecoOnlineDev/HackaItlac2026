@@ -18,11 +18,18 @@ export interface ArticuloEvaluado {
   marca?: string | null;
   talla?: string | null;
   control: "PIEZA" | "CANTIDAD";
+  // Campos que el servidor también manda (`ArticuloEvaluadoOut`).
+  codigo?: string;
+  modelo?: string | null;
+  unidad?: string;
+  retornable?: boolean;
+  activo?: boolean;
 }
 
 export interface PiezaEvaluada {
-  id: string;
-  estado: string;
+  /** Va vacío en una pieza que todavía no existe (renglón de entrada). */
+  id?: string | null;
+  estado?: string | null;
   inspeccion_vigente_hasta?: string | null;
   numero_serie?: string | null;
 }
@@ -45,6 +52,8 @@ export interface RenglonEvaluado {
   pide_observacion: boolean;
   autorizable: boolean;
   requiere_confirmacion: boolean;
+  /** Un naranja que la `autorizacion_id` enviada ya cubre. */
+  autorizado?: boolean;
 }
 
 /** Condición de un renglón recibido o devuelto. */
