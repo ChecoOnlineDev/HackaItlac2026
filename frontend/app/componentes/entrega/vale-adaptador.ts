@@ -37,7 +37,10 @@ export function aValeImprimible(api: ValeDetalleApi, firmaImagen?: string | null
       cantidad: r.cantidad,
       condicion: (r.condicion as Condicion | null) ?? null,
     })),
-    // El detalle todavía no dice por qué ni con qué folio se canceló: solo que está cancelado.
-    cancelacion: api.estado === "CANCELADO" ? {} : null,
+    cancelacion: api.cancelacion
+      ? { motivo: api.cancelacion.motivo, folio: api.cancelacion.folio, creado_en: api.cancelacion.creado_en }
+      : api.estado === "CANCELADO"
+        ? {}
+        : null,
   };
 }

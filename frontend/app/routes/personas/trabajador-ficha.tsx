@@ -1,9 +1,10 @@
-import { CameraIcon, FileCheck2Icon, LogOutIcon, QrCodeIcon, RotateCcwIcon, UndoIcon, UserXIcon, XCircleIcon } from "lucide-react";
+import { CameraIcon, LogOutIcon, QrCodeIcon, RotateCcwIcon, UndoIcon, UserXIcon, XCircleIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 
 import { api, apiDelete, apiGet, apiPost } from "~/api/cliente";
 import { esErrorApi, mensajeDeError } from "~/api/errores";
+import { BotonNoAdeudo, useAccionNoAdeudo } from "~/componentes/devolucion/no-adeudo";
 import { SelectorFoto } from "~/componentes/personas/foto";
 import { fechaCorta } from "~/componentes/personas/formato";
 import { InsigniaSituacion, InsigniaVigencia } from "~/componentes/personas/insignias";
@@ -50,6 +51,7 @@ export default function FichaTrabajador() {
   const { puede } = useSesion();
   const puedeAdministrar = puede("trabajadores.administrar");
   const puedeBaja = puede("trabajadores.iniciar_baja");
+  const puedeNoAdeudo = puede("no_adeudo.emitir");
 
   const [ficha, setFicha] = useState<Ficha | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -75,6 +77,7 @@ export default function FichaTrabajador() {
   const [baja, setBaja] = useState<RespuestaBaja | null>(null);
 
   const recargar = useCallback(() => setIntento((n) => n + 1), []);
+  const noAdeudo = useAccionNoAdeudo(ficha ? { id: ficha.id, nombre: ficha.nombre, estado: ficha.estado } : null, recargar);
 
   useEffect(() => {
     if (!id) return;
@@ -267,7 +270,7 @@ export default function FichaTrabajador() {
         </header>
 
         {/* Acciones, según permiso y estado */}
-        {puedeAdministrar || puedeBaja ? (
+        {puedeAdministrar || puedeBaja || (puedeNoAdeudo && ficha.estado === "ACTIVO") ? (
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             {puedeAdministrar && !enBaja ? (
               <Boton variante={inactivo || !vigente ? "normal" : "contorno"} onClick={() => abrir("reingreso")}>
@@ -280,6 +283,9 @@ export default function FichaTrabajador() {
                 <LogOutIcon aria-hidden="true" />
                 Iniciar baja
               </Boton>
+            ) : null}
+            {puedeNoAdeudo && ficha.estado === "ACTIVO" ? (
+              <BotonNoAdeudo alAbrir={noAdeudo.abrir} />
             ) : null}
             {puedeAdministrar && enBaja ? (
               <Boton variante="contorno" onClick={() => abrir("cancelar-baja")}>
@@ -309,13 +315,12 @@ export default function FichaTrabajador() {
                 ? `Todavía debe devolver ${pendientesBaja.length} ${pendientesBaja.length === 1 ? "pieza" : "piezas"}, de todos los almacenes. El vale de no adeudo se emite cuando no deba nada.`
                 : "No debe nada: el almacén ya puede emitir su vale de no adeudo."}
             </p>
-            <div className="flex flex-col gap-1">
-              <Boton variante="contorno" disabled className="self-start">
-                <FileCheck2Icon aria-hidden="true" />
-                Emitir vale de no adeudo
-              </Boton>
-              <p className="text-sm text-muted-foreground">El vale lo emite el almacén; esta opción se habilitará cuando esté disponible.</p>
-            </div>
+            {puedeNoAdeudo ? (
+              <BotonNoAdeudo alAbrir={noAdeudo.abrir} className="self-start" />
+            ) : (
+              <p className="text-sm text-muted-foreground">El vale de no adeudo lo emite el almacén.</p>
+            )}
+            <p className="text-sm text-muted-foreground">Los consumibles (guantes, lentes, tapones…) no cuentan: solo lo que tiene que devolver.</p>
           </Seccion>
         ) : null}
 
@@ -351,6 +356,8 @@ export default function FichaTrabajador() {
           </dl>
         </Seccion>
       </article>
+
+      {noAdeudo.ventanas}
 
       {/* Reingreso */}
       <Hoja
