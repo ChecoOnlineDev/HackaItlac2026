@@ -105,6 +105,8 @@ export interface ValeDetalleApi {
   } | null;
   vale_origen_id: string | null;
   vale_origen_folio: string | null;
+  /** Solo en un vale cancelado: la cancelación que lo canceló (K-02). */
+  cancelacion?: { id: string; folio: string; motivo: string | null; responsable: PersonaApi; creado_en: string } | null;
   dispositivo: string | null;
   creado_en: string;
   renglones: RenglonValeApi[];
