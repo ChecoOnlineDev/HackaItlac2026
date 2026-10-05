@@ -26,7 +26,8 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 | 404 | `NO_ENCONTRADO` | El recurso no existe. |
 | 409 | `VALE_CAMBIO` | Al confirmar, la evaluación ya no es la misma. Incluye la evaluación nueva en `detalles`. |
 | 409 | `ALMACEN_CAMBIO` | Al confirmar, el usuario ya no está asignado al almacén en el que capturó el vale. No se guarda; incluye el almacén nuevo y el borrador se conserva (AC-13). |
-| 409 | `CODIGO_REPETIDO` | El código ya identifica otra cosa. |
+| 409 | `CODIGO_REPETIDO` | El código ya identifica otra cosa. Incluye en `detalles` su `tipo`, su `ref_id` y una `descripcion` de quién es. |
+| 409 | `TRABAJADOR_EXISTE` | Al dar de alta, el número de empleado o la CURP ya existen (T-02). Incluye en `detalles.trabajador` a la persona (`id`, `numero_empleado`, `nombre`, `estado`) y en `detalles.coincide_por` el dato que coincidió, para ofrecer el reingreso. |
 | 409 | `CON_PENDIENTES` | No se puede emitir el vale de no adeudo. Incluye los pendientes. |
 | 409 | `CON_MOVIMIENTOS` | No se puede eliminar ni cambiar control o retorno. |
 | 409 | `NO_CANCELABLE` | El vale no se puede cancelar; incluye el motivo (K-03, K-04). |
@@ -55,15 +56,17 @@ Responden solo lo que el usuario puede ver: trabajadores con `trabajadores.ver`,
 
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
-| `GET /api/trabajadores` | `trabajadores.ver` | Lista con vigencia y situación. Filtros: `q`, `situacion`. |
-| `POST /api/trabajadores` | `trabajadores.administrar` | Alta (T-03). Si el número ya existe responde 409 con la persona, para ofrecer el reingreso. |
-| `GET /api/trabajadores/{id}` | `trabajadores.ver` | Ficha: periodo vigente, resguardo y pendientes. CURP y NSS solo con `trabajadores.ver_datos_personales`. |
-| `POST /api/trabajadores/{id}/periodos` | `trabajadores.administrar` | Reingreso o extensión: nuevo periodo y regreso a Activo (T-02). |
-| `POST /api/trabajadores/{id}/codigos` | `trabajadores.administrar` | Liga una credencial escaneada o genera un código propio (T-05). |
-| `POST /api/trabajadores/{id}/foto` | `trabajadores.administrar` | Sube o reemplaza la foto (T-09). Solo acepta imágenes y rechaza las que pesan más del tamaño permitido. |
-| `GET /api/trabajadores/{id}/foto` | `trabajadores.ver` | Entrega la imagen, solo con sesión. La ficha indica si el trabajador tiene foto. |
-| `POST /api/trabajadores/{id}/baja` | `trabajadores.iniciar_baja` | Inicia la baja (B-01). |
-| `DELETE /api/trabajadores/{id}/baja` | `trabajadores.administrar` | Cancela la baja en proceso (B-07). |
+| `GET /api/trabajadores` | `trabajadores.ver` | Lista con vigencia y situación. Filtros: `q` (parte del nombre o del número) y `situacion` (`SIN_PENDIENTES`, `CON_PENDIENTES`, `NO_ADEUDO_EMITIDO`). Nunca trae CURP ni NSS. |
+| `POST /api/trabajadores` | `trabajadores.administrar` | Alta (T-03): `{nombre, numero_empleado, puesto, area_obra, inicio, fin}` y opcionales `{referencia, tallas, curp, nss}`. Responde 201 con la ficha. Si el número o la CURP ya existen responde 409 `TRABAJADOR_EXISTE` con la persona, para ofrecer el reingreso. Fin anterior a inicio: 422 con `detalles.campo = "fin"`. |
+| `GET /api/trabajadores/{id}` | `trabajadores.ver` | Ficha: datos, `periodo` vigente, `vigencia` `{vigente, motivo, regla}`, `situacion`, `codigos`, `tiene_foto` y `foto_url`, `resguardo` (retornables con código, fecha de entrega, folio y almacén) y `pendientes` `{total, de_periodos_anteriores, regla}`. `curp` y `nss` solo existen en la respuesta con `trabajadores.ver_datos_personales`; sin el permiso la clave no se envía. |
+| `POST /api/trabajadores/{id}/periodos` | `trabajadores.administrar` | Reingreso o extensión: `{inicio, fin}` y opcionales `{puesto, area_obra, referencia}` (sin puesto o área se conservan los del periodo anterior). Registra el periodo nuevo, regresa a Activo (T-02) y responde 201 con la ficha. |
+| `POST /api/trabajadores/{id}/codigos` | `trabajadores.administrar` | Liga una credencial escaneada con `{codigo}` o, sin `codigo`, genera un código propio para imprimir (T-05). Responde 201 `{codigo, tipo, generado}`. Un código ya usado responde 409 `CODIGO_REPETIDO` diciendo de quién es. |
+| `POST /api/trabajadores/{id}/foto` | `trabajadores.administrar` | Sube o reemplaza la foto (T-09). Multipart con el campo `archivo`. Solo acepta imágenes PNG, JPEG o WEBP (por su contenido) y rechaza las que pesan más del tamaño permitido (422). Responde `{tiene_foto, foto_url}`. El cambio queda en el registro de cambios. |
+| `GET /api/trabajadores/{id}/foto` | `trabajadores.ver` | Entrega la imagen con su tipo de contenido, solo con sesión. 404 "Sin foto registrada." si no tiene. La ficha indica si el trabajador tiene foto. |
+| `POST /api/trabajadores/{id}/baja` | `trabajadores.iniciar_baja` | Inicia la baja (B-01): pasa a Baja en proceso y responde `{id, estado, estado_texto, pendientes, puede_emitir_no_adeudo, reglas}` con los pendientes de todos los almacenes (B-02, sin consumibles, B-03). Si ya estaba en proceso solo repite los pendientes; si está Inactivo, 409. |
+| `DELETE /api/trabajadores/{id}/baja` | `trabajadores.administrar` | Cancela la baja en proceso (B-07): vuelve a Activo y responde la ficha. Si la baja no está en proceso, 409. |
+
+La emisión del vale de no adeudo (B-04, B-08) es de `movimientos`, en `POST /api/trabajadores/{id}/no-adeudo` (sección Vales).
 
 ## Catálogo
 
