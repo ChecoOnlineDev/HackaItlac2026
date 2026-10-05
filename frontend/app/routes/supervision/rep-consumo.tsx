@@ -1,18 +1,239 @@
-import { FileBarChart } from "lucide-react";
+import { cn } from "cn";
+import { ChevronDownIcon } from "lucide-react";
+import { Fragment, useState } from "react";
 
+import { apiGet, descargarCsv } from "~/api/cliente";
+import { useConsulta } from "~/componentes/catalogo/usar-consulta";
 import { Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
-import { EstadoVacio } from "~/componentes/ui/estado-vacio";
+import {
+  chipPeriodo,
+  FiltroLista,
+  FiltroPeriodo,
+  NotaAlcance,
+  textoDeOpcion,
+  useAlcance,
+} from "~/componentes/reportes/filtros-comunes";
+import { useAlmacenesFiltro, useCategoriasFiltro, useEtiqueta } from "~/componentes/reportes/listas";
+import { MarcoReporte } from "~/componentes/reportes/marco-reporte";
+import { SelectorBusqueda } from "~/componentes/reportes/selector-busqueda";
+import { TAMANO_REPORTE, unidadConNumero, type ConsumoReporte, type FiltroActivo, type PaginaReporte } from "~/componentes/reportes/tipos";
+import { useFiltrosUrl } from "~/componentes/reportes/usar-filtros";
 
-// Pantalla pendiente: quien la construya reemplaza el estado vacío. No toca `routes.ts` ni los layouts.
 export const handle: ManejadorRuta = { permiso: "reportes.consumo" };
 
-export default function ReporteConsumo() {
+const CLAVES = ["desde", "hasta", "almacen_id", "categoria_id", "articulo_id", "trabajador_id"] as const;
+
+/** Consumo de un artículo por trabajador, de mayor a menor. */
+function Desglose({ c, id }: { c: ConsumoReporte; id: string }) {
   return (
-    <Pantalla titulo="Reporte de consumo" descripcion="Cuánto se ha consumido por artículo.">
-      <EstadoVacio
-        icono={FileBarChart}
-        titulo="Esta pantalla todavía no está lista"
-        descripcion="Estamos construyéndola. Por ahora, regresa al inicio."
+    <div id={id} className="flex flex-col gap-2">
+      <p className="text-sm font-semibold text-muted-foreground">Consumo por trabajador, de mayor a menor</p>
+      {c.trabajadores.length === 0 ? (
+        <p className="text-muted-foreground">No hay detalle por trabajador.</p>
+      ) : (
+        <ol className="flex flex-col divide-y rounded-lg border bg-background">
+          {c.trabajadores.map((t, i) => (
+            <li key={`${t.trabajador_id ?? "sin"}-${i}`} className="flex items-center justify-between gap-3 p-3">
+              <span className="min-w-0">
+                <span className="font-semibold">{t.trabajador}</span>
+                {t.numero_empleado ? <span className="block text-sm text-muted-foreground">{t.numero_empleado}</span> : null}
+              </span>
+              <span className="shrink-0 text-lg font-bold tabular-nums">
+                {t.cantidad} <span className="text-sm font-normal text-muted-foreground">{unidadConNumero(c.unidad, t.cantidad)}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+function Total({ c }: { c: ConsumoReporte }) {
+  return (
+    <span className="text-xl font-bold tabular-nums">
+      {c.total} <span className="text-base font-normal text-muted-foreground">{unidadConNumero(c.unidad, c.total)}</span>
+    </span>
+  );
+}
+
+export default function ReporteConsumo() {
+  const { valores, pagina, cambiar, cambiarPagina, quitarTodos } = useFiltrosUrl(CLAVES);
+  const alcance = useAlcance();
+  const almacenes = useAlmacenesFiltro();
+  const categorias = useCategoriasFiltro();
+  const etiquetaTrabajador = useEtiqueta("trabajador", valores.trabajador_id);
+  const etiquetaArticulo = useEtiqueta("articulo", valores.articulo_id);
+  const [abiertos, setAbiertos] = useState<ReadonlySet<string>>(new Set());
+
+  const parametros = {
+    desde: valores.desde,
+    hasta: valores.hasta,
+    almacen_id: alcance.todos ? valores.almacen_id : "",
+    categoria_id: valores.categoria_id,
+    articulo_id: valores.articulo_id,
+    trabajador_id: valores.trabajador_id,
+  };
+  const consulta = useConsulta(
+    (signal) => apiGet<PaginaReporte<ConsumoReporte>>("/reportes/consumo", { ...parametros, pagina, tamano: TAMANO_REPORTE }, signal),
+    JSON.stringify([parametros, pagina]),
+  );
+
+  const activos: FiltroActivo[] = [];
+  const periodo = chipPeriodo(valores.desde, valores.hasta);
+  if (periodo) activos.push(periodo);
+  if (alcance.todos && valores.almacen_id) {
+    activos.push({ clave: "almacen_id", texto: `Almacén: ${textoDeOpcion(almacenes.opciones, valores.almacen_id) ?? "elegido"}` });
+  }
+  if (valores.categoria_id) {
+    activos.push({ clave: "categoria_id", texto: `Categoría: ${textoDeOpcion(categorias.opciones, valores.categoria_id) ?? "elegida"}` });
+  }
+  if (valores.articulo_id) activos.push({ clave: "articulo_id", texto: `Artículo: ${etiquetaArticulo ?? "elegido"}` });
+  if (valores.trabajador_id) activos.push({ clave: "trabajador_id", texto: `Trabajador: ${etiquetaTrabajador ?? "elegido"}` });
+
+  function quitar(clave: string) {
+    if (clave === "periodo") cambiar({ desde: null, hasta: null });
+    else cambiar({ [clave]: null } as Record<(typeof CLAVES)[number], null>);
+  }
+
+  function alternar(id: string) {
+    setAbiertos((previos) => {
+      const nuevos = new Set(previos);
+      if (nuevos.has(id)) nuevos.delete(id);
+      else nuevos.add(id);
+      return nuevos;
+    });
+  }
+
+  const filtros = (
+    <>
+      <FiltroPeriodo desde={valores.desde} hasta={valores.hasta} alCambiar={(r) => cambiar({ desde: r.desde, hasta: r.hasta })} />
+      {alcance.todos && almacenes.disponible ? (
+        <FiltroLista
+          etiqueta="Almacén"
+          vacio="Todos los almacenes"
+          valor={valores.almacen_id}
+          opciones={almacenes.opciones}
+          alCambiar={(v) => cambiar({ almacen_id: v })}
+        />
+      ) : null}
+      {categorias.disponible ? (
+        <FiltroLista
+          etiqueta="Categoría"
+          vacio="Todas las categorías"
+          valor={valores.categoria_id}
+          opciones={categorias.opciones}
+          alCambiar={(v) => cambiar({ categoria_id: v })}
+        />
+      ) : null}
+      <SelectorBusqueda tipo="articulo" valor={valores.articulo_id} alCambiar={(id) => cambiar({ articulo_id: id })} />
+      <SelectorBusqueda tipo="trabajador" valor={valores.trabajador_id} alCambiar={(id) => cambiar({ trabajador_id: id })} />
+    </>
+  );
+
+  return (
+    <Pantalla titulo="Reporte de consumo" descripcion="Cuánto se consumió de cada artículo y quién lo recibió.">
+      <MarcoReporte<ConsumoReporte>
+        unidad="artículos"
+        filtros={filtros}
+        activos={activos}
+        alQuitar={quitar}
+        alQuitarTodos={quitarTodos}
+        consulta={consulta}
+        pagina={pagina}
+        alCambiarPagina={cambiarPagina}
+        alDescargar={() => descargarCsv("/reportes/consumo", parametros, "consumo.csv")}
+        nota={
+          <>
+            <NotaAlcance almacen={alcance.almacen} />
+            <p>Toca un artículo para ver cuánto consumió cada trabajador.</p>
+          </>
+        }
+        tabla={(elementos) => (
+          <div className="overflow-x-auto rounded-xl border">
+            <table className="w-full text-left">
+              <caption className="sr-only">Consumo por artículo</caption>
+              <thead className="bg-muted text-sm">
+                <tr>
+                  <th scope="col" className="p-3 font-semibold">Artículo</th>
+                  <th scope="col" className="p-3 font-semibold">Categoría</th>
+                  <th scope="col" className="p-3 text-right font-semibold">Total consumido</th>
+                </tr>
+              </thead>
+              <tbody>
+                {elementos.map((c) => {
+                  const abierto = abiertos.has(c.articulo_id);
+                  const idDetalle = `consumo-${c.articulo_id}`;
+                  return (
+                    <Fragment key={c.articulo_id}>
+                      <tr className={cn("border-t", abierto && "bg-muted/40")}>
+                        <th scope="row" className="p-0 font-semibold">
+                          <button
+                            type="button"
+                            aria-expanded={abierto}
+                            aria-controls={idDetalle}
+                            onClick={() => alternar(c.articulo_id)}
+                            className="flex min-h-14 w-full items-center gap-2 p-3 text-left hover:bg-muted/60"
+                          >
+                            <ChevronDownIcon aria-hidden="true" className={cn("size-5 shrink-0 transition-transform duration-150", !abierto && "-rotate-90")} />
+                            <span>
+                              {c.articulo}
+                              <span className="block text-sm font-normal text-muted-foreground">{c.codigo}</span>
+                            </span>
+                          </button>
+                        </th>
+                        <td className="p-3">{c.categoria}</td>
+                        <td className="p-3 text-right">
+                          <Total c={c} />
+                        </td>
+                      </tr>
+                      {abierto ? (
+                        <tr className="bg-muted/40">
+                          <td colSpan={3} className="px-3 pb-4 pl-10">
+                            <Desglose c={c} id={idDetalle} />
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        tarjetas={(elementos) => (
+          <ul className="flex flex-col gap-3">
+            {elementos.map((c) => {
+              const abierto = abiertos.has(c.articulo_id);
+              const idDetalle = `consumo-${c.articulo_id}`;
+              return (
+                <li key={c.articulo_id} className="rounded-xl border">
+                  <button
+                    type="button"
+                    aria-expanded={abierto}
+                    aria-controls={idDetalle}
+                    onClick={() => alternar(c.articulo_id)}
+                    className="flex min-h-14 w-full items-center gap-3 p-4 text-left"
+                  >
+                    <ChevronDownIcon aria-hidden="true" className={cn("size-5 shrink-0 transition-transform duration-150", !abierto && "-rotate-90")} />
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="text-lg leading-tight font-bold">{c.articulo}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {c.codigo} · {c.categoria}
+                      </span>
+                    </span>
+                    <Total c={c} />
+                  </button>
+                  {abierto ? (
+                    <div className="border-t p-4">
+                      <Desglose c={c} id={idDetalle} />
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       />
     </Pantalla>
   );

@@ -146,6 +146,7 @@ Cómo se presenta y se comporta cada pantalla del [app flow](app-flow.md). Cubre
 ### Reportes y etiquetas
 
 - **Reportes:** filtros arriba, tabla, total de registros y "Descargar CSV". El periodo se elige con un selector de rango de fechas, con atajos como Hoy, Ayer, Últimos 7 días y Este mes. El reporte de movimientos filtra además por almacén, tipo, trabajador, artículo y usuario; el filtro de usuario es informativo y no estorba la operación habitual. El reporte de consumo muestra el total por artículo y se abre para ver el desglose por trabajador.
+- **Patrón de reporte (`MarcoReporte`):** los filtros viven en la dirección (se comparten y sobreviven a una recarga); en computadora van arriba en una tarjeta y en celular dentro de la hoja "Filtros", con el contador de filtros activos y el botón "Ver N registros". Cada filtro activo es un chip que se quita con un toque. Quien no tiene `almacenes.todos` no ve el filtro de almacén: una nota dice que solo ve el suyo. Tabla en computadora y tarjetas en celular; "Descargar CSV" usa los mismos filtros.
 - **Etiquetas:** selección de elementos y vista previa de la hoja; cada etiqueta lleva QR y texto legible.
 
 ## Accesibilidad
