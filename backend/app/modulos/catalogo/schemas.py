@@ -209,6 +209,7 @@ class ArticuloListItem(BaseModel):
     requiere_inspeccion: bool
     requiere_autorizacion: bool
     activo: bool
+    motivo_inactivacion: str | None = None
     # Dato reservado: ausente sin `catalogo.costos`.
     costo_unitario: Decimal | None = None
 
@@ -219,7 +220,6 @@ class ArticuloOut(ArticuloListItem):
     limite_cantidad: int | None
     limite_periodo_dias: int | None
     cantidad_aviso: int | None
-    motivo_inactivacion: str | None
     creado_en: datetime
 
 

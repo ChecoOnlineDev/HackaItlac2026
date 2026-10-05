@@ -1048,3 +1048,16 @@ def test_US_ETQ_001_sin_elementos_la_lista_viene_vacia(cliente_como):
 def test_US_ETQ_001_un_tipo_desconocido_responde_422(cliente_como):
     assert cliente_como("Compras").get("/api/etiquetas", params={"tipo": "otro"}).status_code == 422
     assert cliente_como("Compras").get("/api/etiquetas").status_code == 422
+
+
+def test_CF_10_la_lista_trae_el_motivo_de_los_inactivos(cliente_como, session):
+    cliente = cliente_como("Compras")
+    articulo = _crear_articulo(cliente, session, "MOT-LISTA-1", "EPP básico")
+    respuesta = cliente.post(
+        f"/api/articulos/{articulo['id']}/inactivacion", json={"motivo": "Descontinuado"}
+    )
+    assert respuesta.status_code == 200
+
+    lista = cliente.get("/api/articulos", params={"q": "MOT-LISTA-1"}).json()["elementos"]
+
+    assert [a["motivo_inactivacion"] for a in lista] == ["Descontinuado"]
