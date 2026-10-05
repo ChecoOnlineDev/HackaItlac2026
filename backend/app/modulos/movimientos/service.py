@@ -349,6 +349,7 @@ class MovimientoService:
         # 3. Volver a evaluar, ya con las filas bloqueadas (RG-08).
         evaluacion = manejador.evaluar(ctx, normal)
         evaluacion.admite_sin_renglones = manejador.admite_sin_renglones
+        manejador.exigir_al_confirmar(normal, evaluacion)
         if evaluacion.nivel == Nivel.ROJO:
             raise self._vale_cambio(ctx, evaluacion)
         autorizacion = self._aplicar_autorizacion(ctx, evaluacion, normal, silencioso=False)

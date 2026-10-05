@@ -19,6 +19,7 @@ from tests.movimientos.ayudas import (
     total_vales,
 )
 from tests.movimientos.ayudas_traspasos import (
+    EVALUAR,
     POR_RECIBIR,
     VALES,
     almacen_id,
@@ -204,6 +205,69 @@ def test_X_13_un_traspaso_recibido_con_diferencias_sigue_en_la_lista_de_su_desti
     ]
     assert cliente_almacen("MID").get(POR_RECIBIR).json() == {"total": 0, "elementos": []}
     assert almacenista.get(POR_RECIBIR).json() == {"total": 0, "elementos": []}  # el origen no
+
+
+def test_X_13_RG_14_una_recepcion_con_diferencias_exige_observacion(
+    almacenista, cliente_almacen, compras, session
+):
+    traspaso, guantes, (p1, p2) = traspaso_mixto(almacenista, compras, session)
+    con = cliente_almacen("CON")
+    parcial = [renglon(guantes.codigo, 4), renglon(p1.codigo)]
+    sin = cuerpo_recepcion(traspaso["id"], parcial, observacion=None)
+
+    # La evaluación lo marca en rojo antes de confirmar, con la regla.
+    ev = con.post(EVALUAR, json=sin).json()
+    assert ev["nivel"] == "ROJO" and ev["puede_confirmar"] is False
+    assert reglas(ev) == ["X-13", "RG-14"]
+    # Una observación en blanco tampoco cuenta.
+    en_blanco = con.post(EVALUAR, json={**sin, "observacion": "   "}).json()
+    assert en_blanco["nivel"] == "ROJO"
+
+    vales = total_vales(session)
+    r = con.post(VALES, json=sin)
+    assert r.status_code == 422 and r.json()["codigo"] == "DATOS_INVALIDOS"
+    assert r.json()["detalles"][0]["campo"] == "observacion"
+    assert r.json()["detalles"][0]["regla"] == "RG-14"
+    assert total_vales(session) == vales  # no se guardó nada
+    assert vale(session, traspaso["id"]).estado == "EN_TRANSITO"
+
+    # Con la observación se evalúa en amarillo y se confirma; queda en el vale.
+    con_obs = cuerpo_recepcion(traspaso["id"], parcial, observacion="Faltó en el contenedor")
+    assert con.post(EVALUAR, json=con_obs).json()["nivel"] == "AMARILLO"
+    r = con.post(VALES, json=con_obs)
+    assert r.status_code == 201, r.text
+    assert vale(session, r.json()["id"]).observacion == "Faltó en el contenedor"
+    assert vale(session, traspaso["id"]).estado == "RECIBIDO_CON_DIFERENCIAS"
+    revisar_invariantes(session)
+
+
+def test_X_13_RG_14_la_recepcion_completa_no_pide_observacion(
+    almacenista, cliente_almacen, compras, session
+):
+    traspaso, guantes, (p1, p2) = traspaso_mixto(almacenista, compras, session)
+    con = cliente_almacen("CON")
+    todo = [renglon(guantes.codigo, 6), renglon(p1.codigo), renglon(p2.codigo)]
+    ev = con.post(EVALUAR, json=cuerpo_recepcion(traspaso["id"], todo, observacion=None)).json()
+    assert ev["nivel"] == "VERDE" and reglas(ev) == []
+    r = con.post(VALES, json=cuerpo_recepcion(traspaso["id"], todo, observacion=None))
+    assert r.status_code == 201, r.text
+    assert vale(session, traspaso["id"]).estado == "RECIBIDO"
+
+
+def test_X_13_RG_14_recepciones_sucesivas_piden_observacion_mientras_quede_algo_pendiente(
+    almacenista, cliente_almacen, compras, session
+):
+    traspaso, guantes, (p1, p2) = traspaso_mixto(almacenista, compras, session)
+    con = cliente_almacen("CON")
+    recibir(con, traspaso, [renglon(guantes.codigo, 2)])  # con observación (ayuda)
+    segunda = cuerpo_recepcion(traspaso["id"], [renglon(guantes.codigo, 2)], observacion=None)
+    r = con.post(VALES, json=segunda)
+    assert r.status_code == 422 and r.json()["detalles"][0]["campo"] == "observacion"
+    # La que ya completa lo pendiente no la pide.
+    resto = [renglon(guantes.codigo, 4), renglon(p1.codigo), renglon(p2.codigo)]
+    ultima = cuerpo_recepcion(traspaso["id"], resto, observacion=None)
+    assert con.post(VALES, json=ultima).status_code == 201
+    assert vale(session, traspaso["id"]).estado == "RECIBIDO"
 
 
 # ----------------------------------------------------------------------------- X-10
