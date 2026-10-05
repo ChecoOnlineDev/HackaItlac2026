@@ -118,6 +118,8 @@ El PDF dice: "Límite de entrega por artículo: si se supera, bloquear la operac
 | L-04 | Si la cuenta supera el límite, el renglón queda en naranja y muestra el detalle ("límite 2, tiene 2, pide 1"). | PDF función 6 |
 | L-05 | El artículo guarda dos campos: cantidad límite y periodo en días. Periodo vacío significa "en posesión". | Propuesta |
 
+Cómo se aplica en el servidor: el motivo del límite lleva el ID `L-02` (retornables) o `L-03` (consumibles) y el detalle de L-04. Un retornable cuenta lo que el trabajador tiene ahora (su existencia); un consumible sin periodo compara el límite solo contra lo que pide el vale (no hay nada "en posesión"). Si un vale trae varios renglones del mismo artículo (por ejemplo dos piezas), cada renglón cuenta también lo pedido en los anteriores: el que cruza el límite queda en naranja. Una entrega hecha hace exactamente N días ya no cuenta, y un vale cancelado tampoco.
+
 ### 4.2 Dotación recomendada por puesto (avisa, no bloquea)
 
 El PDF muestra que el EPP se define por puesto (p.3, paso 5) y lista el equipo de un trabajador dentro de Mittal (p.7).
@@ -306,6 +308,8 @@ Otras reglas de la entrega:
 | E-24 | El vale lleva folio, fecha y hora, trabajador, área u obra, descripción con marca, código o serie, cantidad, condición, responsable y QR. No lleva costos. | PDF p.8 paso 6; plática min 38 y 51 |
 | E-25 | No hay plazo por préstamo: la herramienta puede quedarse todo el proyecto. El plazo es el fin del contrato. | Plática min 37 y 52 |
 | E-28 | Escanear un código agrega el renglón a un borrador del vale, y el servidor lo evalúa sin escribir nada. Las existencias y el resguardo cambian solo al confirmar el vale, en una sola operación (RG-01, RG-09). Mientras no se confirme, cualquier renglón se puede quitar. | RG-01, RG-09; idea del equipo |
+
+Cómo se aplican en el servidor: E-01 también cubre escanear el código de un artículo controlado por pieza en lugar del de la pieza (no hay a cuál pieza entregar). E-02 pone en rojo todos los renglones y se muestra también como motivo del vale; E-12 es un aviso del vale, no de un renglón. Una pieza se entrega de una en una (RG-05) y la condición al salir es Bueno si no se indica (E-22; un equipo dañado no se entrega). El motivo de cada renglón lleva el ID de su regla y se guarda en `movimiento.reglas`.
 
 ### 7.4 Devolución (almacenista)
 

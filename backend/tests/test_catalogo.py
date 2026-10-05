@@ -9,7 +9,7 @@ from collections.abc import Callable
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.excepciones import DatosInvalidos
@@ -643,6 +643,8 @@ def test_C_03_la_lista_filtra_por_texto_categoria_y_estado(cliente_como, session
 
 
 def test_C_03_la_ficha_trae_existencias_por_almacen_y_quien_lo_tiene(cliente_como, session):
+    # La carga inicial de `movimientos` dejó existencias: esta prueba parte de un inventario vacío.
+    session.execute(delete(Existencia))
     cliente = cliente_como("Compras")
     articulo = _articulo_por_codigo(session, "FLEXOM")
     kep = _ubicacion_kep(session)
@@ -941,6 +943,8 @@ def test_P_03_actualizar_estado_pieza_no_toca_su_ubicacion(session):
 def test_CF_05_articulo_tiene_movimientos(session):
     servicio = CatalogoService(session)
     articulo = _articulo_por_codigo(session, "CINCEL")
+    # La carga inicial de `movimientos` ya le dejó su entrada: esta prueba parte sin movimientos.
+    session.execute(delete(Movimiento).where(Movimiento.articulo_id == articulo.id))
     assert servicio.articulo_tiene_movimientos(articulo.id) is False
     _con_movimiento(session, articulo.id)
     assert servicio.articulo_tiene_movimientos(articulo.id) is True

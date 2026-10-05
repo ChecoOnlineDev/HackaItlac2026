@@ -22,6 +22,7 @@ from app.modulos.autorizaciones.schemas import (
     SolicitudListItem,
 )
 from app.modulos.autorizaciones.service import AutorizacionService
+from app.modulos.movimientos.verificador import crear_verificador
 
 router = APIRouter(prefix="/autorizaciones", tags=["autorizaciones"])
 
@@ -40,7 +41,10 @@ def solicitar(
     service: ServiceDep,
 ) -> SolicitudCreada:
     """`entregas.crear`. Pide autorización al supervisor con un motivo (A-02)."""
-    autorizacion = service.solicitar(usuario, datos)
+    # A-06: `movimientos` rechaza los renglones en rojo con su evaluación real.
+    autorizacion = service.solicitar(
+        usuario, datos, verificador_renglones=crear_verificador(service.session, usuario)
+    )
     return SolicitudCreada(
         id=autorizacion.id, estado=autorizacion.estado, vence_en=autorizacion.vence_en
     )
