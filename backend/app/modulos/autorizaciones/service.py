@@ -23,6 +23,7 @@ from app.config import get_settings
 from app.core import errores_bd
 from app.core.excepciones import NoEncontrado, SinPermiso
 from app.core.paginacion import Paginacion
+from app.core.reintento import reintentar_si_interbloqueo
 from app.core.tiempo import ahora_utc
 from app.modulos.acceso.exceptions import PinIncorrecto
 from app.modulos.acceso.models import Usuario
@@ -185,6 +186,15 @@ class AutorizacionService:
     # ------------------------------------------------------------ resolución
 
     def resolver(
+        self, autorizacion_id: uuid.UUID, actor: Usuario, datos: ResolucionIn
+    ) -> AutorizacionOut:
+        """Aprueba o rechaza una solicitud pendiente (ver `_resolver`). Un interbloqueo de la base
+        se reintenta desde el principio: antes de verificar el PIN no se escribe nada."""
+        return reintentar_si_interbloqueo(
+            self.session, lambda: self._resolver(autorizacion_id, actor, datos)
+        )
+
+    def _resolver(
         self, autorizacion_id: uuid.UUID, actor: Usuario, datos: ResolucionIn
     ) -> AutorizacionOut:
         """Aprueba o rechaza una solicitud pendiente.

@@ -39,10 +39,11 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 | 403 | `AJUSTE_PROPIO` | Quien registró la inspección intenta ajustar su vigencia (P-07). |
 | 409 | `AJUSTE_NO_PERMITIDO` | La pieza está No apta o no tiene inspección Apta: no hay vigencia que ajustar (P-07). |
 | 422 | `VIGENCIA_EXCEDIDA` | La fecha pasa de la inspección más la vigencia del artículo (P-07). |
-| 422 | `RENGLON_NO_AUTORIZABLE` | Un renglón en rojo no se envía a autorización (A-06). |
+| 422 | `RENGLON_NO_AUTORIZABLE` | Un renglón que no es naranja en la evaluación del servidor no se envía a autorización: uno en rojo (A-06) o uno verde o amarillo que no la necesita. |
 | 422 | `DATOS_INVALIDOS` | Falta un dato o tiene forma incorrecta. Incluye el campo. |
 | 403 | `PIN_INCORRECTO` | El PIN de autorización no es válido (403 y no 401, para no cerrar la sesión). |
-| 429 | `DEMASIADOS_INTENTOS` | Cinco contraseñas o PIN fallidos seguidos: bloqueo de cinco minutos. Incluye `detalles.segundos_espera` y la cabecera `Retry-After`. Se responde ya en el quinto intento fallido. |
+| 429 | `DEMASIADOS_INTENTOS` | Cinco contraseñas o PIN fallidos seguidos: bloqueo de cinco minutos. Incluye `detalles.segundos_espera` y la cabecera `Retry-After`. Se responde ya en el quinto intento fallido. El conteo resiste peticiones simultáneas: no hay más de cinco intentos reales por ventana. |
+| 503 | `SERVICIO_NO_DISPONIBLE` | La base de datos canceló la operación por un choque entre transacciones (interbloqueo) y no se pudo repetir. Es transitorio: el login y la resolución de autorizaciones lo reintentan tres veces antes de responder esto; intentar de nuevo suele funcionar. Nunca sale como 500. |
 | 501 | `TIPO_NO_IMPLEMENTADO` | El tipo de vale existe pero su operación no está construida. Los siete tipos del MVP ya están implementados; el código se conserva para tipos futuros. |
 
 ## Acceso
@@ -51,7 +52,7 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 |---|---|---|
 | `POST /api/sesion` | Público | Entra con `{usuario, contrasena}` y deja la cookie de sesión. Responde `{usuario: {id, nombre, usuario}, rol: {id, nombre}, almacen: {id, clave, nombre} o null, permisos: [claves]}`. Credenciales incorrectas o usuario inactivo: 401 con "Usuario o contraseña incorrectos", sin decir cuál falló. |
 | `GET /api/sesion` | Sesión | Devuelve la sesión actual con la lista de permisos. La interfaz la usa para mostrar menús y botones. |
-| `DELETE /api/sesion` | Sesión | Sale y borra la cookie. Responde 204. |
+| `DELETE /api/sesion` | Sesión | Sale y borra la cookie. Responde 204. Además REVOCA el token: sube `usuario.version_sesion`, así que la cookie copiada antes deja de servir (401) y se cierran las sesiones de ese usuario en todos sus dispositivos. Restablecer la contraseña o el PIN de un usuario y inactivarlo (o reactivarlo) hacen lo mismo. |
 
 ## Usuarios y personal
 

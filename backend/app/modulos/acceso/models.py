@@ -69,4 +69,10 @@ class Usuario(Base):
     )
     pin_bloqueado_hasta: Mapped[datetime | None] = mapped_column(FechaHora)
 
+    # Versión de las sesiones del usuario: el token la lleva (`ver`) y solo sirve si coincide.
+    # Cerrar sesión, restablecer contraseña o PIN e inactivar al usuario la incrementan.
+    version_sesion: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+
     rol: Mapped[Rol] = relationship(lazy="joined")

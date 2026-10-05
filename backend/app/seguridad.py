@@ -33,19 +33,23 @@ def verificar_secreto(secreto: str, hash_guardado: str) -> bool:
 HASH_RELLENO = hashear_secreto("relleno-sin-usuario")
 
 
-def crear_token(usuario_id: uuid.UUID) -> str:
+def crear_token(usuario_id: uuid.UUID, version: int = 0) -> str:
+    """Token de sesión. `version` es `usuario.version_sesion`: si después cambia, el token deja
+    de servir (cerrar sesión, restablecer contraseña, inactivar)."""
     ajustes = get_settings()
     ahora = datetime.now(UTC)
     carga = {
         "sub": str(usuario_id),
+        "ver": version,
         "iat": ahora,
         "exp": ahora + timedelta(hours=ajustes.sesion_horas),
     }
     return jwt.encode(carga, ajustes.clave_sesion, algorithm=ALGORITMO_JWT)
 
 
-def leer_token(token: str) -> uuid.UUID | None:
-    """Devuelve el id del usuario del token, o None si es inválido o venció."""
+def leer_token(token: str) -> tuple[uuid.UUID, int] | None:
+    """Devuelve `(id del usuario, versión de sesión)` del token, o None si es inválido o venció.
+    Un token sin versión (emitido antes de que existiera) cuenta como la versión 0."""
     try:
         carga = jwt.decode(
             token,
@@ -53,7 +57,10 @@ def leer_token(token: str) -> uuid.UUID | None:
             algorithms=[ALGORITMO_JWT],
             options={"require": ["exp", "sub"]},
         )
-        return uuid.UUID(carga["sub"])
+        version = carga.get("ver", 0)
+        if not isinstance(version, int) or isinstance(version, bool):
+            return None
+        return uuid.UUID(carga["sub"]), version
     except jwt.PyJWTError, ValueError, KeyError:
         return None
 

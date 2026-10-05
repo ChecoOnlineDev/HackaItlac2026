@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.core.excepciones import DatosInvalidos, DemasiadosIntentos, SinPermiso
+from app.core.reintento import reintentar_si_interbloqueo
 from app.core.tiempo import ahora_utc
 from app.modulos.acceso.exceptions import AlmacenCambio, CredencialesIncorrectas, PinIncorrecto
 from app.modulos.acceso.models import Usuario
@@ -37,14 +38,24 @@ class AccesoService:
     def autenticar(self, nombre_usuario: str, contrasena: str) -> Usuario:
         """Valida usuario y contraseña. 5 intentos fallidos bloquean 5 minutos (US-ACC-001).
 
-        El mensaje de error es el mismo si falla el usuario, la contraseña o está inactivo.
+        El mensaje de error es el mismo si falla el usuario, la contraseña o está inactivo. Un
+        interbloqueo de la base se reintenta (3 veces) y nunca llega como 500.
         """
+        return reintentar_si_interbloqueo(
+            self.session, lambda: self._autenticar(nombre_usuario, contrasena)
+        )
+
+    def _autenticar(self, nombre_usuario: str, contrasena: str) -> Usuario:
         ajustes = get_settings()
         usuario = self.usuarios.get_by_usuario(nombre_usuario)
         if usuario is None:
             verificar_secreto(contrasena, HASH_RELLENO)  # mismo tiempo que un usuario real
             raise CredencialesIncorrectas()
 
+        # La fila se bloquea ANTES de verificar la contraseña: las ráfagas del mismo usuario se
+        # atienden una por una y cada una ve el contador y el bloqueo de la anterior. Así no hay
+        # más de `intentos_maximos` intentos reales por ventana ni choques de bloqueos.
+        usuario = self.usuarios.bloquear(usuario.id)
         ahora = ahora_utc()
         if usuario.bloqueado_hasta is not None:
             if usuario.bloqueado_hasta > ahora:
@@ -83,13 +94,23 @@ class AccesoService:
         """El usuario activo al que pertenece el token, leído de la base en cada petición."""
         if not token:
             return None
-        usuario_id = leer_token(token)
-        if usuario_id is None:
+        leido = leer_token(token)
+        if leido is None:
             return None
+        usuario_id, version = leido
         usuario = self.usuarios.get(usuario_id)
-        if usuario is None or not usuario.activo:
-            return None
+        if usuario is None or not usuario.activo or usuario.version_sesion != version:
+            return None  # un token de una sesión ya cerrada o revocada no sirve
         return usuario
+
+    def cerrar_sesiones(self, usuario: Usuario) -> None:
+        """Cierra TODAS las sesiones del usuario (en todos sus dispositivos): sube su versión de
+        sesión y los tokens emitidos antes dejan de servir. Hace commit."""
+        usuario.version_sesion = Usuario.version_sesion + 1
+        self.auditoria.registrar(
+            usuario_id=usuario.id, accion="sesion.salida", entidad="usuario", entidad_id=usuario.id
+        )
+        self.session.commit()
 
     def construir_sesion(self, usuario: Usuario) -> SesionOut:
         almacen = self.almacenes.obtener(usuario.almacen_id) if usuario.almacen_id else None
@@ -180,8 +201,14 @@ class AccesoService:
         con commit, lo que también confirma lo pendiente de la sesión, así que llámese ANTES de
         escribir lo demás. Cinco fallos bloquean cinco minutos (429). Para autorizar, quien llama
         verifica además que el usuario tenga el permiso (`autorizaciones.resolver`).
+
+        La fila del usuario se bloquea (`FOR UPDATE`) antes de verificar: las ráfagas se atienden
+        una por una y no pasan de `intentos_maximos` intentos reales por ventana. No reintenta
+        por sí misma un interbloqueo (la transacción de quien llama podría perder su trabajo):
+        quien la llama envuelve toda la operación con `reintentar_si_interbloqueo`.
         """
         ajustes = get_settings()
+        usuario = self.usuarios.bloquear(usuario.id)
         ahora = ahora_utc()
         if usuario.pin_bloqueado_hasta is not None:
             if usuario.pin_bloqueado_hasta > ahora:

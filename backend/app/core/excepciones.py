@@ -47,6 +47,14 @@ class DemasiadosIntentos(AppError):
         self.segundos = segundos
 
 
+class ServicioOcupado(AppError):
+    """La base de datos canceló la operación por un choque entre transacciones y no se pudo
+    repetir a tiempo (503). Es transitorio: intentar de nuevo suele funcionar."""
+
+    codigo = "SERVICIO_NO_DISPONIBLE"
+    mensaje_defecto = "El servicio está ocupado en este momento. Intenta de nuevo."
+
+
 class Conflicto(AppError):
     """Base de los 409. Cada módulo define su subclase con su `codigo`
     (VALE_CAMBIO, ALMACEN_CAMBIO, CODIGO_REPETIDO, CON_PENDIENTES, CON_MOVIMIENTOS,
