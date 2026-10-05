@@ -12,10 +12,11 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 import app.modelos_registro  # noqa: F401  (todos los modelos en Base.metadata)
-from app.config import get_settings
+from app.config import ConfiguracionInsegura, Settings, get_settings
 from app.core.handlers import registrar_handlers
 from app.db import SesionDep
 from app.estaticos import configurar_interfaz
+from app.limite_cuerpo import LimiteCuerpoMiddleware
 from app.modulos.acceso.router import router as acceso_router
 from app.modulos.almacenes.router import router as almacenes_router
 from app.modulos.archivos.router import router as archivos_router
@@ -65,10 +66,33 @@ def salud(session: SesionDep):
     return {"estado": "ok", "base": "ok"}
 
 
+def verificar_configuracion(ajustes: Settings) -> None:
+    """H6: en `produccion` la aplicación se niega a arrancar con una configuración insegura; en
+    `desarrollo` solo la avisa en el registro."""
+    problemas = ajustes.problemas_de_arranque()
+    if not problemas:
+        return
+    if ajustes.es_produccion:
+        raise ConfiguracionInsegura(
+            "No se arranca en producción con una configuración insegura: " + " | ".join(problemas)
+        )
+    for problema in problemas:
+        log.warning("Configuración insegura (se permite solo en desarrollo): %s", problema)
+
+
 def create_app() -> FastAPI:
-    app = FastAPI(
-        title="Control de herramientas y EPP", docs_url="/api/docs", openapi_url="/api/openapi.json"
-    )
+    ajustes = get_settings()
+    verificar_configuracion(ajustes)
+    # La documentación interactiva de la API solo existe en desarrollo.
+    if ajustes.es_produccion:
+        rutas_docs = {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    else:
+        rutas_docs = {
+            "docs_url": "/api/docs",
+            "redoc_url": "/api/redoc",
+            "openapi_url": "/api/openapi.json",
+        }
+    app = FastAPI(title="Control de herramientas y EPP", **rutas_docs)
     registrar_handlers(app)
 
     api = APIRouter(prefix="/api")
@@ -76,8 +100,9 @@ def create_app() -> FastAPI:
     for router in ROUTERS:
         api.include_router(router)
     app.include_router(api)
+    # H8: 413 si el cuerpo pasa del límite de su ruta (ASGI puro, antes de leerlo).
+    app.add_middleware(LimiteCuerpoMiddleware)
     # Va al final: el respaldo de la interfaz atrapa todo lo que no sea `/api`.
-    ajustes = get_settings()
     configurar_interfaz(app, ajustes.interfaz_dir, cookie_segura=ajustes.cookie_segura)
     return app
 

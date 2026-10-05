@@ -42,7 +42,8 @@ COPY backend/app ./app
 COPY --from=interfaz /frontend/build/client ./interfaz
 
 # Arranque: migra (reintenta si la base aún no está lista), carga datos de prueba si se pide
-# y sirve. Va detrás del túnel de Cloudflare (HTTPS): se confía en sus cabeceras X-Forwarded-*.
+# y sirve. Va detrás del túnel de Cloudflare (HTTPS): se confía en sus cabeceras X-Forwarded-*
+# SOLO de las redes privadas de Docker (FORWARDED_ALLOW_IPS; acótala a la subred real de tu red).
 COPY --chmod=755 <<'EOF' /usr/local/bin/arrancar
 #!/bin/sh
 set -eu
@@ -60,7 +61,7 @@ if [ "${CARGAR_DATOS_PRUEBA:-false}" = "true" ]; then
   python -m app.datos_prueba
 fi
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000 \
-  --proxy-headers --forwarded-allow-ips "${FORWARDED_ALLOW_IPS:-*}"
+  --proxy-headers --forwarded-allow-ips "${FORWARDED_ALLOW_IPS:-127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}"
 EOF
 
 USER imhotep

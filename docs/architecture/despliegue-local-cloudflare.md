@@ -62,9 +62,10 @@ Copiar `.env.example` a `.env` en la raíz y llenarlo. El `.gitignore` ya excluy
 ```
 TUNNEL_TOKEN=pega_aqui_el_token
 COOKIE_SEGURA=true          # el túnel entrega HTTPS; sin esto la cookie de sesión no es segura
+ENTORNO=produccion          # la aplicación no arranca con una configuración insegura (ver abajo)
 MYSQL_ROOT_PASSWORD=una_contraseña_local
 MYSQL_PASSWORD=otra_contraseña_local
-CLAVE_SESION=una_clave_larga_y_unica
+CLAVE_SESION=una_clave_larga_y_unica   # mínimo 32 caracteres: python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
 El `docker-compose.yml` de la raíz define tres servicios: `db` (MySQL 8.4), `app` (la imagen del `Dockerfile` de la raíz: FastAPI con la API bajo `/api` y la interfaz ya construida, puerto 8000 dentro de Docker) y `tunel` (`cloudflare/cloudflared`, `tunnel --no-autoupdate run`, token desde `TUNNEL_TOKEN`). El servicio `tunel` pertenece al perfil `tunel`: sin ese perfil no se levanta, y `docker compose up -d --build` funciona aunque no haya token.
@@ -74,7 +75,8 @@ Puntos a cuidar:
 - La base de datos no se publica por el túnel. Solo el servicio `app` tiene nombre público.
 - Los puertos de `db` (`MYSQL_PUERTO`, 21001) y de `app` (`APP_PUERTO`, 21040) se ligan a `127.0.0.1` para que nadie en la misma red entre directo.
 - Los volúmenes `imhotep_db_datos` (base) e `imhotep_archivos` (firmas y fotos) conservan los datos entre reinicios.
-- `app` aplica las migraciones al arrancar (reintenta hasta 60 s si la base no está lista) y confía en las cabeceras `X-Forwarded-*` del túnel (`FORWARDED_ALLOW_IPS`).
+- `app` aplica las migraciones al arrancar (reintenta hasta 60 s si la base no está lista) y confía en las cabeceras `X-Forwarded-*` del túnel solo desde las redes de `FORWARDED_ALLOW_IPS` (por defecto las privadas de Docker; acótala a la subred real de la red de compose, nunca `*`).
+- Con `ENTORNO=produccion` la aplicación se niega a arrancar si `CLAVE_SESION` es la de ejemplo o tiene menos de 32 caracteres, si `COOKIE_SEGURA` no es `true` o si `CARGAR_DATOS_PRUEBA=true` con `CLAVE_DATOS_PRUEBA` vacía (el registro de `docker compose logs app` dice cuál), y apaga `/api/docs`. El compose usa `desarrollo` por defecto para poder probar por `http://127.0.0.1`; actívalo en el servidor real.
 
 Levantar todo:
 

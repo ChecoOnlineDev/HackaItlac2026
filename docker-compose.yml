@@ -44,10 +44,20 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-imhotep}
       MYSQL_USER: ${MYSQL_USER:-imhotep}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?define MYSQL_PASSWORD en .env}
+      # `desarrollo` (por defecto, para probar por http://127.0.0.1) solo AVISA de una configuración
+      # insegura. En el servidor real pon ENTORNO=produccion en .env: entonces la aplicación se
+      # niega a arrancar con una clave de sesión de ejemplo o de menos de 32 caracteres, sin
+      # COOKIE_SEGURA=true o con CARGAR_DATOS_PRUEBA=true y CLAVE_DATOS_PRUEBA vacía, y apaga
+      # /api/docs. Es un valor por defecto de `desarrollo` y no de `produccion` porque la
+      # prueba local por http exige COOKIE_SEGURA=false.
+      ENTORNO: ${ENTORNO:-desarrollo}
       CLAVE_SESION: ${CLAVE_SESION:?define CLAVE_SESION en .env}
       SESION_HORAS: ${SESION_HORAS:-12}
       # true cuando se entra por HTTPS (túnel). false para probar por http://127.0.0.1.
       COOKIE_SEGURA: ${COOKIE_SEGURA:-false}
+      # Redes de las que se aceptan las cabeceras X-Forwarded-* (el túnel). Por defecto, las
+      # privadas de Docker; acótala a la subred real de tu red de compose.
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       AUTORIZACION_VIGENCIA_MINUTOS: ${AUTORIZACION_VIGENCIA_MINUTOS:-15}
       ARCHIVO_TAMANO_MAXIMO: ${ARCHIVO_TAMANO_MAXIMO:-2097152}
       CLAVE_DATOS_PRUEBA: ${CLAVE_DATOS_PRUEBA:-}

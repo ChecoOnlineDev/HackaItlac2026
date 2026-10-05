@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
@@ -21,6 +22,16 @@ from app.seguridad import hashear_secreto
 
 CONTRASENA = "Clave-prueba-123"
 PIN = "4321"
+
+
+@pytest.fixture
+def almacenista(cliente_como) -> TestClient:
+    return cliente_como("Almacenista")
+
+
+@pytest.fixture
+def compras(cliente_como) -> TestClient:
+    return cliente_como("Compras")
 
 
 @dataclass(frozen=True)
