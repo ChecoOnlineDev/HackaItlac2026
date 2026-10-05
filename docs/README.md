@@ -1,0 +1,84 @@
+# Documentación del proyecto
+
+Plan de desarrollo del sistema de control de herramientas y EPP para el Reto IMHOTEP (Hacka ITLAC 2026, Track 3). Sigue la guía "De la idea al MVP": cada documento elimina una clase de duda antes de que llegue al código.
+
+Regla de uso: **los documentos globales orientan, los briefs pequeños autorizan, el repositorio confirma y las pruebas demuestran.**
+
+## Mapa
+
+| Paso de la guía | Documento | Responde | Estado |
+|---|---|---|---|
+| 1. Contexto | [context.md](context.md) | ¿Qué idea teníamos? | Antecedente |
+| 2. Descubrimiento | [01-descubrimiento.md](01-descubrimiento.md) | ¿Qué sabemos, qué asumimos y qué falta? | Escrito |
+| 3. PRD | [product/prd.md](product/prd.md) | ¿Qué producto y para quién? | Por aprobar |
+| 3. Reglas | [product/reglas-de-negocio.md](product/reglas-de-negocio.md) | ¿Cómo debe comportarse? | Por aprobar |
+| 4. Alcance | [product/mvp-scope.md](product/mvp-scope.md) | ¿Qué se construye primero y qué no? | Por aprobar |
+| 5. Flujos | [product/app-flow.md](product/app-flow.md) | ¿Cómo lo recorre cada rol? | Escrito |
+| 5. Escenarios | [product/escenarios.md](product/escenarios.md) | ¿Aguanta el plan lo que pasa en la planta? | Escrito |
+| 6. UI/UX | [product/ui-ux.md](product/ui-ux.md) | ¿Cómo se ve y se comporta? | Escrito |
+| 7. TRD | [architecture/trd.md](architecture/trd.md) | ¿Cómo se construye? | Escrito |
+| 7. Complementos | [overview](architecture/overview.md), [datos](architecture/data-model.md), [API](architecture/api-contracts.md), [seguridad](architecture/security-model.md), [decisiones](architecture/decisions/) | Módulos, tablas, endpoints, controles y decisiones | Escrito |
+| 7. Entorno | [despliegue-local-cloudflare.md](architecture/despliegue-local-cloudflare.md) | ¿Cómo se publica con HTTPS? | Escrito, sin probar |
+| 8. Roadmap | [product/roadmap.md](product/roadmap.md) | ¿En qué orden? | Escrito |
+| 9. Historias | [stories/](stories/) | ¿Qué necesidad resuelve cada fase? | Fases 1 a 7 |
+| 10. Tareas | En el roadmap (Fase 0 y Fase 7) | ¿Qué cambia en el código? | El resto se planea por historia |
+| Segunda ola | [features/](features/) | ¿Qué sigue después del núcleo? | Seis briefs |
+| Release | [releases/mvp-checklist.md](releases/mvp-checklist.md) | ¿Cuándo está terminado? | Escrito |
+| Plantillas | [templates/](templates/) | Historias, FEAT, FIX, TECH, ADR, reporte y prompts | Listas |
+
+Fuentes del reto: [el PDF](HackaItlacTrack3_2026.pdf) y la carpeta [info_track/](info_track/). Las instrucciones para agentes están en [AGENTS.md](../AGENTS.md), en la raíz.
+
+## Pasos a seguir
+
+1. **Aprobar el producto.** Leer [prd.md](product/prd.md) y [mvp-scope.md](product/mvp-scope.md). Lo que no convenza se corrige ahí antes de programar. Revisar en especial las decisiones abiertas de abajo.
+2. **Crear el túnel.** Seguir [despliegue-local-cloudflare.md](architecture/despliegue-local-cloudflare.md) y guardar el token en `.env`.
+3. **Fase 0, fundación.** Ejecutar las tareas TASK-F0-01 a TASK-F0-06 del [roadmap](product/roadmap.md) y cerrar su gate.
+4. **Fases 1 a 6, una por una.** Para cada historia de la fase, seguir el ciclo de abajo. No se pasa de fase con el gate abierto.
+5. **Fase 7, confiabilidad.** Construir la cancelación de vales y ejecutar sus tareas; el flujo principal debe completarse sin tocar la base de datos.
+6. **Segunda ola.** Construir las features en orden, empezando por [FEAT-001](features/FEAT-001-vale-como-prueba.md), solo si el gate de la Fase 7 está cerrado. [FEAT-006](features/FEAT-006-control-de-acceso-configurable.md) es la excepción: puede avanzar en paralelo, en una rama aparte, desde el cierre de la Fase 1.
+7. **Fase 8, release.** Completar [mvp-checklist.md](releases/mvp-checklist.md): servidor, entregables del PDF, ensayo y pitch.
+
+## Ciclo de una historia
+
+1. **Planear contra el repositorio.** Con el primer prompt de [templates/prompts.md](templates/prompts.md) se obtiene el análisis de impacto y las tareas `TASK-…`. No se modifica nada todavía.
+2. **Implementar tarea por tarea.** Cada tarea termina con sus pruebas y el reporte de [templates/reporte.md](templates/reporte.md).
+3. **Validar.** Pruebas, lint, verificación de tipos y construcción.
+4. **Revisión independiente.** La hace alguien distinto de quien implementó, con el tercer prompt.
+5. **Cerrar.** Se demuestran los criterios de aceptación y se actualizan los documentos afectados.
+
+## Dónde se registra cada cambio
+
+| Lo que aparece | Dónde va |
+|---|---|
+| Una capacidad nueva | `features/FEAT-NNN-nombre.md` |
+| Un comportamiento incorrecto | `fixes/FIX-NNN-nombre.md` |
+| Una mejora interna, de rendimiento o de seguridad | `technical/TECH-NNN-nombre.md` |
+| Una decisión costosa de revertir | `architecture/decisions/ADR-NNN-nombre.md` |
+
+Las carpetas `fixes/` y `technical/` se crean con su primer brief. Las plantillas están en [templates/](templates/).
+
+## Decisiones abiertas
+
+Tomadas para poder escribir el plan; conviene confirmarlas antes de la Fase 1.
+
+| Decisión | Lo que se asumió | Dónde está |
+|---|---|---|
+| Qué significa "elegir qué va en cada categoría" | Categorías de artículos con plantilla de reglas, tres requisitos especiales por artículo, e inactivar y reactivar | Reglas, sección 5; [ADR-003](architecture/decisions/ADR-003-catalogo-configurable.md) |
+| Orden de construcción | Cortes verticales por fase, no todo el backend primero | [Roadmap](product/roadmap.md) |
+| Idioma del código | Términos del dominio en español, sin acentos | [AGENTS.md](../AGENTS.md) |
+| Quién administra el catálogo | Compras y supervisor; el costo solo Compras | Reglas, sección 8 |
+| Vigencia de inspección | 180 días, editable por artículo | Reglas, sección 5.4 |
+| Categorías iniciales | Siete, editables | Reglas, sección 5.1 |
+| Qué trae cada rol inicial | Los permisos de la tabla; el Administrador, todos | Reglas, sección 8.2 |
+
+Ya decididas con el equipo: identificadores UUID y folio por contador ([ADR-006](architecture/decisions/ADR-006-identificadores-uuid-y-folio.md)), y permisos por clave con roles como datos ([ADR-007](architecture/decisions/ADR-007-permisos-por-clave.md)).
+
+## Estado de los gates
+
+- [x] Descubrimiento: usuarios, problema e incógnitas identificados.
+- [ ] PRD: escrito; falta la aprobación del equipo.
+- [ ] Alcance del MVP: escrito; falta la aprobación del equipo.
+- [x] App flow: cada camino del MVP tiene entrada, salida y errores.
+- [x] UI/UX: cada pantalla tiene comportamiento y estados. No hay maquetas.
+- [x] TRD: arquitectura, datos, contratos y seguridad definidos. Cinco decisiones se toman en la Fase 0.
+- [ ] Fase 0: sin empezar.
