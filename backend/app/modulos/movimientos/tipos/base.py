@@ -38,12 +38,15 @@ class ManejadorTipo(ABC):
       `requiere_firma` si la confirmación necesita la firma del trabajador en pantalla (F-02).
       `firma_modo`    `PANTALLA` (firma el trabajador) o `SESION` (basta la sesión, F-03); `None`
                       si el vale no lleva firma.
+      `admite_sin_renglones` si el vale puede confirmarse sin renglones (solo NO_ADEUDO).
     """
 
     tipo: TipoVale
     permiso: str
     requiere_firma: bool = False
     firma_modo: FirmaModo | None = None
+    # Verdadero solo en NO_ADEUDO: un vale sin renglones ni movimientos.
+    admite_sin_renglones: bool = False
 
     # ---------------------------------------------------------- antes de tocar la base
 

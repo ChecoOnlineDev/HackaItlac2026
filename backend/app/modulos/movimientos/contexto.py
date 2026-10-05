@@ -78,6 +78,8 @@ class Evaluacion:
     trabajador: FichaBreveOut | None = None
     # Mensaje de la autorización indicada si no sirve (solo en `evaluar`).
     autorizacion_error: str | None = None
+    # Lo fija el motor según el tipo: el vale de no adeudo no lleva renglones.
+    admite_sin_renglones: bool = False
 
     @property
     def nivel(self) -> Nivel:
@@ -86,8 +88,9 @@ class Evaluacion:
 
     @property
     def puede_confirmar(self) -> bool:
-        """SM-03: sin rojos y con todos los naranjas autorizados. Debe haber algún renglón."""
-        if not self.renglones:
+        """SM-03: sin rojos y con todos los naranjas autorizados. Debe haber algún renglón (salvo
+        en los tipos que no los llevan)."""
+        if not self.renglones and not self.admite_sin_renglones:
             return False
         if self.nivel == Nivel.ROJO:
             return False

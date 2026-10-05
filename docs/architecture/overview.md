@@ -84,6 +84,26 @@ Interfaz: firma y confirma
        -> devuelve el vale emitido
 ```
 
+## El motor de vales
+
+El módulo `movimientos` es un motor genérico más un manejador por tipo de vale. Está documentado a fondo en `backend/app/modulos/movimientos/README.md`; aquí su forma:
+
+```
+router.py ──► service.py (MovimientoService: permisos por tipo, evaluar, confirmar, consultar)
+                 │
+                 ├─ tipos/__init__.py  TIPOS: un ManejadorTipo por TipoVale
+                 │     entrada.py, entrega.py     completos
+                 │     devolucion, traspaso, recepcion, cancelacion, no_adeudo   stubs (501)
+                 ├─ cargador.py        lee los hechos de la base (no escribe)
+                 ├─ evaluador.py       funciones puras: una por regla, con su ID (SM-01, SM-06)
+                 └─ repository.py      consultas, bloqueos FOR UPDATE e inserciones
+```
+
+- **Un tipo nuevo no toca el motor.** Implementa `ManejadorTipo` (`evaluar`, `bloqueos`, `datos_vale`, `construir_movimientos` y, si hace falta, `al_confirmar`) y se registra en `TIPOS`.
+- **Confirmar es una transacción en READ COMMITTED** que bloquea las filas en un orden fijo (vales, trabajador, existencias, piezas, folio), vuelve a evaluar y solo entonces escribe vale, movimientos, existencias y ubicación de piezas. Ver [ADR-008](decisions/ADR-008-bloqueos-del-motor-de-vales.md).
+- **El semáforo es una función pura** de hechos ya cargados: la base se lee antes (cargador) y las reglas se prueban sin base de datos.
+- `autorizaciones` y `movimientos` se hablan en una sola dirección: `movimientos` llama a `AutorizacionService` (validar y marcar usada en la transacción del vale), y el router de `autorizaciones` toma de `movimientos.verificador` el verificador de renglones en rojo (A-06).
+
 ## Áreas del frontend
 
 | Área | Rutas | Notas |

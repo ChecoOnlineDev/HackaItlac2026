@@ -197,7 +197,9 @@ class MovimientoService:
         self, manejador: ManejadorTipo, ctx: ContextoVale, cuerpo: ValeIn
     ) -> tuple[Evaluacion, ValeIn]:
         normal = self._normalizar(manejador, ctx, cuerpo)
-        return manejador.evaluar(ctx, normal), normal
+        evaluacion = manejador.evaluar(ctx, normal)
+        evaluacion.admite_sin_renglones = manejador.admite_sin_renglones
+        return evaluacion, normal
 
     def evaluar_para_autorizacion(
         self,
@@ -354,6 +356,7 @@ class MovimientoService:
 
         # 3. Volver a evaluar, ya con las filas bloqueadas (RG-08).
         evaluacion = manejador.evaluar(ctx, normal)
+        evaluacion.admite_sin_renglones = manejador.admite_sin_renglones
         if evaluacion.nivel == Nivel.ROJO:
             raise self._vale_cambio(ctx, evaluacion)
         autorizacion = self._aplicar_autorizacion(ctx, evaluacion, normal, silencioso=False)

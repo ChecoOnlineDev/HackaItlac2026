@@ -1,6 +1,6 @@
 """Fixtures de las pruebas de `movimientos`.
 
-- `compras`, `almacenista`, `supervisor`: clientes con sesión (la transacción de prueba se revierte).
+- `compras`, `almacenista`, `supervisor`: clientes con sesión (la transacción se revierte).
 - `doble_inspecciones`: reemplaza `InspeccionService` (lo construye otro agente) con un doble que
   imita su firma acordada y deja el estado de la pieza como lo haría el real.
 - `sesion_independiente` y `cliente_independiente`: para las pruebas de concurrencia. El fixture
@@ -164,7 +164,9 @@ def limpieza(sesion_independiente) -> Iterator[Limpieza]:
         for trabajador_id in datos.trabajadores:
             from app.modulos.almacenes.models import Ubicacion
 
-            ubicacion = s.scalar(select(Ubicacion.id).where(Ubicacion.trabajador_id == trabajador_id))
+            ubicacion = s.scalar(
+                select(Ubicacion.id).where(Ubicacion.trabajador_id == trabajador_id)
+            )
             if ubicacion is not None:
                 s.execute(delete(Existencia).where(Existencia.ubicacion_id == ubicacion))
                 s.execute(delete(Ubicacion).where(Ubicacion.id == ubicacion))
@@ -177,7 +179,9 @@ def limpieza(sesion_independiente) -> Iterator[Limpieza]:
                 .where(SerieFolio.almacen_id == almacen_id, SerieFolio.tipo == tipo)
                 .values(ultimo=ultimo)
             )
-        s.execute(delete(SerieFolio).where(SerieFolio.ultimo == 0))
+        for serie in s.scalars(select(SerieFolio)).all():
+            if (serie.almacen_id, serie.tipo) not in datos.series:
+                s.delete(serie)  # la serie nació en esta prueba
         s.execute(delete(Auditoria).where(Auditoria.entidad_id.in_([str(a) for a in articulos])))
         s.commit()
     finally:

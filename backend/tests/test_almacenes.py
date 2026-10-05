@@ -9,7 +9,7 @@ from collections.abc import Callable
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.modulos.acceso.permisos import P
@@ -80,6 +80,8 @@ def test_RG_08_existencias_de_un_almacen_inexistente_responde_404(cliente_como):
 
 
 def test_I_05_existencias_y_disponibles_por_articulo(cliente_como, session):
+    # La carga inicial de `movimientos` dejó existencias: esta prueba parte de un inventario vacío.
+    session.execute(delete(Existencia))
     kep = _ubicacion(session, "KEP")
     flexometro = _articulo(session, "FLEXOM")
     arnes = _articulo(session, "ARN-KEV")
@@ -117,6 +119,8 @@ def test_I_05_existencias_y_disponibles_por_articulo(cliente_como, session):
 def test_CF_11_las_existencias_de_un_articulo_inactivo_siguen_visibles_y_marcadas(
     cliente_como, session
 ):
+    # La carga inicial de `movimientos` dejó existencias: esta prueba parte de un inventario vacío.
+    session.execute(delete(Existencia))
     kep = _ubicacion(session, "KEP")
     cincel = _articulo(session, "CINCEL")
     session.add(Existencia(ubicacion_id=kep, articulo_id=cincel.id, cantidad=5))
@@ -132,6 +136,8 @@ def test_CF_11_las_existencias_de_un_articulo_inactivo_siguen_visibles_y_marcada
 
 
 def test_C_03_las_existencias_se_filtran_y_se_paginan(cliente_como, session):
+    # La carga inicial de `movimientos` dejó existencias: esta prueba parte de un inventario vacío.
+    session.execute(delete(Existencia))
     kep = _ubicacion(session, "KEP")
     for codigo in ("FLEXOM", "CINCEL", "MARRO-B"):
         articulo = _articulo(session, codigo)

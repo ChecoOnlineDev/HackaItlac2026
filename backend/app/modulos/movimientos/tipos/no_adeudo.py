@@ -19,4 +19,5 @@ class NoAdeudoTipo(TipoPendiente):
     tipo = TipoVale.NO_ADEUDO
     permiso = P.NO_ADEUDO_EMITIR
     firma_modo = FirmaModo.SESION
+    admite_sin_renglones = True
     nombre_texto = "El vale de no adeudo"

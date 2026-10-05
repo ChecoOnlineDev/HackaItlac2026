@@ -99,7 +99,14 @@ Fijadas al construir las tablas; son parte del contrato para los demás módulos
 - **`movimiento`**: `cantidad > 0`, una pieza siempre con cantidad 1, `origen_id` distinto de `destino_id`, `(vale_id, renglon)` único, `nivel` (VERDE, AMARILLO, NARANJA, ROJO). `reglas` es una lista JSON de IDs de regla.
 - **`autorizacion`**: `resuelta_por` no puede ser `solicitada_por` (AC-07, A-05).
 - **`periodo_contrato`**: `fin >= inicio`.
-- **Llaves circulares.** `trabajador.foto_adjunto_id` y `vale.firma_adjunto_id` apuntan a `adjunto`, que a su vez apunta a `vale` y `movimiento`; la migración las agrega al final.
+- **Cómo escribe el motor** (módulo `movimientos`; ver `backend/app/modulos/movimientos/README.md`):
+  - Una confirmación es una sola transacción en READ COMMITTED que bloquea (`FOR UPDATE`), en este orden, vales, trabajador, `existencia` por `(ubicacion_id, articulo_id)`, `pieza` por `id` y `serie_folio`; vuelve a evaluar y solo entonces escribe.
+  - `serie_folio` guarda el último consecutivo por almacén y tipo; su fila se crea en la primera confirmación de ese par. El folio es `CLAVE-PREFIJO-000123`; los prefijos son `ING`, `ENT`, `DEV`, `TRS`, `REC`, `NAD` y `CAN`.
+  - Las filas de `existencia` se crean en cero cuando un movimiento llega por primera vez a una ubicación. PROVEEDOR no lleva existencia: sus movimientos dejan `saldo_origen` vacío. `movimiento.saldo_origen` y `saldo_destino` son el saldo de esa ubicación y artículo después del movimiento.
+  - `movimiento.creado_en` es el `creado_en` del vale. `reglas` son los IDs de las reglas que dieron motivo al renglón (por ejemplo `["L-02", "E-26"]`); `nivel` es el del renglón: un naranja autorizado queda NARANJA y el vale lleva su `autorizacion_id`. En una entrega, `condicion` es `BUENO` si no se indica (E-22) y `trabajador_id` anota al trabajador también en los retornables.
+  - Al confirmar, el vale registra en `codigo` (tipo VALE) su `token`, que es el contenido del QR, y su folio.
+  - El límite de consumibles (L-03) suma los movimientos de vales de ENTREGA no cancelados hacia CONSUMIDO con ese trabajador y artículo, creados después de ahora menos N días (una entrega hecha hace exactamente N días ya no cuenta). El de retornables (L-02) usa la existencia del trabajador.
+- **Llaves circulares.** `trabajador.foto_adjunto_id` y `vale.firma_adjunto_id` apuntan a `adjunto`, que a su vez apunta a `vale` y `movimiento`; la migración las agrega al final. Al confirmar una entrega, el vale se inserta sin `firma_adjunto_id`, se guarda el adjunto de la firma con su `vale_id` y se completa `firma_adjunto_id`, todo en la misma transacción.
 - **Dueños.** `acceso`: usuario, rol, rol_permiso. `trabajadores`: trabajador, periodo_contrato. `almacenes`: almacen, ubicacion. `catalogo`: categoria, articulo, pieza, codigo. `movimientos`: vale, movimiento, existencia, serie_folio. `autorizaciones`: autorizacion. `inspecciones`: inspeccion, ajuste_vigencia, evento_pieza. `archivos`: adjunto. `auditoria`: auditoria.
 - **Lo que no se puede expresar en la base** y queda para los services: que `vale` y `movimiento` no se actualicen (salvo `vale.estado`), que `existencia` sea la suma de los movimientos, que `pieza.ubicacion_id` sea el destino de su último movimiento, que `control` y `retornable` no cambien con movimientos (CF-05), y que siempre exista un usuario activo con `acceso.administrar` (AC-09).
 
@@ -155,7 +162,8 @@ El script carga, de forma repetible:
 - Los seis almacenes del PDF y las cuatro ubicaciones virtuales.
 - Las siete categorías iniciales (sección 5.1 de las reglas).
 - Los quince artículos de la página 7 del PDF y el EPP de la página 10, con sus costos.
-- Piezas de equipo de alturas, entre ellas una apta, una no apta y una con la inspección vencida.
+- Existencias iniciales de los artículos por cantidad en Kepler y Contratistas, cargadas con un vale de entrada real por almacén (folio `KEP-ING-000001`, `CON-ING-000001`), nunca escribiendo saldos. Es repetible: cada carga lleva un `id_cliente` fijo y no se duplica.
+- Piezas de equipo de alturas, entre ellas una apta, una no apta y una con la inspección vencida (las carga el módulo `inspecciones`, con su inspección inicial).
 - Los cinco roles iniciales con sus permisos (sección 8.2 de las reglas).
 - Un usuario por rol, y un almacenista para cada almacén que se use en la prueba.
 

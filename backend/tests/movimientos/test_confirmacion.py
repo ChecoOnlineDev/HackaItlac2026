@@ -5,7 +5,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import select, text, update
+from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
 
 from app.core import errores_bd
@@ -22,7 +22,6 @@ from tests.movimientos.ayudas import (
     crear_articulo,
     crear_trabajador,
     cuerpo_entrega,
-    entrar_pieza,
     existencia,
     existencia_de_trabajador,
     total_movimientos,
@@ -91,7 +90,9 @@ def test_F_02_una_firma_que_no_es_imagen_se_rechaza_y_no_guarda_nada(
     abastecer(compras, guantes, 5)
     malo = {"modo": "PANTALLA", "imagen": "data:image/png;base64,SG9sYSBtdW5kbw==", "trazo": []}
     vales = total_vales(session)
-    r = almacenista.post(VALES, json=cuerpo_entrega(trabajador, [renglon(guantes.codigo)], firma=malo))
+    r = almacenista.post(
+        VALES, json=cuerpo_entrega(trabajador, [renglon(guantes.codigo)], firma=malo)
+    )
     assert r.status_code == 422
     assert total_vales(session) == vales and existencia(session, "KEP", guantes) == 5
 
@@ -130,9 +131,7 @@ def test_F_03_F_05_el_vale_guarda_responsable_dispositivo_y_fecha_del_servidor(
     assert vale.periodo_contrato_id is not None
 
 
-def test_F_05_el_dispositivo_se_recorta_a_200_caracteres(
-    almacenista, compras, session, trabajador
-):
+def test_F_05_el_dispositivo_se_recorta_a_200_caracteres(almacenista, compras, session, trabajador):
     guantes = crear_articulo(session)
     abastecer(compras, guantes, 5)
     r = almacenista.post(
@@ -461,7 +460,9 @@ def test_F_07_un_token_desconocido_da_404(almacenista):
     assert almacenista.get(f"{VALES}/por-token/no-existe").status_code == 404
 
 
-def test_E_01_el_codigo_de_un_vale_no_sirve_para_entregar(almacenista, compras, session, trabajador):
+def test_E_01_el_codigo_de_un_vale_no_sirve_para_entregar(
+    almacenista, compras, session, trabajador
+):
     guantes = crear_articulo(session)
     vale = abastecer(compras, guantes, 10)
     r = almacenista.post(

@@ -1,4 +1,4 @@
-"""ENTREGA (US-ENT-001/002/003): E-01 a E-07, E-12, E-15 a E-22, E-24, E-26 a E-28, SM-01 a SM-06."""
+"""ENTREGA (US-ENT-001, 002 y 003): E-01 a E-07, E-12, E-15 a E-22, E-24, E-26 a E-28, SM-01 a 06"""
 
 import uuid
 from datetime import timedelta
@@ -9,7 +9,7 @@ from sqlalchemy import select, update
 from app.core.tiempo import ahora_utc, hoy_mx
 from app.modulos.catalogo.models import EstadoPieza, Pieza
 from app.modulos.catalogo.service import CatalogoService
-from app.modulos.movimientos.models import Movimiento, Vale
+from app.modulos.movimientos.models import Movimiento
 from app.modulos.trabajadores.models import EstadoTrabajador, PeriodoContrato
 from tests.movimientos.ayudas import (
     abastecer,
@@ -116,9 +116,7 @@ def test_E_02_trabajador_con_contrato_vencido_pone_todo_el_vale_en_rojo(
     assert "plantilla" in ev["renglones"][0]["motivos"][0]["mensaje"]
 
 
-def test_E_02_confirmar_con_un_trabajador_no_vigente_no_guarda_nada(
-    almacenista, compras, session
-):
+def test_E_02_confirmar_con_un_trabajador_no_vigente_no_guarda_nada(almacenista, compras, session):
     vencido = crear_trabajador(session, vigente=False)
     guantes = crear_articulo(session)
     abastecer(compras, guantes, 5)
@@ -147,9 +145,7 @@ def test_E_02_el_ultimo_dia_del_contrato_todavia_es_vigente(almacenista, session
     assert evaluar(almacenista, t, [])["motivos"][0]["regla"] == "E-02"
 
 
-def test_E_12_pendientes_de_un_periodo_anterior_es_aviso_amarillo(
-    almacenista, compras, session
-):
+def test_E_12_pendientes_de_un_periodo_anterior_es_aviso_amarillo(almacenista, compras, session):
     t = crear_trabajador(session)
     casco = crear_articulo(session, retornable=True)
     abastecer(compras, casco, 3)
@@ -223,9 +219,7 @@ def test_E_03_una_pieza_que_nunca_entro_a_un_almacen_es_rojo(almacenista, sessio
     assert "ningún almacén" in ev["renglones"][0]["motivos"][0]["mensaje"]
 
 
-def test_E_04_una_cantidad_mayor_a_la_existencia_es_rojo(
-    almacenista, compras, session, trabajador
-):
+def test_E_04_una_cantidad_mayor_a_la_existencia_es_rojo(almacenista, compras, session, trabajador):
     guantes = crear_articulo(session)
     abastecer(compras, guantes, 3)
     ev = evaluar(almacenista, trabajador, [renglon(guantes.codigo, 4)])
@@ -376,9 +370,7 @@ def test_E_15_una_pieza_repetida_en_el_vale_se_ignora(almacenista, compras, sess
     assert r.status_code == 201 and len(r.json()["renglones"]) == 1
 
 
-def test_E_16_un_articulo_por_cantidad_repetido_suma_uno(
-    almacenista, compras, session, trabajador
-):
+def test_E_16_un_articulo_por_cantidad_repetido_suma_uno(almacenista, compras, session, trabajador):
     guantes = crear_articulo(session)
     abastecer(compras, guantes, 10)
     ev = evaluar(almacenista, trabajador, [renglon(guantes.codigo), renglon(guantes.codigo)])
@@ -403,9 +395,7 @@ def test_E_20_un_retornable_pasa_del_almacen_al_trabajador(
     assert r.status_code == 201, r.text
     assert existencia(session, "KEP", casco) == 3
     assert existencia_de_trabajador(session, trabajador, casco) == 2
-    mov = session.scalar(
-        select(Movimiento).where(Movimiento.vale_id == uuid.UUID(r.json()["id"]))
-    )
+    mov = session.scalar(select(Movimiento).where(Movimiento.vale_id == uuid.UUID(r.json()["id"])))
     assert mov.saldo_origen == 3 and mov.saldo_destino == 2 and mov.trabajador_id == trabajador.id
 
 
@@ -431,9 +421,7 @@ def test_E_21_un_consumible_pasa_a_consumido_con_el_trabajador_anotado(
     abastecer(compras, guantes, 10)
     r = almacenista.post(VALES, json=cuerpo_entrega(trabajador, [renglon(guantes.codigo, 3)]))
     assert r.status_code == 201, r.text
-    mov = session.scalar(
-        select(Movimiento).where(Movimiento.vale_id == uuid.UUID(r.json()["id"]))
-    )
+    mov = session.scalar(select(Movimiento).where(Movimiento.vale_id == uuid.UUID(r.json()["id"])))
     consumido = AlmacenService(session).ubicacion_virtual(UbicacionVirtual.CONSUMIDO)
     assert mov.destino_id == consumido.id and mov.trabajador_id == trabajador.id
     assert existencia(session, "KEP", guantes) == 7
@@ -546,9 +534,7 @@ def test_E_28_evaluar_no_escribe_nada_ni_cambia_las_existencias(
     assert existencia_de_trabajador(session, trabajador, guantes) == 0
 
 
-def test_E_28_un_vale_sin_renglones_todavia_se_evalua_pero_no_se_confirma(
-    almacenista, trabajador
-):
+def test_E_28_un_vale_sin_renglones_todavia_se_evalua_pero_no_se_confirma(almacenista, trabajador):
     ev = evaluar(almacenista, trabajador, [])
     assert ev["renglones"] == [] and ev["puede_confirmar"] is False
     r = almacenista.post(VALES, json=cuerpo_entrega(trabajador, []))
@@ -663,3 +649,26 @@ def test_E_01_la_entrega_no_acepta_datos_de_pieza_de_entrada(almacenista, trabaj
         },
     )
     assert r.status_code == 422
+
+
+def test_TRD_11_evaluar_un_vale_de_cinco_renglones_tarda_menos_de_500_ms(
+    almacenista, compras, session, trabajador
+):
+    import time
+
+    articulos = [crear_articulo(session, retornable=bool(n % 2)) for n in range(5)]
+    for articulo in articulos:
+        abastecer(compras, articulo, 10)
+    cuerpo = {
+        "tipo": "ENTREGA",
+        "trabajador_id": str(trabajador.id),
+        "renglones": [renglon(a.codigo, 2) for a in articulos],
+    }
+    almacenista.post(EVALUAR, json=cuerpo)  # calienta
+    tiempos = []
+    for _ in range(3):
+        inicio = time.perf_counter()
+        r = almacenista.post(EVALUAR, json=cuerpo)
+        tiempos.append(time.perf_counter() - inicio)
+        assert r.status_code == 200 and len(r.json()["renglones"]) == 5
+    assert min(tiempos) < 0.5, tiempos

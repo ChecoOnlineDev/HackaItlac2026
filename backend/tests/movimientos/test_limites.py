@@ -4,7 +4,7 @@ import uuid
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import update
 
 from app.core.tiempo import ahora_utc
 from app.modulos.almacenes.service import AlmacenService
@@ -90,7 +90,10 @@ def test_L_02_el_limite_se_alcanza_sumando_dos_renglones_del_mismo_articulo_en_u
     ev = evaluar(almacenista, trabajador, [renglon(codigo_a), renglon(codigo_b)])
     primero, segundo = ev["renglones"]
     assert primero["nivel"] == "VERDE"
-    assert segundo["nivel"] == "NARANJA" and "límite 1, tiene 1, pide 1" in segundo["motivos"][0]["mensaje"]
+    assert (
+        segundo["nivel"] == "NARANJA"
+        and "límite 1, tiene 1, pide 1" in segundo["motivos"][0]["mensaje"]
+    )
 
 
 def test_L_02_cuenta_las_piezas_que_el_trabajador_ya_tiene(
@@ -161,9 +164,7 @@ def test_L_03_el_consumo_es_del_trabajador_y_del_articulo(
     assert ev["renglones"][0]["nivel"] == "VERDE"
 
 
-def test_L_03_un_vale_cancelado_no_cuenta_en_el_consumo(
-    almacenista, compras, session, trabajador
-):
+def test_L_03_un_vale_cancelado_no_cuenta_en_el_consumo(almacenista, compras, session, trabajador):
     guantes = crear_articulo(session, retornable=False, limite_cantidad=3, limite_periodo_dias=7)
     abastecer(compras, guantes, 20)
     vale = entregar(almacenista, trabajador, guantes, 3)
@@ -179,8 +180,9 @@ def test_L_03_lo_que_pide_este_vale_cuenta_contra_el_limite(
     abastecer(compras, guantes, 20)
     ev = evaluar(almacenista, trabajador, [renglon(guantes.codigo, 4)])
     r = ev["renglones"][0]
-    assert r["nivel"] == "NARANJA" and "límite 3, tiene 0 en los últimos 7 días, pide 4" in (
-        r["motivos"][0]["mensaje"]
+    assert (
+        r["nivel"] == "NARANJA"
+        and "límite 3, tiene 0 en los últimos 7 días, pide 4" in (r["motivos"][0]["mensaje"])
     )
 
 

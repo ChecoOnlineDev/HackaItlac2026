@@ -37,7 +37,9 @@ def test_I_01_la_entrada_registra_saldos_y_proveedor_no_lleva_existencia(compras
     abastecer(compras, articulo, 4)
     abastecer(compras, articulo, 6)
     movs = session.scalars(
-        select(Movimiento).where(Movimiento.articulo_id == articulo.id).order_by(Movimiento.creado_en)
+        select(Movimiento)
+        .where(Movimiento.articulo_id == articulo.id)
+        .order_by(Movimiento.creado_en)
     ).all()
     assert [m.saldo_destino for m in movs] == [4, 10]
     assert all(m.saldo_origen is None for m in movs)  # PROVEEDOR no lleva existencia

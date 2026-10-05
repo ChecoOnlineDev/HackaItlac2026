@@ -58,6 +58,12 @@ usuario por rol. **Son datos de prueba, no reales.** Todos usan la contraseña `
 | `almacenista` | Almacenista | KEP |
 | `alm_con`, `alm_mid`, `alm_hyl`, `alm_lam`, `alm_min` | Almacenista | CON, MID, HYL, LAM, MIN |
 
+También carga las existencias iniciales de los artículos por cantidad en Kepler y Contratistas con vales de entrada reales (`movimientos/datos_prueba.py`, usuario `compras`): folios `KEP-ING-000001` y `CON-ING-000001`. Es repetible y no duplica.
+
+## El motor de vales
+
+`app/modulos/movimientos/` es el motor: evaluar el semáforo, confirmar vales y consultarlos. Su diseño, el contrato para agregar un tipo de vale (`ManejadorTipo`) y lo que falta de cada tipo están en `app/modulos/movimientos/README.md`; el porqué de sus bloqueos, en [ADR-008](../docs/architecture/decisions/ADR-008-bloqueos-del-motor-de-vales.md).
+
 ## Pruebas
 
 Corren contra MySQL real. La base se llama `{MYSQL_DATABASE}_test_{TEST_DB_SUFFIX}`, se vuelve a
@@ -68,6 +74,8 @@ una debe usar un `TEST_DB_SUFFIX` distinto.**
 Fixtures (`tests/conftest.py`): `client`, `session`, `cliente_como("Almacenista")`,
 `usuario_por_rol("Almacenista")`, `crear_usuario({permisos}, almacen="KEP")` e `iniciar_sesion`.
 Las pruebas de reglas llevan su ID en el nombre, por ejemplo `test_AC_04_...`.
+
+Las pruebas de `movimientos` (`tests/movimientos/`) tienen sus fixtures en su propio `conftest.py`: `compras`, `almacenista`, `supervisor` y un doble de `InspeccionService`. Las de concurrencia (`test_concurrencia.py`) no pueden usar la transacción con savepoints, porque dos hilos no se verían: usan `cliente_independiente` y `sesion_independiente`, con conexiones propias y datos confirmados que el fixture `limpieza` borra al final (y devuelve el contador de folios a su valor).
 
 ## Cómo construir un módulo
 

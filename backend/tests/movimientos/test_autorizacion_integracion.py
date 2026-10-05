@@ -92,7 +92,9 @@ def test_A_03_flujo_completo_solicitar_resolver_confirmar_y_no_se_reutiliza(
     autorizacion_id = solicitar(almacenista, trabajador, ev)
     aprobar(supervisor, autorizacion_id)
 
-    cuerpo = cuerpo_entrega(trabajador, [renglon(excedente.codigo)], autorizacion_id=autorizacion_id)
+    cuerpo = cuerpo_entrega(
+        trabajador, [renglon(excedente.codigo)], autorizacion_id=autorizacion_id
+    )
     r = almacenista.post(VALES, json=cuerpo)
     assert r.status_code == 201, r.text
     assert r.json()["renglones"][0]["nivel"] == "NARANJA"
@@ -122,7 +124,9 @@ def test_A_04_el_vale_muestra_quien_pidio_quien_valido_cuando_y_por_que_medio(
     aprobar(supervisor, autorizacion_id)
     r = almacenista.post(
         VALES,
-        json=cuerpo_entrega(trabajador, [renglon(excedente.codigo)], autorizacion_id=autorizacion_id),
+        json=cuerpo_entrega(
+            trabajador, [renglon(excedente.codigo)], autorizacion_id=autorizacion_id
+        ),
     )
     valido = almacenista.get(f"{VALES}/{r.json()['id']}").json()["valido"]
     assert valido["autorizo"]["nombre"] == "Supervisor de prueba"
@@ -147,7 +151,9 @@ def test_A_01_tambien_se_autoriza_con_el_pin_en_el_dispositivo_del_almacenista(
     assert r.json()["medio"] == "PIN"
     ok = almacenista.post(
         VALES,
-        json=cuerpo_entrega(trabajador, [renglon(excedente.codigo)], autorizacion_id=autorizacion_id),
+        json=cuerpo_entrega(
+            trabajador, [renglon(excedente.codigo)], autorizacion_id=autorizacion_id
+        ),
     )
     assert ok.status_code == 201
     valido = almacenista.get(f"{VALES}/{ok.json()['id']}").json()["valido"]
@@ -189,7 +195,9 @@ def test_A_03_una_autorizacion_vencida_no_sirve(
     session.flush()
     r = almacenista.post(
         VALES,
-        json=cuerpo_entrega(trabajador, [renglon(excedente.codigo)], autorizacion_id=autorizacion_id),
+        json=cuerpo_entrega(
+            trabajador, [renglon(excedente.codigo)], autorizacion_id=autorizacion_id
+        ),
     )
     assert r.status_code == 409 and "venció" in r.json()["mensaje"]
 
@@ -218,7 +226,9 @@ def test_A_03_si_cambia_la_cantidad_la_autorizacion_ya_no_la_cubre(
     aprobar(supervisor, autorizacion_id)
     r = almacenista.post(
         VALES,
-        json=cuerpo_entrega(trabajador, [renglon(excedente.codigo, 2)], autorizacion_id=autorizacion_id),
+        json=cuerpo_entrega(
+            trabajador, [renglon(excedente.codigo, 2)], autorizacion_id=autorizacion_id
+        ),
     )
     assert r.status_code == 409 and r.json()["codigo"] == "AUTORIZACION_INVALIDA"
     assert "no cubre" in r.json()["mensaje"]
@@ -297,7 +307,10 @@ def test_A_03_una_autorizacion_que_el_vale_no_necesita_no_se_gasta(
         VALES,
         json=cuerpo_entrega(trabajador, [renglon(libre.codigo)], autorizacion_id=autorizacion_id),
     )
-    assert r.status_code == 201 and session.get(Vale, uuid.UUID(r.json()["id"])).autorizacion_id is None
+    assert (
+        r.status_code == 201
+        and session.get(Vale, uuid.UUID(r.json()["id"])).autorizacion_id is None
+    )
     assert session.get(Autorizacion, uuid.UUID(autorizacion_id)).estado == "APROBADA"
 
 
@@ -318,7 +331,9 @@ def test_US_ESP_001_E_07_E_26_una_sola_autorizacion_cubre_ambos_motivos(
     aprobar(supervisor, autorizacion_id)
     r = almacenista.post(
         VALES,
-        json=cuerpo_entrega(trabajador, [renglon(arnes.codigo, 2)], autorizacion_id=autorizacion_id),
+        json=cuerpo_entrega(
+            trabajador, [renglon(arnes.codigo, 2)], autorizacion_id=autorizacion_id
+        ),
     )
     assert r.status_code == 201, r.text
     mov = session.scalar(select(Movimiento).where(Movimiento.vale_id == uuid.UUID(r.json()["id"])))
@@ -329,7 +344,9 @@ def test_US_ESP_001_E_07_E_26_una_sola_autorizacion_cubre_ambos_motivos(
 def test_US_ESP_001_autorizar_y_confirmar_un_articulo_de_uso_especial(
     almacenista, supervisor, compras, session, trabajador
 ):
-    herramienta = crear_articulo(session, requiere_autorizacion=True, motivo_uso_especial="Restringido")
+    herramienta = crear_articulo(
+        session, requiere_autorizacion=True, motivo_uso_especial="Restringido"
+    )
     abastecer(compras, herramienta, 3)
     ev = evaluar(almacenista, trabajador, [renglon(herramienta.codigo)])
     assert motivos(ev) == ["E-26"]
@@ -352,8 +369,9 @@ def test_evaluar_con_autorizacion_marca_los_naranjas_cubiertos(
     sin_aprobar = evaluar(
         almacenista, trabajador, [renglon(excedente.codigo)], autorizacion_id=autorizacion_id
     )
-    assert sin_aprobar["puede_confirmar"] is False and "no está aprobada" in (
-        sin_aprobar["autorizacion_error"]
+    assert (
+        sin_aprobar["puede_confirmar"] is False
+        and "no está aprobada" in (sin_aprobar["autorizacion_error"])
     )
     aprobar(supervisor, autorizacion_id)
     con = evaluar(
@@ -385,7 +403,9 @@ def test_A_06_SM_04_un_rojo_de_seguridad_no_se_envia_a_autorizacion(
         },
     )
     assert r.status_code == 422 and r.json()["codigo"] == "RENGLON_NO_AUTORIZABLE"
-    assert r.json()["detalles"]["codigo"] == pieza.codigo and r.json()["detalles"]["regla"] == "E-05"
+    assert (
+        r.json()["detalles"]["codigo"] == pieza.codigo and r.json()["detalles"]["regla"] == "E-05"
+    )
 
 
 def test_A_06_una_inspeccion_vencida_no_se_envia_a_autorizacion(

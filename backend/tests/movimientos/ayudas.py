@@ -120,20 +120,26 @@ def crear_trabajador(
 
 def existencia(session: Session, almacen_clave: str, articulo: Articulo) -> int:
     ubicacion = AlmacenService(session).ubicacion_de_almacen(almacen(session, almacen_clave).id)
-    return session.scalar(
-        select(Existencia.cantidad).where(
-            Existencia.ubicacion_id == ubicacion.id, Existencia.articulo_id == articulo.id
+    return (
+        session.scalar(
+            select(Existencia.cantidad).where(
+                Existencia.ubicacion_id == ubicacion.id, Existencia.articulo_id == articulo.id
+            )
         )
-    ) or 0
+        or 0
+    )
 
 
 def existencia_de_trabajador(session: Session, trabajador: Trabajador, articulo: Articulo) -> int:
     ubicacion = AlmacenService(session).ubicacion_de_trabajador(trabajador.id)
-    return session.scalar(
-        select(Existencia.cantidad).where(
-            Existencia.ubicacion_id == ubicacion.id, Existencia.articulo_id == articulo.id
+    return (
+        session.scalar(
+            select(Existencia.cantidad).where(
+                Existencia.ubicacion_id == ubicacion.id, Existencia.articulo_id == articulo.id
+            )
         )
-    ) or 0
+        or 0
+    )
 
 
 def cuerpo_entrada(renglones: list[dict], **extra) -> dict:
@@ -164,7 +170,9 @@ def abastecer(cliente_compras, articulo: Articulo, cantidad: int, **extra):
     return r.json()
 
 
-def entrar_pieza(cliente_compras, articulo: Articulo, codigo: str | None = None, serie=None, **extra):
+def entrar_pieza(
+    cliente_compras, articulo: Articulo, codigo: str | None = None, serie=None, **extra
+):
     """Una ENTRADA de una pieza nueva por la API. Devuelve `(respuesta, codigo_de_pieza)`."""
     codigo = codigo or unico("PZA")
     renglon = {
