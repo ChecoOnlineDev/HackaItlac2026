@@ -7,6 +7,7 @@ import { esErrorApi, mensajeDeError } from "~/api/errores";
 import { useEnLinea } from "~/api/red";
 import { useConsulta } from "~/componentes/catalogo/usar-consulta";
 import { Escaner } from "~/componentes/dominio/escaner";
+import { HojaObservacion } from "~/componentes/dominio/hoja-observacion";
 import { reproducir } from "~/componentes/dominio/sonido";
 import type { EvaluacionApi, ValeConfirmadoApi, ValeDetalleApi } from "~/componentes/entrega/tipos";
 import { AccionPrincipal, Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
@@ -27,7 +28,6 @@ import type { PorRecibirApi, RenglonPorRecibirApi, TraspasoPorRecibirApi } from 
 import { useEvaluar, type CuerpoTraspaso } from "~/componentes/traspasos/use-evaluar";
 import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
-import { Confirmacion } from "~/componentes/ui/confirmacion";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { Insignia } from "~/componentes/ui/insignia";
@@ -269,6 +269,8 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
   const [enviando, setEnviando] = useState(false);
   const enviandoRef = useRef(false);
   const [confirmandoDiferencias, setConfirmandoDiferencias] = useState(false);
+  // RG-14: con diferencias la observación es obligatoria. Se pide en la hoja y se conserva para un reintento.
+  const observacionRef = useRef<string | null>(null);
   const [abriendo, setAbriendo] = useState(false);
   const sonidoPendiente = useRef<Set<string>>(new Set());
 
@@ -414,7 +416,8 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
     setAvisoCambio(null);
     const faltaron = faltantes.length;
     try {
-      const vale = await apiPost<ValeConfirmadoApi>("/vales", { ...cuerpo, id_cliente: b.idCliente });
+      const observacion = faltaron > 0 ? observacionRef.current : null;
+      const vale = await apiPost<ValeConfirmadoApi>("/vales", { ...cuerpo, id_cliente: b.idCliente, ...(observacion ? { observacion } : {}) });
       reproducir("ok");
       borrarBorradorRecepcion();
       alRecibir({ vale, traspasoFolio: traspaso.folio, faltaron });
@@ -453,7 +456,9 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
     if (ev.error && !ev.actual) return ev.error.sinConexion ? "Sin conexión: no podemos revisar todavía." : "No pudimos revisar la recepción.";
     if (!evaluacion || !ev.actual || ev.evaluando) return "Revisando la recepción…";
     if (rojos > 0) return `Quita ${rojos === 1 ? "el código en rojo" : `los ${rojos} códigos en rojo`} para continuar.`;
-    if (!evaluacion.puede_confirmar) return evaluacion.motivos.find((m) => m.nivel === "ROJO")?.mensaje ?? "Revisa la recepción para continuar.";
+    // Solo falta la observación (RG-14): se pide al confirmar, en la hoja de diferencias.
+    const soloFaltaObservacion = evaluacion.motivos.filter((m) => m.nivel === "ROJO").every((m) => m.regla === "RG-14");
+    if (!evaluacion.puede_confirmar && !soloFaltaObservacion) return evaluacion.motivos.find((m) => m.nivel === "ROJO")?.mensaje ?? "Revisa la recepción para continuar.";
     if (totalMarcado === 0) return "Marca lo que llegó o toca “Recibir todo”.";
     return null;
   })();
@@ -522,7 +527,7 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
         </section>
       ) : null}
 
-      <MotivosDelVale motivos={(evaluacion?.motivos ?? []).filter((m) => m.regla !== "X-13")} />
+      <MotivosDelVale motivos={(evaluacion?.motivos ?? []).filter((m) => m.regla !== "X-13" && m.regla !== "RG-14")} />
 
       {errorEnvio && errorEnvio.tipo !== "almacen" ? (
         <section role="alert" className="flex flex-col gap-1 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-4">
@@ -643,15 +648,17 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
         </Boton>
       </AccionPrincipal>
 
-      <Confirmacion
+      <HojaObservacion
         abierta={confirmandoDiferencias}
         alCambiar={setConfirmandoDiferencias}
-        mensaje="¿Confirmar la recepción con diferencias?"
-        detalle={`Faltan ${textoRenglones(faltantes.length)}. Seguirán en camino y el traspaso quedará como “Recibido con diferencias”.`}
-        etiquetaConfirmar="Sí, confirmar"
-        etiquetaCancelar="Seguir revisando"
-        alConfirmar={() => {
-          setConfirmandoDiferencias(false);
+        titulo="Recepción con diferencias"
+        motivo={`Faltan ${textoRenglones(faltantes.length)}. Seguirán en camino y el traspaso quedará como “Recibido con diferencias”. Anota qué pasó con lo que falta.`}
+        regla="RG-14"
+        valorInicial={observacionRef.current ?? ""}
+        respuestasRapidas={["Faltó en el contenedor", "Llegó dañado", "Se quedó en el origen", "Lo recibirá otro turno"]}
+        etiquetaGuardar="Confirmar recepción con diferencias"
+        alGuardar={(texto) => {
+          observacionRef.current = texto;
           void confirmar();
         }}
       />
