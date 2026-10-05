@@ -165,7 +165,7 @@ def eliminar_articulo(
 # ----------------------------------------------------------------------------- etiquetas
 
 
-@router.get("/etiquetas", response_model=EtiquetasOut)
+@router.get("/etiquetas", response_model=EtiquetasOut, response_model_exclude_none=True)
 def listar_etiquetas(
     tipo: TipoEtiqueta, usuario: Imprimir, service: CatalogoServiceDep
 ) -> EtiquetasOut:

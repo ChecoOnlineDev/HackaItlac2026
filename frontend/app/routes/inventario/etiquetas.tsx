@@ -6,6 +6,7 @@ import { Checkbox } from "~/components/ui/checkbox";
 import { apiGet } from "~/api/cliente";
 import { esErrorApi } from "~/api/errores";
 import type { Pagina } from "~/api/tipos";
+import { CREDENCIALES_POR_HOJA, HojaCredenciales, SelectorModoCredencial, type ModoCredencial } from "~/componentes/dominio/credencial";
 import { HojaEtiquetas, ETIQUETAS_POR_HOJA } from "~/componentes/dominio/hoja-etiquetas";
 import type { EtiquetaElemento } from "~/componentes/dominio/tipos";
 import { AccionPrincipal, Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
@@ -37,6 +38,8 @@ export default function Etiquetas() {
   const [busqueda, setBusqueda] = useState("");
   const [elegidos, setElegidos] = useState<ReadonlySet<string>>(new Set());
   const [intento, setIntento] = useState(0);
+  // Solo en credenciales: la tarjeta completa o únicamente el código QR.
+  const [modo, setModo] = useState<ModoCredencial>("completa");
 
   useEffect(() => {
     if (!tipo) return;
@@ -89,12 +92,17 @@ export default function Etiquetas() {
     );
   }
 
-  const hojas = Math.max(1, Math.ceil(seleccionadas.length / ETIQUETAS_POR_HOJA));
+  const tarjetas = tipo === "credenciales" && modo === "completa";
+  const porHoja = tarjetas ? CREDENCIALES_POR_HOJA : ETIQUETAS_POR_HOJA;
+  const hojas = Math.max(1, Math.ceil(seleccionadas.length / porHoja));
+  const datosTarjetas = seleccionadas.flatMap((e) =>
+    e.nombre && e.numero_empleado ? [{ codigo: e.codigo, nombre: e.nombre, puesto: e.puesto, numero_empleado: e.numero_empleado }] : [],
+  );
 
   return (
     <Pantalla titulo="Etiquetas" descripcion="Elige qué imprimir y revisa la hoja antes de mandarla a la impresora.">
       <div className="flex flex-col gap-6 pb-28 lg:pb-0">
-        <div role="radiogroup" aria-label="Qué imprimir" className="grid gap-3 sm:grid-cols-3">
+        <div role="radiogroup" aria-label="Tipo de etiqueta" className="grid gap-3 sm:grid-cols-3">
           {disponibles.map(({ tipo: t, nombre, ayuda, icono: Icono }) => {
             const activo = tipo === t;
             return (
@@ -118,6 +126,8 @@ export default function Etiquetas() {
             );
           })}
         </div>
+
+        {tipo === "credenciales" ? <SelectorModoCredencial modo={modo} alCambiar={setModo} /> : null}
 
         {error !== null ? (
           <EstadoError
@@ -178,7 +188,8 @@ export default function Etiquetas() {
                 <h2 className="text-xl">Vista previa</h2>
                 {seleccionadas.length > 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    {seleccionadas.length === 1 ? "1 etiqueta" : `${seleccionadas.length} etiquetas`} · {hojas === 1 ? "1 hoja carta" : `${hojas} hojas carta`}
+                    {seleccionadas.length === 1 ? (tarjetas ? "1 credencial" : "1 etiqueta") : `${seleccionadas.length} ${tarjetas ? "credenciales" : "etiquetas"}`} ·{" "}
+                    {hojas === 1 ? "1 hoja carta" : `${hojas} hojas carta`}
                   </p>
                 ) : null}
               </div>
@@ -186,7 +197,7 @@ export default function Etiquetas() {
                 <EstadoVacio icono={TagIcon} titulo="Elige qué etiquetas imprimir" descripcion="Marca elementos de la lista y aquí verás cómo queda la hoja." />
               ) : (
                 <div className="rounded-xl border bg-muted p-3">
-                  <HojaEtiquetas etiquetas={seleccionadas} />
+                  {tarjetas ? <HojaCredenciales credenciales={datosTarjetas} /> : <HojaEtiquetas etiquetas={seleccionadas} />}
                 </div>
               )}
             </section>

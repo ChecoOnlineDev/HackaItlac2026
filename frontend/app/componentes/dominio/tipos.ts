@@ -73,4 +73,8 @@ export type Trazo = PuntoTrazo[][];
 export interface EtiquetaElemento {
   codigo: string;
   texto: string;
+  /** Solo en credenciales: con esto se arma la tarjeta. Nunca CURP ni NSS (RG-13). */
+  nombre?: string;
+  numero_empleado?: string;
+  puesto?: string;
 }

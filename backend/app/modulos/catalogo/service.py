@@ -645,13 +645,22 @@ class CatalogoService:
         """US-ETQ-001. El permiso `etiquetas.imprimir` (ya exigido por el router) basta.
 
         El QR contiene exactamente `codigo` (RG-10); `texto` es lo legible junto a él. Una
-        credencial solo lleva nombre y número de empleado, nunca CURP ni NSS (RG-13).
+        credencial solo lleva nombre, número de empleado y puesto, nunca CURP ni NSS
+        (RG-13).
         """
-        if tipo == TipoEtiqueta.PIEZAS:
-            filas = self.etiquetas.piezas()
-        elif tipo == TipoEtiqueta.ESTANTES:
-            filas = self.etiquetas.estantes()
+        elementos: list[EtiquetaOut]
+        if tipo == TipoEtiqueta.CREDENCIALES:
+            elementos = [
+                EtiquetaOut(
+                    codigo=c, texto=f"{n} · {e}", nombre=n, numero_empleado=e, puesto=p or None
+                )
+                for c, n, e, p in self.etiquetas.credenciales()
+            ]
         else:
-            filas = self.etiquetas.credenciales()
-        elementos = [EtiquetaOut(codigo=c, texto=t) for c, t in filas]
+            filas = (
+                self.etiquetas.piezas()
+                if tipo == TipoEtiqueta.PIEZAS
+                else self.etiquetas.estantes()
+            )
+            elementos = [EtiquetaOut(codigo=c, texto=t) for c, t in filas]
         return EtiquetasOut(elementos=elementos, total=len(elementos))

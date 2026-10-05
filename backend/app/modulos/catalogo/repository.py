@@ -19,7 +19,7 @@ from app.modulos.catalogo.models import (
     TipoCodigo,
 )
 from app.modulos.movimientos.models import Movimiento
-from app.modulos.trabajadores.models import EstadoTrabajador, Trabajador
+from app.modulos.trabajadores.models import EstadoTrabajador, PeriodoContrato, Trabajador
 
 
 def _escapar_like(texto: str) -> str:
@@ -187,10 +187,11 @@ class EtiquetaRepository:
         ).all()
         return [(c, n) for c, n in filas]
 
-    def credenciales(self) -> list[tuple[str, str]]:
-        """Solo lectura de `trabajador`: los códigos de trabajadores que no están inactivos."""
+    def credenciales(self) -> list[tuple[str, str, str, str | None]]:
+        """Solo lectura de `trabajador`: `(codigo, nombre, numero_empleado, puesto)` de los
+        trabajadores que no están inactivos. Nunca CURP ni NSS (RG-13)."""
         filas = self.session.execute(
-            select(Codigo.codigo, Trabajador.nombre, Trabajador.numero_empleado)
+            select(Codigo.codigo, Trabajador.id, Trabajador.nombre, Trabajador.numero_empleado)
             .join(Trabajador, Trabajador.id == Codigo.ref_id)
             .where(
                 Codigo.tipo == TipoCodigo.TRABAJADOR,
@@ -198,4 +199,15 @@ class EtiquetaRepository:
             )
             .order_by(Trabajador.nombre, Codigo.codigo)
         ).all()
-        return [(c, f"{n} · {e}") for c, n, e in filas]
+        # El puesto es el del periodo de contrato vigente: el más reciente (el primero que
+        # aparece al ordenar por inicio y alta, de más nuevo a más viejo).
+        puestos: dict[uuid.UUID, str | None] = {}
+        if filas:
+            periodos = self.session.execute(
+                select(PeriodoContrato.trabajador_id, PeriodoContrato.puesto)
+                .where(PeriodoContrato.trabajador_id.in_([f[1] for f in filas]))
+                .order_by(PeriodoContrato.inicio.desc(), PeriodoContrato.creado_en.desc())
+            ).all()
+            for trabajador_id, puesto in periodos:
+                puestos.setdefault(trabajador_id, puesto)
+        return [(c, n, e, puestos.get(tid)) for c, tid, n, e in filas]

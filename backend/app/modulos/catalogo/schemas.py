@@ -265,10 +265,17 @@ class TipoEtiqueta(StrEnum):
 
 
 class EtiquetaOut(BaseModel):
-    """Una etiqueta: el QR contiene exactamente `codigo`; `texto` es lo legible."""
+    """Una etiqueta: el QR contiene exactamente `codigo`; `texto` es lo legible.
+
+    En credenciales trae además `nombre`, `numero_empleado` y `puesto` (este último solo si el
+    trabajador lo tiene) para armar la tarjeta; en piezas y estantes esos campos no salen.
+    """
 
     codigo: str
     texto: str
+    nombre: str | None = None
+    numero_empleado: str | None = None
+    puesto: str | None = None
 
 
 class EtiquetasOut(BaseModel):

@@ -1,10 +1,11 @@
-import { CameraIcon, LogOutIcon, QrCodeIcon, RotateCcwIcon, UndoIcon, UserXIcon, XCircleIcon } from "lucide-react";
+import { CameraIcon, IdCardIcon, LogOutIcon, QrCodeIcon, RotateCcwIcon, UndoIcon, UserXIcon, XCircleIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 
 import { api, apiDelete, apiGet, apiPost } from "~/api/cliente";
 import { esErrorApi, mensajeDeError } from "~/api/errores";
 import { BotonNoAdeudo, useAccionNoAdeudo } from "~/componentes/devolucion/no-adeudo";
+import { VistaCredencial } from "~/componentes/dominio/credencial";
 import { SelectorFoto } from "~/componentes/personas/foto";
 import { fechaCorta } from "~/componentes/personas/formato";
 import { InsigniaSituacion, InsigniaVigencia } from "~/componentes/personas/insignias";
@@ -27,7 +28,7 @@ import { useSesion } from "~/sesion/sesion";
 
 export const handle: ManejadorRuta = { permiso: "trabajadores.ver" };
 
-type Panel = null | "reingreso" | "baja" | "cancelar-baja" | "foto" | "credencial";
+type Panel = null | "reingreso" | "baja" | "cancelar-baja" | "foto" | "credencial" | "imprimir";
 
 function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
@@ -53,6 +54,7 @@ export default function FichaTrabajador() {
   const puedeAdministrar = puede("trabajadores.administrar");
   const puedeBaja = puede("trabajadores.iniciar_baja");
   const puedeNoAdeudo = puede("no_adeudo.emitir");
+  const puedeImprimir = puede("etiquetas.imprimir");
 
   const [ficha, setFicha] = useState<Ficha | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -271,7 +273,7 @@ export default function FichaTrabajador() {
         </header>
 
         {/* Acciones, según permiso y estado */}
-        {puedeAdministrar || puedeBaja || (puedeNoAdeudo && ficha.estado === "ACTIVO") ? (
+        {puedeAdministrar || puedeBaja || puedeImprimir || (puedeNoAdeudo && ficha.estado === "ACTIVO") ? (
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             {puedeAdministrar && !enBaja ? (
               <Boton variante={inactivo || !vigente ? "normal" : "contorno"} onClick={() => abrir("reingreso")}>
@@ -292,6 +294,12 @@ export default function FichaTrabajador() {
               <Boton variante="contorno" onClick={() => abrir("cancelar-baja")}>
                 <UndoIcon aria-hidden="true" />
                 Cancelar baja
+              </Boton>
+            ) : null}
+            {puedeImprimir && ficha.codigos.length > 0 ? (
+              <Boton variante="contorno" onClick={() => abrir("imprimir")}>
+                <IdCardIcon aria-hidden="true" />
+                Credencial
               </Boton>
             ) : null}
             {puedeAdministrar ? (
@@ -407,6 +415,21 @@ export default function FichaTrabajador() {
           {panel === "foto" && errorPanel ? <p role="alert" className="text-base font-semibold text-destructive">{errorPanel}</p> : null}
         </div>
       </Hoja>
+
+      {/* Imprimir o descargar la credencial (solo con `etiquetas.imprimir`) */}
+      {puedeImprimir && ficha.codigos.length > 0 ? (
+        <Hoja
+          abierta={panel === "imprimir"}
+          alCambiar={(a) => !a && setPanel(null)}
+          titulo="Credencial"
+          descripcion="Imprímela, guárdala como PDF o descarga la imagen."
+        >
+          <VistaCredencial
+            key={ficha.codigos[0]}
+            datos={{ codigo: ficha.codigos[0], nombre: ficha.nombre, puesto: ficha.puesto, numero_empleado: ficha.numero_empleado }}
+          />
+        </Hoja>
+      ) : null}
 
       {/* Credencial */}
       <Hoja
