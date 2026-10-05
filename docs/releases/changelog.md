@@ -62,6 +62,11 @@ Primera versión completa del flujo principal del reto IMHOTEP: de dar de alta a
 - **Respaldo y restauración** (TASK-F7-05): `scripts/respaldo.sh` y `respaldo.ps1` (base y archivos, con retención opcional), `restaurar.sh` y `restaurar.ps1` (con `--base` para probar en otra base). Probados respaldando y restaurando en otra base.
 - **Verificación de consistencia**: `python -m app.mantenimiento verificar` (existencias contra bitácora, ubicación de piezas, folios, cancelaciones, códigos y no adeudo) y `reconstruir-existencias --simular`/`--aplicar`.
 
+### Aplicación instalable (PWA)
+
+- Manifiesto, iconos (192, 512 y adaptable), icono para iPhone y atajos (Entregar, Devolver, Consultar); botón «Instalar aplicación» en el menú.
+- Service worker mínimo: acelera los archivos con huella y muestra una pantalla de «sin conexión» al abrir sin red. No guarda la API ni datos de negocio; el modo sin conexión sigue excluido.
+
 ### Funciones absorbidas de la segunda ola
 
 - **Foto del trabajador** (FEAT-005, T-09): pasó al MVP como foto opcional en el alta.

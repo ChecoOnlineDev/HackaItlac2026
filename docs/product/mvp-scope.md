@@ -38,6 +38,7 @@ Corresponde a la prioridad P0 de las [reglas de negocio](reglas-de-negocio.md).
 - **Baja.** Pendientes del trabajador, vale de no adeudo y paso a inactivo.
 - **Consulta y reportes.** Escaneo universal, búsqueda por texto, historial de pieza; reportes de existencias, movimientos, adeudos y consumo, con descarga en CSV.
 - **Corrección.** Cancelación de un vale con sus movimientos inversos, con motivo; cancelar y rehacer con los mismos renglones; y la lista de los movimientos del día de cada usuario.
+- **Aplicación instalable (PWA) sin modo sin conexión.** Se puede instalar en el celular y en la computadora (por HTTPS). Solo guarda en el dispositivo los archivos estáticos de la interfaz y una pantalla de «sin conexión»; la API y los datos de negocio nunca se guardan. El modo sin conexión sigue excluido (ver abajo).
 
 ## Segunda ola
 
@@ -53,7 +54,7 @@ Aparte está [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md),
 
 ## Excluido explícitamente
 
-- Modo sin conexión y sincronización.
+- Modo sin conexión y sincronización (la aplicación instalable no lo cambia: sin red no se opera).
 - Aplicación nativa; lectura de huella o cualquier biometría.
 - Notificaciones push, correo, SMS o WhatsApp.
 - Integración con nómina, torniquetes o sistemas de la planta.
