@@ -452,3 +452,25 @@ def test_A_04_la_auditoria_registra_solicitud_y_resolucion(cliente_como, pedir, 
 
 def test_A_05_sin_permiso_error_de_dominio_es_sin_http():
     assert issubclass(AutorizacionPropia, SinPermiso)
+
+
+def test_AC_06_quien_opera_todos_los_almacenes_indica_el_almacen_al_solicitar(
+    cliente_como, trabajador, session
+):
+    """Un supervisor (con `almacenes.todos`) que captura una entrega pide la autorización
+    indicando el almacén en el que opera; sin indicarlo se le pide (no es un error del usuario)."""
+    from sqlalchemy import select
+
+    from app.modulos.almacenes.models import Almacen
+
+    supervisor = cliente_como("Supervisor")
+    kep = session.scalar(select(Almacen.id).where(Almacen.clave == "KEP"))
+
+    sin_almacen = supervisor.post(RUTA, json=cuerpo(trabajador))
+    assert sin_almacen.status_code == 422
+    assert sin_almacen.json()["detalles"][0]["campo"] == "almacen_id"
+
+    con_almacen = supervisor.post(RUTA, json={**cuerpo(trabajador), "almacen_id": str(kep)})
+    assert con_almacen.status_code == 201, con_almacen.text
+    guardada = session.get(Autorizacion, uuid.UUID(con_almacen.json()["id"]))
+    assert guardada.almacen_id == kep

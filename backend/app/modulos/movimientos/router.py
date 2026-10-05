@@ -87,6 +87,17 @@ def ver(vale_id: uuid.UUID, usuario: UsuarioVer, service: ServiceDep) -> ValeDet
     return service.obtener(usuario, vale_id)
 
 
+@router.get("/vales/{vale_id}/firma")
+def ver_firma(vale_id: uuid.UUID, usuario: UsuarioVer, service: ServiceDep) -> Response:
+    """`vales.ver`. La imagen de la firma del trabajador (detalle e impresión del vale)."""
+    mime, contenido = service.firma_de(usuario, vale_id)
+    return Response(
+        content=contenido,
+        media_type=mime,
+        headers={"Cache-Control": "private, no-cache", "X-Content-Type-Options": "nosniff"},
+    )
+
+
 @router.get("/vales", response_model=Pagina[ValeListItem])
 def listar(
     usuario: UsuarioVer,

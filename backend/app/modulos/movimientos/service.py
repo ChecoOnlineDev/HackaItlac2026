@@ -557,6 +557,15 @@ class MovimientoService:
             raise ValeNoEncontrado()
         return self.detalle(vale)
 
+    def firma_de(self, usuario: Usuario, vale_id: uuid.UUID) -> tuple[str, bytes]:
+        """`GET /api/vales/{id}/firma`: el tipo de contenido y los bytes de la firma del trabajador.
+        Misma visibilidad que el vale (AC-06); 404 si el vale no tiene firma en pantalla."""
+        vale = self.repository.vale(vale_id)
+        if vale is None or not self._en_alcance(usuario, vale) or vale.firma_adjunto_id is None:
+            raise ValeNoEncontrado("Este vale no tiene firma guardada.")
+        adjunto, contenido = self.archivos.leer(vale.firma_adjunto_id)
+        return adjunto.mime, contenido
+
     def obtener_por_token(self, usuario: Usuario, token: str) -> ValeDetalleOut:
         """`GET /api/vales/por-token/{token}`: el vale que abre su QR."""
         vale = self.repository.vale_por_token(token.strip())

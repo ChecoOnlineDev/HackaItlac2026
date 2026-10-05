@@ -37,6 +37,8 @@ class SolicitudCreate(BaseModel):
     trabajador_id: uuid.UUID
     renglones: list[RenglonSolicitud] = Field(min_length=1)
     motivo: str = Field(max_length=255)
+    # Solo quien opera todos los almacenes (`almacenes.todos`) lo indica; los demás usan el suyo.
+    almacen_id: uuid.UUID | None = None
 
     @field_validator("motivo")
     @classmethod

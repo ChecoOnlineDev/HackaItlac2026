@@ -100,7 +100,7 @@ class AutorizacionService:
         debe lanzar `RenglonNoAutorizable` ante un renglon en rojo. Es el punto de integracion
         con la evaluacion de `movimientos`.
         """
-        almacen_id = self.acceso.resolver_almacen(solicitante)
+        almacen_id = self.acceso.resolver_almacen(solicitante, datos.almacen_id)
         if self.repository.trabajador(datos.trabajador_id) is None:
             raise NoEncontrado("No se encontró al trabajador.")
         for renglon in datos.renglones:

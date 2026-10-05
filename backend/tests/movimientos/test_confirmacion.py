@@ -474,3 +474,24 @@ def test_E_01_el_codigo_de_un_vale_no_sirve_para_entregar(
         },
     )
     assert r.json()["renglones"][0]["motivos"][0]["regla"] == "E-01"
+
+
+def test_F_05_la_firma_guardada_se_puede_ver_en_el_detalle_del_vale(
+    almacenista, compras, session, trabajador
+):
+    """El detalle solo dice `tiene_firma`; la imagen se pide aparte y respeta el alcance (AC-06)."""
+    guantes = crear_articulo(session)
+    abastecer(compras, guantes, 5)
+    r = almacenista.post(VALES, json=cuerpo_entrega(trabajador, [renglon(guantes.codigo)]))
+    assert r.status_code == 201, r.text
+    vale_id = r.json()["id"]
+    assert almacenista.get(f"{VALES}/{vale_id}").json()["tiene_firma"] is True
+
+    firma = almacenista.get(f"{VALES}/{vale_id}/firma")
+
+    assert firma.status_code == 200
+    assert firma.headers["content-type"] == "image/png"
+    assert firma.content.startswith(b"\x89PNG")
+    # Una entrada no tiene firma de trabajador: no hay imagen que mostrar.
+    entrada = abastecer(compras, guantes, 1)
+    assert compras.get(f"{VALES}/{entrada['id']}/firma").status_code == 404
