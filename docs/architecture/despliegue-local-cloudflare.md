@@ -162,6 +162,16 @@ server: {
 
 Si la recarga automática no llega al celular, se recarga la página a mano. No afecta la prueba de cámara.
 
+## Instalar la aplicación en el celular o la computadora
+
+La interfaz es una aplicación instalable (PWA). Requiere **HTTPS**: funciona por el túnel de Cloudflare (`https://imhotep.checodev.top`) o en `localhost`, pero no por `http://` con una IP de la red local. No hay modo sin conexión: sin internet solo se ve una pantalla de aviso.
+
+- **Android (Chrome):** abrir el sitio, entrar al menú de la aplicación y tocar «Instalar aplicación» (o el menú del navegador, «Instalar aplicación»).
+- **iPhone o iPad (Safari):** tocar Compartir y luego «Agregar a inicio».
+- **Computadora (Chrome o Edge):** botón «Instalar aplicación» del menú lateral o el icono de instalar en la barra de direcciones.
+
+Al publicar una versión nueva de la interfaz, la aplicación instalada la toma al cerrarla y volver a abrirla.
+
 ## Limitaciones de usar la computadora como servidor
 
 - **Encendida y despierta.** Desactivar la suspensión mientras se prueba; Docker Desktop debe estar abierto.

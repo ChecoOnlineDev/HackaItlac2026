@@ -1,0 +1,43 @@
+{
+  "name": "IMHOTEP · Control de herramientas y EPP",
+  "short_name": "IMHOTEP",
+  "description": "Control de herramientas y equipo de protección personal: entregas, devoluciones y consultas.",
+  "lang": "es-MX",
+  "dir": "ltr",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#0054A6",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    { "src": "/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icono-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Entregar",
+      "short_name": "Entregar",
+      "description": "Entregar herramienta o equipo a un trabajador",
+      "url": "/entregar",
+      "icons": [{ "src": "/icono-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Devolver",
+      "short_name": "Devolver",
+      "description": "Recibir una devolución",
+      "url": "/devolver",
+      "icons": [{ "src": "/icono-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Consultar",
+      "short_name": "Consultar",
+      "description": "Buscar una pieza, un trabajador o un vale",
+      "url": "/consultar",
+      "icons": [{ "src": "/icono-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

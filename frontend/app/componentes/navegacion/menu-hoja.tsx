@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { Hoja } from "~/componentes/ui/hoja";
 import { agruparMenu, menuPermitido } from "~/sesion/menu";
 import { useSesion } from "~/sesion/sesion";
+import { InstalarApp } from "./instalar-app";
 
 /** Menú completo en una hoja (celular y tableta): todas las secciones que permiten los permisos. */
 export function MenuHoja({ abierta, alCambiar }: { abierta: boolean; alCambiar: (abierta: boolean) => void }) {
@@ -28,6 +29,7 @@ export function MenuHoja({ abierta, alCambiar }: { abierta: boolean; alCambiar: 
           </div>
         ))}
       </nav>
+      <InstalarApp className="mt-5" />
     </Hoja>
   );
 }

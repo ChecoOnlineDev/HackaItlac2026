@@ -132,3 +132,58 @@ def test_sin_carpeta_de_interfaz_solo_hay_api(tmp_path):
     r = web.get("/entrar")
     assert r.status_code == 404
     assert r.json()["codigo"] == "NO_ENCONTRADO"
+
+
+# --- Aplicación instalable (PWA): sin modo sin conexión ---
+
+
+@pytest.fixture
+def web_pwa(interfaz):
+    (interfaz / "manifest.webmanifest").write_text('{"name": "IMHOTEP"}', encoding="utf-8")
+    (interfaz / "sw.js").write_text("self.addEventListener('fetch', () => {});", encoding="utf-8")
+    (interfaz / "offline.html").write_text(
+        "<!doctype html><title>Sin conexión</title>", encoding="utf-8"
+    )
+    (interfaz / "icono-192.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+    return TestClient(_app(interfaz))
+
+
+def test_pwa_manifiesto_con_su_tipo_y_sin_caer_en_index(web_pwa):
+    r = web_pwa.get("/manifest.webmanifest")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("application/manifest+json")
+    assert r.json()["name"] == "IMHOTEP"
+
+
+def test_pwa_service_worker_con_tipo_alcance_y_sin_cache(web_pwa):
+    r = web_pwa.get("/sw.js")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/javascript")
+    assert r.headers["cache-control"] == "no-cache"
+    assert r.headers["service-worker-allowed"] == "/"
+    assert "addEventListener" in r.text
+
+
+def test_pwa_pagina_sin_conexion_e_iconos_se_entregan_tal_cual(web_pwa):
+    r = web_pwa.get("/offline.html")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/html")
+    assert "Sin conexión" in r.text
+    r = web_pwa.get("/icono-192.png")
+    assert r.headers["content-type"] == "image/png"
+
+
+def test_pwa_csp_permite_manifiesto_y_worker_sin_relajar_lo_demas(web_pwa):
+    csp = web_pwa.get("/entrar").headers["content-security-policy"]
+    assert "manifest-src 'self'" in csp
+    assert "worker-src 'self'" in csp
+    assert "default-src 'self'" in csp
+    assert "unsafe-eval" not in csp
+    assert "script-src 'self' 'sha256-" in csp
+    assert "connect-src 'self'" in csp
+
+
+def test_pwa_la_api_no_recibe_cabeceras_del_service_worker(web_pwa):
+    r = web_pwa.get("/api/salud")
+    assert r.json() == {"estado": "ok"}
+    assert "service-worker-allowed" not in r.headers

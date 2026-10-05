@@ -4,6 +4,9 @@ El servidor de la API también sirve los archivos de `frontend/build/client` (AD
 
 - Un archivo que existe en la carpeta se entrega tal cual. Los de `/assets/` llevan un nombre con
   huella (hash), así que se guardan un año; el resto, una hora.
+- Los archivos de la aplicación instalable (PWA) llevan tipo y caché propios:
+  `/manifest.webmanifest`, `/sw.js` (siempre `no-cache`, con `Service-Worker-Allowed: /`) y
+  `/offline.html`. Nunca los sustituye `index.html`.
 - Cualquier otra ruta que no empiece con `/api` responde `index.html` sin caché: la pantalla la
   resuelve React Router en el navegador (`/entrar`, `/v/:token`, `/vales/:id`...).
 - `/api/*` que no existe sigue siendo 404 JSON del contrato, nunca `index.html`.
@@ -22,6 +25,14 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 CACHE_CON_HUELLA = "public, max-age=31536000, immutable"
 CACHE_ESTATICO = "public, max-age=3600"
 CACHE_INDEX = "no-cache"
+
+# Archivos de la aplicación instalable: (tipo de contenido, caché, cabeceras extra). El tipo va fijo
+# porque el del sistema operativo varía y con `nosniff` un `sw.js` mal tipado no se registra.
+_ARCHIVOS_PWA: dict[str, tuple[str, str, dict[str, str]]] = {
+    "manifest.webmanifest": ("application/manifest+json", CACHE_INDEX, {}),
+    "sw.js": ("text/javascript", CACHE_INDEX, {"Service-Worker-Allowed": "/"}),
+    "offline.html": ("text/html", CACHE_INDEX, {}),
+}
 
 # Los <script> en línea que genera React Router en el index.html (modo de una sola página).
 _SCRIPT_EN_LINEA = re.compile(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.DOTALL)
@@ -101,6 +112,11 @@ def montar_interfaz(app: FastAPI, directorio: Path) -> bool:
         if ruta:
             candidato = (raiz / ruta).resolve()
             if candidato.is_file() and candidato.is_relative_to(raiz) and candidato != index:
+                if ruta in _ARCHIVOS_PWA:
+                    tipo, cache, extra = _ARCHIVOS_PWA[ruta]
+                    return FileResponse(
+                        candidato, media_type=tipo, headers={"Cache-Control": cache, **extra}
+                    )
                 con_huella = ruta.startswith("assets/")
                 return FileResponse(
                     candidato,
