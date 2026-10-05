@@ -15,7 +15,7 @@ Estado al 5 de octubre de 2026. Se marcó solo lo que está hecho y comprobado e
 - [ ] La prueba del guion completo pasa. *(No existe todavía una sola prueba que recorra los seis pasos: TASK-F7-01.)*
 - [ ] Cada permiso se verifica con una prueba, en el servidor, y los roles iniciales coinciden con la sección 8.2 de las reglas. *(TASK-F7-02; los roles iniciales están en `acceso/datos_prueba.py`.)*
 - [ ] Cada pantalla tiene sus estados de carga, vacío y error. *(Existen los patrones en `componentes/ui`; falta la revisión pantalla por pantalla en celular y computadora: TASK-F7-04.)*
-- [ ] Pruebas, lint, verificación de tipos y construcción pasan.
+- [x] Pruebas, lint, verificación de tipos y construcción pasan. *(5 oct, en la rama de operaciones: `pytest` 1022 pruebas en verde, `ruff check` y `ruff format` limpios, `pnpm typecheck` y `pnpm build` sin errores. Volver a correrlos sobre la rama final antes de etiquetar.)*
 - [ ] El motor de movimientos tuvo revisión independiente. *(TASK-F7-06.)*
 
 ## Operación
