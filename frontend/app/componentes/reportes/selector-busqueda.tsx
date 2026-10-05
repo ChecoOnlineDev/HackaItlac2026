@@ -96,7 +96,7 @@ export function SelectorBusqueda({ tipo, valor, alCambiar }: Propiedades) {
         className={cn("h-11 w-full justify-between rounded-xl px-3 text-base font-normal")}
         onClick={() => setAbierta(true)}
       >
-        <span id={`${idEtiqueta}-valor`} className="truncate">{valor ? (etiquetaElegida ?? "Elegido") : textos.todos}</span>
+        <span id={`${idEtiqueta}-valor`} className="text-left">{valor ? (etiquetaElegida ?? "Elegido") : textos.todos}</span>
         <ChevronDownIcon aria-hidden="true" className="size-4 shrink-0" />
       </Boton>
 
@@ -154,7 +154,7 @@ export function SelectorBusqueda({ tipo, valor, alCambiar }: Propiedades) {
                   <button
                     type="button"
                     onClick={() => elegir(r.id, r.titulo, r.detalle)}
-                    className="flex min-h-12 w-full flex-col items-start gap-0.5 rounded-xl border bg-card p-3 text-left shadow-xs hover:bg-muted"
+                    className="flex min-h-12 w-full flex-col items-start gap-0.5 rounded-2xl border bg-card p-3 text-left shadow-xs hover:bg-muted"
                   >
                     <span className="flex flex-wrap items-center gap-2 text-base leading-tight font-semibold">
                       {r.titulo}

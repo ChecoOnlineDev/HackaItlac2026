@@ -137,11 +137,11 @@ export function PasoTrabajador({ trabajador, alIdentificar, activo = true }: Pro
         activo={activo && !buscando}
         onCodigo={(codigo, origen) => void alCodigo(codigo, origen)}
         etiquetaCampo="Escribir número o nombre"
-        placeholderCampo="Por ejemplo EMP-1001 o Juan"
+        placeholderCampo="EMP-1001 o Juan"
       />
       {buscando ? <Cargando variante="en-linea" texto="Buscando al trabajador…" /> : null}
       {mensaje ? (
-        <p role="alert" className="flex items-start gap-2 rounded-lg border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-base font-medium">
+        <p role="alert" className="flex items-start gap-2 rounded-xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-sm font-medium">
           <SearchXIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-semaforo-amarillo" />
           {mensaje}
         </p>
@@ -155,7 +155,7 @@ export function PasoTrabajador({ trabajador, alIdentificar, activo = true }: Pro
                 <button
                   type="button"
                   onClick={() => void elegir(c)}
-                  className="flex min-h-12 w-full flex-col items-start rounded-xl border bg-card px-4 py-2 text-left shadow-xs hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex min-h-12 w-full flex-col items-start rounded-2xl border bg-card px-4 py-2 text-left shadow-xs hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <span className="text-base font-semibold">{c.nombre}</span>
                   <span className="text-sm text-muted-foreground">

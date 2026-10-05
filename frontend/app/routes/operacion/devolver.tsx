@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, CircleAlertIcon, InfoIcon, RotateCcwIcon, ScanLineIcon, WifiOffIcon } from "lucide-react";
+import { CircleAlertIcon, InfoIcon, RotateCcwIcon, ScanLineIcon, WifiOffIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker, useNavigate, useSearchParams } from "react-router";
 
@@ -31,6 +31,7 @@ import { ResultadoEntrega } from "~/componentes/entrega/resultado-entrega";
 import { SelectorAlmacen } from "~/componentes/entrega/selector-almacen";
 import type { AlmacenResumen, EvaluacionApi, ValeConfirmadoApi } from "~/componentes/entrega/tipos";
 import { useEvaluacion, type CuerpoEvaluar } from "~/componentes/entrega/use-evaluacion";
+import { BotonAtrasPaso, usarAtrasDePasos } from "~/componentes/navegacion/atras";
 import { AccionPrincipal, Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
 import type { Ficha, Pendiente } from "~/componentes/personas/tipos";
 import { aviso } from "~/componentes/ui/aviso";
@@ -596,18 +597,16 @@ export default function Devolver() {
     return null;
   };
 
+  const atrasDePaso = () => {
+    if (!enviando) void navegar("/");
+  };
+  usarAtrasDePasos(borrador.resultado ? null : atrasDePaso);
+
   const encabezado = (
-    <div className="flex items-center justify-between gap-3">
-      {!borrador.resultado ? (
-        <Boton variante="texto" className="-ml-3" disabled={enviando} onClick={() => void navegar("/")}>
-          <ArrowLeftIcon aria-hidden="true" />
-          Atrás
-        </Boton>
-      ) : (
-        <span />
-      )}
-      <p className="text-base font-semibold text-muted-foreground" aria-live="polite">
-        {borrador.resultado ? "Devolución terminada" : "Devolución"}
+    <div className="flex flex-col gap-3">
+      {!borrador.resultado ? <BotonAtrasPaso alVolver={atrasDePaso} deshabilitado={enviando} /> : null}
+      <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase" aria-live="polite">
+        {borrador.resultado ? "Devolución terminada" : "Recibe lo que regresa"}
       </p>
     </div>
   );
@@ -615,7 +614,7 @@ export default function Devolver() {
   const bandas = (
     <div className="flex flex-col gap-3">
       {retomado ? (
-        <p role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-muted p-3 text-base">
+        <p role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-muted p-3 text-sm">
           <span className="flex items-center gap-2">
             <InfoIcon aria-hidden="true" className="size-5 shrink-0 text-marino" />
             Retomaste una devolución que no terminaste.
@@ -627,8 +626,8 @@ export default function Devolver() {
         </p>
       ) : null}
       {almacenCambio ? (
-        <section role="alert" className="flex flex-col gap-3 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
-          <p className="flex items-start gap-2 text-lg font-bold">
+        <section role="alert" className="flex flex-col gap-3 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
+          <p className="flex items-start gap-2 text-base font-semibold">
             <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-semaforo-amarillo" />
             <span>
               Te cambiaron de almacén. <span className="font-semibold">{almacenCambio.mensaje}</span>
@@ -650,7 +649,7 @@ export default function Devolver() {
         </section>
       ) : null}
       {avisoCambio ? (
-        <p role="alert" className="flex items-start gap-2 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-base font-semibold">
+        <p role="alert" className="flex items-start gap-2 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-sm font-semibold">
           <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-semaforo-rojo" />
           {avisoCambio}
         </p>
@@ -661,7 +660,7 @@ export default function Devolver() {
   const selector = operaTodos ? (
     <SelectorAlmacen valor={borrador.almacenId} alCambiar={elegirAlmacen} deshabilitado={borrador.renglones.length > 0} />
   ) : almacenNombre ? (
-    <p className="text-base text-muted-foreground">
+    <p className="text-sm text-muted-foreground">
       Almacén que recibe: <span className="font-semibold text-foreground">{almacenNombre}</span>
     </p>
   ) : null;
@@ -703,7 +702,7 @@ export default function Devolver() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_20rem] md:items-start">
           <div className="order-2 flex min-w-0 flex-col gap-4 md:order-1">
             {errorEvaluacion && errorEvaluacion.codigo !== "ALMACEN_CAMBIO" ? (
-              <section role="alert" className="flex flex-col gap-2 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
+              <section role="alert" className="flex flex-col gap-2 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
                 <p className="flex items-start gap-2 text-base font-semibold">
                   {errorEvaluacion.sinConexion ? <WifiOffIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" /> : <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />}
                   {errorEvaluacion.sinConexion ? "Sin conexión. Tu captura está guardada en este dispositivo." : errorEvaluacion.message}
@@ -715,8 +714,8 @@ export default function Devolver() {
             ) : null}
 
             {errorEnvio ? (
-              <section role="alert" className="flex flex-col gap-1 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-4">
-                <p className="flex items-start gap-2 text-base font-bold">
+              <section role="alert" className="flex flex-col gap-1 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-4">
+                <p className="flex items-start gap-2 text-base font-semibold">
                   {errorEnvio.tipo === "conexion" ? <WifiOffIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" /> : <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />}
                   {errorEnvio.mensaje}
                 </p>
@@ -744,8 +743,8 @@ export default function Devolver() {
               <ul
                 className={
                   valeRojo
-                    ? "flex flex-col gap-1 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-3"
-                    : "flex flex-col gap-1 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-3"
+                    ? "flex flex-col gap-1 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-3"
+                    : "flex flex-col gap-1 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3"
                 }
               >
                 {motivosVale.map((m, i) => (
@@ -759,7 +758,7 @@ export default function Devolver() {
 
             {borrador.renglones.length > 0 ? (
               <section aria-label="Lo que recibes" className="flex flex-col gap-3">
-                <h2 className="text-lg font-bold text-marino">Lo que recibes</h2>
+                <h2 className="text-base font-semibold text-marino">Lo que recibes</h2>
                 <ul className="flex flex-col gap-3">
                   {borrador.renglones.map((l) => {
                     const r = evaluadoDe.get(l.uid) ?? null;
@@ -783,12 +782,12 @@ export default function Devolver() {
                 </ul>
               </section>
             ) : !borrador.trabajador ? (
-              <p className="flex items-start gap-2 rounded-xl border border-dashed p-6 text-base text-muted-foreground">
+              <p className="flex items-start gap-2 rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
                 <ScanLineIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
                 Todavía no recibes nada. Escanea la pieza que regresa (se abona a quien la tenía) o la credencial del trabajador para elegir de su lista.
               </p>
             ) : (
-              <p className="rounded-xl border border-dashed p-4 text-center text-base text-muted-foreground">
+              <p className="rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground">
                 Todavía no recibes nada. Toca “Devolver” en lo que regresa o escanea la pieza.
               </p>
             )}
@@ -801,11 +800,11 @@ export default function Devolver() {
               onCodigo={(codigo, origen) => void alLeer(codigo, origen)}
               onRepetido={() => reproducir("aviso")}
               etiquetaCampo="Escribir código, serie o nombre"
-              placeholderCampo="Código, número de serie o nombre"
+              placeholderCampo="Código, serie o nombre"
             />
             {buscando ? <Cargando variante="en-linea" texto="Buscando…" /> : null}
             {mensajeLectura ? (
-              <p role="alert" className="flex items-start gap-2 rounded-lg border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-base font-medium">
+              <p role="alert" className="flex items-start gap-2 rounded-xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-sm font-medium">
                 <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-semaforo-amarillo" />
                 {mensajeLectura}
               </p>
@@ -854,7 +853,7 @@ export default function Devolver() {
   }
 
   return (
-    <Pantalla titulo="Devolver" descripcion={borrador.resultado ? undefined : "Recibe equipo de vuelta con un escaneo y emite el vale de devolución."}>
+    <Pantalla titulo="Devolver">
       {encabezado}
       {!enLinea && !borrador.resultado ? (
         <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">

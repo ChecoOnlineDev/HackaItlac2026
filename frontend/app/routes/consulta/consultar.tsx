@@ -107,7 +107,7 @@ export default function Consultar() {
         <>
           <Escaner onCodigo={(c, o) => void consultar(c, o)} activo={!buscando} />
           {resultado?.tipo === "aviso" ? (
-            <p role="alert" className="rounded-lg border bg-muted p-3 text-base font-medium">
+            <p role="alert" className="rounded-2xl border bg-muted p-3 text-sm font-medium">
               {resultado.mensaje}
             </p>
           ) : null}
@@ -116,7 +116,7 @@ export default function Consultar() {
         </>
       ) : (
         <>
-          <Boton variante="principal" onClick={otraConsulta}>
+          <Boton variante="contorno" className="self-start" onClick={otraConsulta}>
             <SearchIcon aria-hidden="true" />
             Consultar otro
           </Boton>

@@ -71,7 +71,7 @@ interface PropiedadesRegla {
 
 function ReglaEnDetalle({ titulo, activo, detalle, motivo, puedeEditar, ocupado, alCambiar }: PropiedadesRegla) {
   return (
-    <li className="rounded-xl border p-4">
+    <li className="rounded-2xl border p-4">
       <label className="flex min-h-12 cursor-pointer items-center justify-between gap-4">
         <span className="flex min-w-0 flex-col">
           <span className="text-base font-semibold">{titulo}</span>
@@ -181,7 +181,7 @@ export function DetalleArticulo({ articuloId, categorias, puedeEditar, puedeCost
           </div>
         </div>
         {!articulo.activo ? (
-          <p role="status" className="rounded-xl border bg-muted p-3">
+          <p role="status" className="rounded-2xl border bg-muted p-3">
             <strong>Inactivo.</strong> Motivo: {articulo.motivo_inactivacion ?? "sin motivo registrado"}. Ya no se entrega ni se le registran entradas; su historial se conserva.
           </p>
         ) : null}
@@ -298,7 +298,7 @@ export function DetalleArticulo({ articuloId, categorias, puedeEditar, puedeCost
         ) : (
           <ul className="flex flex-col gap-2">
             {articulo.en_posesion.map((p) => (
-              <li key={p.trabajador_id} className="flex items-center justify-between gap-3 rounded-xl border p-3">
+              <li key={p.trabajador_id} className="flex items-center justify-between gap-3 rounded-2xl border p-3">
                 <span className="min-w-0">
                   <span className="block font-semibold">{p.nombre}</span>
                   <span className="block text-sm text-muted-foreground">Empleado {p.numero_empleado}</span>

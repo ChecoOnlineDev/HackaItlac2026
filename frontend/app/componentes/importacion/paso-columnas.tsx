@@ -44,7 +44,7 @@ export function PasoColumnas({ tabla, columnas, alCambiar, puedeCostos, alContin
         <h2 id="columnas-titulo" className="text-lg font-semibold">
           ¿Qué trae cada columna?
         </h2>
-        <p className="flex items-start gap-2 text-base text-muted-foreground">
+        <p className="flex items-start gap-2 text-sm text-muted-foreground">
           <InfoIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-marino" />
           {tabla.encabezados
             ? "Propusimos las columnas según sus encabezados. Revísalas y corrige las que no sean."
@@ -74,7 +74,7 @@ export function PasoColumnas({ tabla, columnas, alCambiar, puedeCostos, alContin
         <h2 id="muestra-titulo" className="text-lg font-semibold">
           Primeras filas
         </h2>
-        <div className="overflow-x-auto [contain:inline-size] rounded-xl border">
+        <div className="overflow-x-auto [contain:inline-size] rounded-2xl border">
           <Table>
             <TableCaption className="sr-only">Primeras filas de la tabla, con el dato que trae cada columna</TableCaption>
             <TableHeader>

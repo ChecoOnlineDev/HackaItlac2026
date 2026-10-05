@@ -13,8 +13,8 @@ interface PropiedadesResultadoImportacion {
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: number }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-xl border p-3">
-      <dt className="text-base text-muted-foreground">{etiqueta}</dt>
+    <div className="flex flex-col gap-0.5 rounded-2xl border p-3">
+      <dt className="text-sm text-muted-foreground">{etiqueta}</dt>
       <dd className="text-xl font-semibold tabular-nums">{valor.toLocaleString("es-MX")}</dd>
     </div>
   );
@@ -25,7 +25,7 @@ export function ResultadoImportacion({ resultado, filasError, alDescargarErrores
   const { resumen } = resultado;
   return (
     <div className="flex flex-col gap-6">
-      <section aria-label="Importación guardada" className="flex flex-col gap-3 rounded-xl border-2 border-semaforo-verde p-5">
+      <section aria-label="Importación guardada" className="flex flex-col gap-3 rounded-2xl border border-semaforo-verde p-5">
         <p role="status" className="flex items-center gap-2 text-lg font-semibold">
           <CircleCheckIcon aria-hidden="true" className="size-7 text-semaforo-verde" strokeWidth={3} />
           {resultado.repetida ? "Esta importación ya estaba guardada" : "Importación guardada"}
@@ -49,7 +49,7 @@ export function ResultadoImportacion({ resultado, filasError, alDescargarErrores
       {resultado.avisos.length > 0 ? (
         <ul aria-label="Avisos" className="flex flex-col gap-2">
           {resultado.avisos.map((a, i) => (
-            <li key={i} className="flex items-start gap-2 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-base">
+            <li key={i} className="flex items-start gap-2 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-sm">
               <TriangleAlertIcon aria-hidden="true" strokeWidth={3} className="mt-1 size-4 shrink-0 text-semaforo-amarillo" />
               <span>
                 <span className="sr-only">Aviso: </span>
@@ -69,10 +69,10 @@ export function ResultadoImportacion({ resultado, filasError, alDescargarErrores
             <li key={v.id}>
               <Link
                 to={`/vales/${v.id}`}
-                className="flex min-h-14 flex-col justify-center rounded-xl border bg-card p-3 transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="flex min-h-12 flex-col justify-center rounded-2xl border bg-card p-3 transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 <span className="text-base font-semibold tracking-wide text-marino">{v.folio}</span>
-                <span className="text-base text-muted-foreground">
+                <span className="text-sm text-muted-foreground">
                   {v.almacen.nombre} · {v.renglones} {v.renglones === 1 ? "renglón" : "renglones"} · {v.piezas} {v.piezas === 1 ? "pieza" : "piezas"} · {v.unidades} {v.unidades === 1 ? "unidad" : "unidades"}
                 </span>
               </Link>
@@ -83,7 +83,7 @@ export function ResultadoImportacion({ resultado, filasError, alDescargarErrores
       </section>
 
       {resultado.articulos_creados.length > 0 ? (
-        <details className="rounded-xl border p-3">
+        <details className="rounded-2xl border p-3">
           <summary className="flex min-h-12 cursor-pointer items-center text-base font-semibold">Artículos nuevos creados ({resultado.articulos_creados.length})</summary>
           <ul className="mt-2 flex flex-col divide-y">
             {resultado.articulos_creados.map((a) => (
@@ -101,7 +101,7 @@ export function ResultadoImportacion({ resultado, filasError, alDescargarErrores
       ) : null}
 
       {filasError.length > 0 ? (
-        <section aria-labelledby="sin-entrar-titulo" className="flex flex-col gap-2 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/5 p-4">
+        <section aria-labelledby="sin-entrar-titulo" className="flex flex-col gap-2 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/5 p-4">
           <h2 id="sin-entrar-titulo" className="text-lg font-semibold">
             {filasError.length} {filasError.length === 1 ? "fila no entró" : "filas no entraron"}
           </h2>

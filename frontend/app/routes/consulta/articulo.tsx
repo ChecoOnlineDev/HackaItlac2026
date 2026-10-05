@@ -80,7 +80,7 @@ export default function FichaArticulo() {
         <Insignia estado="neutra">{textoControl(articulo.control)}</Insignia>
       </div>
       {!articulo.activo && articulo.motivo_inactivacion ? (
-        <p className="rounded-lg border bg-muted p-3 text-base">No se entrega: {articulo.motivo_inactivacion}</p>
+        <p className="rounded-xl border bg-muted p-3 text-sm">No se entrega: {articulo.motivo_inactivacion}</p>
       ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -143,7 +143,7 @@ export default function FichaArticulo() {
         {articulo.en_posesion.length === 0 ? (
           <EstadoVacio icono={UsersIcon} titulo="Nadie lo tiene ahora" descripcion="Ningún trabajador lo tiene en resguardo." />
         ) : (
-          <ul className="flex flex-col divide-y rounded-xl border">
+          <ul className="flex flex-col divide-y rounded-2xl border">
             {articulo.en_posesion.map((t) => (
               <li key={t.trabajador_id} className="flex items-center justify-between gap-3 px-4 py-3">
                 <div className="flex min-w-0 flex-col">
@@ -168,9 +168,9 @@ export default function FichaArticulo() {
 
       <Seccion titulo="Reglas de entrega">
         {listaReglas.length === 0 ? (
-          <p className="text-base text-muted-foreground">No tiene reglas especiales.</p>
+          <p className="text-sm text-muted-foreground">No tiene reglas especiales.</p>
         ) : (
-          <ul className="flex list-disc flex-col gap-1.5 rounded-xl border p-4 pl-8 text-base">
+          <ul className="flex list-disc flex-col gap-1.5 rounded-2xl border p-4 pl-8 text-base">
             {listaReglas.map((r) => (
               <li key={r}>{r}</li>
             ))}
@@ -179,7 +179,7 @@ export default function FichaArticulo() {
       </Seccion>
 
       <Seccion titulo="Datos">
-        <dl className="grid grid-cols-1 gap-3 rounded-xl border p-4 sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-3 rounded-2xl border p-4 sm:grid-cols-2">
           <Dato etiqueta="Unidad" valor={articulo.unidad} />
           <Dato etiqueta="Se devuelve" valor={articulo.retornable ? "Sí" : "No, se consume"} />
           {articulo.talla ? <Dato etiqueta="Talla" valor={articulo.talla} /> : null}

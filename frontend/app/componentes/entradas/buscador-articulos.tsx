@@ -56,7 +56,7 @@ export function BuscadorArticulos({ deshabilitado, alElegir }: Propiedades) {
                   alElegir(a.id);
                   setTexto("");
                 }}
-                className="flex min-h-12 w-full flex-col items-start gap-0.5 rounded-xl border p-3 text-left hover:bg-muted disabled:opacity-50"
+                className="flex min-h-12 w-full flex-col items-start gap-0.5 rounded-2xl border p-3 text-left hover:bg-muted disabled:opacity-50"
               >
                 <span className="flex flex-wrap items-center gap-2 text-base leading-tight font-semibold">
                   {a.nombre}

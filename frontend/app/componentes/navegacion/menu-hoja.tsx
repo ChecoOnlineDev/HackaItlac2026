@@ -19,7 +19,7 @@ export function MenuHoja({ abierta, alCambiar }: { abierta: boolean; alCambiar: 
                 key={e.id}
                 to={e.ruta}
                 onClick={() => alCambiar(false)}
-                className="flex min-h-12 items-center gap-3 rounded-lg px-3 text-base font-medium hover:bg-accent"
+                className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-base font-medium hover:bg-accent"
               >
                 <e.icono aria-hidden="true" className="size-5 text-primary" />
                 {e.titulo}

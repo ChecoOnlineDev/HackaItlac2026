@@ -117,7 +117,7 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
 
       <ul className="flex flex-col gap-2">
         {solicitud.renglones.map((r, i) => (
-          <li key={`${r.codigo}-${i}`} className="flex flex-col gap-0.5 rounded-lg border bg-background p-3">
+          <li key={`${r.codigo}-${i}`} className="flex flex-col gap-0.5 rounded-xl border bg-background p-3">
             <p className="flex items-center gap-2 text-base font-semibold">
               <LockIcon aria-hidden="true" className="size-5 shrink-0 text-semaforo-naranja" />
               {r.articulo ?? r.codigo}
@@ -148,7 +148,7 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
 
       {cerrada ? (
         <div className="flex flex-col gap-2">
-          <p role="status" className="rounded-lg border bg-background p-3 text-base font-semibold">
+          <p role="status" className="rounded-xl border bg-background p-3 text-sm font-semibold">
             {cierre ? textoCierre(cierre) : textoCierre({ solicitud, estado: "VENCIDA", por: null })}
           </p>
           {alDescartar ? (
@@ -163,7 +163,7 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
             <CheckIcon aria-hidden="true" />
             Autorizar
           </Boton>
-          <Boton variante="contorno" className="h-14 text-base font-semibold" onClick={() => setDecision("RECHAZAR")} disabled={enviando}>
+          <Boton variante="contorno" className="h-12 text-base font-semibold" onClick={() => setDecision("RECHAZAR")} disabled={enviando}>
             <XIcon aria-hidden="true" />
             Rechazar
           </Boton>

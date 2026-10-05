@@ -32,7 +32,7 @@ function Desglose({ c, id }: { c: ConsumoReporte; id: string }) {
       {c.trabajadores.length === 0 ? (
         <p className="text-muted-foreground">No hay detalle por trabajador.</p>
       ) : (
-        <ol className="flex flex-col divide-y rounded-lg border bg-background">
+        <ol className="flex flex-col divide-y rounded-xl border bg-background">
           {c.trabajadores.map((t, i) => (
             <li key={`${t.trabajador_id ?? "sin"}-${i}`} className="flex items-center justify-between gap-3 p-3">
               <span className="min-w-0">

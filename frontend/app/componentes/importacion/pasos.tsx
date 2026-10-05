@@ -20,7 +20,7 @@ export function PasosImportacion({ actual }: { actual: 1 | 2 | 3 | 4 }) {
               key={nombre}
               aria-current={esActual ? "step" : undefined}
               className={cn(
-                "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl border p-2 text-center sm:flex-row sm:gap-2",
+                "flex min-h-12 flex-col items-center justify-center gap-1 rounded-2xl border p-2 text-center sm:flex-row sm:gap-2",
                 esActual && "border-2 border-primary bg-accent",
                 hecho && "bg-muted",
               )}

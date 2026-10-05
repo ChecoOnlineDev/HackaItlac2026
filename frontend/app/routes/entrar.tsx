@@ -109,7 +109,7 @@ export default function Entrar() {
           {error ? (
             <div
               role="alert"
-              className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-base font-medium text-destructive"
+              className="flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm font-medium text-destructive"
             >
               {enBloqueo ? (
                 <TimerIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />

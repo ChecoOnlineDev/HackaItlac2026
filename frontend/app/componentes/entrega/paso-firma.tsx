@@ -31,7 +31,7 @@ export function PasoFirma({ renglones, firma, alCambiarFirma, deshabilitado }: P
           <h2 id="resumen-entrega" className="text-lg">
             Lo que recibe ({total})
           </h2>
-          <ul className="flex flex-col divide-y rounded-xl border bg-card">
+          <ul className="flex flex-col divide-y rounded-2xl border bg-card">
             {renglones.map((r) => (
               <li key={r.codigo} className="flex items-baseline justify-between gap-3 px-3 py-2">
                 <span className="min-w-0">
@@ -46,7 +46,7 @@ export function PasoFirma({ renglones, firma, alCambiarFirma, deshabilitado }: P
             ))}
           </ul>
         </div>
-        <p className="rounded-xl bg-muted p-4 text-base leading-relaxed">{LEYENDA_RESPONSABILIDAD}</p>
+        <p className="rounded-xl bg-muted p-4 text-sm leading-relaxed">{LEYENDA_RESPONSABILIDAD}</p>
       </section>
 
       <section aria-label="Firma del trabajador" className="flex flex-col gap-2">

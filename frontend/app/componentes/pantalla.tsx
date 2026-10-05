@@ -38,8 +38,8 @@ export function Pantalla({ titulo, descripcion, acciones, ancho = "completo", ch
 
   return (
     <section className={cn("flex flex-col gap-5", ancho === "formulario" && "max-w-[720px]")}>
-      <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="flex min-w-0 flex-col gap-1 sm:flex-1">
           <h1 className="text-balance">{titulo}</h1>
           {descripcion ? <p className="text-sm text-muted-foreground">{descripcion}</p> : null}
         </div>

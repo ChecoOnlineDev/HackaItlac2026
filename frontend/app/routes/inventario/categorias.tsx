@@ -70,7 +70,7 @@ export default function Categorias() {
     contenido = (
       <>
         {/* Computadora: tabla */}
-        <div className="hidden overflow-hidden rounded-xl border lg:block">
+        <div className="hidden overflow-hidden rounded-2xl border lg:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -113,7 +113,7 @@ export default function Categorias() {
         {/* Celular y tableta: tarjetas */}
         <ul className="flex flex-col gap-3 lg:hidden">
           {categorias.map((c) => (
-            <li key={c.id} className="flex flex-col gap-3 rounded-xl border p-4">
+            <li key={c.id} className="flex flex-col gap-3 rounded-2xl border p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <Link to={`/catalogo/articulos?categoria=${c.id}`} className="text-lg font-semibold text-marino">
                   {c.nombre}

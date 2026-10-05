@@ -151,7 +151,7 @@ export function CapturaPieza({ articulo, inicial, codigoLeido, alGuardar, alCanc
                 rows={3}
                 onChange={(e) => setObservacion(e.target.value)}
                 aria-invalid={errorObservacion ? true : undefined}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive"
+                className="w-full rounded-xl border border-input bg-background px-3 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive"
               />
               {errorObservacion ? (
                 <p role="alert" className="text-sm font-medium text-destructive">

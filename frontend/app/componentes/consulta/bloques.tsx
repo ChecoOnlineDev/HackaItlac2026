@@ -28,7 +28,7 @@ export function VolverAConsultar() {
   return (
     <Link
       to="/consultar"
-      className="inline-flex min-h-12 w-fit items-center gap-2 text-base font-semibold text-primary underline-offset-2 hover:underline"
+      className="inline-flex min-h-10 w-fit items-center gap-2 text-base font-semibold text-primary underline-offset-2 hover:underline"
     >
       <ArrowLeftIcon aria-hidden="true" className="size-5" />
       Volver a Consultar

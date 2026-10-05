@@ -39,7 +39,7 @@ export function ControlCondicion({ valor, alCambiar, deshabilitado = false, etiq
             disabled={deshabilitado}
             onClick={() => alCambiar(condicion)}
             className={cn(
-              "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border-2 px-1.5 py-2 text-center text-base leading-tight font-semibold transition-colors duration-150 motion-reduce:transition-none",
+              "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl border-2 px-1.5 py-2 text-center text-base leading-tight font-semibold transition-colors duration-150 motion-reduce:transition-none",
               "focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50",
               elegida ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background hover:bg-muted",
             )}

@@ -364,7 +364,7 @@ export default function Trasladar() {
       {operaTodos ? (
         <SelectorAlmacen valor={borrador.almacenId} alCambiar={elegirAlmacen} deshabilitado={borrador.renglones.length > 0} />
       ) : almacenNombre ? (
-        <p className="text-base text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Sale de: <span className="font-semibold text-foreground">{almacenNombre}</span>
         </p>
       ) : null}
@@ -379,7 +379,7 @@ export default function Trasladar() {
   const bandas = (
     <div className="flex flex-col gap-3">
       {retomado ? (
-        <p role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-muted p-3 text-base">
+        <p role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-muted p-3 text-sm">
           <span className="flex items-center gap-2">
             <InfoIcon aria-hidden="true" className="size-5 shrink-0 text-marino" />
             Retomaste un traspaso que no terminaste.
@@ -391,7 +391,7 @@ export default function Trasladar() {
         </p>
       ) : null}
       {almacenCambio ? (
-        <section role="alert" className="flex flex-col gap-3 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
+        <section role="alert" className="flex flex-col gap-3 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
           <p className="flex items-start gap-2 text-base font-semibold">
             <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-semaforo-amarillo" />
             <span>
@@ -414,7 +414,7 @@ export default function Trasladar() {
         </section>
       ) : null}
       {avisoCambio ? (
-        <p role="alert" className="flex items-start gap-2 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-base font-semibold">
+        <p role="alert" className="flex items-start gap-2 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-sm font-semibold">
           <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-semaforo-rojo" />
           {avisoCambio}
         </p>
@@ -435,7 +435,7 @@ export default function Trasladar() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_20rem] md:items-start">
           <div className="order-2 flex min-w-0 flex-col gap-4 md:order-1">
             {errorEvaluacion && errorEvaluacion.codigo !== "ALMACEN_CAMBIO" ? (
-              <section role="alert" className="flex flex-col gap-2 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
+              <section role="alert" className="flex flex-col gap-2 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
                 <p className="flex items-start gap-2 text-base font-semibold">
                   {errorEvaluacion.sinConexion ? (
                     <WifiOffIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
@@ -453,7 +453,7 @@ export default function Trasladar() {
             <MotivosDelVale motivos={evaluacion?.motivos ?? []} />
 
             {errorEnvio ? (
-              <section role="alert" className="flex flex-col gap-1 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-4">
+              <section role="alert" className="flex flex-col gap-1 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-4">
                 <p className="flex items-start gap-2 text-base font-semibold">
                   {errorEnvio.tipo === "conexion" ? (
                     <WifiOffIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
@@ -478,7 +478,7 @@ export default function Trasladar() {
               deshabilitado={enviando}
               vacio={
                 sinEvaluar.length === 0 ? (
-                  <p className="rounded-xl border border-dashed p-6 text-center text-base text-muted-foreground">
+                  <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
                     {borrador.destinoId ? "Todavía no hay artículos. Escanea el primero o escribe su código." : "Elige primero a qué almacén se envía."}
                   </p>
                 ) : null
@@ -487,7 +487,7 @@ export default function Trasladar() {
             {sinEvaluar.length > 0 ? (
               <ul aria-label="Artículos por revisar" className="flex flex-col gap-2">
                 {sinEvaluar.map((b) => (
-                  <li key={b.codigo} className="rounded-xl border border-dashed bg-muted p-3 text-base">
+                  <li key={b.codigo} className="rounded-2xl border border-dashed bg-muted p-3 text-sm">
                     <Cargando variante="en-linea" texto={`Revisando ${b.codigo}…`} className="justify-start p-0" />
                   </li>
                 ))}
@@ -502,7 +502,7 @@ export default function Trasladar() {
               onCodigo={(codigo, origen) => void alLeerArticulo(codigo, origen)}
               onRepetido={() => reproducir("aviso")}
               etiquetaCampo="Escribir código o nombre"
-              placeholderCampo="Código, serie o nombre del artículo"
+              placeholderCampo="Código, serie o nombre"
             />
             {buscandoArticulo ? <Cargando variante="en-linea" texto="Buscando…" /> : null}
           </div>
@@ -535,7 +535,7 @@ export default function Trasladar() {
   }
 
   return (
-    <Pantalla titulo="Trasladar" descripcion={resultado ? undefined : "Envía equipo o material a otro almacén. Se descuenta de aquí cuando confirmas."}>
+    <Pantalla titulo="Trasladar" descripcion={resultado ? undefined : "Envía material a otro almacén."}>
       {!enLinea && !resultado ? (
         <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
           <WifiOffIcon aria-hidden="true" className="size-4" />

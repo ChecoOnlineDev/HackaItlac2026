@@ -111,7 +111,7 @@ export function FilaInterruptor({ titulo, ayuda, activo, alCambiar, disabled, ch
 /** Nota con candado para lo que no se puede cambiar. */
 export function NotaBloqueo({ children }: { children: ReactNode }) {
   return (
-    <p className="flex items-start gap-2 rounded-xl border bg-muted p-3 text-sm">
+    <p className="flex items-start gap-2 rounded-2xl border bg-muted p-3 text-sm">
       <LockIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
       <span>{children}</span>
     </p>

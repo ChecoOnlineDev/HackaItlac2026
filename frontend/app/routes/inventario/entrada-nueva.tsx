@@ -298,7 +298,7 @@ export default function EntradaNueva() {
     <Pantalla titulo="Nueva entrada" descripcion="Registra lo que llega al almacén." ancho="formulario">
       <div className="flex flex-col gap-6 pb-32 lg:pb-0">
         {b.recuperado ? (
-          <p role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-accent p-3 text-base">
+          <p role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-accent p-3 text-sm">
             <span>Recuperamos la entrada que dejaste sin terminar.</span>
             <Boton variante="texto" className="h-10 px-3" onClick={b.descartarAviso}>
               Entendido
@@ -397,7 +397,7 @@ export default function EntradaNueva() {
                         onQuitar={() => b.quitar(r.clave)}
                       />
                     ) : (
-                      <div className="flex flex-col gap-1 rounded-xl border p-3">
+                      <div className="flex flex-col gap-1 rounded-2xl border p-3">
                         <p className="text-base leading-tight font-semibold">{r.nombre}</p>
                         <p className="text-sm text-muted-foreground">
                           {r.pieza ? `Pieza ${r.pieza.codigo}` : r.codigo} · Cantidad {r.cantidad}
@@ -435,12 +435,12 @@ export default function EntradaNueva() {
         </section>
 
         {errorConfirmacion ? (
-          <p role="alert" className="rounded-xl border-2 border-semaforo-rojo p-3 text-base font-semibold">
+          <p role="alert" className="rounded-2xl border border-semaforo-rojo p-3 text-sm font-semibold">
             {errorConfirmacion}
           </p>
         ) : null}
         {esperandoRed ? (
-          <p role="status" className="rounded-xl border-2 border-semaforo-amarillo p-3 text-base font-semibold">
+          <p role="status" className="rounded-2xl border border-semaforo-amarillo p-3 text-sm font-semibold">
             Sin conexión. Tu entrada está guardada y se enviará sola cuando vuelva la conexión. No la captures otra vez.
           </p>
         ) : null}

@@ -46,7 +46,7 @@ export function ResultadoTrabajador({ id }: { id: string }) {
 
       {piezas.length > 0 && puede("catalogo.ver") ? (
         <Seccion titulo="Abrir la ficha de una pieza">
-          <ul className="flex flex-col divide-y rounded-xl border">
+          <ul className="flex flex-col divide-y rounded-2xl border">
             {piezas.map((p) => (
               <li key={p.pieza_id}>
                 <Link

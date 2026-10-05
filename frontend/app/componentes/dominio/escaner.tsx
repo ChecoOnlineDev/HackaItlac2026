@@ -399,7 +399,7 @@ export function Escaner({
           </p>
         ) : null}
         {errorCamara ? (
-          <p role="alert" className="flex items-start gap-2 rounded-xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-sm">
+          <p role="alert" className="flex items-start gap-2 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-sm">
             <InfoIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-semaforo-amarillo" />
             <span>{errorCamara}</span>
           </p>

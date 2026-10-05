@@ -86,7 +86,7 @@ interface PropiedadesLineaDeTiempo {
 /** Hechos de la vida de una pieza, del más reciente al más antiguo: quién y cuándo (hora de México). */
 export function LineaDeTiempo({ historial, puedeVerVales = false }: PropiedadesLineaDeTiempo) {
   if (historial.length === 0) {
-    return <p className="text-base text-muted-foreground">Esta pieza todavía no tiene historial.</p>;
+    return <p className="text-sm text-muted-foreground">Esta pieza todavía no tiene historial.</p>;
   }
   return (
     <ol className="flex flex-col">

@@ -47,7 +47,7 @@ export function CampoFecha({ etiqueta, value, alCambiar, min, max, error, ayuda,
       className={cn("h-11 w-full justify-start font-normal", !value && "text-muted-foreground", error && "border-destructive")}
     >
       <CalendarDaysIcon aria-hidden="true" />
-      <span className="truncate">{value ? formatearFecha(value) : "Elige una fecha"}</span>
+      <span>{value ? formatearFecha(value) : "Elige una fecha"}</span>
     </Boton>
   );
 

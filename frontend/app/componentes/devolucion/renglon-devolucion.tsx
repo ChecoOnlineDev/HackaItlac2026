@@ -59,7 +59,7 @@ export function RenglonDevolucion({
 
   if (!evaluado) {
     return (
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed bg-muted p-3 text-base">
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed bg-muted p-3 text-sm">
         <Cargando variante="en-linea" texto={`Revisando ${local.codigo}…`} className="justify-start p-0" />
         <Boton variante="texto" disabled={deshabilitado} onClick={alQuitar} aria-label={`Quitar ${local.codigo}`}>
           <TrashIcon aria-hidden="true" />
@@ -108,7 +108,7 @@ export function RenglonDevolucion({
             <div className="flex flex-col gap-2">
               {local.foto ? (
                 <div className="flex items-center gap-3">
-                  <img src={local.foto} alt="Foto del daño" className="size-20 rounded-lg border object-cover" />
+                  <img src={local.foto} alt="Foto del daño" className="size-20 rounded-xl border object-cover" />
                   <Boton variante="texto" disabled={deshabilitado || procesando} onClick={() => void elegirFoto(null)}>
                     <ImageOffIcon aria-hidden="true" />
                     Quitar foto

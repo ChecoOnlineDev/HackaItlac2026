@@ -256,7 +256,7 @@ export function CancelarVale({ vale, rehacer, alCerrar, alCancelar }: Propiedade
             {fallo.motivos.length > 1 ? (
               <ul className="flex flex-col gap-2">
                 {fallo.motivos.map((m, i) => (
-                  <li key={i} className="rounded-lg border bg-muted p-3 text-base">
+                  <li key={i} className="rounded-xl border bg-muted p-3 text-sm">
                     {m.mensaje}
                     {m.regla ? <span className="ml-1.5 text-xs font-medium whitespace-nowrap text-muted-foreground">({m.regla})</span> : null}
                   </li>
@@ -264,7 +264,7 @@ export function CancelarVale({ vale, rehacer, alCerrar, alCancelar }: Propiedade
               </ul>
             ) : null}
             {fallo.tipo === "no_cancelable" ? (
-              <p className="text-base text-muted-foreground">No se movió nada: el vale sigue igual. Si hay un error, se corrige con un movimiento nuevo.</p>
+              <p className="text-sm text-muted-foreground">No se movió nada: el vale sigue igual. Si hay un error, se corrige con un movimiento nuevo.</p>
             ) : null}
           </div>
         ) : null}

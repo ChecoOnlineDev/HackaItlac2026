@@ -46,7 +46,7 @@ export function RenglonRecepcion({ renglon, marcado, alMarcar, nivel, motivos = 
     <div
       role="group"
       aria-label={`${renglon.articulo}. ${completo ? "Ya recibido" : marcada ? "Marcado como recibido" : "Sin marcar"}`}
-      className={cn("flex overflow-hidden rounded-xl border bg-card", nivel === "ROJO" && "bg-semaforo-rojo/5 ring-2 ring-semaforo-rojo")}
+      className={cn("flex overflow-hidden rounded-2xl border bg-card", nivel === "ROJO" && "bg-semaforo-rojo/5 ring-2 ring-semaforo-rojo")}
     >
       {nivel ? <span aria-hidden="true" className={cn("w-2 shrink-0", FRANJA[nivel])} /> : null}
       <div className="flex min-w-0 flex-1 flex-col gap-2 p-3">
@@ -70,8 +70,8 @@ export function RenglonRecepcion({ renglon, marcado, alMarcar, nivel, motivos = 
               )}
               <span className="flex min-h-12 min-w-0 flex-1 flex-col justify-center">
                 <span className="text-base leading-snug font-semibold">{renglon.articulo}</span>
-                {detalleNombre ? <span className="text-base text-muted-foreground">{detalleNombre}</span> : null}
-                <span className="text-base text-muted-foreground">{identificador}</span>
+                {detalleNombre ? <span className="text-sm text-muted-foreground">{detalleNombre}</span> : null}
+                <span className="text-sm text-muted-foreground">{identificador}</span>
               </span>
             </>
           );
@@ -118,7 +118,7 @@ export function RenglonRecepcion({ renglon, marcado, alMarcar, nivel, motivos = 
             <Boton variante="contorno" className="size-12 p-0" aria-label="Una más" disabled={deshabilitado || marcado >= renglon.cantidad_pendiente} onClick={() => alMarcar(marcado + 1)}>
               <PlusIcon aria-hidden="true" />
             </Boton>
-            <span className="text-base text-muted-foreground">de {renglon.cantidad_pendiente}</span>
+            <span className="text-sm text-muted-foreground">de {renglon.cantidad_pendiente}</span>
           </div>
         ) : null}
 

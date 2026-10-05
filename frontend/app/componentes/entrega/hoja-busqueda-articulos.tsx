@@ -25,7 +25,7 @@ export function HojaBusquedaArticulos({ abierta, alCambiar, texto, coincidencias
             <button
               type="button"
               onClick={() => alElegir(c)}
-              className="flex min-h-14 w-full flex-col items-start rounded-xl border bg-card px-4 py-2 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex min-h-12 w-full flex-col items-start rounded-2xl border bg-card px-4 py-2 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="text-base font-semibold">{c.nombre}</span>
               <span className="text-sm text-muted-foreground">{c.detalle}</span>

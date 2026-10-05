@@ -47,28 +47,28 @@ export function PanelResguardo({
   const resguardo = ficha?.resguardo ?? [];
   const sinVigencia = ficha ? !ficha.vigencia.vigente || ficha.estado !== "ACTIVO" : false;
   return (
-    <section aria-label={`Resguardo de ${trabajador.nombre}`} className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+    <section aria-label={`Resguardo de ${trabajador.nombre}`} className="flex flex-col gap-3 rounded-2xl border bg-card p-4">
       <header className="flex flex-wrap items-start gap-x-3 gap-y-2">
-        <Avatar nombre={trabajador.nombre} fotoUrl={ficha?.tiene_foto ? ficha.foto_url : null} tamano="lg" className="size-14 text-xl" />
+        <Avatar nombre={trabajador.nombre} fotoUrl={ficha?.tiene_foto ? ficha.foto_url : null} tamano="lg" className="size-12 text-base" />
         <div className="flex min-w-44 flex-1 flex-col">
-          <p className="text-[20px] leading-tight font-bold text-marino wrap-break-word">{trabajador.nombre}</p>
+          <p className="text-base leading-tight font-semibold text-marino wrap-break-word">{trabajador.nombre}</p>
           <p className="text-base">Número {trabajador.numero_empleado}</p>
           <p className="text-sm text-muted-foreground">{[trabajador.puesto, trabajador.area_obra].filter(Boolean).join(" · ")}</p>
         </div>
         <Boton variante="texto" className="-ml-3 sm:-mr-2 sm:ml-0" onClick={alCambiarTrabajador} disabled={deshabilitado}>
           <UserRoundIcon aria-hidden="true" />
-          Otra persona
+          No es esta persona
         </Boton>
       </header>
 
       {sinVigencia ? (
-        <p className="flex items-start gap-2 rounded-lg bg-muted p-3 text-base">
+        <p className="flex items-start gap-2 rounded-xl bg-muted p-3 text-sm">
           <InfoIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-marino" />
           Esta persona ya no está activa en la empresa, pero su devolución se recibe normalmente.
         </p>
       ) : null}
 
-      <h2 className="text-lg font-bold text-marino">Lo que tiene en resguardo</h2>
+      <h2 className="text-base font-semibold text-marino">Lo que tiene en resguardo</h2>
       {error && !ficha ? (
         <EstadoError error={error} alReintentar={alReintentar} className="p-4" />
       ) : cargando && !ficha ? (
@@ -85,9 +85,9 @@ export function PanelResguardo({
             const agregado = porCantidad ? agregadoDe(p) : codigosAgregados.has(claveDeCodigo(p.codigo)) ? 1 : 0;
             const restante = porCantidad ? p.cantidad - agregado : agregado > 0 ? 0 : 1;
             return (
-              <li key={`${p.pieza_id ?? p.articulo_id}-${i}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3">
+              <li key={`${p.pieza_id ?? p.articulo_id}-${i}`} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3">
                 <div className="flex min-w-0 flex-1 flex-col">
-                  <p className="text-lg leading-tight font-semibold wrap-break-word">
+                  <p className="text-base leading-tight font-semibold wrap-break-word">
                     {p.articulo}
                     {porCantidad ? ` × ${p.cantidad}` : ""}
                   </p>
