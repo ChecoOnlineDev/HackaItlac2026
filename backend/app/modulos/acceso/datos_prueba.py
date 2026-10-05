@@ -56,6 +56,7 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.REPORTES_ADEUDOS,
             P.REPORTES_CONSUMO,
             P.ALMACENES_TODOS,
+            P.ALMACENES_ASIGNAR_PERSONAL,
             P.ETIQUETAS_IMPRIMIR,
         }
     ),

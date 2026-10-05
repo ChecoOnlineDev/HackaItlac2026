@@ -509,6 +509,7 @@ A es Almacenista, S Supervisor, C Compras y R Recursos Humanos. El Administrador
 | | `reportes.adeudos` | Reporte de adeudos | A, S, R |
 | | `reportes.consumo` | Reporte de consumo | S, C |
 | Almacenes | `almacenes.todos` | Operar cualquier almacén y ver los movimientos de todos | S, C |
+| | `almacenes.asignar_personal` | Asignar y mover personal entre almacenes, sin tocar roles ni permisos (AC-12) | S |
 | Etiquetas | `etiquetas.imprimir` | Hojas de QR | S, C, R |
 
 Un permiso de acción incluye el de ver su módulo: quien puede entregar ve la ficha básica del trabajador y las existencias.
@@ -520,7 +521,6 @@ Un permiso de acción incluye el de ver su módulo: quien puede entregar ve la f
 | FEAT-002 | `almacenes.administrar` | Abrir y cerrar almacenes de proyecto | S |
 | FEAT-002 | `reportes.valor_inventario` | Valor del inventario | C |
 | FEAT-004 | `inventario.minimos` | Fijar mínimos por almacén | C |
-| FEAT-006 | `almacenes.asignar_personal` | Asignar y mover personal entre almacenes, sin tocar roles ni permisos (AC-12) | S |
 | Pospuesto | `piezas.dar_de_baja` | Dar una pieza por perdida o de baja definitiva | S |
 | Pospuesto | `revision.ver` | Lista de revisión | S |
 | Pospuesto | `tablero.ver` | Tablero general por almacén | Solo Administrador |

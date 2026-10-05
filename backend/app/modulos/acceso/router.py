@@ -1,12 +1,14 @@
-"""Endpoints de sesión (US-ACC-001). La administración de roles y usuarios es de FEAT-006."""
+"""Endpoints de sesión (US-ACC-001). Usuarios y personal: `router_usuarios.py`."""
 
 from fastapi import APIRouter, Response, status
 
 from app.modulos.acceso.dependencies import AccesoServiceDep, UsuarioActual
+from app.modulos.acceso.router_usuarios import router as router_usuarios
 from app.modulos.acceso.schemas import LoginIn, SesionOut
 from app.seguridad import crear_token, poner_cookie_sesion, quitar_cookie_sesion
 
 router = APIRouter(tags=["acceso"])
+router.include_router(router_usuarios)
 
 
 @router.post("/sesion", response_model=SesionOut)

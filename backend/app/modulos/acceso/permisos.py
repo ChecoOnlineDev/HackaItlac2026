@@ -40,13 +40,13 @@ class P:
     REPORTES_ADEUDOS = "reportes.adeudos"
     REPORTES_CONSUMO = "reportes.consumo"
     ALMACENES_TODOS = "almacenes.todos"
+    ALMACENES_ASIGNAR_PERSONAL = "almacenes.asignar_personal"
     ETIQUETAS_IMPRIMIR = "etiquetas.imprimir"
 
     # --- Sección 8.3 (los agregan las features o están pospuestos) ---
     ALMACENES_ADMINISTRAR = "almacenes.administrar"
     REPORTES_VALOR_INVENTARIO = "reportes.valor_inventario"
     INVENTARIO_MINIMOS = "inventario.minimos"
-    ALMACENES_ASIGNAR_PERSONAL = "almacenes.asignar_personal"
     PIEZAS_DAR_DE_BAJA = "piezas.dar_de_baja"
     REVISION_VER = "revision.ver"
     TABLERO_VER = "tablero.ver"
@@ -90,13 +90,11 @@ CATALOGO: tuple[Permiso, ...] = (
     Permiso(P.REPORTES_ADEUDOS, "Reporte de adeudos", True),
     Permiso(P.REPORTES_CONSUMO, "Reporte de consumo", True),
     Permiso(P.ALMACENES_TODOS, "Operar cualquier almacén y ver los movimientos de todos", True),
+    Permiso(P.ALMACENES_ASIGNAR_PERSONAL, "Asignar y mover personal entre almacenes", True),
     Permiso(P.ETIQUETAS_IMPRIMIR, "Hojas de QR", True),
     Permiso(P.ALMACENES_ADMINISTRAR, "Abrir y cerrar almacenes de proyecto", False, "FEAT-002"),
     Permiso(P.REPORTES_VALOR_INVENTARIO, "Valor del inventario", False, "FEAT-002", True),
     Permiso(P.INVENTARIO_MINIMOS, "Fijar mínimos por almacén", False, "FEAT-004"),
-    Permiso(
-        P.ALMACENES_ASIGNAR_PERSONAL, "Asignar y mover personal entre almacenes", False, "FEAT-006"
-    ),
     Permiso(P.PIEZAS_DAR_DE_BAJA, "Dar una pieza por perdida o de baja", False, "Pospuesto"),
     Permiso(P.REVISION_VER, "Lista de revisión", False, "Pospuesto"),
     Permiso(P.TABLERO_VER, "Tablero general por almacén", False, "Pospuesto"),

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.core.excepciones import DatosInvalidos, DemasiadosIntentos, SinPermiso
 from app.core.tiempo import ahora_utc
-from app.modulos.acceso.exceptions import CredencialesIncorrectas, PinIncorrecto
+from app.modulos.acceso.exceptions import AlmacenCambio, CredencialesIncorrectas, PinIncorrecto
 from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import CLAVES, P
 from app.modulos.acceso.repository import RolRepository, UsuarioRepository
@@ -138,6 +138,31 @@ class AccesoService:
         if almacen_id is not None and almacen_id != usuario.almacen_id:
             raise SinPermiso("Solo puedes operar tu almacén.")
         return usuario.almacen_id
+
+    def exigir_mismo_almacen(self, usuario: Usuario, almacen_id_captura: uuid.UUID | None) -> None:
+        """AC-13: rechaza al confirmar un vale capturado en un almacén que ya no es el del usuario.
+
+        `almacen_id_captura` es el almacén en el que se capturó (opcional en `POST /api/vales`).
+        Sin él, o si el usuario tiene `almacenes.todos` (elige almacén en cada vale), no hay nada
+        que comparar. Si no coincide con el almacén actual del usuario, lanza `AlmacenCambio`
+        (409 `ALMACEN_CAMBIO`) con el almacén nuevo en `detalles`; el borrador se conserva.
+        Hay que llamarla con el usuario de la petición actual (su almacén sale de la base).
+        """
+        if almacen_id_captura is None or self.puede_operar_todos_los_almacenes(usuario):
+            return
+        if usuario.almacen_id == almacen_id_captura:
+            return
+        nuevo = self.almacenes.obtener(usuario.almacen_id) if usuario.almacen_id else None
+        raise AlmacenCambio(
+            detalles={
+                "almacen_captura_id": str(almacen_id_captura),
+                "almacen": (
+                    AlmacenSesionOut.model_validate(nuevo).model_dump(mode="json")
+                    if nuevo
+                    else None
+                ),
+            }
+        )
 
     # --------------------------------------------------------------------- PIN
 
