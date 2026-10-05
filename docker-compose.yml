@@ -1,9 +1,13 @@
-# Base de datos del sistema. Los servicios de la aplicación y del túnel
-# se agregan en la tarea del despliegue (TASK-F0-04).
+# Un solo desplegable (ADR-002): base de datos, aplicación (API + interfaz) y túnel de Cloudflare.
+#
+#   docker compose up -d --build                  base + aplicación (http://127.0.0.1:21040)
+#   docker compose --profile tunel up -d --build  además publica por el túnel (requiere TUNNEL_TOKEN)
+#
+# Guía: docs/architecture/despliegue-local-cloudflare.md
 services:
   db:
     image: mysql:8.4
-    container_name: imhotep_db
+    container_name: ${DB_CONTENEDOR:-imhotep_db}
     restart: unless-stopped
     command:
       - --character-set-server=utf8mb4
@@ -27,5 +31,48 @@ services:
       retries: 20
       start_period: 20s
 
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Dentro de Docker la base es el servicio `db`, puerto 3306 (no el del host).
+      MYSQL_HOST: db
+      MYSQL_PUERTO: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-imhotep}
+      MYSQL_USER: ${MYSQL_USER:-imhotep}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?define MYSQL_PASSWORD en .env}
+      CLAVE_SESION: ${CLAVE_SESION:?define CLAVE_SESION en .env}
+      SESION_HORAS: ${SESION_HORAS:-12}
+      # true cuando se entra por HTTPS (túnel). false para probar por http://127.0.0.1.
+      COOKIE_SEGURA: ${COOKIE_SEGURA:-false}
+      AUTORIZACION_VIGENCIA_MINUTOS: ${AUTORIZACION_VIGENCIA_MINUTOS:-15}
+      ARCHIVO_TAMANO_MAXIMO: ${ARCHIVO_TAMANO_MAXIMO:-2097152}
+      CLAVE_DATOS_PRUEBA: ${CLAVE_DATOS_PRUEBA:-}
+      PIN_DATOS_PRUEBA: ${PIN_DATOS_PRUEBA:-}
+      CARGAR_DATOS_PRUEBA: ${CARGAR_DATOS_PRUEBA:-false}
+    ports:
+      # Solo la propia máquina; al exterior se publica únicamente por el túnel.
+      - "127.0.0.1:${APP_PUERTO:-21040}:8000"
+    volumes:
+      # Firmas y fotos (ARCHIVOS_DIR dentro de la imagen).
+      - imhotep_archivos:/data/archivos
+
+  # Túnel de Cloudflare: publica `app` con HTTPS. Solo arranca con `--profile tunel`
+  # (sin token no hay túnel, y `docker compose up` normal no falla).
+  tunel:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    depends_on:
+      app:
+        condition: service_healthy
+
 volumes:
   imhotep_db_datos:
+  imhotep_archivos:

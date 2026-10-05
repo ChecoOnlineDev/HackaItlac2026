@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     archivos_dir: Path = Path("./almacenamiento")
     archivo_tamano_maximo: int = 2 * 1024 * 1024
 
+    # Interfaz construida (frontend/build/client). En la imagen vive en /app/interfaz; si la
+    # carpeta no existe (desarrollo, pruebas) el servidor solo ofrece la API.
+    interfaz_dir: Path = Path("/app/interfaz")
+
     # Datos de prueba (no son datos reales)
     clave_datos_prueba: str = "Prueba-2026!"
     pin_datos_prueba: str = "1234"

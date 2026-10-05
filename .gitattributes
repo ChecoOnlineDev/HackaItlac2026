@@ -1,0 +1,2 @@
+# El Dockerfile lleva un script en línea: debe quedar siempre con saltos de línea LF.
+Dockerfile text eol=lf
