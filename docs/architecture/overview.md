@@ -92,9 +92,7 @@ El módulo `movimientos` es un motor genérico más un manejador por tipo de val
 router.py ──► service.py (MovimientoService: permisos por tipo, evaluar, confirmar, consultar)
                  │
                  ├─ tipos/__init__.py  TIPOS: un ManejadorTipo por TipoVale
-                 │     entrada.py, entrega.py     completos
-                 │     cancelacion.py             completo (genérico, a partir de las filas de movimiento)
-                 │     devolucion, traspaso, recepcion, no_adeudo   stubs (501)
+                 │     entrada, entrega, devolucion, no_adeudo, traspaso, recepcion, cancelacion   completos
                  ├─ cargador.py        lee los hechos de la base (no escribe)
                  ├─ evaluador.py       funciones puras: una por regla, con su ID (SM-01, SM-06)
                  └─ repository.py      consultas, bloqueos FOR UPDATE e inserciones

@@ -9,15 +9,16 @@ es **genérico**: no conoce las reglas de ningún tipo de vale. Cada tipo vive e
 
 | Archivo | Qué es |
 |---|---|
+| `evaluador_devolucion.py` | Reglas puras de la DEVOLUCION (V-01 a V-07, V-12, V-14, RG-05): una función por regla. |
+| `schemas_no_adeudo.py` | Respuesta de `POST /api/trabajadores/{id}/no-adeudo` (`NoAdeudoOut`). |
 | `evaluador.py` | Funciones **puras** (sin base de datos): una por regla (`regla_e06_inspeccion`, `regla_limite`...), los hechos (`Hechos*`), `Motivo`, `peor_nivel` (SM-01) y los evaluadores de renglón de ENTREGA y ENTRADA (orden SM-06). |
 | `cargador.py` | `Cargador`: reúne de la base los hechos (identifica códigos, trabajador y su ficha, existencias, cuenta del límite, dónde está una pieza). No escribe. |
 | `contexto.py` | Tipos que el motor y los tipos se pasan: `ContextoVale`, `Evaluacion`, `RenglonEvaluado`, `PlanBloqueo`, `MovimientoNuevo`, `DatosVale`. |
 | `tipos/base.py` | El contrato: `ManejadorTipo` (y `TipoPendiente`, el stub). |
 | `tipos/__init__.py` | La tabla `TIPOS`: un manejador por `TipoVale`. |
-| `tipos/entrada.py`, `tipos/entrega.py`, `tipos/traspaso.py`, `tipos/recepcion.py` | Los tipos completos. |
+| `tipos/entrada.py`, `tipos/entrega.py`, `tipos/devolucion.py`, `tipos/no_adeudo.py`, `tipos/traspaso.py`, `tipos/recepcion.py` | Los tipos completos. |
 | `evaluador_traspasos.py`, `repository_traspasos.py`, `schemas_traspasos.py` | Lo propio de los traspasos: reglas puras (X-02 a X-04, X-09, X-10, X-12, X-13), consultas de lo enviado y lo recibido, y el contrato de `por-recibir`. |
 | `tipos/cancelacion.py`, `tipos/cancelacion_reglas.py`, `schemas_cancelacion.py` | La CANCELACION: genérica (ver abajo, "La cancelación"), sus reglas puras (K-03, K-04, X-14) y su respuesta (`CancelacionOut`, `BorradorOut`). |
-| `tipos/devolucion.py`, `no_adeudo.py` | Stubs (`TipoPendiente`): todo responde 501 `TIPO_NO_IMPLEMENTADO`. |
 | `service.py` | `MovimientoService`: permisos por tipo, `evaluar`, `confirmar`, consultas. Controla commit y rollback. |
 | `repository.py` | Consultas, bloqueos `FOR UPDATE` e inserciones. Nunca hace commit. |
 | `router.py`, `schemas.py`, `exceptions.py` | HTTP, contratos y errores de dominio. |
@@ -144,8 +145,8 @@ sus esquemas en un archivo propio si el cuerpo necesita campos nuevos.
 
 | Tipo | Permiso | Movimientos | Reglas | Ganchos especiales |
 |---|---|---|---|---|
-| **DEVOLUCION** (`tipos/devolucion.py`) | `devoluciones.crear` | trabajador -> almacén; artículo por cantidad dañado -> BAJA (V-05); pieza dañada entra como No apta (`CatalogoService.actualizar_estado_pieza`) | V-01 a V-07, V-11 a V-14, F-08, **SM-05: nunca se bloquea por E-02** (trabajador no vigente) | `bloqueos`: trabajador, existencias y piezas. La condición (`Condicion`) es obligatoria |
-| **NO_ADEUDO** (`tipos/no_adeudo.py`) | `no_adeudo.emitir` | ninguno | B-04, B-08, invariante 8 | `construir_movimientos` devuelve `[]`; `al_confirmar` llama `TrabajadorService.marcar_inactivo`; `emitir_no_adeudo(servicio, usuario, trabajador_id, datos)`; 409 `CON_PENDIENTES` si hay pendientes |
+| **DEVOLUCION** ✔ (`tipos/devolucion.py`, hecho) | `devoluciones.crear` | trabajador -> almacén que recibe; artículo por cantidad dañado -> BAJA (V-05); pieza dañada entra como No apta (`InspeccionService.registrar_cambio_de_estado`) | V-01 a V-07, V-11, V-12, V-14, RG-05, F-08, **SM-05** (nunca se bloquea por el trabajador, límites, autorización ni artículo inactivo) | Ver "DEVOLUCION y NO_ADEUDO: lo que hace cada gancho" abajo |
+| **NO_ADEUDO** ✔ (`tipos/no_adeudo.py`, hecho) | `no_adeudo.emitir` | ninguno | B-01, B-03, B-04, B-08, invariante 8 | Ver abajo |
 
 TRASPASO y RECEPCION (fase 5) ya están hechos. Cómo funcionan:
 
@@ -200,12 +201,46 @@ original. Los efectos propios de un tipo que no son un movimiento **no se revier
 | TRASPASO | Sin efectos propios: la existencia regresa al almacén de origen. |
 | Todos | La firma del original y su "Validó" no se tocan; los ve el vale original, que sigue visible. |
 
+## DEVOLUCION y NO_ADEUDO: lo que hace cada gancho
+
+**DEVOLUCION**
+
+- `normalizar_renglones`: una pieza repetida se ignora; un artículo por cantidad repetido con la
+  **misma condición** suma (una parte buena y otra dañada son dos renglones).
+- `evaluar`: el titular de una pieza sale de su ubicación (la tiene un trabajador); por cantidad,
+  de `trabajador_id`. No existe ninguna regla del trabajador (SM-05). Por renglón: `titular`
+  (quién la tiene o dónde está), `disponible` (lo que ese titular tiene en resguardo de ese
+  artículo; para una pieza, 1 o 0) y `pide_observacion` (verdadero si es Dañado). V-01, V-06 y V-07
+  se muestran como motivos (V-01 y V-06 en verde, informativos). **V-02** (pieza que no está con
+  nadie) es amarillo y el renglón **no genera movimiento**; si TODOS los renglones son V-02 el vale
+  lleva un motivo rojo `V-02` y no se confirma.
+- `bloqueos`: los trabajadores titulares (por id, antes que las existencias; con más de uno los
+  bloquea el propio hook en orden), las existencias del trabajador, del almacén y de BAJA, y las piezas.
+- `datos_vale`: el vale es del trabajador al que se abona; con piezas de varios titulares no lleva
+  uno solo (cada movimiento anota el suyo, `movimiento.trabajador_id`).
+- `construir_movimientos`: trabajador -> almacén; Dañado por cantidad -> BAJA con `motivo_baja`.
+- `al_confirmar`: pieza dañada -> No apta con su `evento_pieza`; la foto (`renglones[i].foto`,
+  `data:image/...;base64,...`, solo con condición Dañado) se guarda como `FOTO_DANO` ligada al movimiento.
+
+**NO_ADEUDO**
+
+- `emitir_no_adeudo(servicio, usuario, trabajador_id, NoAdeudoIn)`: idempotente por `id_cliente`;
+  Inactivo -> 409; Activo -> `TrabajadorService.iniciar_baja` (B-01, se confirma antes de
+  responder); con pendientes -> 409 `CON_PENDIENTES` con la lista; si no, `confirmar` de un vale
+  NO_ADEUDO. Responde `NoAdeudoOut` (el vale y el trabajador ya Inactivo): 201, o 200 si el
+  `id_cliente` ya existía (el router lo decide con `NoAdeudoOut.repetido`).
+- `evaluar` (por `POST /api/vales/evaluar` o `POST /api/vales`): motivo del vale `B-04` (rojo con
+  pendientes, verde sin ellos) o `B-08` (rojo si ya está Inactivo); un vale sin renglones.
+- `al_confirmar`: `TrabajadorService.marcar_inactivo` en la misma transacción.
+
 ## Integración con otros módulos
 
 - **autorizaciones**: `validar_para_vale` y `marcar_usada` corren en la transacción del vale;
   `datos_valido` arma el "Validó" (A-04). `verificador.crear_verificador(session, usuario)` lo
   toma el router de `autorizaciones` para rechazar los rojos al solicitar (A-06).
-- **inspecciones**: la ENTRADA llama `InspeccionService(session).registrar_inicial(pieza_id, *,
+- **inspecciones**: la DEVOLUCION llama `InspeccionService(session).registrar_cambio_de_estado(
+  pieza_id, *, estado, observacion, usuario_id)` (solo flush; deja el evento y cambia el estado
+  vía `catalogo`) por `devolucion.servicio_inspecciones`. La ENTRADA llama `InspeccionService(session).registrar_inicial(pieza_id, *,
   fecha, resultado, observacion, usuario_id)` (solo flush) por `entrada.servicio_inspecciones`,
   el punto de enchufe que las pruebas sustituyen por un doble.
 - **catalogo**: `registrar_pieza` (la pieza y su código), `identificar_codigo`, `obtener_articulo`.

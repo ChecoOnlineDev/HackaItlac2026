@@ -65,8 +65,10 @@ class RenglonIn(_Estricto):
     condicion: Condicion | None = None
     observacion: str | None = Field(default=None, max_length=1000)
     pieza: PiezaEntradaIn | None = None
+    # Solo DEVOLUCION con condición DANADO (V-05): foto del daño como `data:image/...;base64,...`.
+    foto: str | None = Field(default=None, max_length=10_000_000)
 
-    _limpiar = field_validator("observacion", mode="before")(_vacio_a_none)
+    _limpiar = field_validator("observacion", "foto", mode="before")(_vacio_a_none)
 
 
 class ValeIn(_Estricto):
