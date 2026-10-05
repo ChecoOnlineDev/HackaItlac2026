@@ -1,21 +1,13 @@
-"""Los tipos que otros agentes implementan están registrados, con sus endpoints, y responden 501.
-
-Cuando un tipo se implemente, su prueba cambia aquí por las suyas (sin tocar `service.py` ni
-`router.py`).
-"""
+"""Los siete tipos de vale están registrados con su permiso y ninguno es un stub pendiente."""
 
 import uuid
-
-import pytest
 
 from app.modulos.acceso.permisos import P
 from app.modulos.movimientos.models import TipoVale
 from app.modulos.movimientos.tipos import TIPOS, manejador_de
 from app.modulos.movimientos.tipos.base import TipoPendiente
 
-PENDIENTES = [
-    # Ya no queda ningún tipo pendiente: los siete tipos de vale del MVP están implementados.
-]
+PENDIENTES: list[TipoVale] = []  # ya no queda ninguno: los siete tipos del MVP están hechos
 
 
 def test_todos_los_tipos_de_vale_estan_registrados_con_su_permiso():
@@ -29,20 +21,6 @@ def test_todos_los_tipos_de_vale_estan_registrados_con_su_permiso():
     assert permisos[TipoVale.NO_ADEUDO] == P.NO_ADEUDO_EMITIR
     assert permisos[TipoVale.CANCELACION] == P.VALES_CANCELAR
     assert {t for t, m in TIPOS.items() if isinstance(m, TipoPendiente)} == set(PENDIENTES)
-
-
-@pytest.mark.parametrize("tipo", PENDIENTES)
-def test_un_tipo_pendiente_responde_501_con_permiso_y_403_sin_el(almacenista, cliente_como, tipo):
-    sin_permisos = cliente_como("Recursos Humanos")
-    cuerpo = {"tipo": tipo.value, "id_cliente": str(uuid.uuid4()), "renglones": []}
-    for ruta in ("/api/vales/evaluar", "/api/vales"):
-        r = almacenista.post(ruta, json=cuerpo)
-        assert r.status_code == 501, (tipo, ruta, r.text)
-        assert (
-            r.json()["codigo"] == "TIPO_NO_IMPLEMENTADO"
-            and "todavía no está disponible" in (r.json()["mensaje"])
-        )
-        assert sin_permisos.post(ruta, json=cuerpo).status_code == 403  # sin el permiso del tipo
 
 
 def test_los_endpoints_de_traspasos_no_adeudo_y_cancelacion_exigen_permiso(cliente_como):
