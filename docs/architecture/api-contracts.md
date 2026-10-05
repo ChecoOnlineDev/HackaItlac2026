@@ -76,15 +76,15 @@ La emisión del vale de no adeudo (B-04, B-08) es de `movimientos`, en `POST /ap
 
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
-| `GET /api/categorias` | `catalogo.ver` | Lista. |
-| `POST /api/categorias`, `PATCH /api/categorias/{id}` | `catalogo.administrar` | Crea o edita una categoría y su plantilla (CF-01, CF-02). |
-| `GET /api/articulos` | `catalogo.ver` | Lista. Filtros: `q`, `categoria_id`, `activo`. |
-| `POST /api/articulos` | `catalogo.administrar` | Crea un artículo; toma la plantilla de su categoría si no se indican reglas. El costo solo se acepta con `catalogo.costos`. |
-| `GET /api/articulos/{id}` | `catalogo.ver` | Ficha: reglas, existencias por almacén y quién lo tiene (C-03). |
-| `PATCH /api/articulos/{id}` | `catalogo.administrar` | Edita datos, límite, aviso de cantidad inusual y requisitos. Rechaza cambios de control o retorno con movimientos (CF-05). |
-| `POST /api/articulos/{id}/inactivacion` | `catalogo.administrar` | Inactiva con `{motivo}` (CF-10). |
-| `DELETE /api/articulos/{id}/inactivacion` | `catalogo.administrar` | Reactiva (CF-13). |
-| `DELETE /api/articulos/{id}` | `catalogo.administrar` | Elimina solo si no tiene movimientos (CF-12). |
+| `GET /api/categorias` | `catalogo.ver` | Lista con su plantilla. Filtro: `activo`. |
+| `POST /api/categorias`, `PATCH /api/categorias/{id}` | `catalogo.administrar` | Crea (201) o edita una categoría y su plantilla (CF-01, CF-02). El nombre no se repite (409). Una plantilla con inspección en control por cantidad se rechaza (422, CF-06). Editar la plantilla no cambia los artículos que ya existen. |
+| `GET /api/articulos` | `catalogo.ver` | Lista. Filtros: `q` (nombre, código, marca o modelo), `categoria_id`, `activo`; sin `activo` trae activos e inactivos, y la pantalla manda `activo=true` por defecto (CF-10). `costo_unitario` solo con `catalogo.costos`: sin el permiso la clave no aparece. |
+| `POST /api/articulos` | `catalogo.administrar` | Crea (201) un artículo; control, retorno y reglas salen de la plantilla de su categoría si no se indican (un campo de regla en `null` significa "sin esa regla"). El código no puede repetir el de ningún artículo, pieza o credencial (409 `CODIGO_REPETIDO`) y queda registrado como su QR de producto o de estante (I-07). El costo solo se acepta con `catalogo.costos`; sin él, 403. |
+| `GET /api/articulos/{id}` | `catalogo.ver` | Ficha: reglas, `tiene_movimientos` (control y retorno bloqueados), `existencias` por almacén (`cantidad` y `disponible`, que no cuenta piezas No aptas, en mantenimiento ni en calibración) y `en_posesion` (quién lo tiene, con su cantidad) (C-03). El costo, solo con `catalogo.costos`. |
+| `PATCH /api/articulos/{id}` | `catalogo.administrar` | Edita datos, límite, aviso de cantidad inusual y requisitos; solo cambia lo que viene (omitido no es `null`). No cambia el código ni la inactivación (422 si se envían). Rechaza cambios de control o retorno con movimientos (409 `CON_MOVIMIENTOS`, CF-05). Activar la inspección deja sus piezas sin inspección vigente (CF-09). Cambiar el costo pide `catalogo.costos`. |
+| `POST /api/articulos/{id}/inactivacion` | `catalogo.administrar` | Inactiva con `{motivo}` (CF-10). Responde el artículo. 409 si ya estaba inactivo. |
+| `DELETE /api/articulos/{id}/inactivacion` | `catalogo.administrar` | Reactiva (CF-13). Responde el artículo. 409 si ya estaba activo. |
+| `DELETE /api/articulos/{id}` | `catalogo.administrar` | Elimina solo si no tiene movimientos (CF-12); responde 204, o 409 `CON_MOVIMIENTOS`. Libera su código. |
 | `GET /api/piezas/{id}` | `catalogo.ver` | Ficha: estado, inspección, ubicación e historial (C-02). |
 | `POST /api/piezas/{id}/inspecciones` | `piezas.inspeccionar` | Registra una inspección (P-01). |
 | `POST /api/piezas/{id}/estado` | `piezas.inspeccionar` | Marca No apta, con observación (P-03). |
@@ -94,8 +94,8 @@ La emisión del vale de no adeudo (B-04, B-08) es de `movimientos`, en `POST /ap
 
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
-| `GET /api/almacenes` | `inventario.ver` | Lista con su red. |
-| `GET /api/almacenes/{id}/existencias` | `inventario.ver` | Existencias y disponibles por artículo. |
+| `GET /api/almacenes` | `inventario.ver` | Lista con su red: `{id, clave, nombre, tipo, estado, padre_id, padre_clave, hijos: [{id, clave, nombre}]}`. |
+| `GET /api/almacenes/{id}/existencias` | `inventario.ver` | `{almacen, elementos, total}`: por artículo con existencia, `cantidad` y `disponible` (en piezas, solo las Aptas; I-05), con `activo` para marcar los inactivos (CF-11). Filtros: `q`, `categoria_id`, `activo`; admite `pagina` y `tamano`. Sin costos. |
 
 ## Vales
 
@@ -213,7 +213,7 @@ Todos aceptan `formato=csv`.
 
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
-| `GET /api/etiquetas?tipo=` | `etiquetas.imprimir` | Lista de `{codigo, texto}` para credenciales, piezas o estantes. Las credenciales piden además `trabajadores.ver`; piezas y estantes, `catalogo.ver`. El QR lo dibuja el navegador. |
+| `GET /api/etiquetas?tipo=` | `etiquetas.imprimir` | `{elementos: [{codigo, texto}], total}` (sin paginar) para `tipo` = `credenciales` (códigos de trabajadores no inactivos), `piezas` (las que no están de baja) o `estantes` (artículos activos por cantidad). Las credenciales piden además `trabajadores.ver`; piezas y estantes, `catalogo.ver`. El QR contiene exactamente `codigo`; lo dibuja el navegador. |
 
 ## Previsto por la segunda ola
 
