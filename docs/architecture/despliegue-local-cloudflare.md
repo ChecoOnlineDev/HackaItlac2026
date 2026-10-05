@@ -2,7 +2,7 @@
 
 Cómo publicar la aplicación desde la computadora de desarrollo (Windows) con HTTPS, usando el dominio que ya está en Cloudflare. Sirve para probar en celular desde hoy y mudarse al servidor cuando exista.
 
-Estado: los comandos de `cloudflared` son los estándar de la herramienta. El `docker-compose.yml` que aparece aquí es la forma planeada; todavía no existe en el repositorio ni se ha probado.
+Estado: el `docker-compose.yml` y el `Dockerfile` de la raíz existen y están probados (base, aplicación con API e interfaz, salud, sesión). El servicio `tunel` está definido pero **no se ha probado con un token real**; los comandos de `cloudflared` son los estándar de la herramienta.
 
 ## Por qué hace falta
 
@@ -57,67 +57,37 @@ Usar un subdominio de un solo nivel (`imhotep.tudominio.com`). El certificado gr
 
 ### En el proyecto
 
-Guardar el token en un archivo `.env` en la raíz. El `.gitignore` ya excluye `.env`, así que no se sube al repositorio.
+Copiar `.env.example` a `.env` en la raíz y llenarlo. El `.gitignore` ya excluye `.env`, así que no se sube al repositorio. Para el túnel importan estas variables:
 
 ```
 TUNNEL_TOKEN=pega_aqui_el_token
+COOKIE_SEGURA=true          # el túnel entrega HTTPS; sin esto la cookie de sesión no es segura
 MYSQL_ROOT_PASSWORD=una_contraseña_local
 MYSQL_PASSWORD=otra_contraseña_local
+CLAVE_SESION=una_clave_larga_y_unica
 ```
 
-Forma planeada del `docker-compose.yml`:
-
-```yaml
-services:
-  db:
-    image: mysql:8.4
-    environment:
-      MYSQL_DATABASE: imhotep
-      MYSQL_USER: imhotep
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-    volumes:
-      - db_data:/var/lib/mysql
-    ports:
-      - "127.0.0.1:3306:3306"   # solo accesible desde esta computadora
-
-  app:
-    build: .
-    environment:
-      DATABASE_URL: mysql+pymysql://imhotep:${MYSQL_PASSWORD}@db:3306/imhotep
-    depends_on:
-      - db
-    ports:
-      - "127.0.0.1:8000:8000"
-
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
-    depends_on:
-      - app
-
-volumes:
-  db_data:
-```
+El `docker-compose.yml` de la raíz define tres servicios: `db` (MySQL 8.4), `app` (la imagen del `Dockerfile` de la raíz: FastAPI con la API bajo `/api` y la interfaz ya construida, puerto 8000 dentro de Docker) y `tunel` (`cloudflare/cloudflared`, `tunnel --no-autoupdate run`, token desde `TUNNEL_TOKEN`). El servicio `tunel` pertenece al perfil `tunel`: sin ese perfil no se levanta, y `docker compose up -d --build` funciona aunque no haya token.
 
 Puntos a cuidar:
 
 - La base de datos no se publica por el túnel. Solo el servicio `app` tiene nombre público.
-- Los puertos se ligan a `127.0.0.1` para que nadie en la misma red entre directo.
-- El volumen `db_data` conserva los datos entre reinicios.
+- Los puertos de `db` (`MYSQL_PUERTO`, 21001) y de `app` (`APP_PUERTO`, 21040) se ligan a `127.0.0.1` para que nadie en la misma red entre directo.
+- Los volúmenes `imhotep_db_datos` (base) e `imhotep_archivos` (firmas y fotos) conservan los datos entre reinicios.
+- `app` aplica las migraciones al arrancar (reintenta hasta 60 s si la base no está lista) y confía en las cabeceras `X-Forwarded-*` del túnel (`FORWARDED_ALLOW_IPS`).
 
 Levantar todo:
 
 ```bash
-docker compose up -d --build
+docker compose --profile tunel up -d --build
 ```
+
+Sin el perfil `tunel` se levantan solo la base y la aplicación (`http://127.0.0.1:21040`), útil para probar sin túnel.
 
 Revisar que el túnel conectó:
 
 ```bash
-docker compose logs tunnel
+docker compose logs tunel
 ```
 
 Debe aparecer que registró conexiones. Después se abre `https://imhotep.tudominio.com` desde el celular.
@@ -201,8 +171,8 @@ Si la recarga automática no llega al celular, se recarga la página a mano. No 
 
 1. Instalar Docker en el servidor.
 2. Clonar el repositorio y copiar el `.env`, con contraseñas nuevas para producción.
-3. Detener el túnel en la laptop: `docker compose stop tunnel`.
-4. En el servidor: `docker compose up -d --build`.
+3. Detener el túnel en la laptop: `docker compose stop tunel`.
+4. En el servidor: `docker compose --profile tunel up -d --build`.
 5. Pasar los datos con un respaldo de MySQL, o cargar de nuevo los datos de prueba.
 
 El subdominio y el certificado no cambian, así que las etiquetas QR impresas siguen sirviendo. No hace falta Caddy ni abrir puertos en el servidor.

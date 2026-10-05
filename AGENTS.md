@@ -87,7 +87,7 @@ Frontend, dentro de `frontend/`:
 | Acción | Comando |
 |---|---|
 | Instalar | `pnpm install` |
-| Servidor de desarrollo | `pnpm dev` |
+| Servidor de desarrollo (puerto `21010`; reenvía `/api` a `API_DESTINO`, por defecto `http://127.0.0.1:21011`) | `pnpm dev` |
 | Verificar tipos | `pnpm typecheck` |
 | Construir | `pnpm build` |
 
@@ -104,9 +104,20 @@ Backend, dentro de `backend/` (comprobados en la Fase 0). Copiar antes `.env.exa
 | Lint | `uv run ruff check .` |
 | Formato | `uv run ruff format .` |
 
-Puertos: MySQL en el host `21001` (`MYSQL_PUERTO`), servidor de desarrollo `21002`; el `21003` en adelante está reservado (túnel y otros). Las pruebas usan la base `{MYSQL_DATABASE}_test_{TEST_DB_SUFFIX}`: quien corra pruebas en paralelo contra el mismo MySQL usa un `TEST_DB_SUFFIX` distinto.
+Puertos: MySQL en el host `21001` (`MYSQL_PUERTO`), servidor de desarrollo `21002`; la aplicación desplegada `21040`; el resto desde `21003` está reservado. Las pruebas usan la base `{MYSQL_DATABASE}_test_{TEST_DB_SUFFIX}`: quien corra pruebas en paralelo contra el mismo MySQL usa un `TEST_DB_SUFFIX` distinto.
 
-Pendiente de las tareas de despliegue (TASK-F0-03 a F0-06): `docker compose up -d --build` con aplicación y túnel, y el Dockerfile de la raíz.
+Producción (un solo desplegable, ADR-002), en la raíz del repo; comprobados en TASK-F0-04:
+
+| Acción | Comando |
+|---|---|
+| Construir la imagen | `docker compose build` |
+| Levantar base + aplicación (API e interfaz en `http://127.0.0.1:21040`, `APP_PUERTO`) | `docker compose up -d --build` |
+| Además, publicar por el túnel de Cloudflare (requiere `TUNNEL_TOKEN`) | `docker compose --profile tunel up -d --build` |
+| Datos de prueba al arrancar | `CARGAR_DATOS_PRUEBA=true` en `.env` |
+| Estado y bitácora | `docker compose ps` / `docker compose logs app` |
+| Apagar (con `-v` borra los datos) | `docker compose down` |
+
+El contenedor `app` aplica `alembic upgrade head` al arrancar y sirve con `uvicorn` en el puerto 8000 interno. FastAPI entrega la interfaz desde `INTERFAZ_DIR` (en la imagen, `/app/interfaz`; si no existe, solo la API). Con el túnel, `COOKIE_SEGURA=true`. El túnel real no se ha probado (requiere token).
 
 ## Definition of Done
 

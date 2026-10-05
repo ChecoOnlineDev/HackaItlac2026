@@ -1,0 +1,22 @@
+# Fuera del contexto de construcción: dependencias locales, secretos y archivos de trabajo.
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+.claude/
+tmp/
+docs/
+*.md
+!backend/README.md
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.react-router
+frontend/build
+backend/almacenamiento
+Dockerfile
+docker-compose.yml

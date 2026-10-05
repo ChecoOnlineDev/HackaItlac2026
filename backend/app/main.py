@@ -12,8 +12,10 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 import app.modelos_registro  # noqa: F401  (todos los modelos en Base.metadata)
+from app.config import get_settings
 from app.core.handlers import registrar_handlers
 from app.db import SesionDep
+from app.estaticos import configurar_interfaz
 from app.modulos.acceso.router import router as acceso_router
 from app.modulos.almacenes.router import router as almacenes_router
 from app.modulos.archivos.router import router as archivos_router
@@ -74,6 +76,9 @@ def create_app() -> FastAPI:
     for router in ROUTERS:
         api.include_router(router)
     app.include_router(api)
+    # Va al final: el respaldo de la interfaz atrapa todo lo que no sea `/api`.
+    ajustes = get_settings()
+    configurar_interfaz(app, ajustes.interfaz_dir, cookie_segura=ajustes.cookie_segura)
     return app
 
 
