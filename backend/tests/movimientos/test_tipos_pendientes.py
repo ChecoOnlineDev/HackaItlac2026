@@ -12,13 +12,10 @@ from app.modulos.acceso.permisos import P
 from app.modulos.movimientos.models import TipoVale
 from app.modulos.movimientos.tipos import TIPOS, manejador_de
 from app.modulos.movimientos.tipos.base import TipoPendiente
-from tests.movimientos.ayudas import crear_trabajador
 
 PENDIENTES = [
-    TipoVale.DEVOLUCION,
     TipoVale.TRASPASO,
     TipoVale.RECEPCION,
-    TipoVale.NO_ADEUDO,
     TipoVale.CANCELACION,
 ]
 
@@ -50,21 +47,12 @@ def test_un_tipo_pendiente_responde_501_con_permiso_y_403_sin_el(almacenista, cl
         assert sin_permisos.post(ruta, json=cuerpo).status_code == 403  # sin el permiso del tipo
 
 
-def test_los_endpoints_de_traspasos_no_adeudo_y_cancelacion_existen(
+def test_los_endpoints_de_traspasos_y_cancelacion_existen(
     almacenista, compras, cliente_como, session
 ):
     rh = cliente_como("Recursos Humanos")
-    t = crear_trabajador(session)
     assert almacenista.get("/api/traspasos/por-recibir").status_code == 501
     assert rh.get("/api/traspasos/por-recibir").status_code == 403
-    r = almacenista.post(
-        f"/api/trabajadores/{t.id}/no-adeudo", json={"id_cliente": str(uuid.uuid4())}
-    )
-    assert r.status_code == 501 and r.json()["codigo"] == "TIPO_NO_IMPLEMENTADO"
-    sin_permiso = rh.post(
-        f"/api/trabajadores/{t.id}/no-adeudo", json={"id_cliente": str(uuid.uuid4())}
-    )
-    assert sin_permiso.status_code == 403
     cancelacion = {"motivo": "Error", "id_cliente": str(uuid.uuid4()), "rehacer": False}
     r = almacenista.post(f"/api/vales/{uuid.uuid4()}/cancelacion", json=cancelacion)
     assert r.status_code == 501

@@ -116,12 +116,24 @@ def traspasos_por_recibir(usuario: UsuarioTraspasos, service: ServiceDep) -> Any
     return service.traspasos_por_recibir(usuario)
 
 
-@router.post("/trabajadores/{trabajador_id}/no-adeudo", response_model=None)
+@router.post(
+    "/trabajadores/{trabajador_id}/no-adeudo",
+    response_model=None,
+    status_code=status.HTTP_201_CREATED,
+)
 def emitir_no_adeudo(
-    trabajador_id: uuid.UUID, datos: NoAdeudoIn, usuario: UsuarioNoAdeudo, service: ServiceDep
+    trabajador_id: uuid.UUID,
+    datos: NoAdeudoIn,
+    usuario: UsuarioNoAdeudo,
+    service: ServiceDep,
+    respuesta: Response,
 ) -> Any:
-    """`no_adeudo.emitir`. Emite el vale de no adeudo (B-04); 409 `CON_PENDIENTES` si los hay."""
-    return service.emitir_no_adeudo(usuario, trabajador_id, datos)
+    """`no_adeudo.emitir`. Emite el vale de no adeudo (B-04); 409 `CON_PENDIENTES` si los hay.
+    201 con el vale nuevo; 200 si el `id_cliente` ya existía."""
+    salida = service.emitir_no_adeudo(usuario, trabajador_id, datos)
+    if getattr(salida, "repetido", False):
+        respuesta.status_code = status.HTTP_200_OK
+    return salida
 
 
 @router.post("/vales/{vale_id}/cancelacion", response_model=None)
