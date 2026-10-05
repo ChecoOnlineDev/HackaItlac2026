@@ -174,7 +174,7 @@ export default function Etiquetas() {
                         />
                         <span className="flex min-w-0 flex-col">
                           <span className="text-base leading-snug font-semibold wrap-break-word">{e.texto}</span>
-                          <span className="font-mono text-sm text-muted-foreground">{e.codigo}</span>
+                          <span className="tabular-nums text-sm text-muted-foreground">{e.codigo}</span>
                         </span>
                       </label>
                     </li>

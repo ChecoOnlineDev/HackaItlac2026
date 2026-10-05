@@ -23,7 +23,7 @@ function Etiqueta({ etiqueta }: { etiqueta: EtiquetaElemento }) {
       <CodigoQR valor={etiqueta.codigo} tamano={104} nivel="M" titulo={`Código QR de ${etiqueta.codigo}`} className="size-[28mm]!" />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="line-clamp-3 text-[11pt] leading-tight font-bold wrap-break-word">{etiqueta.texto}</p>
-        <p className="font-mono text-[10pt] font-semibold tracking-wide break-all">{etiqueta.codigo}</p>
+        <p className="tabular-nums text-[10pt] font-semibold tracking-wide break-all">{etiqueta.codigo}</p>
       </div>
     </li>
   );
