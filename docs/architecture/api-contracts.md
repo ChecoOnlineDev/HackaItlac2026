@@ -143,7 +143,7 @@ El cuerpo de `POST /api/vales` puede traer `almacen_id`: el almacén en el que s
 | `GET /api/vales/{id}` | `vales.ver` | Detalle con renglones. Fuera del alcance del usuario (AC-06), 404. |
 | `GET /api/vales/por-token/{token}` | `vales.ver` | El vale que abre su QR (mismo detalle). |
 | `GET /api/vales?tipo=&almacen_id=&desde=&hasta=&trabajador_id=&usuario_id=` | `vales.ver` | Lista paginada, del más nuevo al más viejo. Sin `almacenes.todos`, solo los del almacén asignado, también si filtra por otro almacén o usuario. `desde` y `hasta` son fechas del centro de México, ambas inclusivas. Con el `usuario_id` de la sesión y las fechas de hoy resuelve "Mis movimientos de hoy" (C-12). |
-| `GET /api/traspasos/por-recibir` | `traspasos.operar` | Traspasos en tránsito hacia el almacén de la sesión. |
+| `GET /api/traspasos/por-recibir?solo_contar=&almacen_id=` | `traspasos.operar` | Traspasos con algo En tránsito (estado `EN_TRANSITO` o `RECIBIDO_CON_DIFERENCIAS`) hacia el almacén de la sesión, del más antiguo al más nuevo, con sus renglones y lo ya recibido (forma abajo). Sin `almacenes.todos`, solo los del almacén asignado (un `almacen_id` distinto es 409 `ALMACEN_CAMBIO`); con él, `almacen_id` filtra y sin él trae los de todos los almacenes. Con `solo_contar=true` responde solo `{"total": n}`: es la consulta ligera del contador del inicio (cada 30 s). |
 | `POST /api/trabajadores/{id}/no-adeudo` | `no_adeudo.emitir` | Emite el vale de no adeudo (B-04). Responde 409 `CON_PENDIENTES` si los hay. |
 | `POST /api/vales/{id}/cancelacion` | `vales.cancelar` | Cancela con `{motivo, id_cliente, rehacer}` y genera los movimientos inversos (K-01 a K-04). Con `rehacer: true` la respuesta trae además un `borrador` con los renglones del vale original, sin firma ni autorización, para corregirlos y confirmar de nuevo (K-05). Con `vales.cancelar` solo los propios; con `vales.cancelar_todos`, los de cualquiera. Responde 409 `NO_CANCELABLE` si no procede. |
 
@@ -154,8 +154,32 @@ Permiso y campos propios de cada tipo. El permiso se verifica por clave, según 
 | ENTRADA | `inventario.entradas` | `almacen_id` (o `destino_almacen_id`; sin él, quien opera todos los almacenes entra por Kepler, I-01); en artículos por pieza, cada renglón lleva `pieza: {codigo, numero_serie, inspeccion: {fecha, resultado, observacion}}` (la inspección inicial es opcional, I-03). No acepta `trabajador_id` ni costos (el cuerpo rechaza campos desconocidos con 422). Firma de sesión (F-03). |
 | ENTREGA | `entregas.crear` | `trabajador_id`; `firma` con `modo: "PANTALLA"` e `imagen` (F-02); `condicion` por renglón (`BUENO` por defecto, E-22). `almacen_id` solo para quien tiene `almacenes.todos`. |
 | DEVOLUCION | `devoluciones.crear` | `condicion` por renglón; `trabajador_id` solo en renglones por cantidad |
-| TRASPASO | `traspasos.operar` | `destino_almacen_id` |
-| RECEPCION | `traspasos.operar` | `vale_origen_id`; renglones recibidos |
+| TRASPASO | `traspasos.operar` | `destino_almacen_id` (obligatorio); renglones por código de pieza, o de artículo con `cantidad`. Sin `trabajador_id`, `vale_origen_id`, `pieza` ni costos (422). Firma de sesión (F-09): no lleva `firma`. El vale queda `EN_TRANSITO`, folio `CLAVE-TRS-000001`. `almacen_id` solo para quien tiene `almacenes.todos`. `evaluar` trae en `motivos` del vale la regla X-03 (verde, amarillo o rojo) y por renglón X-02, X-04, X-09. |
+| RECEPCION | `traspasos.operar` | `vale_origen_id` (el traspaso, obligatorio); `renglones`: lo escaneado, por código de pieza o de artículo con `cantidad` (para recibir todo, todos los pendientes de `por-recibir`; sin renglones, 422). Sin `trabajador_id` ni `destino_almacen_id` (422). Firma de sesión (F-09). Folio `CLAVE-REC-000001` del almacén que recibe; al confirmar, el traspaso queda `RECIBIDO` o `RECIBIDO_CON_DIFERENCIAS` (X-13). `evaluar`: X-10 (vale y renglones, rojo), X-12 (renglón, rojo), X-13 (vale, amarillo). Un `vale_origen_id` inexistente es 404 y el de un vale que no es traspaso, 422. |
+
+Respuesta de `GET /api/traspasos/por-recibir` (sin costos; `codigo` es lo que se escanea al recibir: el de la pieza, o el del artículo si es por cantidad):
+
+```json
+{
+  "total": 1,
+  "elementos": [
+    {
+      "id": "01a1…", "folio": "KEP-TRS-000012", "token": "…", "estado": "RECIBIDO_CON_DIFERENCIAS",
+      "origen": { "id": "01a1…", "clave": "KEP", "nombre": "Kepler" },
+      "destino": { "id": "01a1…", "clave": "CON", "nombre": "Contratistas" },
+      "envio": { "id": "01a1…", "nombre": "Almacenista Kepler" },
+      "creado_en": "2026-10-05T15:20:00Z",
+      "pendiente_total": 3,
+      "renglones": [
+        { "renglon": 1, "articulo_id": "01a1…", "articulo": "Guante", "marca": "…", "modelo": null, "talla": "M",
+          "codigo": "GUA-001", "pieza_id": null, "numero_serie": null,
+          "cantidad_enviada": 6, "cantidad_recibida": 4, "cantidad_pendiente": 2 }
+      ],
+      "recepciones": [ { "id": "01a1…", "folio": "CON-REC-000003", "creado_en": "…", "recibio": { "id": "01a1…", "nombre": "Almacenista Contratistas" } } ]
+    }
+  ]
+}
+```
 
 Respuesta de `evaluar`:
 

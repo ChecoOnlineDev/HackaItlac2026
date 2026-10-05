@@ -16,8 +16,6 @@ from tests.movimientos.ayudas import crear_trabajador
 
 PENDIENTES = [
     TipoVale.DEVOLUCION,
-    TipoVale.TRASPASO,
-    TipoVale.RECEPCION,
     TipoVale.NO_ADEUDO,
     TipoVale.CANCELACION,
 ]
@@ -55,7 +53,6 @@ def test_los_endpoints_de_traspasos_no_adeudo_y_cancelacion_existen(
 ):
     rh = cliente_como("Recursos Humanos")
     t = crear_trabajador(session)
-    assert almacenista.get("/api/traspasos/por-recibir").status_code == 501
     assert rh.get("/api/traspasos/por-recibir").status_code == 403
     r = almacenista.post(
         f"/api/trabajadores/{t.id}/no-adeudo", json={"id_cliente": str(uuid.uuid4())}

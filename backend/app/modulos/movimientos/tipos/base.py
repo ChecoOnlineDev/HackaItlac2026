@@ -112,8 +112,15 @@ class ManejadorTipo(ABC):
 
     # ------------------------------------------- operaciones propias de otros endpoints
 
-    def por_recibir(self, servicio: MovimientoService, usuario: Usuario) -> Any:
-        """`GET /api/traspasos/por-recibir` (permiso `traspasos.operar`). Solo RECEPCION."""
+    def por_recibir(
+        self,
+        servicio: MovimientoService,
+        usuario: Usuario,
+        solo_contar: bool = False,
+        almacen_id: uuid.UUID | None = None,
+    ) -> Any:
+        """`GET /api/traspasos/por-recibir` (permiso `traspasos.operar`). Solo RECEPCION.
+        `solo_contar` devuelve solo `{total}`; `almacen_id` lo usa quien tiene `almacenes.todos`."""
         raise TipoNoImplementado()
 
     def emitir_no_adeudo(
@@ -165,7 +172,7 @@ class TipoPendiente(ManejadorTipo):
     ) -> list[MovimientoNuevo]:
         raise self._pendiente()
 
-    def por_recibir(self, servicio: MovimientoService, usuario: Usuario) -> Any:
+    def por_recibir(self, servicio, usuario, solo_contar=False, almacen_id=None) -> Any:
         raise self._pendiente()
 
     def emitir_no_adeudo(self, servicio, usuario, trabajador_id, datos) -> Any:
