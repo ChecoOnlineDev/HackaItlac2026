@@ -16,13 +16,13 @@ interface PropiedadesEstadoVacio {
 /** Lista o pantalla sin contenido: mensaje y acción sugerida ("No hay traspasos por recibir"). */
 export function EstadoVacio({ titulo, descripcion, icono: Icono = InboxIcon, accion, className }: PropiedadesEstadoVacio) {
   return (
-    <Empty className={cn("border py-10", className)}>
+    <Empty className={cn("rounded-2xl border bg-card py-8", className)}>
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <Icono aria-hidden="true" />
         </EmptyMedia>
-        <EmptyTitle className="text-lg font-semibold text-marino">{titulo}</EmptyTitle>
-        {descripcion ? <EmptyDescription className="text-base">{descripcion}</EmptyDescription> : null}
+        <EmptyTitle className="text-base font-semibold text-marino">{titulo}</EmptyTitle>
+        {descripcion ? <EmptyDescription className="text-sm">{descripcion}</EmptyDescription> : null}
       </EmptyHeader>
       {accion ? <EmptyContent>{accion}</EmptyContent> : null}
     </Empty>

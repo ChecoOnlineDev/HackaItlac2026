@@ -85,7 +85,7 @@ export function SelectorBusqueda({ tipo, valor, alCambiar }: Propiedades) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label id={idEtiqueta} className="text-base font-medium text-foreground">
+      <Label id={idEtiqueta} className="text-sm font-medium text-foreground">
         {textos.etiqueta}
       </Label>
       <Boton
@@ -93,7 +93,7 @@ export function SelectorBusqueda({ tipo, valor, alCambiar }: Propiedades) {
         aria-labelledby={`${idEtiqueta} ${idEtiqueta}-valor`}
         aria-haspopup="dialog"
         title={valor ? (etiquetaElegida ?? textos.etiqueta) : textos.todos}
-        className={cn("h-12 w-full justify-between rounded-lg px-3 text-base font-normal")}
+        className={cn("h-11 w-full justify-between rounded-xl px-3 text-base font-normal")}
         onClick={() => setAbierta(true)}
       >
         <span id={`${idEtiqueta}-valor`} className="truncate">{valor ? (etiquetaElegida ?? "Elegido") : textos.todos}</span>
@@ -129,22 +129,22 @@ export function SelectorBusqueda({ tipo, valor, alCambiar }: Propiedades) {
             onChange={(e) => setTexto(e.target.value)}
           />
           {!buscable && texto.trim().length < 2 ? (
-            <p className="flex items-center gap-2 text-muted-foreground">
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <SearchIcon aria-hidden="true" className="size-4" />
               Escribe al menos dos letras para buscar.
             </p>
           ) : !buscable ? (
-            <p className="text-muted-foreground" role="status">
+            <p className="text-sm text-muted-foreground" role="status">
               Buscando…
             </p>
           ) : consulta.error ? (
             <EstadoError error={consulta.error} alReintentar={consulta.recargar} />
           ) : consulta.cargando && !consulta.datos ? (
-            <p className="text-muted-foreground" role="status">
+            <p className="text-sm text-muted-foreground" role="status">
               Buscando…
             </p>
           ) : resultados.length === 0 ? (
-            <p className="text-muted-foreground" role="status">
+            <p className="text-sm text-muted-foreground" role="status">
               No se encontró nada con esa búsqueda.
             </p>
           ) : (
@@ -154,9 +154,9 @@ export function SelectorBusqueda({ tipo, valor, alCambiar }: Propiedades) {
                   <button
                     type="button"
                     onClick={() => elegir(r.id, r.titulo, r.detalle)}
-                    className="flex min-h-12 w-full flex-col items-start gap-0.5 rounded-xl border p-3 text-left hover:bg-muted"
+                    className="flex min-h-12 w-full flex-col items-start gap-0.5 rounded-xl border bg-card p-3 text-left shadow-xs hover:bg-muted"
                   >
-                    <span className="flex flex-wrap items-center gap-2 text-lg leading-tight font-semibold">
+                    <span className="flex flex-wrap items-center gap-2 text-base leading-tight font-semibold">
                       {r.titulo}
                       {r.nota ? <Insignia estado="neutra">{r.nota}</Insignia> : null}
                     </span>

@@ -245,7 +245,7 @@ export function CancelarVale({ vale, rehacer, alCerrar, alCancelar }: Propiedade
       >
         {fallo ? (
           <div role="alert" className="flex flex-col gap-3">
-            <p className="flex items-start gap-2 text-lg font-semibold">
+            <p className="flex items-start gap-2 text-base font-semibold">
               {fallo.tipo === "conexion" ? (
                 <WifiOffIcon aria-hidden="true" className="mt-1 size-5 shrink-0" />
               ) : (

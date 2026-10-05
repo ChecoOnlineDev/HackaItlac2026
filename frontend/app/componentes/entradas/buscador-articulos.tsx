@@ -58,7 +58,7 @@ export function BuscadorArticulos({ deshabilitado, alElegir }: Propiedades) {
                 }}
                 className="flex min-h-12 w-full flex-col items-start gap-0.5 rounded-xl border p-3 text-left hover:bg-muted disabled:opacity-50"
               >
-                <span className="flex flex-wrap items-center gap-2 text-lg leading-tight font-semibold">
+                <span className="flex flex-wrap items-center gap-2 text-base leading-tight font-semibold">
                   {a.nombre}
                   <Insignia estado="neutra">{a.control === "PIEZA" ? "Por pieza" : "Por cantidad"}</Insignia>
                   {!a.activo ? <Insignia estado="neutra">Inactivo</Insignia> : null}

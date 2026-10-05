@@ -25,7 +25,7 @@ interface PropiedadesLista {
   className?: string;
 }
 
-/** Lista desplegable de 48 px sobre el `Select` de shadcn: en el celular se abre como panel táctil. */
+/** Lista desplegable de 44 px sobre el `Select` de shadcn: en el celular se abre como panel táctil. */
 export function ListaDesplegable({
   id,
   valor,
@@ -45,7 +45,7 @@ export function ListaDesplegable({
   const sinGrupo = opciones.filter((o) => !o.grupo);
 
   const item = (o: OpcionLista) => (
-    <SelectItem key={o.valor} value={o.valor} className="min-h-11 text-base">
+    <SelectItem key={o.valor} value={o.valor} className="min-h-10 text-sm">
       {o.texto}
     </SelectItem>
   );
@@ -61,7 +61,7 @@ export function ListaDesplegable({
         id={id}
         aria-invalid={invalido ? true : undefined}
         aria-describedby={descritoPor}
-        className={cn("w-full min-w-0 rounded-lg px-3 text-base data-[size=default]:h-12", className)}
+        className={cn("w-full min-w-0 rounded-xl px-3 text-base data-[size=default]:h-11", className)}
       >
         <SelectValue placeholder={marcador ?? vacio ?? "Elige una opción"} />
       </SelectTrigger>

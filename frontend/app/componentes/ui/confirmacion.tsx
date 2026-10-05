@@ -39,8 +39,8 @@ export function Confirmacion({
     <AlertDialog open={abierta} onOpenChange={alCambiar}>
       <AlertDialogContent className="data-[size=default]:max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-xl font-bold text-marino">{mensaje}</AlertDialogTitle>
-          {detalle ? <AlertDialogDescription className="text-base">{detalle}</AlertDialogDescription> : null}
+          <AlertDialogTitle className="text-lg font-semibold text-marino">{mensaje}</AlertDialogTitle>
+          {detalle ? <AlertDialogDescription className="text-sm">{detalle}</AlertDialogDescription> : null}
         </AlertDialogHeader>
         <AlertDialogFooter className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <AlertDialogCancel render={<Boton variante="contorno" />} disabled={cargando}>

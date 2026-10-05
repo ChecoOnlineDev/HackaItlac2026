@@ -82,7 +82,7 @@ export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, a
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3" aria-labelledby={`${idTexto}-t`}>
-        <h2 id={`${idTexto}-t`} className="text-xl font-bold">
+        <h2 id={`${idTexto}-t`} className="text-lg font-semibold">
           Pega la tabla copiada de Excel
         </h2>
         <p className="text-base text-muted-foreground">
@@ -127,12 +127,12 @@ export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, a
                 La primera fila trae los encabezados
               </label>
               <div className="overflow-x-auto [contain:inline-size] rounded-xl border">
-                <Table className="w-full text-left text-base">
+                <Table>
                   <TableCaption className="sr-only">Primeras filas de lo pegado</TableCaption>
-                  <TableHeader className="bg-muted">
+                  <TableHeader>
                     <TableRow>
                       {Array.from({ length: columnas }, (_, i) => (
-                        <TableHead key={i} scope="col" className="px-3 py-2 font-semibold whitespace-nowrap">
+                        <TableHead key={i} scope="col">
                           {nombreDeColumna(conEncabezados ? filas[0] : null, i)}
                         </TableHead>
                       ))}
@@ -140,9 +140,9 @@ export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, a
                   </TableHeader>
                   <TableBody>
                     {filas.slice(conEncabezados ? 1 : 0, (conEncabezados ? 1 : 0) + 3).map((f, i) => (
-                      <TableRow key={i} className="border-t">
+                      <TableRow key={i}>
                         {f.map((c, j) => (
-                          <TableCell key={j} className="max-w-56 truncate px-3 py-2">
+                          <TableCell key={j} className="max-w-56 truncate">
                             {c}
                           </TableCell>
                         ))}
@@ -163,7 +163,7 @@ export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, a
       </div>
 
       <section className="flex flex-col gap-3" aria-labelledby={`${idArchivo}-t`}>
-        <h2 id={`${idArchivo}-t`} className="text-xl font-bold">
+        <h2 id={`${idArchivo}-t`} className="text-lg font-semibold">
           Sube un archivo de Excel
         </h2>
         <p className="text-base text-muted-foreground">Un archivo .xlsx de hasta 5 MB. Se lee la primera hoja; la primera fila con datos son los encabezados.</p>

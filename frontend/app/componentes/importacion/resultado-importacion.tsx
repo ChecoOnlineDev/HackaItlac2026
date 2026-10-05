@@ -15,7 +15,7 @@ function Dato({ etiqueta, valor }: { etiqueta: string; valor: number }) {
   return (
     <div className="flex flex-col gap-0.5 rounded-xl border p-3">
       <dt className="text-base text-muted-foreground">{etiqueta}</dt>
-      <dd className="text-2xl font-bold tabular-nums">{valor.toLocaleString("es-MX")}</dd>
+      <dd className="text-xl font-semibold tabular-nums">{valor.toLocaleString("es-MX")}</dd>
     </div>
   );
 }
@@ -26,7 +26,7 @@ export function ResultadoImportacion({ resultado, filasError, alDescargarErrores
   return (
     <div className="flex flex-col gap-6">
       <section aria-label="Importación guardada" className="flex flex-col gap-3 rounded-xl border-2 border-semaforo-verde p-5">
-        <p role="status" className="flex items-center gap-2 text-xl font-bold">
+        <p role="status" className="flex items-center gap-2 text-lg font-semibold">
           <CircleCheckIcon aria-hidden="true" className="size-7 text-semaforo-verde" strokeWidth={3} />
           {resultado.repetida ? "Esta importación ya estaba guardada" : "Importación guardada"}
         </p>
@@ -61,7 +61,7 @@ export function ResultadoImportacion({ resultado, filasError, alDescargarErrores
       ) : null}
 
       <section aria-labelledby="vales-titulo" className="flex flex-col gap-3">
-        <h2 id="vales-titulo" className="text-xl font-bold">
+        <h2 id="vales-titulo" className="text-lg font-semibold">
           Vales de entrada
         </h2>
         <ul className="flex flex-col gap-2">
@@ -71,7 +71,7 @@ export function ResultadoImportacion({ resultado, filasError, alDescargarErrores
                 to={`/vales/${v.id}`}
                 className="flex min-h-14 flex-col justify-center rounded-xl border bg-card p-3 transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
-                <span className="text-lg font-bold tracking-wide text-marino">{v.folio}</span>
+                <span className="text-base font-semibold tracking-wide text-marino">{v.folio}</span>
                 <span className="text-base text-muted-foreground">
                   {v.almacen.nombre} · {v.renglones} {v.renglones === 1 ? "renglón" : "renglones"} · {v.piezas} {v.piezas === 1 ? "pieza" : "piezas"} · {v.unidades} {v.unidades === 1 ? "unidad" : "unidades"}
                 </span>
@@ -84,7 +84,7 @@ export function ResultadoImportacion({ resultado, filasError, alDescargarErrores
 
       {resultado.articulos_creados.length > 0 ? (
         <details className="rounded-xl border p-3">
-          <summary className="flex min-h-12 cursor-pointer items-center text-lg font-bold">Artículos nuevos creados ({resultado.articulos_creados.length})</summary>
+          <summary className="flex min-h-12 cursor-pointer items-center text-base font-semibold">Artículos nuevos creados ({resultado.articulos_creados.length})</summary>
           <ul className="mt-2 flex flex-col divide-y">
             {resultado.articulos_creados.map((a) => (
               <li key={a.id} className="flex flex-col py-2 text-base">
@@ -102,7 +102,7 @@ export function ResultadoImportacion({ resultado, filasError, alDescargarErrores
 
       {filasError.length > 0 ? (
         <section aria-labelledby="sin-entrar-titulo" className="flex flex-col gap-2 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/5 p-4">
-          <h2 id="sin-entrar-titulo" className="text-xl font-bold">
+          <h2 id="sin-entrar-titulo" className="text-lg font-semibold">
             {filasError.length} {filasError.length === 1 ? "fila no entró" : "filas no entraron"}
           </h2>
           <p className="text-base">Descárgalas, corrígelas en Excel y vuelve a importarlas.</p>

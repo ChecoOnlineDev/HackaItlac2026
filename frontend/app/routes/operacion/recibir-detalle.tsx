@@ -210,7 +210,7 @@ function OtroAlmacen({ id, vale, operaTodos, almacenSesionId, volver }: { id: st
       ) : (
         <>
           {vale?.destino_almacen ? (
-            <p className="flex flex-wrap items-center gap-2 text-lg font-semibold">
+            <p className="flex flex-wrap items-center gap-2 text-base font-semibold">
               {vale.almacen.nombre}
               <ArrowRightIcon aria-label="hacia" className="size-5" />
               {vale.destino_almacen.nombre}
@@ -471,10 +471,10 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
 
       <section aria-label="Datos del traspaso" className="flex flex-col gap-1 rounded-xl border bg-card p-4">
         <p className="flex flex-wrap items-center gap-2">
-          <span className="text-xl font-bold tracking-wide text-marino">{traspaso.folio}</span>
+          <span className="text-lg font-semibold tracking-wide text-marino">{traspaso.folio}</span>
           {conDiferencias ? <Insignia estado="amarillo">Recibido en parte</Insignia> : <Insignia estado="info">En camino</Insignia>}
         </p>
-        <p className="flex flex-wrap items-center gap-1.5 text-lg font-semibold">
+        <p className="flex flex-wrap items-center gap-1.5 text-base font-semibold">
           {traspaso.origen.nombre}
           <ArrowRightIcon aria-label="hacia" className="size-5 shrink-0" />
           {traspaso.destino.nombre}
@@ -498,7 +498,7 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
 
       {errorAlmacen ? (
         <section role="alert" className="flex flex-col gap-3 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
-          <p className="flex items-start gap-2 text-lg font-bold">
+          <p className="flex items-start gap-2 text-base font-semibold">
             <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-semaforo-amarillo" />
             Te cambiaron de almacén. {errorAlmacen.message}
           </p>
@@ -531,7 +531,7 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
 
       {errorEnvio && errorEnvio.tipo !== "almacen" ? (
         <section role="alert" className="flex flex-col gap-1 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-4">
-          <p className="flex items-start gap-2 text-base font-bold">
+          <p className="flex items-start gap-2 text-base font-semibold">
             {errorEnvio.tipo === "conexion" ? <WifiOffIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" /> : <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />}
             {errorEnvio.mensaje}
           </p>
@@ -573,13 +573,13 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
 
           {hayExtras ? (
             <section aria-label="Códigos que no son de este traspaso" className="flex flex-col gap-2">
-              <h2 className="text-lg font-semibold">Códigos que no son de este traspaso</h2>
+              <h2 className="text-base font-semibold">Códigos que no son de este traspaso</h2>
               <ul className="flex flex-col gap-3">
                 {borrador.extras.map((codigo) => {
                   const r = evaluadoDe(codigo);
                   return (
                     <li key={codigo} className="flex flex-col gap-2 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/5 p-3">
-                      <p className="text-lg font-semibold">{r?.articulo?.nombre ?? codigo}</p>
+                      <p className="text-base font-semibold">{r?.articulo?.nombre ?? codigo}</p>
                       <p className="text-base text-muted-foreground">Código {codigo}</p>
                       {r ? (
                         <ul className="flex flex-col gap-1">
@@ -608,7 +608,7 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
 
           {totalMarcado > 0 && faltantes.length > 0 ? (
             <section role="status" aria-label="Diferencias" className="flex flex-col gap-2 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
-              <p className="flex items-start gap-2 text-base font-bold">
+              <p className="flex items-start gap-2 text-base font-semibold">
                 <TriangleAlertIcon aria-hidden="true" strokeWidth={3} className="mt-1 size-4 shrink-0 text-semaforo-amarillo" />
                 <span>
                   Hay diferencias: faltan {textoRenglones(faltantes.length)} ({unidadesQueFaltan} {unidadesQueFaltan === 1 ? "pieza o unidad" : "piezas o unidades"}).

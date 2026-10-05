@@ -81,7 +81,7 @@ export function CapturaPieza({ articulo, inicial, codigoLeido, alGuardar, alCanc
       className="flex flex-col gap-4 rounded-xl border-2 border-primary p-4"
     >
       <header className="flex flex-col">
-        <h2 id={`${id}-titulo`} className="text-lg font-bold text-marino">
+        <h2 id={`${id}-titulo`} className="text-base font-semibold text-marino">
           {editando ? "Corregir la pieza" : "Pieza que entra"}
         </h2>
         <p className="text-base">

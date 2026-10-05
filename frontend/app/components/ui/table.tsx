@@ -62,12 +62,18 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   )
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+function TableHead({ className, scope, ...props }: React.ComponentProps<"th">) {
+  // Con scope="row" es la celda que nombra la fila: se ve como dato, no como encabezado.
+  const esFila = scope === "row"
   return (
     <th
       data-slot="table-head"
+      scope={scope}
       className={cn(
-        "h-10 px-3 text-left align-middle text-xs font-semibold tracking-wide whitespace-nowrap text-muted-foreground uppercase [&:has([role=checkbox])]:pr-0",
+        esFila
+          ? "px-3 py-2.5 text-left align-middle text-sm font-semibold text-foreground"
+          : "h-10 px-3 text-left align-middle text-xs font-semibold tracking-wide whitespace-nowrap text-muted-foreground uppercase",
+        "[&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}

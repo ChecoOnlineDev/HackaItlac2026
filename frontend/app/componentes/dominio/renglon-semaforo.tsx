@@ -150,7 +150,7 @@ export function RenglonSemaforo({
             <Icono className="size-5" strokeWidth={3} />
           </span>
           <div className="flex min-w-0 flex-1 flex-col">
-            <p className="text-lg leading-tight font-semibold wrap-break-word">{nombre}</p>
+            <p className="text-base leading-tight font-semibold wrap-break-word">{nombre}</p>
             {detalleNombre ? <p className="text-sm text-muted-foreground">{detalleNombre}</p> : null}
             <p className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{renglon.codigo}</span>
@@ -161,7 +161,7 @@ export function RenglonSemaforo({
           </div>
         </div>
 
-        <p className="flex flex-wrap items-center gap-2 text-sm font-bold">
+        <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
           <span className={cn(nivel === "ROJO" && "text-semaforo-rojo")}>{textoNivel}</span>
           {autorizado ? <Insignia estado="verde">Autorizado</Insignia> : null}
           {enEspera ? <Insignia estado="neutra">Esperando al supervisor</Insignia> : null}
@@ -204,7 +204,7 @@ export function RenglonSemaforo({
                 aria-label={`Cantidad ${cantidad}. Toca para teclearla`}
                 disabled={deshabilitado}
                 onClick={() => setTeclado(true)}
-                className="h-12 min-w-14 rounded-lg border border-input bg-background px-3 text-xl font-bold tabular-nums hover:bg-muted disabled:opacity-50"
+                className="h-12 min-w-14 rounded-lg border border-input bg-background px-3 text-lg font-semibold tabular-nums hover:bg-muted disabled:opacity-50"
               >
                 {cantidad}
               </button>
@@ -220,7 +220,7 @@ export function RenglonSemaforo({
             </div>
           ) : (
             <p className="text-base">
-              Cantidad: <span className="text-xl font-bold tabular-nums">{cantidad}</span>
+              Cantidad: <span className="text-lg font-semibold tabular-nums">{cantidad}</span>
             </p>
           )}
 

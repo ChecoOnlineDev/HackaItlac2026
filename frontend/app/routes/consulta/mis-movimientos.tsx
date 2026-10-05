@@ -83,7 +83,7 @@ export default function MisMovimientos() {
               >
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <p className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="text-xl font-bold text-marino">{v.folio}</span>
+                    <span className="text-lg font-semibold text-marino">{v.folio}</span>
                     <span className="text-base text-muted-foreground">
                       {TEXTO_TIPO[v.tipo]} · {horaDe(v.creado_en)}
                     </span>

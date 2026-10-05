@@ -19,10 +19,10 @@ export function EstadoError({ error, mensaje, alReintentar, className }: Propied
   return (
     <div
       role="alert"
-      className={cn("flex flex-col items-center gap-4 rounded-xl border p-8 text-center", className)}
+      className={cn("flex flex-col items-center gap-3 rounded-2xl border bg-card p-6 text-center", className)}
     >
-      <TriangleAlertIcon aria-hidden="true" className="size-8 text-marino" />
-      <p className="max-w-sm text-lg font-semibold text-marino">{texto}</p>
+      <TriangleAlertIcon aria-hidden="true" className="size-7 text-marino" />
+      <p className="max-w-sm text-base font-semibold text-marino">{texto}</p>
       {alReintentar ? (
         <Boton variante="secundario" onClick={alReintentar}>
           <RefreshCwIcon aria-hidden="true" />

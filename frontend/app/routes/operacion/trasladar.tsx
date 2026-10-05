@@ -392,7 +392,7 @@ export default function Trasladar() {
       ) : null}
       {almacenCambio ? (
         <section role="alert" className="flex flex-col gap-3 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
-          <p className="flex items-start gap-2 text-lg font-bold">
+          <p className="flex items-start gap-2 text-base font-semibold">
             <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-semaforo-amarillo" />
             <span>
               Te cambiaron de almacén. <span className="font-semibold">{almacenCambio.mensaje}</span>
@@ -454,7 +454,7 @@ export default function Trasladar() {
 
             {errorEnvio ? (
               <section role="alert" className="flex flex-col gap-1 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-4">
-                <p className="flex items-start gap-2 text-base font-bold">
+                <p className="flex items-start gap-2 text-base font-semibold">
                   {errorEnvio.tipo === "conexion" ? (
                     <WifiOffIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
                   ) : (

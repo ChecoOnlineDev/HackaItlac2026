@@ -6,7 +6,7 @@ export function Seccion({ titulo, children, accion }: { titulo: string; children
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold text-marino">{titulo}</h2>
+        <h2 className="text-base font-semibold text-marino">{titulo}</h2>
         {accion}
       </div>
       {children}

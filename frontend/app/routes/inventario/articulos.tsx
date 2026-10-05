@@ -20,7 +20,8 @@ import {
 import { useConsulta, useRetraso } from "~/componentes/catalogo/usar-consulta";
 import { Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
 import { Boton } from "~/componentes/ui/boton";
-import { Campo } from "~/componentes/ui/campo";
+import { CampoBusqueda } from "~/componentes/ui/campo-busqueda";
+import { HojaFiltros } from "~/componentes/ui/hoja-filtros";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { EstadoVacio } from "~/componentes/ui/estado-vacio";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
@@ -142,40 +143,39 @@ export default function Articulos() {
     contenido = (
       <div className={cn("flex flex-col gap-4 transition-opacity", lista.cargando && "opacity-60")} aria-busy={lista.cargando}>
         {/* Computadora: tabla */}
-        <div className="hidden overflow-hidden rounded-xl border lg:block">
-          <Table className="w-full text-left">
-            <TableHeader className="bg-muted text-sm">
+        <div className="hidden lg:block">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableHead scope="col" className="p-3 font-semibold">Artículo</TableHead>
-                <TableHead scope="col" className="p-3 font-semibold">Código</TableHead>
-                <TableHead scope="col" className="p-3 font-semibold">Categoría</TableHead>
-                <TableHead scope="col" className="p-3 font-semibold">Control</TableHead>
-                {puedeCostos ? <TableHead scope="col" className="p-3 text-right font-semibold">Costo</TableHead> : null}
-                <TableHead scope="col" className="p-3 font-semibold">Estado</TableHead>
+                <TableHead scope="col">Artículo</TableHead>
+                <TableHead scope="col">Código</TableHead>
+                <TableHead scope="col">Categoría</TableHead>
+                <TableHead scope="col">Control</TableHead>
+                {puedeCostos ? <TableHead scope="col" className="text-right">Costo</TableHead> : null}
+                <TableHead scope="col">Estado</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {articulos.map((a) => (
-                <TableRow key={a.id} className={cn("border-t", !a.activo && "bg-muted/40 text-muted-foreground")}>
-                  <TableHead scope="row" className="p-3 font-semibold">
+                <TableRow key={a.id} className={cn(!a.activo && "bg-muted/40 text-muted-foreground")}>
+                  <TableCell className="whitespace-normal">
                     <button
                       type="button"
                       onClick={() => cambiarFiltro({ articulo: a.id })}
-                      className="min-h-12 text-left underline-offset-4 hover:underline"
+                      className="min-h-10 text-left font-semibold text-foreground underline-offset-4 hover:underline"
                     >
                       {a.nombre}
-                      {a.marca ? <span className="block text-sm font-normal text-muted-foreground">{a.marca}</span> : null}
+                      {a.marca ? <span className="block text-xs font-normal text-muted-foreground">{a.marca}</span> : null}
                     </button>
-                  </TableHead>
-                  <TableCell className="p-3">{a.codigo}</TableCell>
-                  <TableCell className="p-3">{a.categoria_nombre}</TableCell>
-                  <TableCell className="p-3">
-                    {TEXTO_CONTROL[a.control]}
-                    <br />
-                    <span className="text-sm">{textoRetorno(a.retornable)}</span>
                   </TableCell>
-                  {puedeCostos ? <TableCell className="p-3 text-right">{textoCosto(a.costo_unitario)}</TableCell> : null}
-                  <TableCell className="p-3">
+                  <TableCell>{a.codigo}</TableCell>
+                  <TableCell>{a.categoria_nombre}</TableCell>
+                  <TableCell>
+                    {TEXTO_CONTROL[a.control]}
+                    <span className="block text-xs text-muted-foreground">{textoRetorno(a.retornable)}</span>
+                  </TableCell>
+                  {puedeCostos ? <TableCell className="text-right">{textoCosto(a.costo_unitario)}</TableCell> : null}
+                  <TableCell>
                     <Insignia estado="neutra">{a.activo ? "Activo" : "Inactivo"}</Insignia>
                   </TableCell>
                 </TableRow>
@@ -185,25 +185,25 @@ export default function Articulos() {
         </div>
 
         {/* Celular y tableta: tarjetas */}
-        <ul className="flex flex-col gap-3 lg:hidden">
+        <ul className="grid gap-3 sm:grid-cols-2 lg:hidden">
           {articulos.map((a) => (
             <li key={a.id}>
               <button
                 type="button"
                 onClick={() => cambiarFiltro({ articulo: a.id })}
                 className={cn(
-                  "flex min-h-12 w-full flex-col gap-2 rounded-xl border p-4 text-left",
+                  "flex h-full min-h-12 w-full flex-col gap-1.5 rounded-2xl border bg-card p-4 text-left shadow-xs transition-colors hover:bg-muted/40",
                   !a.activo && "bg-muted/40 text-muted-foreground",
                 )}
               >
                 <span className="flex flex-wrap items-start justify-between gap-2">
-                  <span className="text-lg font-bold text-foreground">{a.nombre}</span>
+                  <span className="text-base font-semibold text-foreground">{a.nombre}</span>
                   {!a.activo ? <Insignia estado="neutra">Inactivo</Insignia> : null}
                 </span>
-                <span>
+                <span className="text-sm">
                   {a.codigo} · {a.categoria_nombre}
                 </span>
-                <span>
+                <span className="text-xs text-muted-foreground">
                   {TEXTO_CONTROL[a.control]} · {textoRetorno(a.retornable)}
                   {puedeCostos ? ` · ${textoCosto(a.costo_unitario)}` : ""}
                 </span>
@@ -219,36 +219,46 @@ export default function Articulos() {
   return (
     <Pantalla
       titulo="Artículos"
-      descripcion="Catálogo de herramientas y equipo de protección. Toca un artículo para ver sus reglas y existencias."
+      descripcion="Toca un artículo para ver sus reglas y existencias."
       acciones={botonNuevo}
     >
-      <div className="grid gap-3 md:grid-cols-[2fr_1fr_1fr]">
-        <Campo
-          etiqueta="Buscar"
-          type="search"
-          placeholder="Nombre, marca o código"
+      <div className="flex items-center gap-2">
+        <CampoBusqueda
+          etiqueta="Buscar artículo"
+          placeholder="Buscar artículo"
           value={texto}
-          onChange={(e) => {
-            setTexto(e.target.value);
-            setPagina(1);
-          }}
-        />
-        <Seleccion
-          etiqueta="Categoría"
-          vacio="Todas las categorías"
-          opciones={todasCategorias.map((c) => ({ valor: c.id, texto: c.nombre }))}
-          value={categoriaFiltro}
-          alCambiar={(v) => cambiarFiltro({ categoria: v })}
-        />
-        <Seleccion
-          etiqueta="Estado"
-          opciones={OPCIONES_ESTADO}
-          value={estado}
           alCambiar={(v) => {
-            setEstado(v);
+            setTexto(v);
             setPagina(1);
           }}
         />
+        <HojaFiltros
+          valores={{ categoria: categoriaFiltro, estado }}
+          activos={(categoriaFiltro ? 1 : 0) + (estado !== "activos" ? 1 : 0)}
+          alAplicar={(v) => {
+            setEstado(v.estado);
+            cambiarFiltro({ categoria: v.categoria });
+            setPagina(1);
+          }}
+          alLimpiar={() => {
+            setEstado("activos");
+            cambiarFiltro({ categoria: "" });
+            setPagina(1);
+          }}
+        >
+          {(b, cambiar) => (
+            <>
+              <Seleccion
+                etiqueta="Categoría"
+                vacio="Todas las categorías"
+                opciones={todasCategorias.map((c) => ({ valor: c.id, texto: c.nombre }))}
+                value={b.categoria}
+                alCambiar={(v) => cambiar({ categoria: v })}
+              />
+              <Seleccion etiqueta="Estado" opciones={OPCIONES_ESTADO} value={b.estado} alCambiar={(v) => cambiar({ estado: v })} />
+            </>
+          )}
+        </HojaFiltros>
       </div>
       {contenido}
       <HojaArticulo

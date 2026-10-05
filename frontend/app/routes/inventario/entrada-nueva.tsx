@@ -349,7 +349,7 @@ export default function EntradaNueva() {
 
         <section aria-labelledby="renglones-entrada" className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 id="renglones-entrada" className="text-lg font-bold text-marino">
+            <h2 id="renglones-entrada" className="text-base font-semibold text-marino">
               Lo que entra
               {borrador.renglones.length > 0 ? <span className="font-normal text-muted-foreground"> ({borrador.renglones.length})</span> : null}
             </h2>
@@ -398,7 +398,7 @@ export default function EntradaNueva() {
                       />
                     ) : (
                       <div className="flex flex-col gap-1 rounded-xl border p-3">
-                        <p className="text-lg leading-tight font-semibold">{r.nombre}</p>
+                        <p className="text-base leading-tight font-semibold">{r.nombre}</p>
                         <p className="text-sm text-muted-foreground">
                           {r.pieza ? `Pieza ${r.pieza.codigo}` : r.codigo} · Cantidad {r.cantidad}
                         </p>

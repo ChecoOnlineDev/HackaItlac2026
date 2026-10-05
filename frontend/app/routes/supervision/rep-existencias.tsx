@@ -52,24 +52,24 @@ export default function ReporteExistencias() {
     activos.push({ clave: "categoria_id", texto: `Categoría: ${textoDeOpcion(categorias.opciones, valores.categoria_id) ?? "elegida"}` });
   }
 
-  const filtros = (
+  const filtros = (v: Record<string, string>, c: (parcial: Record<string, string | null>) => void) => (
     <>
       {alcance.todos && almacenes.disponible ? (
         <FiltroLista
           etiqueta="Almacén"
           vacio="Todos los almacenes"
-          valor={valores.almacen_id}
+          valor={v.almacen_id}
           opciones={almacenes.opciones}
-          alCambiar={(v) => cambiar({ almacen_id: v })}
+          alCambiar={(v) => c({ almacen_id: v })}
         />
       ) : null}
       {categorias.disponible ? (
         <FiltroLista
           etiqueta="Categoría"
           vacio="Todas las categorías"
-          valor={valores.categoria_id}
+          valor={v.categoria_id}
           opciones={categorias.opciones}
-          alCambiar={(v) => cambiar({ categoria_id: v })}
+          alCambiar={(v) => c({ categoria_id: v })}
         />
       ) : null}
       {!(alcance.todos && almacenes.disponible) && !categorias.disponible ? (
@@ -82,6 +82,8 @@ export default function ReporteExistencias() {
     <Pantalla titulo="Reporte de existencias" descripcion="Cuánto hay de cada artículo en cada almacén.">
       <MarcoReporte<ExistenciaReporte>
         unidad="existencias"
+        valores={valores}
+        alAplicar={(v) => cambiar(v)}
         filtros={filtros}
         activos={activos}
         alQuitar={(clave) => cambiar({ [clave]: null } as Record<(typeof CLAVES)[number], null>)}
@@ -97,43 +99,41 @@ export default function ReporteExistencias() {
           </>
         }
         tabla={(elementos) => (
-          <div className="overflow-x-auto rounded-xl border">
-            <Table className="w-full text-left">
+          <Table>
               <TableCaption className="sr-only">Existencias por almacén</TableCaption>
-              <TableHeader className="bg-muted text-sm">
+              <TableHeader>
                 <TableRow>
-                  <TableHead scope="col" className="p-3 font-semibold">Almacén</TableHead>
-                  <TableHead scope="col" className="p-3 font-semibold">Artículo</TableHead>
-                  <TableHead scope="col" className="p-3 font-semibold">Categoría</TableHead>
-                  <TableHead scope="col" className="p-3 text-right font-semibold">Existencia</TableHead>
-                  <TableHead scope="col" className="p-3 text-right font-semibold">Disponible</TableHead>
+                  <TableHead scope="col">Almacén</TableHead>
+                  <TableHead scope="col">Artículo</TableHead>
+                  <TableHead scope="col">Categoría</TableHead>
+                  <TableHead scope="col" className="text-right">Existencia</TableHead>
+                  <TableHead scope="col" className="text-right">Disponible</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {elementos.map((e) => (
-                  <TableRow key={`${e.almacen_id}-${e.articulo_id}`} className="border-t align-top">
-                    <TableCell className="p-3">{e.almacen}</TableCell>
-                    <TableHead scope="row" className="p-3 font-semibold">
+                  <TableRow key={`${e.almacen_id}-${e.articulo_id}`} className="align-top">
+                    <TableCell>{e.almacen}</TableCell>
+                    <TableHead scope="row">
                       {e.articulo}
                       {!e.activo ? <Insignia estado="neutra" className="ml-2">Inactivo</Insignia> : null}
                       <span className="block text-sm font-normal text-muted-foreground">{e.codigo}</span>
                     </TableHead>
-                    <TableCell className="p-3">{e.categoria}</TableCell>
-                    <TableCell className="p-3 text-right">
+                    <TableCell>{e.categoria}</TableCell>
+                    <TableCell className="text-right">
                       <Cifras e={e} />
                     </TableCell>
-                    <TableCell className="p-3 text-right font-bold tabular-nums">{e.disponible}</TableCell>
+                    <TableCell className="text-right font-semibold">{e.disponible}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </div>
         )}
         tarjetas={(elementos) => (
           <ul className="flex flex-col gap-3">
             {elementos.map((e) => (
-              <li key={`${e.almacen_id}-${e.articulo_id}`} className="flex flex-col gap-1.5 rounded-xl border p-4">
-                <p className="flex flex-wrap items-center gap-2 text-lg leading-tight font-bold">
+              <li key={`${e.almacen_id}-${e.articulo_id}`} className="flex flex-col gap-1.5 rounded-2xl border bg-card p-4 shadow-xs">
+                <p className="flex flex-wrap items-center gap-2 text-base leading-tight font-semibold">
                   {e.articulo}
                   {!e.activo ? <Insignia estado="neutra">Inactivo</Insignia> : null}
                 </p>
@@ -144,13 +144,13 @@ export default function ReporteExistencias() {
                 <dl className="mt-1 grid grid-cols-2 gap-3">
                   <div>
                     <dt className="text-sm text-muted-foreground">Existencia</dt>
-                    <dd className="text-xl">
+                    <dd className="text-lg">
                       <Cifras e={e} />
                     </dd>
                   </div>
                   <div>
                     <dt className="text-sm text-muted-foreground">Disponible</dt>
-                    <dd className="text-xl font-bold tabular-nums">{e.disponible}</dd>
+                    <dd className="text-lg font-semibold tabular-nums">{e.disponible}</dd>
                   </div>
                 </dl>
               </li>

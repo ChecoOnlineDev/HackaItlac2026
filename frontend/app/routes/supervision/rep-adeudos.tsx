@@ -63,23 +63,23 @@ export default function ReporteAdeudos() {
   }
   if (soloNoVigentes) activos.push({ clave: "solo_no_vigentes", texto: "Solo trabajadores no vigentes" });
 
-  const filtros = (
+  const filtros = (v: Record<string, string>, c: (parcial: Record<string, string | null>) => void) => (
     <>
       {alcance.todos && almacenes.disponible ? (
         <FiltroLista
           etiqueta="Almacén"
           vacio="Todos los almacenes"
-          valor={valores.almacen_id}
+          valor={v.almacen_id}
           opciones={almacenes.opciones}
-          alCambiar={(v) => cambiar({ almacen_id: v })}
+          alCambiar={(v) => c({ almacen_id: v })}
         />
       ) : null}
       <div className="sm:col-span-2">
         <FilaInterruptor
           titulo="Solo trabajadores no vigentes"
           ayuda="Quienes ya no forman parte de la plantilla y siguen con equipo."
-          activo={soloNoVigentes}
-          alCambiar={(activo) => cambiar({ solo_no_vigentes: activo ? "1" : null })}
+          activo={v.solo_no_vigentes === "1"}
+          alCambiar={(activo) => c({ solo_no_vigentes: activo ? "1" : null })}
         />
       </div>
     </>
@@ -89,6 +89,8 @@ export default function ReporteAdeudos() {
     <Pantalla titulo="Reporte de adeudos" descripcion="Qué equipo tiene pendiente cada trabajador, desde cuándo y de qué almacén.">
       <MarcoReporte<AdeudoReporte>
         unidad="adeudos"
+        valores={valores}
+        alAplicar={(v) => cambiar(v)}
         filtros={filtros}
         activos={activos}
         alQuitar={(clave) => cambiar({ [clave]: null } as Record<(typeof CLAVES)[number], null>)}
@@ -99,49 +101,47 @@ export default function ReporteAdeudos() {
         alDescargar={() => descargarCsv("/reportes/adeudos", parametros, "adeudos.csv")}
         nota={<NotaAlcance almacen={alcance.almacen} />}
         tabla={(elementos) => (
-          <div className="overflow-x-auto rounded-xl border">
-            <Table className="w-full text-left">
+          <Table>
               <TableCaption className="sr-only">Equipo pendiente por trabajador</TableCaption>
-              <TableHeader className="bg-muted text-sm">
+              <TableHeader>
                 <TableRow>
-                  <TableHead scope="col" className="p-3 font-semibold">Trabajador</TableHead>
-                  <TableHead scope="col" className="p-3 font-semibold">Lo que tiene</TableHead>
-                  <TableHead scope="col" className="p-3 text-right font-semibold">Cantidad</TableHead>
-                  <TableHead scope="col" className="p-3 font-semibold">Desde</TableHead>
-                  <TableHead scope="col" className="p-3 font-semibold">Vale</TableHead>
-                  <TableHead scope="col" className="p-3 font-semibold">Almacén</TableHead>
+                  <TableHead scope="col">Trabajador</TableHead>
+                  <TableHead scope="col">Lo que tiene</TableHead>
+                  <TableHead scope="col" className="text-right">Cantidad</TableHead>
+                  <TableHead scope="col">Desde</TableHead>
+                  <TableHead scope="col">Vale</TableHead>
+                  <TableHead scope="col">Almacén</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {elementos.map((a, i) => (
-                  <TableRow key={`${a.trabajador_id}-${a.articulo_id}-${a.numero_serie ?? i}-${a.folio ?? ""}`} className="border-t align-top">
-                    <TableHead scope="row" className="p-3">
+                  <TableRow key={`${a.trabajador_id}-${a.articulo_id}-${a.numero_serie ?? i}-${a.folio ?? ""}`} className="align-top">
+                    <TableHead scope="row">
                       <Trabajador a={a} />
                     </TableHead>
-                    <TableCell className="p-3">
+                    <TableCell>
                       <Articulo a={a} />
                     </TableCell>
-                    <TableCell className="p-3 text-right font-bold tabular-nums">{a.cantidad}</TableCell>
-                    <TableCell className="p-3 whitespace-nowrap tabular-nums">{a.desde ? formatearFecha(comoUtc(a.desde)) : "—"}</TableCell>
-                    <TableCell className="p-3">{a.folio ?? "—"}</TableCell>
-                    <TableCell className="p-3">{a.almacen ?? "—"}</TableCell>
+                    <TableCell className="text-right font-semibold">{a.cantidad}</TableCell>
+                    <TableCell className="tabular-nums">{a.desde ? formatearFecha(comoUtc(a.desde)) : "—"}</TableCell>
+                    <TableCell>{a.folio ?? "—"}</TableCell>
+                    <TableCell>{a.almacen ?? "—"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </div>
         )}
         tarjetas={(elementos) => (
           <ul className="flex flex-col gap-3">
             {elementos.map((a, i) => (
-              <li key={`${a.trabajador_id}-${a.articulo_id}-${a.numero_serie ?? i}-${a.folio ?? ""}`} className="flex flex-col gap-2 rounded-xl border p-4">
-                <p className="text-lg leading-tight">
+              <li key={`${a.trabajador_id}-${a.articulo_id}-${a.numero_serie ?? i}-${a.folio ?? ""}`} className="flex flex-col gap-2 rounded-2xl border bg-card p-4 shadow-xs">
+                <p className="text-base leading-tight">
                   <Trabajador a={a} />
                 </p>
                 <p>
                   <Articulo a={a} />
                 </p>
-                <p className="text-lg">
+                <p className="text-sm">
                   Cantidad: <span className="font-bold tabular-nums">{a.cantidad}</span>
                 </p>
                 <p className="text-sm text-muted-foreground">

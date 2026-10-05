@@ -95,11 +95,11 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
         <Avatar nombre={solicitud.trabajador.nombre} tamano="md" />
         <div className="flex min-w-0 flex-1 flex-col">
           {puedeVerTrabajador ? (
-            <Link to={`/trabajadores/${solicitud.trabajador.id}`} className="text-xl leading-tight font-bold text-marino underline-offset-2 hover:underline">
+            <Link to={`/trabajadores/${solicitud.trabajador.id}`} className="text-lg leading-tight font-semibold text-marino underline-offset-2 hover:underline">
               {solicitud.trabajador.nombre}
             </Link>
           ) : (
-            <p className="text-xl leading-tight font-bold text-marino">{solicitud.trabajador.nombre}</p>
+            <p className="text-lg leading-tight font-semibold text-marino">{solicitud.trabajador.nombre}</p>
           )}
           <p className="text-sm text-muted-foreground">Número {solicitud.trabajador.numero_empleado}</p>
         </div>
@@ -118,14 +118,14 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
       <ul className="flex flex-col gap-2">
         {solicitud.renglones.map((r, i) => (
           <li key={`${r.codigo}-${i}`} className="flex flex-col gap-0.5 rounded-lg border bg-background p-3">
-            <p className="flex items-center gap-2 text-lg font-bold">
+            <p className="flex items-center gap-2 text-base font-semibold">
               <LockIcon aria-hidden="true" className="size-5 shrink-0 text-semaforo-naranja" />
               {r.articulo ?? r.codigo}
             </p>
             {r.limite !== null && r.tiene !== null ? (
               <p className="text-base">
                 Límite {r.limite}, tiene {r.tiene}, pide {r.cantidad}
-                {r.excedente ? <span className="font-bold"> · Se pasa por {r.excedente}</span> : null}
+                {r.excedente ? <span className="font-semibold"> · Se pasa por {r.excedente}</span> : null}
               </p>
             ) : (
               <p className="text-base">Pide {r.cantidad}.</p>

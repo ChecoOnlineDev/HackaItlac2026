@@ -278,7 +278,7 @@ export function HojaArticulo({ abierta, alCambiar, articulo, categorias, puedeCo
           </NotaBloqueo>
         ) : null}
 
-        <h3 className="mt-2 text-lg font-bold text-marino">Reglas de entrega</h3>
+        <h3 className="mt-2 text-base font-semibold text-marino">Reglas de entrega</h3>
         <FormularioReglas valor={reglas} alCambiar={setReglas} control={control} errores={errores} />
       </form>
     </Hoja>

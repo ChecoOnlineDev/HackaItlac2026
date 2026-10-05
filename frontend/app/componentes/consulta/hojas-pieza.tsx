@@ -149,7 +149,7 @@ export function HojaInspeccion({ pieza, abierta, alCambiar, alGuardar }: Propied
     >
       <div className="flex flex-col gap-5">
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-base font-bold text-marino">Revisa cada punto</legend>
+          <legend className="mb-1 text-base font-semibold text-marino">Revisa cada punto</legend>
           {PUNTOS_INSPECCION.map((p) => {
             const valor = puntos[p.clave];
             return (
@@ -179,7 +179,7 @@ export function HojaInspeccion({ pieza, abierta, alCambiar, alGuardar }: Propied
         </fieldset>
 
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-base font-bold text-marino">Resultado</legend>
+          <legend className="mb-1 text-base font-semibold text-marino">Resultado</legend>
           <div className="grid grid-cols-2 gap-2">
             <Boton
               variante={resultado === "APTO" ? "normal" : "contorno"}

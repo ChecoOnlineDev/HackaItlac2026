@@ -136,7 +136,7 @@ export function HojaCategoria({ abierta, alCambiar, categoria, alGuardar }: Prop
           alCambiar={(v) => setRetornable(v === "si")}
           error={errores.retornable}
         />
-        <h3 className="mt-2 text-lg font-bold text-marino">Reglas de entrega</h3>
+        <h3 className="mt-2 text-base font-semibold text-marino">Reglas de entrega</h3>
         <FormularioReglas valor={reglas} alCambiar={setReglas} control={control} errores={errores} />
       </form>
     </Hoja>

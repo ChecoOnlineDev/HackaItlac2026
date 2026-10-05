@@ -20,19 +20,19 @@ function BotonInicio({ elemento, contador, ultimoImpar, esFlujo }: { elemento: E
       // En el inicio del almacenista se precargan en segundo plano las pantallas de su flujo.
       prefetch={esFlujo ? "render" : "intent"}
       className={cn(
-        "relative flex min-h-32 flex-col items-center justify-center gap-3 rounded-xl p-4 text-center text-lg font-bold shadow-xs transition-colors select-none active:translate-y-px",
+        "relative flex min-h-28 flex-col items-center justify-center gap-2.5 rounded-2xl p-4 text-center text-base font-semibold shadow-xs transition-colors select-none active:translate-y-px",
         esFlujo
           ? "bg-primary text-primary-foreground hover:bg-primary/90"
           : "border border-border bg-accent text-marino hover:bg-accent/70",
         ultimoImpar && "col-span-2 lg:col-span-1",
       )}
     >
-      <elemento.icono aria-hidden="true" className="size-9" strokeWidth={2} />
+      <elemento.icono aria-hidden="true" className="size-8" strokeWidth={2} />
       <span>{elemento.titulo}</span>
       {contador ? (
         <span
           aria-label={`${contador} por atender`}
-          className="absolute top-2 right-2 inline-flex min-w-8 items-center justify-center rounded-full bg-white px-2 py-0.5 text-base font-bold text-marino tabular-nums ring-2 ring-marino/20"
+          className="absolute top-2 right-2 inline-flex min-w-8 items-center justify-center rounded-full bg-white px-2 py-0.5 text-sm font-bold text-marino tabular-nums ring-2 ring-marino/20"
         >
           {contador}
         </span>
@@ -75,24 +75,25 @@ export default function Inicio() {
 
   if (esEscritorio) {
     return (
-      <Pantalla titulo={`Hola, ${sesion.usuario.nombre}`} descripcion={`${nombreAlmacen}. Elige qué quieres hacer.`}>
+      <Pantalla titulo={`Hola, ${sesion.usuario.nombre}`} descripcion={`${nombreAlmacen}. ¿Qué quieres hacer?`}>
         {elementos.length ? cuadricula : <EstadoVacio titulo="Todavía no tienes pantallas asignadas" descripcion="Pídele a tu supervisor que revise los permisos de tu rol." />}
       </Pantalla>
     );
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <header className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-2xl leading-tight font-bold text-marino">{nombreAlmacen}</p>
-          <p className="text-muted-foreground">{sesion.usuario.nombre}</p>
+    <div className="flex flex-col gap-6">
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-muted-foreground">Hola, {sesion.usuario.nombre}</p>
+          <h1 className="text-balance">{nombreAlmacen}</h1>
         </div>
-        <div className="flex shrink-0 gap-1">
-          <Boton variante="texto" aria-label="Menú" onClick={() => setMenuAbierto(true)}>
+        <div className="flex shrink-0 gap-2">
+          <Boton variante="contorno" onClick={() => setMenuAbierto(true)}>
             <MenuIcon aria-hidden="true" />
+            Menú
           </Boton>
-          <Boton variante="texto" aria-label="Salir" onClick={() => setConfirmandoSalida(true)}>
+          <Boton variante="contorno" aria-label="Salir" onClick={() => setConfirmandoSalida(true)}>
             <LogOutIcon aria-hidden="true" />
           </Boton>
         </div>

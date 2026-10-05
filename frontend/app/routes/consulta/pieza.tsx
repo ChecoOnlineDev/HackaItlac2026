@@ -67,7 +67,7 @@ export default function FichaPiezaPantalla() {
 
       <Bloque titulo="Dónde está" icono={MapPinIcon}>
         {pieza.ubicacion ? (
-          <p className="text-lg font-semibold">
+          <p className="text-base font-semibold">
             {conTrabajador && pieza.ubicacion.trabajador_id && puede("trabajadores.ver") ? (
               <Link to={`/trabajadores/${pieza.ubicacion.trabajador_id}`} className="text-primary underline underline-offset-2">
                 {pieza.ubicacion.texto}

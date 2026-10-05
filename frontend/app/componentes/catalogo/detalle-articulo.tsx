@@ -41,7 +41,7 @@ function Seccion({ titulo, descripcion, children }: { titulo: string; descripcio
   return (
     <section className="flex flex-col gap-3">
       <div>
-        <h2 className="text-xl font-bold text-marino">{titulo}</h2>
+        <h2 className="text-lg font-semibold text-marino">{titulo}</h2>
         {descripcion ? <p className="text-muted-foreground">{descripcion}</p> : null}
       </div>
       {children}
@@ -165,7 +165,7 @@ export function DetalleArticulo({ articuloId, categorias, puedeEditar, puedeCost
         </Boton>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-1">
-            <h2 className="text-2xl font-bold text-marino">{articulo.nombre}</h2>
+            <h2 className="text-xl font-semibold text-marino">{articulo.nombre}</h2>
             <p className="text-muted-foreground">
               Código {articulo.codigo} · {articulo.categoria_nombre}
             </p>
@@ -264,33 +264,31 @@ export function DetalleArticulo({ articuloId, categorias, puedeEditar, puedeCost
         {articulo.existencias.length === 0 ? (
           <EstadoVacio titulo="Todavía no hay existencias" descripcion="Aparecen cuando se registra una entrada de este artículo." />
         ) : (
-          <div className="overflow-x-auto rounded-xl border">
-            <Table className="w-full text-left">
-              <TableHeader className="bg-muted text-sm">
+          <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableHead scope="col" className="p-3 font-semibold">Almacén</TableHead>
-                  <TableHead scope="col" className="p-3 text-right font-semibold">Existencia</TableHead>
-                  <TableHead scope="col" className="p-3 text-right font-semibold">Disponible</TableHead>
+                  <TableHead scope="col">Almacén</TableHead>
+                  <TableHead scope="col" className="text-right">Existencia</TableHead>
+                  <TableHead scope="col" className="text-right">Disponible</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {articulo.existencias.map((e) => (
-                  <TableRow key={e.almacen_id} className="border-t">
-                    <TableHead scope="row" className="p-3 font-medium">{e.nombre}</TableHead>
-                    <TableCell className="p-3 text-right">{e.cantidad}</TableCell>
-                    <TableCell className="p-3 text-right">{e.disponible}</TableCell>
+                  <TableRow key={e.almacen_id}>
+                    <TableHead scope="row">{e.nombre}</TableHead>
+                    <TableCell className="text-right">{e.cantidad}</TableCell>
+                    <TableCell className="text-right">{e.disponible}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
               <TableFooter>
                 <TableRow className="border-t bg-muted/50 font-semibold">
-                  <TableHead scope="row" className="p-3">Total</TableHead>
-                  <TableCell className="p-3 text-right">{total}</TableCell>
-                  <TableCell className="p-3 text-right">{articulo.existencias.reduce((s, e) => s + e.disponible, 0)}</TableCell>
+                  <TableHead scope="row">Total</TableHead>
+                  <TableCell className="text-right">{total}</TableCell>
+                  <TableCell className="text-right">{articulo.existencias.reduce((s, e) => s + e.disponible, 0)}</TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
-          </div>
         )}
       </Seccion>
 

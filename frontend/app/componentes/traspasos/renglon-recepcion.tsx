@@ -69,7 +69,7 @@ export function RenglonRecepcion({ renglon, marcado, alMarcar, nivel, motivos = 
                 </span>
               )}
               <span className="flex min-h-12 min-w-0 flex-1 flex-col justify-center">
-                <span className="text-lg leading-snug font-semibold">{renglon.articulo}</span>
+                <span className="text-base leading-snug font-semibold">{renglon.articulo}</span>
                 {detalleNombre ? <span className="text-base text-muted-foreground">{detalleNombre}</span> : null}
                 <span className="text-base text-muted-foreground">{identificador}</span>
               </span>
@@ -112,7 +112,7 @@ export function RenglonRecepcion({ renglon, marcado, alMarcar, nivel, motivos = 
             <Boton variante="contorno" className="size-12 p-0" aria-label="Una menos" disabled={deshabilitado || marcado <= 1} onClick={() => alMarcar(marcado - 1)}>
               <MinusIcon aria-hidden="true" />
             </Boton>
-            <span aria-live="polite" className="min-w-10 text-center text-xl font-bold tabular-nums">
+            <span aria-live="polite" className="min-w-10 text-center text-lg font-semibold tabular-nums">
               {marcado}
             </span>
             <Boton variante="contorno" className="size-12 p-0" aria-label="Una más" disabled={deshabilitado || marcado >= renglon.cantidad_pendiente} onClick={() => alMarcar(marcado + 1)}>

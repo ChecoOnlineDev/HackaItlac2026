@@ -63,7 +63,7 @@ export function ResultadoEntrada({ vale, almacen, alNuevaEntrada }: Propiedades)
   return (
     <div className="flex flex-col gap-6">
       <section aria-labelledby="entrada-lista" className="flex flex-col items-center gap-4 rounded-xl border-2 border-semaforo-verde p-6 print:hidden">
-        <h2 id="entrada-lista" className="flex items-center gap-2 text-xl font-bold text-marino">
+        <h2 id="entrada-lista" className="flex items-center gap-2 text-lg font-semibold text-marino">
           <CircleCheckIcon aria-hidden="true" className="size-7 text-semaforo-verde" strokeWidth={3} />
           Entrada registrada
         </h2>

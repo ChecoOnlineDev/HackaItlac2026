@@ -3,8 +3,8 @@ import { useState } from "react";
 
 const TAMANOS = {
   sm: "size-8 text-xs",
-  md: "size-12 text-base",
-  lg: "size-20 text-2xl",
+  md: "size-10 text-sm",
+  lg: "size-16 text-xl",
 } as const;
 
 interface PropiedadesAvatar {

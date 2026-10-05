@@ -20,7 +20,7 @@ export function TarjetaTraspaso({ traspaso, mostrarDestino }: { traspaso: Traspa
       >
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="text-xl font-bold tracking-wide text-marino">{traspaso.folio}</span>
+            <span className="text-lg font-semibold tracking-wide text-marino">{traspaso.folio}</span>
             {conDiferencias ? <Insignia estado="amarillo">Recibido en parte</Insignia> : <Insignia estado="info">En camino</Insignia>}
           </span>
           <span className="flex flex-wrap items-center gap-1.5 text-base font-semibold">

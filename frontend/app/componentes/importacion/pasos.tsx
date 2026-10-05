@@ -28,14 +28,14 @@ export function PasosImportacion({ actual }: { actual: 1 | 2 | 3 | 4 }) {
               <span
                 aria-hidden="true"
                 className={cn(
-                  "flex size-7 shrink-0 items-center justify-center rounded-full border text-sm font-bold",
+                  "flex size-7 shrink-0 items-center justify-center rounded-full border text-sm font-semibold",
                   esActual && "border-primary bg-primary text-primary-foreground",
                   hecho && "border-semaforo-verde bg-semaforo-verde text-white",
                 )}
               >
                 {hecho ? <CheckIcon className="size-4" strokeWidth={3} /> : numero}
               </span>
-              <span className={cn("text-sm leading-tight sm:text-base", esActual ? "font-bold text-marino" : "font-medium")}>
+              <span className={cn("text-sm leading-tight sm:text-base", esActual ? "font-semibold text-marino" : "font-medium")}>
                 <span className="sr-only">
                   Paso {numero}
                   {hecho ? " (hecho): " : esActual ? " (actual): " : ": "}

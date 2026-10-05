@@ -28,7 +28,7 @@ export function PasoFirma({ renglones, firma, alCambiarFirma, deshabilitado }: P
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
       <section aria-labelledby="resumen-entrega" className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <h2 id="resumen-entrega" className="text-xl">
+          <h2 id="resumen-entrega" className="text-lg">
             Lo que recibe ({total})
           </h2>
           <ul className="flex flex-col divide-y rounded-xl border bg-card">
@@ -41,7 +41,7 @@ export function PasoFirma({ renglones, firma, alCambiarFirma, deshabilitado }: P
                     {r.pieza?.numero_serie ? ` · Serie ${r.pieza.numero_serie}` : ""}
                   </span>
                 </span>
-                <span className="text-xl font-bold tabular-nums">{r.cantidad}</span>
+                <span className="text-lg font-semibold tabular-nums">{r.cantidad}</span>
               </li>
             ))}
           </ul>

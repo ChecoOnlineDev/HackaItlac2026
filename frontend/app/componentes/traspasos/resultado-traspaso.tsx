@@ -46,7 +46,7 @@ export function ResultadoTraspaso({ vale, titulo, texto, nota }: PropiedadesResu
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[22rem_1fr] lg:items-start">
       <section aria-label={titulo} className="flex flex-col items-center gap-4 rounded-xl border bg-card p-6 print:hidden">
-        <p role="status" className="flex items-center gap-2 text-lg font-bold text-semaforo-verde">
+        <p role="status" className="flex items-center gap-2 text-base font-semibold text-semaforo-verde">
           <CircleCheckIcon aria-hidden="true" className="size-6" strokeWidth={3} />
           <span className="text-foreground">{titulo}</span>
         </p>

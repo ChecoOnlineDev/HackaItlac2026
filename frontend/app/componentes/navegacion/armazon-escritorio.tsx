@@ -53,7 +53,7 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
         <SidebarHeader className="flex-row items-center gap-3 p-4">
           <img src="/logo-imhotep.png" alt="" width={44} height={41} className="h-auto w-11" />
           <div className="min-w-0">
-            <p className="text-base font-bold text-marino">IMHOTEP</p>
+            <p className="text-base font-semibold text-marino">IMHOTEP</p>
             <p className="truncate text-sm text-muted-foreground">{sesion.almacen?.nombre ?? "Todos los almacenes"}</p>
           </div>
         </SidebarHeader>

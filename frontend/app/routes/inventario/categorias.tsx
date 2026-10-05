@@ -71,32 +71,32 @@ export default function Categorias() {
       <>
         {/* Computadora: tabla */}
         <div className="hidden overflow-hidden rounded-xl border lg:block">
-          <Table className="w-full text-left">
-            <TableHeader className="bg-muted text-sm">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableHead scope="col" className="p-3 font-semibold">Categoría</TableHead>
-                <TableHead scope="col" className="p-3 font-semibold">Tipo</TableHead>
-                <TableHead scope="col" className="p-3 font-semibold">Control y entrega</TableHead>
-                <TableHead scope="col" className="p-3 font-semibold">Reglas de la plantilla</TableHead>
-                <TableHead scope="col" className="p-3 font-semibold"><span className="sr-only">Acciones</span></TableHead>
+                <TableHead scope="col">Categoría</TableHead>
+                <TableHead scope="col">Tipo</TableHead>
+                <TableHead scope="col">Control y entrega</TableHead>
+                <TableHead scope="col">Reglas de la plantilla</TableHead>
+                <TableHead scope="col"><span className="sr-only">Acciones</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {categorias.map((c) => (
-                <TableRow key={c.id} className="border-t align-top">
-                  <TableHead scope="row" className="p-3 font-semibold">
+                <TableRow key={c.id} className="align-top">
+                  <TableHead scope="row">
                     <Link to={`/catalogo/articulos?categoria=${c.id}`} className="underline-offset-4 hover:underline">
                       {c.nombre}
                     </Link>
                   </TableHead>
-                  <TableCell className="p-3"><Insignia estado="neutra">{TEXTO_TIPO[c.tipo]}</Insignia></TableCell>
-                  <TableCell className="p-3">
+                  <TableCell><Insignia estado="neutra">{TEXTO_TIPO[c.tipo]}</Insignia></TableCell>
+                  <TableCell>
                     {TEXTO_CONTROL[c.control]}
                     <br />
                     <span className="text-muted-foreground">{textoRetorno(c.retornable)}</span>
                   </TableCell>
-                  <TableCell className="p-3"><Resumen categoria={c} /></TableCell>
-                  <TableCell className="p-3 text-right">
+                  <TableCell><Resumen categoria={c} /></TableCell>
+                  <TableCell className="text-right">
                     {puedeEditar ? (
                       <Boton variante="contorno" onClick={() => abrir(c)} aria-label={`Editar ${c.nombre}`}>
                         <PencilIcon aria-hidden="true" />
@@ -115,7 +115,7 @@ export default function Categorias() {
           {categorias.map((c) => (
             <li key={c.id} className="flex flex-col gap-3 rounded-xl border p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <Link to={`/catalogo/articulos?categoria=${c.id}`} className="text-xl font-bold text-marino">
+                <Link to={`/catalogo/articulos?categoria=${c.id}`} className="text-lg font-semibold text-marino">
                   {c.nombre}
                 </Link>
                 <Insignia estado="neutra">{TEXTO_TIPO[c.tipo]}</Insignia>

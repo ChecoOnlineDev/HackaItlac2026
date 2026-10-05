@@ -52,7 +52,7 @@ export function BandaEstadoPieza({ lectura, className }: { lectura: LecturaPieza
     <div role={lectura.nivel === "rojo" ? "alert" : "status"} className={cn("flex items-start gap-3 rounded-xl border-2 p-4", caja, className)}>
       <Icono aria-hidden="true" className={cn("mt-0.5 size-7 shrink-0", color)} strokeWidth={3} />
       <div className="flex flex-col gap-0.5">
-        <p className="text-xl leading-tight font-bold">{lectura.titulo}</p>
+        <p className="text-lg leading-tight font-semibold">{lectura.titulo}</p>
         <p className="text-base">{lectura.detalle}</p>
       </div>
     </div>

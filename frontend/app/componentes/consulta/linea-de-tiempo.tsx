@@ -105,7 +105,7 @@ export function LineaDeTiempo({ historial, puedeVerVales = false }: PropiedadesL
               <p className="text-sm font-medium text-muted-foreground">
                 {etiqueta} · {formatearFechaHora(instanteUtc(hecho.fecha))}
               </p>
-              <p className="text-base font-bold wrap-break-word">{hecho.titulo}</p>
+              <p className="text-base font-semibold wrap-break-word">{hecho.titulo}</p>
               <Detalle hecho={hecho} puedeVerVales={puedeVerVales} />
               {hecho.usuario ? <p className="text-sm text-muted-foreground">Por {hecho.usuario}</p> : null}
             </div>

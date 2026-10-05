@@ -103,9 +103,8 @@ export default function FichaArticulo() {
           <EstadoVacio icono={WarehouseIcon} titulo="No hay existencias" descripcion="Este artículo no está en ningún almacén." />
         ) : (
           <>
-            <div className="overflow-x-auto rounded-xl border">
-              <Table className="w-full text-left text-base">
-                <TableHeader className="bg-muted text-sm">
+            <Table>
+                <TableHeader>
                   <TableRow>
                     <TableHead scope="col" className="px-3 py-2 font-semibold">Almacén</TableHead>
                     <TableHead scope="col" className="px-3 py-2 text-right font-semibold">Hay</TableHead>
@@ -117,7 +116,7 @@ export default function FichaArticulo() {
                     <TableRow key={e.almacen_id}>
                       <TableHead scope="row" className="px-3 py-3 font-semibold">{e.nombre}</TableHead>
                       <TableCell className="px-3 py-3 text-right tabular-nums">{e.cantidad}</TableCell>
-                      <TableCell className="px-3 py-3 text-right font-bold tabular-nums">{e.disponible}</TableCell>
+                      <TableCell className="px-3 py-3 text-right font-semibold tabular-nums">{e.disponible}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -126,12 +125,11 @@ export default function FichaArticulo() {
                     <TableRow>
                       <TableHead scope="row" className="px-3 py-2 font-semibold">Total</TableHead>
                       <TableCell className="px-3 py-2 text-right font-semibold tabular-nums">{totalCantidad}</TableCell>
-                      <TableCell className="px-3 py-2 text-right font-bold tabular-nums">{totalDisponible}</TableCell>
+                      <TableCell className="px-3 py-2 text-right font-semibold tabular-nums">{totalDisponible}</TableCell>
                     </TableRow>
                   </TableFooter>
                 ) : null}
               </Table>
-            </div>
             <p className="text-sm text-muted-foreground">
               {articulo.control === "PIEZA"
                 ? "Disponible es lo que se puede entregar hoy: no cuenta las piezas no aptas, en mantenimiento ni en calibración."
@@ -159,7 +157,7 @@ export default function FichaArticulo() {
                   <span className="text-sm text-muted-foreground">Número {t.numero_empleado}</span>
                 </div>
                 <span className="flex shrink-0 flex-col items-end leading-tight">
-                  <span className="text-xl font-bold tabular-nums">{t.cantidad}</span>
+                  <span className="text-lg font-semibold tabular-nums">{t.cantidad}</span>
                   <span className="text-xs text-muted-foreground">en resguardo</span>
                 </span>
               </li>

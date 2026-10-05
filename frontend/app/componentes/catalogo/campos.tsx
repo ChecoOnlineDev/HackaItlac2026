@@ -25,7 +25,7 @@ interface PropiedadesSeleccion {
   className?: string;
 }
 
-/** Lista desplegable (`Select` de shadcn), de 48 px, con etiqueta y error junto al campo. */
+/** Lista desplegable (`Select` de shadcn), de 44 px, con etiqueta y error junto al campo. */
 export function Seleccion({
   etiqueta,
   opciones,
@@ -44,7 +44,7 @@ export function Seleccion({
   const idCampo = id ?? generado;
   return (
     <div className={cn("flex flex-col gap-1.5", claseContenedor)}>
-      <Label htmlFor={idCampo} className={cn("text-base font-medium text-foreground", etiquetaOculta && "sr-only")}>
+      <Label htmlFor={idCampo} className={cn("text-sm font-medium text-foreground", etiquetaOculta && "sr-only")}>
         {etiqueta}
       </Label>
       <ListaDesplegable
@@ -86,15 +86,15 @@ interface PropiedadesInterruptor {
 
 /**
  * Una regla con su interruptor. Dice "Sí" o "No" con texto, no solo con color.
- * Todo el renglón se puede tocar (48 px o más).
+ * Todo el renglón se puede tocar (44 px o más).
  */
 export function FilaInterruptor({ titulo, ayuda, activo, alCambiar, disabled, children }: PropiedadesInterruptor) {
   return (
-    <div className="rounded-xl border p-4">
-      <label className={cn("flex min-h-12 cursor-pointer items-center justify-between gap-4", disabled && "cursor-not-allowed opacity-70")}>
+    <div className="rounded-2xl border bg-card p-4">
+      <label className={cn("flex min-h-11 cursor-pointer items-center justify-between gap-4", disabled && "cursor-not-allowed opacity-70")}>
         <span className="flex min-w-0 flex-col">
-          <span className="text-base font-semibold">{titulo}</span>
-          {ayuda ? <span className="text-sm text-muted-foreground">{ayuda}</span> : null}
+          <span className="text-sm font-semibold">{titulo}</span>
+          {ayuda ? <span className="text-xs text-muted-foreground">{ayuda}</span> : null}
         </span>
         <span className="flex shrink-0 items-center gap-2">
           <span className="w-6 text-right text-sm font-semibold" aria-hidden="true">
@@ -111,7 +111,7 @@ export function FilaInterruptor({ titulo, ayuda, activo, alCambiar, disabled, ch
 /** Nota con candado para lo que no se puede cambiar. */
 export function NotaBloqueo({ children }: { children: ReactNode }) {
   return (
-    <p className="flex items-start gap-2 rounded-lg border bg-muted p-3 text-sm">
+    <p className="flex items-start gap-2 rounded-xl border bg-muted p-3 text-sm">
       <LockIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
       <span>{children}</span>
     </p>
@@ -138,7 +138,7 @@ export function Paginador({
   const ultima = Math.max(1, Math.ceil(total / tamano));
   return (
     <nav aria-label="Páginas" className="flex flex-wrap items-center justify-between gap-3">
-      <p className="text-muted-foreground" aria-live="polite">
+      <p className="text-sm text-muted-foreground" aria-live="polite">
         Mostrando {desde} a {hasta} de {total}
       </p>
       <div className="flex gap-2">
