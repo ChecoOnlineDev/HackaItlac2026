@@ -1023,7 +1023,8 @@ def test_T_05_las_etiquetas_de_credenciales_son_los_codigos_de_los_trabajadores(
     _trabajador_con_credencial(session, "ETQ-001", "Ana Ruiz", "CRED-ETQ-1")
     r = cliente_como("Recursos Humanos").get("/api/etiquetas", params={"tipo": "credenciales"})
     assert r.status_code == 200
-    assert {"codigo": "CRED-ETQ-1", "texto": "Ana Ruiz · ETQ-001"} in r.json()["elementos"]
+    por_codigo = {e["codigo"]: e for e in r.json()["elementos"]}
+    assert por_codigo["CRED-ETQ-1"]["texto"] == "Ana Ruiz · ETQ-001"
 
 
 def test_AC_01_etiquetas_exigen_etiquetas_imprimir_y_ningun_otro_permiso(cliente_con, session):
@@ -1064,7 +1065,60 @@ def test_RG_13_la_etiqueta_de_credencial_no_lleva_curp_ni_nss(cliente_como, sess
     r = cliente_como("Compras").get("/api/etiquetas", params={"tipo": "credenciales"})
     assert r.status_code == 200
     assert "PAXM800101HDFRZR09" not in r.text and "12345678901" not in r.text
-    assert {"codigo": "CRED-ETQ-4", "texto": "Mario Paz · ETQ-004"} in r.json()["elementos"]
+    por_codigo = {e["codigo"]: e for e in r.json()["elementos"]}
+    assert por_codigo["CRED-ETQ-4"]["texto"] == "Mario Paz · ETQ-004"
+    assert not {"curp", "nss"} & set(por_codigo["CRED-ETQ-4"])
+
+
+def test_T_05_la_credencial_trae_nombre_puesto_y_numero_sin_curp_ni_nss(cliente_como, session):
+    rh = cliente_como("Recursos Humanos")
+    alta = rh.post(
+        "/api/trabajadores",
+        json={
+            "nombre": "Elena Ríos",
+            "numero_empleado": "ETQ-005",
+            "puesto": "Soldadora",
+            "area_obra": "Taller",
+            "inicio": "2026-01-01",
+            "fin": "2026-12-31",
+            "curp": "RIXE800101MDFSLL09",
+            "nss": "10987654321",
+        },
+    )
+    assert alta.status_code == 201, alta.text
+    # El puesto sale del periodo de contrato vigente (el más reciente).
+    reingreso = rh.post(
+        f"/api/trabajadores/{alta.json()['id']}/periodos",
+        json={"puesto": "Supervisora de taller", "inicio": "2027-01-01", "fin": "2027-12-31"},
+    )
+    assert reingreso.status_code == 201, reingreso.text
+    rh.post(f"/api/trabajadores/{alta.json()['id']}/codigos", json={"codigo": "CRED-ETQ-5"})
+    sin_puesto = Trabajador(numero_empleado="ETQ-006", nombre="Hugo Mena")
+    session.add(sin_puesto)
+    session.flush()
+    CodigoService(session).registrar("CRED-ETQ-6", TipoCodigo.TRABAJADOR, sin_puesto.id)
+
+    r = rh.get("/api/etiquetas", params={"tipo": "credenciales"})
+    assert r.status_code == 200
+    assert "RIXE800101MDFSLL09" not in r.text and "10987654321" not in r.text
+    por_codigo = {e["codigo"]: e for e in r.json()["elementos"]}
+    assert por_codigo["CRED-ETQ-5"] == {
+        "codigo": "CRED-ETQ-5",
+        "texto": "Elena Ríos · ETQ-005",
+        "nombre": "Elena Ríos",
+        "numero_empleado": "ETQ-005",
+        "puesto": "Supervisora de taller",
+    }
+    assert "puesto" not in por_codigo["CRED-ETQ-6"]
+
+
+def test_T_05_solo_etiquetas_imprimir_basta_para_las_credenciales_y_sin_el_es_403(
+    cliente_con, cliente_como
+):
+    con_permiso = cliente_con({P.ETIQUETAS_IMPRIMIR})
+    assert con_permiso.get("/api/etiquetas", params={"tipo": "credenciales"}).status_code == 200
+    almacenista = cliente_como("Almacenista")
+    assert almacenista.get("/api/etiquetas", params={"tipo": "credenciales"}).status_code == 403
 
 
 def test_US_ETQ_001_sin_elementos_la_lista_viene_vacia(cliente_como):
