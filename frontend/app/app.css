@@ -2,14 +2,22 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Tema IMHOTEP (docs/product/ui-ux.md). Fuente del sistema, sin descargas, sin tema oscuro. */
+/* Poppins, servida desde el propio sitio (la política de seguridad no permite fuentes de fuera). */
+@import "@fontsource/poppins/latin-400.css";
+@import "@fontsource/poppins/latin-500.css";
+@import "@fontsource/poppins/latin-600.css";
+@import "@fontsource/poppins/latin-700.css";
+@import "@fontsource/poppins/latin-ext-400.css";
+@import "@fontsource/poppins/latin-ext-600.css";
+
+/* Tema IMHOTEP (docs/product/ui-ux.md). Tipografía Poppins, sin tema oscuro. */
 
 /* No hay tema oscuro: `dark:` solo aplica bajo una clase `.dark` que nunca se pone,
    para que las clases `dark:` de los componentes de shadcn no sigan la preferencia del sistema. */
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+  --font-sans: "Poppins", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji";
   /* Texto base: 18 px en celular y tableta, 16 px en computadora (ver :root abajo). */
