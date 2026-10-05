@@ -73,8 +73,8 @@ Responden solo lo que el usuario puede ver: trabajadores con `trabajadores.ver`,
 
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
-| `GET /api/escaneo/{codigo}` | Sesión | Identifica un código: `{tipo, id, resumen}`. `tipo`: TRABAJADOR, ARTICULO, PIEZA, VALE o DESCONOCIDO. Lo que el usuario no puede ver llega como DESCONOCIDO. |
-| `GET /api/busqueda?q=` | Sesión | Coincidencias en artículos, piezas (por serie) y trabajadores (nombre o número). |
+| `GET /api/escaneo/{codigo}` | Sesión | Identifica un código: `{tipo, id, resumen}`. `tipo`: TRABAJADOR, ARTICULO, PIEZA, VALE o DESCONOCIDO. Lo que el usuario no puede ver llega como DESCONOCIDO (`id` en `null`). Reconoce el código de una credencial, artículo o pieza, el QR (token) o el folio de un vale y el número de empleado tecleado. `resumen` es breve y nunca trae costos, CURP ni NSS. |
+| `GET /api/busqueda?q=` | Sesión | Coincidencias en artículos (nombre o código), piezas (serie, código o nombre del artículo, con quién las tiene) y trabajadores (nombre o número). Responde `{q, articulos, piezas, trabajadores, sin_resultados, mensaje}`; cada grupo es `{elementos, total}` y admite `pagina` y `tamano`. Un grupo sin permiso llega vacío. Menos de dos caracteres no busca y lo dice en `mensaje`. |
 
 ## Trabajadores
 
@@ -105,7 +105,7 @@ La emisión del vale de no adeudo (B-04, B-08) es de `movimientos`, en `POST /ap
 | `POST /api/articulos/{id}/inactivacion` | `catalogo.administrar` | Inactiva con `{motivo}` (CF-10). Responde el artículo. 409 si ya estaba inactivo. |
 | `DELETE /api/articulos/{id}/inactivacion` | `catalogo.administrar` | Reactiva (CF-13). Responde el artículo. 409 si ya estaba activo. |
 | `DELETE /api/articulos/{id}` | `catalogo.administrar` | Elimina solo si no tiene movimientos (CF-12); responde 204, o 409 `CON_MOVIMIENTOS`. Libera su código. |
-| `GET /api/piezas/{id}` | `catalogo.ver` | Ficha: estado, inspección, ubicación e historial (C-02). |
+| `GET /api/piezas/{id}` | `catalogo.ver` | Ficha (C-02): artículo, estado, `inspeccion_vigente_hasta` e `inspeccion_vigente`, `ultima_inspeccion`, `ubicacion` (almacén, trabajador o virtual) e `historial`: movimientos, inspecciones, cambios de estado y ajustes de vigencia en una sola lista, del más reciente al más antiguo (`tipo`, `fecha` UTC, `titulo`, `detalle`, `usuario` y los campos propios de cada tipo). Sin costos. |
 | `POST /api/piezas/{id}/inspecciones` | `piezas.inspeccionar` | Registra una inspección (P-01) con `{resultado, puntos?, observacion?}`; `puntos` admite `etiquetas`, `costuras`, `cintas`, `herrajes` y `conectores` (booleanos). Responde 201 con la inspección y `pieza: {id, estado, inspeccion_vigente_hasta}`. Apto deja la pieza Apta y vigente hasta hoy más la vigencia de su artículo; No apto exige observación (422) y la deja No apta. Sirve para cualquier pieza, también la que está con un trabajador; una en baja da 409. |
 | `POST /api/piezas/{id}/estado` | `piezas.inspeccionar` | Marca No apta con `{estado: "NO_APTO", observacion}` (P-03); la observación es obligatoria (422). Responde 200 con `{evento_id, estado_anterior, pieza}`. Si ya está No apta o en baja, 409. |
 | `POST /api/piezas/{id}/ajuste-vigencia` | `piezas.ajustar_vigencia` | Cambia la fecha hasta la que vale la inspección vigente, con `{vigente_hasta, motivo}` (P-07). No cambia el resultado de la inspección. Responde 201 con el ajuste y la pieza. Se rechaza si la pieza está No apta o no tiene una inspección Apta (409 `AJUSTE_NO_PERMITIDO`), si la fecha pasa de la inspección más la vigencia del artículo (422 `VIGENCIA_EXCEDIDA`), si la fecha no cambia (422) o si quien la pide registró esa inspección (403 `AJUSTE_PROPIO`). |
@@ -229,7 +229,13 @@ La tabla se lee en el navegador; al servidor llegan filas ya separadas en column
 | `GET /api/reportes/adeudos` | `reportes.adeudos` | Pendientes por trabajador. Filtro: `solo_no_vigentes`. |
 | `GET /api/reportes/consumo` | `reportes.consumo` | Consumo de artículos consumibles (C-08). Filtros: fechas, `almacen_id`, `categoria_id`, `articulo_id`, `trabajador_id`. Responde por artículo el total y el desglose por trabajador, restando las cancelaciones. Sin `almacenes.todos`, solo el almacén asignado. Sin costos (RG-12). |
 
-Todos aceptan `formato=csv`.
+Todos aceptan `formato=csv` y las listas, `pagina` y `tamano`. Las fechas (`desde`, `hasta`, `AAAA-MM-DD`) son fechas locales de México: el día `hasta` entra completo, hasta las 23:59:59 hora de México. Un `desde` posterior a `hasta` se rechaza (422 `DATOS_INVALIDOS`). Cada respuesta es `{elementos, total, sin_registros, mensaje}`; sin registros, `mensaje` es "No hay registros con esos filtros.".
+
+- **Alcance (AC-06, C-11):** sin `almacenes.todos`, solo el almacén asignado; pedir otro almacén o un usuario de otro almacén no devuelve nada (no es error). Sin almacén asignado ni `almacenes.todos`, nada. Excepción: el de adeudos, que es de la persona, lo ve completo quien no tiene almacén asignado (RH); con almacén, solo lo que entregó ese almacén. El almacén de un movimiento es el del vale que lo emitió.
+- **Movimientos:** un renglón por movimiento, del más reciente al más antiguo: fecha (UTC), folio, tipo, artículo, pieza, cantidad, origen, destino, responsable, trabajador, `saldo_origen` y `saldo_destino`. `trabajador_id` coincide con el trabajador del vale o el anotado en el renglón.
+- **Adeudos:** un renglón por retornable en resguardo (trabajador, artículo, código, serie, cantidad, `desde`, folio y almacén de la última entrega, `vigente`). Los consumibles no cuentan (B-03). `solo_no_vigentes` deja a quienes ya no son vigentes (T-07). Filtro extra: `almacen_id`.
+- **Consumo:** un elemento por artículo consumible con `total`, `unidad` y `trabajadores` (mayor a menor). Suma los movimientos a CONSUMIDO y resta los que salen de CONSUMIDO (cancelaciones, K-02); una cancelación se fecha con el vale que cancela, así un vale cancelado no cuenta en ningún periodo. Sin renglones en cero.
+- **CSV:** `text/csv; charset=utf-8` con BOM (Excel abre bien los acentos), encabezados en español, fechas en hora de México, todas las filas con los mismos filtros (movimientos y existencias: un renglón por elemento del JSON; adeudos: igual; consumo: un renglón por artículo y trabajador). Una celda de texto que empiece con `=`, `+`, `-` o `@` se antepone con `'`.
 
 ## Etiquetas
 
