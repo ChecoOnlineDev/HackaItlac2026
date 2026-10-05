@@ -629,7 +629,7 @@ def test_AC_13_si_el_usuario_cambio_de_almacen_el_vale_no_se_guarda(
 def test_AC_13_almacen_cambio_trae_el_detalle_del_contrato_al_evaluar_y_al_confirmar(
     almacenista, session, trabajador
 ):
-    """Contrato: `detalles = {almacen_captura_id, almacen: {id, clave, nombre}}` en ambos caminos."""
+    """Contrato: `detalles = {almacen_captura_id, almacen: {id, clave, nombre}}`, en ambos."""
     guantes = crear_articulo(session)
     otro = almacen(session, "CON")
     propio = almacen(session, "KEP")

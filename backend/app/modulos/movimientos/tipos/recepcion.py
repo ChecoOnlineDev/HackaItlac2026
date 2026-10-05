@@ -44,9 +44,9 @@ from app.modulos.movimientos.evaluador_traspasos import (
     HechosRenglonRecepcion,
     estado_despues_de_recibir,
     regla_estado_del_traspaso,
+    regla_rg14_observacion,
     regla_x10_destino,
     regla_x12_pertenece,
-    regla_rg14_observacion,
     regla_x13_diferencias,
 )
 from app.modulos.movimientos.exceptions import ValeNoEncontrado
