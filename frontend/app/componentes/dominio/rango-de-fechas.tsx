@@ -209,7 +209,7 @@ export function RangoDeFechas({ valor, onCambio, etiqueta = "Periodo", hastaMaxi
       className={cn("justify-start font-normal", className)}
     >
       <CalendarDaysIcon aria-hidden="true" />
-      <span className="truncate">{texto}</span>
+      <span>{texto}</span>
     </Boton>
   );
 

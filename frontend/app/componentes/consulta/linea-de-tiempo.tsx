@@ -86,7 +86,7 @@ interface PropiedadesLineaDeTiempo {
 /** Hechos de la vida de una pieza, del más reciente al más antiguo: quién y cuándo (hora de México). */
 export function LineaDeTiempo({ historial, puedeVerVales = false }: PropiedadesLineaDeTiempo) {
   if (historial.length === 0) {
-    return <p className="text-base text-muted-foreground">Esta pieza todavía no tiene historial.</p>;
+    return <p className="text-sm text-muted-foreground">Esta pieza todavía no tiene historial.</p>;
   }
   return (
     <ol className="flex flex-col">
@@ -105,7 +105,7 @@ export function LineaDeTiempo({ historial, puedeVerVales = false }: PropiedadesL
               <p className="text-sm font-medium text-muted-foreground">
                 {etiqueta} · {formatearFechaHora(instanteUtc(hecho.fecha))}
               </p>
-              <p className="text-base font-bold wrap-break-word">{hecho.titulo}</p>
+              <p className="text-base font-semibold wrap-break-word">{hecho.titulo}</p>
               <Detalle hecho={hecho} puedeVerVales={puedeVerVales} />
               {hecho.usuario ? <p className="text-sm text-muted-foreground">Por {hecho.usuario}</p> : null}
             </div>

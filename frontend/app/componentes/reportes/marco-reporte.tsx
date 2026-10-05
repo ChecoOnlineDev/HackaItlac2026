@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { DownloadIcon, FileBarChartIcon, ListFilterIcon, XIcon } from "lucide-react";
+import { DownloadIcon, FileBarChartIcon, XIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { mensajeDeError } from "~/api/errores";
@@ -9,7 +9,7 @@ import { aviso } from "~/componentes/ui/aviso";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { EstadoVacio } from "~/componentes/ui/estado-vacio";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
-import { Hoja } from "~/componentes/ui/hoja";
+import { HojaFiltros } from "~/componentes/ui/hoja-filtros";
 import { useEsEscritorio } from "~/hooks/use-escritorio";
 import { TAMANO_REPORTE, type FiltroActivo, type PaginaReporte } from "./tipos";
 
@@ -21,8 +21,12 @@ interface Consulta<T> {
 }
 
 interface PropiedadesMarco<T> {
-  /** Los controles de filtro. Van arriba en computadora y en la hoja "Filtros" en celular. */
-  filtros: ReactNode;
+  /** Filtros que ya se aplican (los de la dirección). */
+  valores: Record<string, string>;
+  /** Aplica el borrador de la hoja "Filtros" completo. */
+  alAplicar: (valores: Record<string, string>) => void;
+  /** Los controles de filtro. Van en la hoja "Filtros"; trabajan sobre un borrador hasta tocar "Aplicar". */
+  filtros: (borrador: Record<string, string>, cambiar: (parcial: Record<string, string | null>) => void) => ReactNode;
   activos: FiltroActivo[];
   alQuitar: (clave: string) => void;
   alQuitarTodos: () => void;
@@ -47,6 +51,8 @@ interface PropiedadesMarco<T> {
  * error). La pantalla solo aporta sus filtros y cómo se ve cada fila.
  */
 export function MarcoReporte<T>({
+  valores,
+  alAplicar,
   filtros,
   activos,
   alQuitar,
@@ -61,7 +67,6 @@ export function MarcoReporte<T>({
   unidad = "registros",
 }: PropiedadesMarco<T>) {
   const escritorio = useEsEscritorio();
-  const [hojaAbierta, setHojaAbierta] = useState(false);
   const [descargando, setDescargando] = useState(false);
   const { datos, cargando, error } = consulta;
   const elementos = datos?.elementos ?? [];
@@ -112,45 +117,17 @@ export function MarcoReporte<T>({
 
   return (
     <div className="flex flex-col gap-4">
-      {escritorio ? (
-        <section aria-label="Filtros" className="grid gap-4 rounded-xl border p-4 sm:grid-cols-2 xl:grid-cols-4">
-          {filtros}
-        </section>
-      ) : (
-        <>
-          <Boton variante="contorno" className="w-full justify-between" onClick={() => setHojaAbierta(true)}>
-            <span className="flex items-center gap-2">
-              <ListFilterIcon aria-hidden="true" />
-              Filtros
-            </span>
-            <span className="rounded-full bg-muted px-2.5 py-0.5 text-sm font-semibold">
-              {activos.length === 0 ? "Ninguno" : `${activos.length} ${activos.length === 1 ? "activo" : "activos"}`}
-            </span>
-          </Boton>
-          <Hoja
-            abierta={hojaAbierta}
-            alCambiar={setHojaAbierta}
-            titulo="Filtros"
-            descripcion="Los cambios se aplican al momento."
-            pie={
-              <div className="flex flex-col gap-2">
-                <Boton variante="principal" onClick={() => setHojaAbierta(false)}>
-                  {datos ? `Ver ${total} ${unidad}` : "Ver resultados"}
-                </Boton>
-                {activos.length > 0 ? (
-                  <Boton variante="texto" onClick={alQuitarTodos}>
-                    Quitar filtros
-                  </Boton>
-                ) : null}
-              </div>
-            }
-          >
-            <div className="flex flex-col gap-4">{filtros}</div>
-          </Hoja>
-        </>
-      )}
-
-      {nota ? <div className="text-sm text-muted-foreground">{nota}</div> : null}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <HojaFiltros valores={valores} activos={activos.length} alAplicar={alAplicar} alLimpiar={alQuitarTodos}>
+          {(borrador, cambiar) =>
+            filtros(borrador, (parcial) => cambiar(Object.fromEntries(Object.entries(parcial).map(([k, v]) => [k, v ?? ""]))))
+          }
+        </HojaFiltros>
+        <Boton variante="contorno" cargando={descargando} disabled={!datos || total === 0 || Boolean(error)} onClick={descargar}>
+          {descargando ? null : <DownloadIcon aria-hidden="true" />}
+          Descargar CSV
+        </Boton>
+      </div>
 
       {activos.length > 0 ? (
         <ul aria-label="Filtros activos" className="flex flex-wrap items-center gap-2">
@@ -160,30 +137,26 @@ export function MarcoReporte<T>({
                 type="button"
                 onClick={() => alQuitar(f.clave)}
                 aria-label={`Quitar filtro: ${f.texto}`}
-                className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-primary/40 bg-accent px-3 text-sm font-semibold text-marino hover:bg-accent/70"
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-primary/30 bg-accent px-3 text-xs font-semibold text-marino hover:bg-accent/70"
               >
                 {f.texto}
-                <XIcon aria-hidden="true" className="size-4" />
+                <XIcon aria-hidden="true" className="size-3.5" />
               </button>
             </li>
           ))}
           <li>
-            <Boton variante="texto" className="h-10 px-3 text-sm" onClick={alQuitarTodos}>
+            <Boton variante="texto" className="h-9 px-3 text-xs" onClick={alQuitarTodos}>
               Quitar todos
             </Boton>
           </li>
         </ul>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-lg font-semibold" aria-live="polite">
-          {datos && !error ? `${total} ${total === 1 ? unidad.replace(/s$/, "") : unidad}` : " "}
-        </p>
-        <Boton variante="contorno" cargando={descargando} disabled={!datos || total === 0 || Boolean(error)} onClick={descargar}>
-          {descargando ? null : <DownloadIcon aria-hidden="true" />}
-          Descargar CSV
-        </Boton>
-      </div>
+      {nota ? <div className="flex flex-col gap-1 text-xs text-muted-foreground">{nota}</div> : null}
+
+      <p className="text-sm font-semibold" aria-live="polite">
+        {datos && !error ? `${total} ${total === 1 ? unidad.replace(/s$/, "") : unidad}` : " "}
+      </p>
 
       {contenido}
     </div>

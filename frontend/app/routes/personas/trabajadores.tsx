@@ -1,4 +1,4 @@
-import { SearchIcon, UserPlusIcon, UsersIcon } from "lucide-react";
+import { UserPlusIcon, UsersIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 
@@ -14,7 +14,8 @@ import { Boton } from "~/componentes/ui/boton";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { EstadoVacio } from "~/componentes/ui/estado-vacio";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
-import { Input } from "~/components/ui/input";
+import { CampoBusqueda } from "~/componentes/ui/campo-busqueda";
+import { useRetraso } from "~/componentes/catalogo/usar-consulta";
 import { useSesion } from "~/sesion/sesion";
 
 export const handle: ManejadorRuta = { permiso: "trabajadores.ver" };
@@ -26,21 +27,12 @@ export default function Trabajadores() {
   const puedeAdministrar = puede("trabajadores.administrar");
 
   const [texto, setTexto] = useState("");
-  const [busqueda, setBusqueda] = useState("");
+  const busqueda = useRetraso(texto.trim());
   const [pagina, setPagina] = useState(1);
   const [datos, setDatos] = useState<Pagina<ElementoLista> | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [cargando, setCargando] = useState(true);
   const [intento, setIntento] = useState(0);
-
-  // Espera a que termine de teclear antes de buscar.
-  useEffect(() => {
-    const espera = setTimeout(() => {
-      setBusqueda(texto.trim());
-      setPagina(1);
-    }, 350);
-    return () => clearTimeout(espera);
-  }, [texto]);
 
   useEffect(() => {
     const control = new AbortController();
@@ -71,16 +63,16 @@ export default function Trabajadores() {
 
   return (
     <Pantalla titulo="Trabajadores" descripcion="Busca por nombre o número y revisa su situación." acciones={botonAlta}>
-      <div className="relative max-w-xl">
-        <SearchIcon aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
+      <div className="flex">
+        <CampoBusqueda
+          etiqueta="Buscar trabajador por nombre o número"
+          placeholder="Buscar por nombre o número"
           value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          placeholder="Nombre o número de empleado"
-          aria-label="Buscar trabajador por nombre o número"
-          className="h-12 rounded-lg pl-10 text-base md:text-base"
-          autoComplete="off"
+          alCambiar={(v) => {
+            setTexto(v);
+            setPagina(1);
+          }}
+          claseContenedor="sm:max-w-md"
         />
       </div>
 
@@ -120,39 +112,39 @@ export default function Trabajadores() {
           {error ? <EstadoError error={error} alReintentar={reintentar} /> : null}
 
           {/* Computadora: tabla */}
-          <div className="hidden overflow-hidden rounded-xl border md:block">
-            <Table className="w-full text-left text-base">
-              <TableHeader className="bg-muted text-sm font-semibold text-marino">
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableHead scope="col" className="px-4 py-3">Nombre</TableHead>
-                  <TableHead scope="col" className="px-4 py-3">Puesto</TableHead>
-                  <TableHead scope="col" className="px-4 py-3">Vigencia</TableHead>
-                  <TableHead scope="col" className="px-4 py-3">Situación</TableHead>
+                  <TableHead scope="col">Nombre</TableHead>
+                  <TableHead scope="col">Puesto</TableHead>
+                  <TableHead scope="col">Vigencia</TableHead>
+                  <TableHead scope="col">Situación</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {datos.elementos.map((t) => (
-                  <TableRow key={t.id} className="border-t hover:bg-accent/40">
-                    <TableCell className="px-4 py-3">
-                      <Link to={`/trabajadores/${t.id}`} className="flex min-h-12 items-center gap-3 font-semibold text-marino hover:underline">
+                  <TableRow key={t.id}>
+                    <TableCell className="whitespace-normal">
+                      <Link to={`/trabajadores/${t.id}`} className="flex min-h-12 items-center gap-3 font-semibold text-foreground hover:underline">
                         <Avatar nombre={t.nombre} fotoUrl={t.tiene_foto ? `/api/trabajadores/${t.id}/foto` : null} />
                         <span className="flex flex-col">
                           <span>{t.nombre}</span>
-                          <span className="text-sm font-normal text-muted-foreground">{t.numero_empleado}</span>
+                          <span className="text-xs font-normal text-muted-foreground">{t.numero_empleado}</span>
                         </span>
                       </Link>
                     </TableCell>
-                    <TableCell className="px-4 py-3">
+                    <TableCell className="whitespace-normal">
                       <div>{t.puesto ?? "—"}</div>
-                      <div className="text-sm text-muted-foreground">{t.area_obra ?? ""}</div>
+                      <div className="text-xs text-muted-foreground">{t.area_obra ?? ""}</div>
                     </TableCell>
-                    <TableCell className="px-4 py-3">
+                    <TableCell className="whitespace-normal">
                       <div className="flex flex-col items-start gap-1">
                         <InsigniaVigencia vigencia={t.vigencia} />
-                        <span className="text-sm text-muted-foreground">{formatearPeriodo(t.periodo_inicio, t.periodo_fin)}</span>
+                        <span className="text-xs text-muted-foreground">{formatearPeriodo(t.periodo_inicio, t.periodo_fin)}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-3">
+                    <TableCell className="whitespace-normal">
                       <InsigniaSituacion situacion={t.situacion} texto={t.situacion_texto} />
                     </TableCell>
                   </TableRow>
@@ -165,12 +157,12 @@ export default function Trabajadores() {
           <ul className="flex flex-col gap-3 md:hidden">
             {datos.elementos.map((t) => (
               <li key={t.id}>
-                <Link to={`/trabajadores/${t.id}`} className="flex flex-col gap-3 rounded-xl border p-4 active:bg-accent/40">
+                <Link to={`/trabajadores/${t.id}`} className="flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-xs active:bg-accent/40">
                   <span className="flex items-center gap-3">
                     <Avatar nombre={t.nombre} fotoUrl={t.tiene_foto ? `/api/trabajadores/${t.id}/foto` : null} />
                     <span className="flex min-w-0 flex-col">
-                      <span className="text-lg font-bold text-marino">{t.nombre}</span>
-                      <span className="text-base text-muted-foreground">
+                      <span className="text-base font-semibold text-foreground">{t.nombre}</span>
+                      <span className="text-sm text-muted-foreground">
                         {t.numero_empleado} · {t.puesto ?? "Sin puesto"}
                       </span>
                     </span>
@@ -185,7 +177,7 @@ export default function Trabajadores() {
           </ul>
 
           <nav aria-label="Páginas" className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-base text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {datos.total} {datos.total === 1 ? "trabajador" : "trabajadores"}
             </p>
             {totalPaginas > 1 ? (
@@ -193,7 +185,7 @@ export default function Trabajadores() {
                 <Boton variante="contorno" disabled={pagina <= 1 || cargando} onClick={() => setPagina((p) => p - 1)}>
                   Anterior
                 </Boton>
-                <span className="text-base">
+                <span className="text-sm">
                   Página {pagina} de {totalPaginas}
                 </span>
                 <Boton variante="contorno" disabled={pagina >= totalPaginas || cargando} onClick={() => setPagina((p) => p + 1)}>

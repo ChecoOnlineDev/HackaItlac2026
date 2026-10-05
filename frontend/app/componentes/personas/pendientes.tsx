@@ -8,9 +8,9 @@ export function ListaPendientes({ pendientes }: { pendientes: Pendiente[] }) {
   return (
     <ul className="flex flex-col gap-3">
       {pendientes.map((p, i) => (
-        <li key={`${p.pieza_id ?? p.articulo_id}-${i}`} className="flex flex-col gap-1 rounded-xl border p-4">
+        <li key={`${p.pieza_id ?? p.articulo_id}-${i}`} className="flex flex-col gap-1 rounded-2xl border p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="text-lg font-bold text-marino">
+            <span className="text-base font-semibold text-marino">
               {p.articulo}
               {p.cantidad > 1 ? ` × ${p.cantidad}` : ""}
             </span>

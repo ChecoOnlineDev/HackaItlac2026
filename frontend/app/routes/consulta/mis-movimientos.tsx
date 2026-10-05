@@ -76,19 +76,19 @@ export default function MisMovimientos() {
       ) : (
         <ul className="flex flex-col gap-3" aria-label="Vales de hoy">
           {(datos?.elementos ?? []).map((v) => (
-            <li key={v.id} className="flex flex-col overflow-hidden rounded-xl border bg-card">
+            <li key={v.id} className="flex flex-col overflow-hidden rounded-2xl border bg-card">
               <Link
                 to={`/vales/${v.id}`}
                 className="flex min-h-16 items-center gap-3 p-3 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <p className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="text-xl font-bold text-marino">{v.folio}</span>
-                    <span className="text-base text-muted-foreground">
+                    <span className="text-base font-semibold text-marino">{v.folio}</span>
+                    <span className="text-sm text-muted-foreground">
                       {TEXTO_TIPO[v.tipo]} · {horaDe(v.creado_en)}
                     </span>
                   </p>
-                  <p className="truncate text-base">
+                  <p className="text-sm wrap-break-word">
                     {v.trabajador ? `${v.trabajador.nombre}${v.numero_empleado ? ` (${v.numero_empleado})` : ""}` : v.almacen.nombre}
                   </p>
                 </div>

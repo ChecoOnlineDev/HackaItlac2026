@@ -32,14 +32,14 @@ function Desglose({ c, id }: { c: ConsumoReporte; id: string }) {
       {c.trabajadores.length === 0 ? (
         <p className="text-muted-foreground">No hay detalle por trabajador.</p>
       ) : (
-        <ol className="flex flex-col divide-y rounded-lg border bg-background">
+        <ol className="flex flex-col divide-y rounded-xl border bg-background">
           {c.trabajadores.map((t, i) => (
             <li key={`${t.trabajador_id ?? "sin"}-${i}`} className="flex items-center justify-between gap-3 p-3">
               <span className="min-w-0">
                 <span className="font-semibold">{t.trabajador}</span>
                 {t.numero_empleado ? <span className="block text-sm text-muted-foreground">{t.numero_empleado}</span> : null}
               </span>
-              <span className="shrink-0 text-lg font-bold tabular-nums">
+              <span className="shrink-0 text-base font-semibold tabular-nums">
                 {t.cantidad} <span className="text-sm font-normal text-muted-foreground">{unidadConNumero(c.unidad, t.cantidad)}</span>
               </span>
             </li>
@@ -52,8 +52,8 @@ function Desglose({ c, id }: { c: ConsumoReporte; id: string }) {
 
 function Total({ c }: { c: ConsumoReporte }) {
   return (
-    <span className="text-xl font-bold tabular-nums">
-      {c.total} <span className="text-base font-normal text-muted-foreground">{unidadConNumero(c.unidad, c.total)}</span>
+    <span className="text-lg font-semibold tabular-nums">
+      {c.total} <span className="text-sm font-normal text-muted-foreground">{unidadConNumero(c.unidad, c.total)}</span>
     </span>
   );
 }
@@ -106,29 +106,29 @@ export default function ReporteConsumo() {
     });
   }
 
-  const filtros = (
+  const filtros = (v: Record<string, string>, c: (parcial: Record<string, string | null>) => void) => (
     <>
-      <FiltroPeriodo desde={valores.desde} hasta={valores.hasta} alCambiar={(r) => cambiar({ desde: r.desde, hasta: r.hasta })} />
+      <FiltroPeriodo desde={v.desde} hasta={v.hasta} alCambiar={(r) => c({ desde: r.desde, hasta: r.hasta })} />
       {alcance.todos && almacenes.disponible ? (
         <FiltroLista
           etiqueta="Almacén"
           vacio="Todos los almacenes"
-          valor={valores.almacen_id}
+          valor={v.almacen_id}
           opciones={almacenes.opciones}
-          alCambiar={(v) => cambiar({ almacen_id: v })}
+          alCambiar={(v) => c({ almacen_id: v })}
         />
       ) : null}
       {categorias.disponible ? (
         <FiltroLista
           etiqueta="Categoría"
           vacio="Todas las categorías"
-          valor={valores.categoria_id}
+          valor={v.categoria_id}
           opciones={categorias.opciones}
-          alCambiar={(v) => cambiar({ categoria_id: v })}
+          alCambiar={(v) => c({ categoria_id: v })}
         />
       ) : null}
-      <SelectorBusqueda tipo="articulo" valor={valores.articulo_id} alCambiar={(id) => cambiar({ articulo_id: id })} />
-      <SelectorBusqueda tipo="trabajador" valor={valores.trabajador_id} alCambiar={(id) => cambiar({ trabajador_id: id })} />
+      <SelectorBusqueda tipo="articulo" valor={v.articulo_id} alCambiar={(id) => c({ articulo_id: id })} />
+      <SelectorBusqueda tipo="trabajador" valor={v.trabajador_id} alCambiar={(id) => c({ trabajador_id: id })} />
     </>
   );
 
@@ -136,6 +136,8 @@ export default function ReporteConsumo() {
     <Pantalla titulo="Reporte de consumo" descripcion="Cuánto se consumió de cada artículo y quién lo recibió.">
       <MarcoReporte<ConsumoReporte>
         unidad="artículos"
+        valores={valores}
+        alAplicar={(v) => cambiar(v)}
         filtros={filtros}
         activos={activos}
         alQuitar={quitar}
@@ -151,14 +153,13 @@ export default function ReporteConsumo() {
           </>
         }
         tabla={(elementos) => (
-          <div className="overflow-x-auto rounded-xl border">
-            <Table className="w-full text-left">
+          <Table>
               <TableCaption className="sr-only">Consumo por artículo</TableCaption>
-              <TableHeader className="bg-muted text-sm">
+              <TableHeader>
                 <TableRow>
-                  <TableHead scope="col" className="p-3 font-semibold">Artículo</TableHead>
-                  <TableHead scope="col" className="p-3 font-semibold">Categoría</TableHead>
-                  <TableHead scope="col" className="p-3 text-right font-semibold">Total consumido</TableHead>
+                  <TableHead scope="col">Artículo</TableHead>
+                  <TableHead scope="col">Categoría</TableHead>
+                  <TableHead scope="col" className="text-right">Total consumido</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -174,17 +175,17 @@ export default function ReporteConsumo() {
                             aria-expanded={abierto}
                             aria-controls={idDetalle}
                             onClick={() => alternar(c.articulo_id)}
-                            className="flex min-h-14 w-full items-center gap-2 p-3 text-left hover:bg-muted/60"
+                            className="flex min-h-12 w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted/60"
                           >
-                            <ChevronDownIcon aria-hidden="true" className={cn("size-5 shrink-0 transition-transform duration-150", !abierto && "-rotate-90")} />
+                            <ChevronDownIcon aria-hidden="true" className={cn("size-4 shrink-0 transition-transform duration-150", !abierto && "-rotate-90")} />
                             <span>
                               {c.articulo}
                               <span className="block text-sm font-normal text-muted-foreground">{c.codigo}</span>
                             </span>
                           </button>
                         </TableHead>
-                        <TableCell className="p-3">{c.categoria}</TableCell>
-                        <TableCell className="p-3 text-right">
+                        <TableCell>{c.categoria}</TableCell>
+                        <TableCell className="text-right">
                           <Total c={c} />
                         </TableCell>
                       </TableRow>
@@ -200,7 +201,6 @@ export default function ReporteConsumo() {
                 })}
               </TableBody>
             </Table>
-          </div>
         )}
         tarjetas={(elementos) => (
           <ul className="flex flex-col gap-3">
@@ -208,17 +208,17 @@ export default function ReporteConsumo() {
               const abierto = abiertos.has(c.articulo_id);
               const idDetalle = `consumo-${c.articulo_id}`;
               return (
-                <li key={c.articulo_id} className="rounded-xl border">
+                <li key={c.articulo_id} className="overflow-hidden rounded-2xl border bg-card shadow-xs">
                   <button
                     type="button"
                     aria-expanded={abierto}
                     aria-controls={idDetalle}
                     onClick={() => alternar(c.articulo_id)}
-                    className="flex min-h-14 w-full items-center gap-3 p-4 text-left"
+                    className="flex min-h-12 w-full items-center gap-3 p-4 text-left"
                   >
-                    <ChevronDownIcon aria-hidden="true" className={cn("size-5 shrink-0 transition-transform duration-150", !abierto && "-rotate-90")} />
+                    <ChevronDownIcon aria-hidden="true" className={cn("size-4 shrink-0 transition-transform duration-150", !abierto && "-rotate-90")} />
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="text-lg leading-tight font-bold">{c.articulo}</span>
+                      <span className="text-base leading-tight font-semibold">{c.articulo}</span>
                       <span className="text-sm text-muted-foreground">
                         {c.codigo} · {c.categoria}
                       </span>

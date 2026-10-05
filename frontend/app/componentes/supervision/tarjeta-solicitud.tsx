@@ -86,20 +86,20 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
     <article
       aria-label={`Solicitud de ${solicitud.trabajador.nombre}`}
       className={cn(
-        "flex flex-col gap-4 rounded-xl border-2 bg-card p-4 transition-colors",
+        "flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-xs transition-colors",
         cerrada ? "border-border bg-muted/60 opacity-70" : "border-semaforo-naranja",
-        nueva && !cerrada && "ring-4 ring-semaforo-naranja/30",
+        nueva && !cerrada && "ring-2 ring-semaforo-naranja/30",
       )}
     >
       <div className="flex items-start gap-3">
         <Avatar nombre={solicitud.trabajador.nombre} tamano="md" />
         <div className="flex min-w-0 flex-1 flex-col">
           {puedeVerTrabajador ? (
-            <Link to={`/trabajadores/${solicitud.trabajador.id}`} className="text-xl leading-tight font-bold text-marino underline-offset-2 hover:underline">
+            <Link to={`/trabajadores/${solicitud.trabajador.id}`} className="text-lg leading-tight font-semibold text-marino underline-offset-2 hover:underline">
               {solicitud.trabajador.nombre}
             </Link>
           ) : (
-            <p className="text-xl leading-tight font-bold text-marino">{solicitud.trabajador.nombre}</p>
+            <p className="text-lg leading-tight font-semibold text-marino">{solicitud.trabajador.nombre}</p>
           )}
           <p className="text-sm text-muted-foreground">Número {solicitud.trabajador.numero_empleado}</p>
         </div>
@@ -117,18 +117,18 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
 
       <ul className="flex flex-col gap-2">
         {solicitud.renglones.map((r, i) => (
-          <li key={`${r.codigo}-${i}`} className="flex flex-col gap-0.5 rounded-lg border bg-background p-3">
-            <p className="flex items-center gap-2 text-lg font-bold">
+          <li key={`${r.codigo}-${i}`} className="flex flex-col gap-0.5 rounded-xl border bg-background p-3">
+            <p className="flex items-center gap-2 text-base font-semibold">
               <LockIcon aria-hidden="true" className="size-5 shrink-0 text-semaforo-naranja" />
               {r.articulo ?? r.codigo}
             </p>
             {r.limite !== null && r.tiene !== null ? (
-              <p className="text-base">
+              <p className="text-sm">
                 Límite {r.limite}, tiene {r.tiene}, pide {r.cantidad}
-                {r.excedente ? <span className="font-bold"> · Se pasa por {r.excedente}</span> : null}
+                {r.excedente ? <span className="font-semibold"> · Se pasa por {r.excedente}</span> : null}
               </p>
             ) : (
-              <p className="text-base">Pide {r.cantidad}.</p>
+              <p className="text-sm">Pide {r.cantidad}.</p>
             )}
             {r.mensaje && (r.limite === null || r.tiene === null) ? <p className="text-sm text-muted-foreground">{r.mensaje}</p> : null}
             <p className="text-xs text-muted-foreground">Regla {r.regla}</p>
@@ -137,7 +137,7 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
       </ul>
 
       <div className="flex flex-col gap-1">
-        <p className="text-base">
+        <p className="text-sm">
           <span className="font-semibold">Motivo: </span>
           {solicitud.motivo}
         </p>
@@ -148,7 +148,7 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
 
       {cerrada ? (
         <div className="flex flex-col gap-2">
-          <p role="status" className="rounded-lg border bg-background p-3 text-base font-semibold">
+          <p role="status" className="rounded-xl border bg-background p-3 text-sm font-semibold">
             {cierre ? textoCierre(cierre) : textoCierre({ solicitud, estado: "VENCIDA", por: null })}
           </p>
           {alDescartar ? (
@@ -163,7 +163,7 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
             <CheckIcon aria-hidden="true" />
             Autorizar
           </Boton>
-          <Boton variante="contorno" className="h-14 text-base font-semibold" onClick={() => setDecision("RECHAZAR")} disabled={enviando}>
+          <Boton variante="contorno" className="h-12 text-base font-semibold" onClick={() => setDecision("RECHAZAR")} disabled={enviando}>
             <XIcon aria-hidden="true" />
             Rechazar
           </Boton>

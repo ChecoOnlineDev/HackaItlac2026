@@ -24,7 +24,7 @@ interface PropiedadesInsignia {
 }
 
 export function Insignia({ estado, children, className }: PropiedadesInsignia) {
-  const base = "inline-flex min-h-7 items-center gap-1.5 rounded-full border px-3 py-0.5 text-sm font-semibold text-foreground";
+  const base = "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold text-foreground";
   if (estado === "neutra" || estado === "info") {
     return (
       <span
@@ -42,7 +42,7 @@ export function Insignia({ estado, children, className }: PropiedadesInsignia) {
   const Icono = nivel.icono;
   return (
     <span className={cn(base, nivel.clases, className)}>
-      <Icono aria-hidden="true" className={cn("size-4 shrink-0", nivel.iconoClase)} strokeWidth={3} />
+      <Icono aria-hidden="true" className={cn("size-3.5 shrink-0", nivel.iconoClase)} strokeWidth={3} />
       {children ?? nivel.texto}
     </span>
   );

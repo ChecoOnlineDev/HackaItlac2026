@@ -74,7 +74,7 @@ export default function Recibir() {
   return (
     <Pantalla
       titulo="Recibir"
-      descripcion="Traspasos que vienen en camino a este almacén."
+      descripcion="Escanea el vale de un traspaso o elige uno de la lista."
       acciones={
         <Boton variante="contorno" onClick={actualizar} disabled={consulta.cargando} aria-label="Actualizar la lista">
           <RefreshCwIcon aria-hidden="true" />
@@ -92,13 +92,7 @@ export default function Recibir() {
             <EstadoVacio
               icono={InboxIcon}
               titulo="No hay traspasos por recibir"
-              descripcion="Cuando otro almacén te envíe algo, aparecerá aquí. También puedes escanear el código QR de su vale."
-              accion={
-                <Boton variante="secundario" onClick={actualizar}>
-                  <RefreshCwIcon aria-hidden="true" />
-                  Actualizar
-                </Boton>
-              }
+              descripcion="Cuando otro almacén te envíe algo, aparecerá aquí."
             />
           ) : (
             <ul aria-label="Traspasos en camino" className="flex flex-col gap-3">
@@ -108,14 +102,13 @@ export default function Recibir() {
             </ul>
           )}
         </div>
-        <div className="order-1 flex flex-col gap-2 md:sticky md:top-4 md:order-2">
+        <div className="order-1 flex flex-col gap-3 md:sticky md:top-4 md:order-2">
           <Escaner
             activo={!abriendo}
             onCodigo={(codigo) => void alLeer(codigo)}
             etiquetaCampo="Escribir el código del vale"
             placeholderCampo="Código del vale"
           />
-          <p className="text-sm text-muted-foreground">Escanea el código QR del vale del traspaso para abrir su recepción.</p>
         </div>
       </div>
     </Pantalla>

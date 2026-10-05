@@ -25,13 +25,13 @@ export function NotaAlcance({ almacen }: { almacen: { nombre: string; clave: str
 export function FiltroPeriodo({ desde, hasta, alCambiar }: { desde: string; hasta: string; alCambiar: (rango: RangoFechas) => void }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <Label className="text-base font-medium text-foreground">Periodo</Label>
+      <Label className="text-sm font-medium text-foreground">Periodo</Label>
       <RangoDeFechas
         etiqueta="Periodo"
         valor={{ desde: desde || null, hasta: hasta || null }}
         onCambio={alCambiar}
         hastaMaximo={hoyMexico()}
-        className="h-12 w-full rounded-lg px-3 text-base"
+        className="h-11 w-full rounded-xl px-3 text-base"
       />
     </div>
   );

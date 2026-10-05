@@ -70,7 +70,7 @@ export default function RecibirDetalle() {
   const [recibido, setRecibido] = useState<Recibido | null>(null);
 
   const volver = (
-    <Link to="/recibir" className="inline-flex min-h-12 items-center gap-2 self-start text-base font-semibold text-primary">
+    <Link to="/recibir" className="inline-flex min-h-10 items-center gap-2 self-start text-base font-semibold text-primary">
       <ArrowLeftIcon aria-hidden="true" className="size-5" />
       Volver a la lista
     </Link>
@@ -110,7 +110,7 @@ export default function RecibirDetalle() {
             completo ? (
               <p className="text-center">Se recibió todo el traspaso. Ya quedó en el inventario de este almacén.</p>
             ) : (
-              <p role="status" className="flex items-start gap-2 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-3">
+              <p role="status" className="flex items-start gap-2 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3">
                 <TriangleAlertIcon aria-hidden="true" className="mt-1 size-4 shrink-0 text-semaforo-amarillo" strokeWidth={3} />
                 <span>
                   <strong>Recibido con diferencias.</strong> Lo que no marcaste ({textoRenglones(recibido.faltaron)}) sigue en camino. El traspaso seguirá en la lista hasta que llegue.
@@ -210,7 +210,7 @@ function OtroAlmacen({ id, vale, operaTodos, almacenSesionId, volver }: { id: st
       ) : (
         <>
           {vale?.destino_almacen ? (
-            <p className="flex flex-wrap items-center gap-2 text-lg font-semibold">
+            <p className="flex flex-wrap items-center gap-2 text-base font-semibold">
               {vale.almacen.nombre}
               <ArrowRightIcon aria-label="hacia" className="size-5" />
               {vale.destino_almacen.nombre}
@@ -223,7 +223,7 @@ function OtroAlmacen({ id, vale, operaTodos, almacenSesionId, volver }: { id: st
           ) : (
             <Esqueleto tipo="renglon" />
           )}
-          <p className="text-base text-muted-foreground">Este traspaso no está disponible para que lo recibas desde este almacén.</p>
+          <p className="text-sm text-muted-foreground">Este traspaso no está disponible para que lo recibas desde este almacén.</p>
           {renglones.length > 0 ? (
             <ul className="flex flex-col gap-3">
               {renglones.map((r) => (
@@ -469,21 +469,21 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
     <Pantalla titulo="Recibir traspaso" descripcion={`Marca lo que llegó y confirma la recepción.`}>
       {volver}
 
-      <section aria-label="Datos del traspaso" className="flex flex-col gap-1 rounded-xl border bg-card p-4">
+      <section aria-label="Datos del traspaso" className="flex flex-col gap-1 rounded-2xl border bg-card p-4">
         <p className="flex flex-wrap items-center gap-2">
-          <span className="text-xl font-bold tracking-wide text-marino">{traspaso.folio}</span>
+          <span className="text-lg font-semibold tracking-wide text-marino">{traspaso.folio}</span>
           {conDiferencias ? <Insignia estado="amarillo">Recibido en parte</Insignia> : <Insignia estado="info">En camino</Insignia>}
         </p>
-        <p className="flex flex-wrap items-center gap-1.5 text-lg font-semibold">
+        <p className="flex flex-wrap items-center gap-1.5 text-base font-semibold">
           {traspaso.origen.nombre}
           <ArrowRightIcon aria-label="hacia" className="size-5 shrink-0" />
           {traspaso.destino.nombre}
         </p>
-        <p className="text-base text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Lo envió {traspaso.envio.nombre}, {desdeCuando(traspaso.creado_en)} · {textoRenglones(lineas.length)}
         </p>
         {traspaso.recepciones.length > 0 ? (
-          <p className="text-base text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Ya recibido antes: {traspaso.recepciones.map((r) => `${r.folio} (${r.recibio.nombre})`).join(", ")}.
           </p>
         ) : null}
@@ -497,8 +497,8 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
       ) : null}
 
       {errorAlmacen ? (
-        <section role="alert" className="flex flex-col gap-3 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
-          <p className="flex items-start gap-2 text-lg font-bold">
+        <section role="alert" className="flex flex-col gap-3 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
+          <p className="flex items-start gap-2 text-base font-semibold">
             <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-semaforo-amarillo" />
             Te cambiaron de almacén. {errorAlmacen.message}
           </p>
@@ -509,14 +509,14 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
       ) : null}
 
       {avisoCambio ? (
-        <p role="alert" className="flex items-start gap-2 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-base font-semibold">
+        <p role="alert" className="flex items-start gap-2 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-sm font-semibold">
           <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-semaforo-rojo" />
           {avisoCambio} Revisa lo que falta por recibir.
         </p>
       ) : null}
 
       {ev.error && !errorAlmacen ? (
-        <section role="alert" className="flex flex-col gap-2 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
+        <section role="alert" className="flex flex-col gap-2 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
           <p className="flex items-start gap-2 text-base font-semibold">
             {ev.error.sinConexion ? <WifiOffIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" /> : <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />}
             {ev.error.sinConexion ? "Sin conexión. Lo que marcaste está guardado en este dispositivo." : ev.error.message}
@@ -530,8 +530,8 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
       <MotivosDelVale motivos={(evaluacion?.motivos ?? []).filter((m) => m.regla !== "X-13" && m.regla !== "RG-14")} />
 
       {errorEnvio && errorEnvio.tipo !== "almacen" ? (
-        <section role="alert" className="flex flex-col gap-1 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-4">
-          <p className="flex items-start gap-2 text-base font-bold">
+        <section role="alert" className="flex flex-col gap-1 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-4">
+          <p className="flex items-start gap-2 text-base font-semibold">
             {errorEnvio.tipo === "conexion" ? <WifiOffIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" /> : <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />}
             {errorEnvio.mensaje}
           </p>
@@ -573,14 +573,14 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
 
           {hayExtras ? (
             <section aria-label="Códigos que no son de este traspaso" className="flex flex-col gap-2">
-              <h2 className="text-lg font-semibold">Códigos que no son de este traspaso</h2>
+              <h2 className="text-base font-semibold">Códigos que no son de este traspaso</h2>
               <ul className="flex flex-col gap-3">
                 {borrador.extras.map((codigo) => {
                   const r = evaluadoDe(codigo);
                   return (
-                    <li key={codigo} className="flex flex-col gap-2 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/5 p-3">
-                      <p className="text-lg font-semibold">{r?.articulo?.nombre ?? codigo}</p>
-                      <p className="text-base text-muted-foreground">Código {codigo}</p>
+                    <li key={codigo} className="flex flex-col gap-2 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/5 p-3">
+                      <p className="text-base font-semibold">{r?.articulo?.nombre ?? codigo}</p>
+                      <p className="text-sm text-muted-foreground">Código {codigo}</p>
                       {r ? (
                         <ul className="flex flex-col gap-1">
                           {r.motivos.map((m, i) => (
@@ -594,7 +594,7 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-base text-muted-foreground">Revisando…</p>
+                        <p className="text-sm text-muted-foreground">Revisando…</p>
                       )}
                       <Boton variante="contorno" className="self-start" onClick={() => quitarExtra(codigo)} disabled={enviando}>
                         Quitar
@@ -607,8 +607,8 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
           ) : null}
 
           {totalMarcado > 0 && faltantes.length > 0 ? (
-            <section role="status" aria-label="Diferencias" className="flex flex-col gap-2 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
-              <p className="flex items-start gap-2 text-base font-bold">
+            <section role="status" aria-label="Diferencias" className="flex flex-col gap-2 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
+              <p className="flex items-start gap-2 text-base font-semibold">
                 <TriangleAlertIcon aria-hidden="true" strokeWidth={3} className="mt-1 size-4 shrink-0 text-semaforo-amarillo" />
                 <span>
                   Hay diferencias: faltan {textoRenglones(faltantes.length)} ({unidadesQueFaltan} {unidadesQueFaltan === 1 ? "pieza o unidad" : "piezas o unidades"}).

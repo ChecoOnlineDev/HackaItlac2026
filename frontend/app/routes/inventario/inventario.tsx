@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { Boxes, InfoIcon, SearchIcon } from "lucide-react";
+import { Boxes, SearchIcon } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 
@@ -18,7 +18,8 @@ import {
 import { useConsulta, useRetraso } from "~/componentes/catalogo/usar-consulta";
 import { Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
 import { Boton } from "~/componentes/ui/boton";
-import { Campo } from "~/componentes/ui/campo";
+import { CampoBusqueda } from "~/componentes/ui/campo-busqueda";
+import { HojaFiltros } from "~/componentes/ui/hoja-filtros";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { EstadoVacio } from "~/componentes/ui/estado-vacio";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
@@ -104,61 +105,61 @@ export default function Inventario() {
   } else {
     contenido = (
       <div className={cn("flex flex-col gap-4 transition-opacity", existencias.cargando && "opacity-60")} aria-busy={existencias.cargando}>
-        <div className="hidden overflow-hidden rounded-xl border lg:block">
-          <Table className="w-full text-left">
-            <TableHeader className="bg-muted text-sm">
+        <div className="hidden lg:block">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableHead scope="col" className="p-3 font-semibold">Artículo</TableHead>
-                <TableHead scope="col" className="p-3 font-semibold">Categoría</TableHead>
-                <TableHead scope="col" className="p-3 text-right font-semibold">Existencia</TableHead>
-                <TableHead scope="col" className="p-3 text-right font-semibold">Disponible</TableHead>
+                <TableHead scope="col">Artículo</TableHead>
+                <TableHead scope="col">Categoría</TableHead>
+                <TableHead scope="col" className="text-right">Existencia</TableHead>
+                <TableHead scope="col" className="text-right">Disponible</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filas.map((f) => (
-                <TableRow key={f.articulo_id} className={cn("border-t", !f.activo && "bg-muted/40 text-muted-foreground")}>
-                  <TableHead scope="row" className="p-3">
+                <TableRow key={f.articulo_id} className={cn(!f.activo && "bg-muted/40 text-muted-foreground")}>
+                  <TableCell className="whitespace-normal">
                     {enlace(f.articulo_id, f.nombre)}
-                    <span className="block text-sm font-normal text-muted-foreground">
+                    <span className="block text-xs text-muted-foreground">
                       {f.codigo}
                       {f.marca ? ` · ${f.marca}` : ""}
                       {f.talla ? ` · Talla ${f.talla}` : ""}
                     </span>
                     {!f.activo ? <Insignia estado="neutra" className="mt-1">Inactivo</Insignia> : null}
-                  </TableHead>
-                  <TableCell className="p-3">
+                  </TableCell>
+                  <TableCell className="whitespace-normal">
                     {f.categoria_nombre}
-                    <span className="block text-sm text-muted-foreground">
+                    <span className="block text-xs text-muted-foreground">
                       {TEXTO_CONTROL[f.control]} · {textoRetorno(f.retornable)}
                     </span>
                   </TableCell>
-                  <TableCell className="p-3 text-right text-lg font-semibold">{f.cantidad}</TableCell>
-                  <TableCell className="p-3 text-right text-lg font-semibold">{f.disponible}</TableCell>
+                  <TableCell className="text-right font-semibold">{f.cantidad}</TableCell>
+                  <TableCell className="text-right font-semibold">{f.disponible}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
 
-        <ul className="flex flex-col gap-3 lg:hidden">
+        <ul className="grid gap-3 sm:grid-cols-2 lg:hidden">
           {filas.map((f) => (
-            <li key={f.articulo_id} className={cn("flex flex-col gap-3 rounded-xl border p-4", !f.activo && "bg-muted/40 text-muted-foreground")}>
-              <div className="flex flex-col gap-1">
-                <span className="text-lg">{enlace(f.articulo_id, f.nombre)}</span>
-                <span className="text-sm text-muted-foreground">
+            <li key={f.articulo_id} className={cn("flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-xs", !f.activo && "bg-muted/40 text-muted-foreground")}>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-base">{enlace(f.articulo_id, f.nombre)}</span>
+                <span className="text-xs text-muted-foreground">
                   {f.codigo} · {f.categoria_nombre}
                   {f.talla ? ` · Talla ${f.talla}` : ""}
                 </span>
-                {!f.activo ? <Insignia estado="neutra" className="self-start">Inactivo</Insignia> : null}
+                {!f.activo ? <Insignia estado="neutra" className="mt-1 self-start">Inactivo</Insignia> : null}
               </div>
-              <dl className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg bg-muted p-3">
-                  <dt className="text-sm">Existencia</dt>
-                  <dd className="text-2xl font-bold text-foreground">{f.cantidad}</dd>
+              <dl className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-muted/60 px-3 py-2">
+                  <dt className="text-xs text-muted-foreground">Existencia</dt>
+                  <dd className="text-xl font-semibold tabular-nums text-foreground">{f.cantidad}</dd>
                 </div>
-                <div className="rounded-lg bg-muted p-3">
-                  <dt className="text-sm">Disponible</dt>
-                  <dd className="text-2xl font-bold text-foreground">{f.disponible}</dd>
+                <div className="rounded-xl bg-muted/60 px-3 py-2">
+                  <dt className="text-xs text-muted-foreground">Disponible</dt>
+                  <dd className="text-xl font-semibold tabular-nums text-foreground">{f.disponible}</dd>
                 </div>
               </dl>
             </li>
@@ -169,49 +170,61 @@ export default function Inventario() {
     );
   }
 
+  const almacenActual = lista.find((a) => a.id === almacenId);
+  const almacenCambiado = almacenElegido !== null && almacenElegido !== (sesion?.almacen?.id ?? lista[0]?.id ?? "");
+  const activos = (categoria ? 1 : 0) + (almacenCambiado ? 1 : 0);
+
   return (
-    <Pantalla titulo="Inventario" descripcion="Lo que hay en cada almacén.">
-      <div className="grid gap-3 md:grid-cols-[1fr_1fr_2fr]">
-        <Seleccion
-          etiqueta="Almacén"
-          opciones={lista.map((a) => ({ valor: a.id, texto: a.nombre }))}
-          value={almacenId}
-          alCambiar={(v) => {
-            setAlmacenElegido(v);
-            setPagina(1);
-          }}
-          disabled={lista.length === 0}
-        />
-        {categorias.datos && categorias.datos.elementos.length > 0 ? (
-          <Seleccion
-            etiqueta="Categoría"
-            vacio="Todas las categorías"
-            opciones={categorias.datos.elementos.map((c) => ({ valor: c.id, texto: c.nombre }))}
-            value={categoria}
-            alCambiar={(v) => {
-              setCategoria(v);
-              setPagina(1);
-            }}
-          />
-        ) : (
-          <div />
-        )}
-        <Campo
-          etiqueta="Buscar"
-          type="search"
-          placeholder="Nombre, marca o código"
+    <Pantalla titulo="Inventario" descripcion={almacenActual ? `Lo que hay en ${almacenActual.nombre}.` : "Lo que hay en cada almacén."}>
+      <div className="flex items-center gap-2">
+        <CampoBusqueda
+          etiqueta="Buscar artículo"
+          placeholder="Buscar artículo"
           value={texto}
-          onChange={(e) => {
-            setTexto(e.target.value);
+          alCambiar={(v) => {
+            setTexto(v);
             setPagina(1);
           }}
         />
+        <HojaFiltros
+          valores={{ almacen: almacenId, categoria }}
+          activos={activos}
+          alAplicar={(v) => {
+            setAlmacenElegido(v.almacen);
+            setCategoria(v.categoria);
+            setPagina(1);
+          }}
+          alLimpiar={() => {
+            setAlmacenElegido(null);
+            setCategoria("");
+            setPagina(1);
+          }}
+        >
+          {(b, cambiar) => (
+            <>
+              <Seleccion
+                etiqueta="Almacén"
+                opciones={lista.map((a) => ({ valor: a.id, texto: a.nombre }))}
+                value={b.almacen}
+                alCambiar={(v) => cambiar({ almacen: v })}
+                disabled={lista.length === 0}
+              />
+              {categorias.datos && categorias.datos.elementos.length > 0 ? (
+                <Seleccion
+                  etiqueta="Categoría"
+                  vacio="Todas las categorías"
+                  opciones={categorias.datos.elementos.map((c) => ({ valor: c.id, texto: c.nombre }))}
+                  value={b.categoria}
+                  alCambiar={(v) => cambiar({ categoria: v })}
+                />
+              ) : null}
+            </>
+          )}
+        </HojaFiltros>
       </div>
-      <p className="flex items-start gap-2 rounded-xl border bg-accent p-3 text-marino">
-        <InfoIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
-        <span>
-          <strong>Existencia</strong> es todo lo que hay en el almacén. <strong>Disponible</strong> es lo que se puede entregar hoy: no cuenta las piezas no aptas ni las que están en mantenimiento.
-        </span>
+      <p className="text-xs text-muted-foreground">
+        <strong className="font-semibold text-foreground">Existencia:</strong> todo lo que hay.{" "}
+        <strong className="font-semibold text-foreground">Disponible:</strong> lo que se puede entregar hoy (sin piezas no aptas ni en mantenimiento).
       </p>
       {contenido}
     </Pantalla>

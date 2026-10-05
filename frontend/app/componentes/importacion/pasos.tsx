@@ -20,22 +20,22 @@ export function PasosImportacion({ actual }: { actual: 1 | 2 | 3 | 4 }) {
               key={nombre}
               aria-current={esActual ? "step" : undefined}
               className={cn(
-                "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl border p-2 text-center sm:flex-row sm:gap-2",
-                esActual && "border-2 border-primary bg-accent",
+                "flex min-h-12 flex-col items-center justify-center gap-1 rounded-2xl border p-2 text-center sm:flex-row sm:gap-2",
+                esActual && "border-primary bg-accent",
                 hecho && "bg-muted",
               )}
             >
               <span
                 aria-hidden="true"
                 className={cn(
-                  "flex size-7 shrink-0 items-center justify-center rounded-full border text-sm font-bold",
+                  "flex size-7 shrink-0 items-center justify-center rounded-full border text-sm font-semibold",
                   esActual && "border-primary bg-primary text-primary-foreground",
                   hecho && "border-semaforo-verde bg-semaforo-verde text-white",
                 )}
               >
                 {hecho ? <CheckIcon className="size-4" strokeWidth={3} /> : numero}
               </span>
-              <span className={cn("text-sm leading-tight sm:text-base", esActual ? "font-bold text-marino" : "font-medium")}>
+              <span className={cn("text-xs leading-tight sm:text-sm", esActual ? "font-semibold text-marino" : "font-medium")}>
                 <span className="sr-only">
                   Paso {numero}
                   {hecho ? " (hecho): " : esActual ? " (actual): " : ": "}

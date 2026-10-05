@@ -21,8 +21,8 @@ export function BandaAutorizacion({ autorizacion, alQuitarRenglones, deshabilita
 
   if (estado === "PENDIENTE") {
     return (
-      <section aria-label="Autorización en espera" className="flex flex-col gap-3 rounded-xl border-2 border-semaforo-naranja bg-semaforo-naranja/10 p-4">
-        <p className="flex items-center gap-2 text-lg font-bold">
+      <section aria-label="Autorización en espera" className="flex flex-col gap-3 rounded-2xl border border-semaforo-naranja bg-semaforo-naranja/10 p-4">
+        <p className="flex items-center gap-2 text-base font-semibold">
           <ClockIcon aria-hidden="true" className="size-6 shrink-0 text-semaforo-naranja" />
           En espera del supervisor
         </p>
@@ -37,7 +37,7 @@ export function BandaAutorizacion({ autorizacion, alQuitarRenglones, deshabilita
 
   if (estado === "APROBADA" || estado === "USADA") {
     return (
-      <p role="status" className="flex items-center gap-2 rounded-xl border-2 border-semaforo-verde bg-semaforo-verde/10 p-3 text-base font-semibold">
+      <p role="status" className="flex items-center gap-2 rounded-2xl border border-semaforo-verde bg-semaforo-verde/10 p-3 text-sm font-semibold">
         <CircleCheckIcon aria-hidden="true" className="size-6 shrink-0 text-semaforo-verde" />
         Autorizado{autorizacion.resuelta_por ? ` por ${autorizacion.resuelta_por}` : ""}.
       </p>
@@ -48,9 +48,9 @@ export function BandaAutorizacion({ autorizacion, alQuitarRenglones, deshabilita
     <section
       role="alert"
       aria-label="Autorización no concedida"
-      className="flex flex-col gap-3 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-4"
+      className="flex flex-col gap-3 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-4"
     >
-      <p className="flex items-center gap-2 text-lg font-bold">
+      <p className="flex items-center gap-2 text-base font-semibold">
         <CircleXIcon aria-hidden="true" className="size-6 shrink-0 text-semaforo-rojo" />
         {estado === "RECHAZADA" ? "El supervisor rechazó la solicitud." : "La solicitud venció sin respuesta."}
       </p>

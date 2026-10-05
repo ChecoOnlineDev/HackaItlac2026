@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, CircleAlertIcon, InfoIcon, RotateCcwIcon, WifiOffIcon } from "lucide-react";
+import { CircleAlertIcon, InfoIcon, RotateCcwIcon, UserRoundIcon, WifiOffIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker, useNavigate } from "react-router";
 
@@ -29,6 +29,8 @@ import { HojaAutorizacion } from "~/componentes/entrega/hoja-autorizacion";
 import { HojaBusquedaArticulos, type CoincidenciaArticulo } from "~/componentes/entrega/hoja-busqueda-articulos";
 import { PasoFirma } from "~/componentes/entrega/paso-firma";
 import { PasoTrabajador } from "~/componentes/entrega/paso-trabajador";
+import { BotonAtrasPaso, usarAtrasDePasos } from "~/componentes/navegacion/atras";
+import { IndicadorPasos } from "~/componentes/ui/indicador-pasos";
 import { ResultadoEntrega } from "~/componentes/entrega/resultado-entrega";
 import { SelectorAlmacen } from "~/componentes/entrega/selector-almacen";
 import type {
@@ -516,7 +518,7 @@ export default function Entregar() {
   const bandas = (
     <div className="flex flex-col gap-3">
       {retomado ? (
-        <p role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-muted p-3 text-base">
+        <p role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-muted p-3 text-sm">
           <span className="flex items-center gap-2">
             <InfoIcon aria-hidden="true" className="size-5 shrink-0 text-marino" />
             Retomaste una entrega que no terminaste.
@@ -528,8 +530,8 @@ export default function Entregar() {
         </p>
       ) : null}
       {almacenCambio ? (
-        <section role="alert" className="flex flex-col gap-3 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
-          <p className="flex items-start gap-2 text-lg font-bold">
+        <section role="alert" className="flex flex-col gap-3 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
+          <p className="flex items-start gap-2 text-base font-semibold">
             <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-semaforo-amarillo" />
             <span>
               Te cambiaron de almacén. <span className="font-semibold">{almacenCambio.mensaje}</span>
@@ -551,7 +553,7 @@ export default function Entregar() {
         </section>
       ) : null}
       {avisoCambio ? (
-        <p role="alert" className="flex items-start gap-2 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-base font-semibold">
+        <p role="alert" className="flex items-start gap-2 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-sm font-semibold">
           <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-semaforo-rojo" />
           {avisoCambio}
         </p>
@@ -559,35 +561,31 @@ export default function Entregar() {
     </div>
   );
 
+  const atrasDePaso = () => {
+    if (enviando) return;
+    if (borrador.paso === "trabajador") void navegar("/");
+    else if (borrador.paso === "articulos") irA("trabajador");
+    else irA("articulos");
+  };
+  usarAtrasDePasos(borrador.paso === "resultado" ? null : atrasDePaso);
+
   const encabezado = (
-    <div className="flex items-center justify-between gap-3">
-      {borrador.paso !== "resultado" ? (
-        <Boton
-          variante="texto"
-          className="-ml-3"
-          disabled={enviando}
-          onClick={() => {
-            if (borrador.paso === "trabajador") void navegar("/");
-            else if (borrador.paso === "articulos") irA("trabajador");
-            else irA("articulos");
-          }}
-        >
-          <ArrowLeftIcon aria-hidden="true" />
-          Atrás
-        </Boton>
+    <div className="flex flex-col gap-3">
+      {borrador.paso !== "resultado" ? <BotonAtrasPaso alVolver={atrasDePaso} deshabilitado={enviando} /> : null}
+      {borrador.paso === "resultado" ? (
+        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase" aria-live="polite">
+          Entrega terminada
+        </p>
       ) : (
-        <span />
+        <IndicadorPasos actual={NUMERO_PASO[borrador.paso]} total={3} nombre={NOMBRE_PASO[borrador.paso]} />
       )}
-      <p className="text-base font-semibold text-muted-foreground" aria-live="polite">
-        {borrador.paso === "resultado" ? "Entrega terminada" : `Paso ${NUMERO_PASO[borrador.paso]} de 3 · ${NOMBRE_PASO[borrador.paso]}`}
-      </p>
     </div>
   );
 
   const selector = operaTodos ? (
     <SelectorAlmacen valor={borrador.almacenId} alCambiar={elegirAlmacen} deshabilitado={borrador.renglones.length > 0 && borrador.paso !== "trabajador"} />
   ) : almacenNombre ? (
-    <p className="text-base text-muted-foreground">
+    <p className="text-sm text-muted-foreground">
       Almacén: <span className="font-semibold text-foreground">{almacenNombre}</span>
     </p>
   ) : null;
@@ -611,7 +609,6 @@ export default function Entregar() {
           alIdentificar={(f) =>
             actualizar((b) => ({ ...b, trabajador: f, autorizacion: b.trabajador?.id === f.id ? b.autorizacion : null }))
           }
-          alCambiar={() => actualizar((b) => ({ ...b, trabajador: null, autorizacion: null }))}
         />
       </div>
     );
@@ -620,12 +617,18 @@ export default function Entregar() {
         <Boton variante="principal" disabled={razon !== null} onClick={() => irA("articulos")}>
           Continuar
         </Boton>
+        {borrador.trabajador ? (
+          <Boton variante="texto" onClick={() => actualizar((b) => ({ ...b, trabajador: null, autorizacion: null }))}>
+            <UserRoundIcon aria-hidden="true" />
+            No es esta persona
+          </Boton>
+        ) : null}
       </AccionPrincipal>
     );
   } else if (borrador.paso === "articulos") {
     const razon = razonParaNoContinuar();
     const campoDeObservacion = observando ? mapaEvaluados.get(observando) : undefined;
-    const claseSinEvaluar = "rounded-xl border border-dashed bg-muted p-3 text-base";
+    const claseSinEvaluar = "rounded-2xl border border-dashed bg-muted p-3 text-sm";
     contenido = (
       <div className="flex flex-col gap-4">
         {selector}
@@ -634,7 +637,7 @@ export default function Entregar() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_20rem] md:items-start">
           <div className="order-2 flex min-w-0 flex-col gap-4 md:order-1">
             {errorEvaluacion && errorEvaluacion.codigo !== "ALMACEN_CAMBIO" ? (
-              <section role="alert" className="flex flex-col gap-2 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
+              <section role="alert" className="flex flex-col gap-2 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
                 <p className="flex items-start gap-2 text-base font-semibold">
                   {errorEvaluacion.sinConexion ? <WifiOffIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" /> : <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />}
                   {errorEvaluacion.sinConexion ? "Sin conexión. Tu captura está guardada en este dispositivo." : errorEvaluacion.message}
@@ -646,7 +649,7 @@ export default function Entregar() {
             ) : null}
 
             {evaluacion?.motivos.length ? (
-              <ul className="flex flex-col gap-1 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-3">
+              <ul className="flex flex-col gap-1 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3">
                 {evaluacion.motivos.map((m, i) => (
                   <li key={`${m.regla}-${i}`} className="text-base">
                     <span className="sr-only">{TEXTO_NIVEL[m.nivel]}: </span>
@@ -660,7 +663,7 @@ export default function Entregar() {
               <BandaAutorizacion autorizacion={autorizacion} alQuitarRenglones={quitarRenglonesDeAutorizacion} deshabilitado={enviando} />
             ) : null}
             {evaluacion?.autorizacion_error && autorizacion?.estado === "APROBADA" ? (
-              <p role="alert" className="rounded-xl border-2 border-semaforo-naranja bg-semaforo-naranja/10 p-3 text-base font-semibold">
+              <p role="alert" className="rounded-2xl border border-semaforo-naranja bg-semaforo-naranja/10 p-3 text-sm font-semibold">
                 {evaluacion.autorizacion_error}
               </p>
             ) : null}
@@ -686,7 +689,7 @@ export default function Entregar() {
               deshabilitado={enviando}
               vacio={
                 sinEvaluar.length === 0 ? (
-                  <p className="rounded-xl border border-dashed p-6 text-center text-base text-muted-foreground">
+                  <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
                     Todavía no hay artículos. Escanea el primero o escribe su código.
                   </p>
                 ) : null
@@ -703,7 +706,7 @@ export default function Entregar() {
             ) : null}
 
             {porConfirmar === undefined && evaluados.some((r) => r.requiere_confirmacion && borrador.cantidadesConfirmadas[claveDeCodigo(r.codigo)] !== r.cantidad) ? (
-              <p className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-base">
+              <p className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-sm">
                 <span>Hay una cantidad más alta de lo normal sin confirmar.</span>
                 <Boton
                   variante="secundario"
@@ -722,7 +725,7 @@ export default function Entregar() {
               onCodigo={(codigo, origen) => void alLeerArticulo(codigo, origen)}
               onRepetido={() => reproducir("aviso")}
               etiquetaCampo="Escribir código o nombre"
-              placeholderCampo="Código, serie o nombre del artículo"
+              placeholderCampo="Código, serie o nombre"
             />
             {buscandoArticulo ? <Cargando variante="en-linea" texto="Buscando…" /> : null}
           </div>
@@ -800,8 +803,8 @@ export default function Entregar() {
       <div className="flex flex-col gap-4">
         {trabajador ? <FichaTrabajador trabajador={trabajador} variante="reducida" /> : null}
         {errorEnvio ? (
-          <section role="alert" className="flex flex-col gap-1 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-4">
-            <p className="flex items-start gap-2 text-base font-bold">
+          <section role="alert" className="flex flex-col gap-1 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-4">
+            <p className="flex items-start gap-2 text-base font-semibold">
               {errorEnvio.tipo === "conexion" ? <WifiOffIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" /> : <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />}
               {errorEnvio.mensaje}
             </p>
@@ -839,7 +842,7 @@ export default function Entregar() {
   }
 
   return (
-    <Pantalla titulo="Entregar" descripcion={borrador.paso === "resultado" ? undefined : "Entrega equipo o material a un trabajador y emite su vale."}>
+    <Pantalla titulo="Entregar">
       {encabezado}
       {!enLinea && borrador.paso !== "resultado" ? (
         <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">

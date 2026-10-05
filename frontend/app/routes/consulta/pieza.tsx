@@ -67,7 +67,7 @@ export default function FichaPiezaPantalla() {
 
       <Bloque titulo="Dónde está" icono={MapPinIcon}>
         {pieza.ubicacion ? (
-          <p className="text-lg font-semibold">
+          <p className="text-base font-semibold">
             {conTrabajador && pieza.ubicacion.trabajador_id && puede("trabajadores.ver") ? (
               <Link to={`/trabajadores/${pieza.ubicacion.trabajador_id}`} className="text-primary underline underline-offset-2">
                 {pieza.ubicacion.texto}
@@ -77,14 +77,14 @@ export default function FichaPiezaPantalla() {
             )}
           </p>
         ) : (
-          <p className="text-base text-muted-foreground">No se sabe dónde está.</p>
+          <p className="text-sm text-muted-foreground">No se sabe dónde está.</p>
         )}
-        <p className="text-base text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           {conTrabajador ? "La tiene un trabajador en resguardo." : pieza.ubicacion?.tipo === "ALMACEN" ? "Está en el almacén." : ""}
         </p>
       </Bloque>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+      <div className="flex flex-wrap gap-2">
         {puedeInspeccionar && !enBaja ? (
           <Boton variante="normal" onClick={() => setPanel("inspeccion")}>
             <ClipboardCheckIcon aria-hidden="true" />
@@ -118,7 +118,7 @@ export default function FichaPiezaPantalla() {
       </div>
 
       <Seccion titulo="Datos de la pieza">
-        <dl className="grid grid-cols-1 gap-3 rounded-xl border p-4 sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-3 rounded-2xl border bg-card p-4 shadow-xs sm:grid-cols-2">
           <Dato
             etiqueta="Artículo"
             valor={
@@ -141,7 +141,7 @@ export default function FichaPiezaPantalla() {
       {pieza.articulo.requiere_inspeccion ? (
         <Seccion titulo="Última inspección">
           {inspeccion ? (
-            <dl className="grid grid-cols-1 gap-3 rounded-xl border p-4 sm:grid-cols-2">
+            <dl className="grid grid-cols-1 gap-3 rounded-2xl border bg-card p-4 shadow-xs sm:grid-cols-2">
               <Dato etiqueta="Resultado" valor={inspeccion.resultado_texto} />
               <Dato etiqueta="Fecha" valor={formatearFecha(inspeccion.fecha)} />
               <Dato etiqueta="Hecha por" valor={inspeccion.usuario} />
@@ -149,7 +149,7 @@ export default function FichaPiezaPantalla() {
               {inspeccion.observacion ? <Dato etiqueta="Observación" valor={inspeccion.observacion} /> : null}
             </dl>
           ) : (
-            <p className="text-base text-muted-foreground">Todavía no tiene ninguna inspección.</p>
+            <p className="text-sm text-muted-foreground">Todavía no tiene ninguna inspección.</p>
           )}
         </Seccion>
       ) : null}

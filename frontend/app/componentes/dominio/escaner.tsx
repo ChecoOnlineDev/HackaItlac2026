@@ -341,10 +341,10 @@ export function Escaner({
   const camaraVisible = camaraEncendida;
 
   return (
-    <div className={cn("flex flex-col gap-4", className)} data-slot="escaner">
+    <div className={cn("flex flex-col gap-3", className)} data-slot="escaner">
       <div className="flex flex-col gap-3">
         {camaraVisible ? (
-          <div className="relative overflow-hidden rounded-xl border-2 border-primary bg-black">
+          <div className="relative overflow-hidden rounded-2xl border-2 border-primary bg-black">
             <video
               ref={video}
               playsInline
@@ -393,15 +393,13 @@ export function Escaner({
         </Boton>
 
         {sinSoporte ? (
-          <p role="status" className="flex items-start gap-2 rounded-lg border bg-muted p-3 text-sm">
+          <p role="status" className="flex items-start gap-2 rounded-xl bg-muted p-3 text-sm text-muted-foreground">
             <InfoIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-marino" />
-            <span>
-              Este navegador no puede leer códigos con la cámara. Usa la pistola lectora o escribe el código aquí abajo.
-            </span>
+            <span>Este navegador no abre la cámara. Usa la pistola lectora o escribe el código.</span>
           </p>
         ) : null}
         {errorCamara ? (
-          <p role="alert" className="flex items-start gap-2 rounded-lg border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-sm">
+          <p role="alert" className="flex items-start gap-2 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-sm">
             <InfoIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-semaforo-amarillo" />
             <span>{errorCamara}</span>
           </p>
@@ -423,15 +421,13 @@ export function Escaner({
           enterKeyHint="send"
           disabled={!activo}
         />
-        <Boton type="submit" variante="secundario" disabled={!activo || !texto.trim()} aria-label="Enviar código">
+        <Boton type="submit" variante="secundario" className="h-11" disabled={!activo || !texto.trim()} aria-label="Enviar código">
           <CornerDownLeftIcon aria-hidden="true" />
           <span className="max-sm:sr-only">Agregar</span>
         </Boton>
       </form>
 
-      <p className="text-sm text-muted-foreground">
-        También puedes usar la pistola lectora: apunta y dispara, sin tocar ningún campo.
-      </p>
+      <p className="text-xs text-muted-foreground">Con pistola lectora: apunta y dispara, sin tocar ningún campo.</p>
 
       {/* Anuncia la última lectura a los lectores de pantalla. */}
       <p className="sr-only" role="status" aria-live="polite">

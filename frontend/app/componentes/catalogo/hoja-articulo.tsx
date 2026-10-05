@@ -219,7 +219,7 @@ export function HojaArticulo({ abierta, alCambiar, articulo, categorias, puedeCo
           error={errores.categoria_id}
         />
         {articulo && categoria && categoriaId !== articulo.categoria_id ? (
-          <div className="flex flex-col gap-2 rounded-xl border p-3">
+          <div className="flex flex-col gap-2 rounded-2xl border p-3">
             <p>¿Quieres usar las reglas de “{categoria.nombre}” para este artículo?</p>
             <Boton variante="secundario" type="button" onClick={() => tomarPlantilla(categoria)} disabled={bloqueado}>
               Usar las reglas de la nueva categoría
@@ -278,7 +278,7 @@ export function HojaArticulo({ abierta, alCambiar, articulo, categorias, puedeCo
           </NotaBloqueo>
         ) : null}
 
-        <h3 className="mt-2 text-lg font-bold text-marino">Reglas de entrega</h3>
+        <h3 className="mt-2 text-base font-semibold text-marino">Reglas de entrega</h3>
         <FormularioReglas valor={reglas} alCambiar={setReglas} control={control} errores={errores} />
       </form>
     </Hoja>

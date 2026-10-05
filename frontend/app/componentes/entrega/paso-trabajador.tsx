@@ -1,4 +1,4 @@
-import { SearchXIcon, UserRoundIcon } from "lucide-react";
+import { SearchXIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiGet } from "~/api/cliente";
@@ -6,7 +6,6 @@ import { esErrorApi, mensajeDeError } from "~/api/errores";
 import { Escaner, type OrigenLectura } from "~/componentes/dominio/escaner";
 import { FichaTrabajador } from "~/componentes/dominio/ficha-trabajador";
 import { reproducir } from "~/componentes/dominio/sonido";
-import { Boton } from "~/componentes/ui/boton";
 import { Cargando } from "~/componentes/ui/cargando";
 import type { FichaTrabajadorApi } from "./tipos";
 
@@ -30,8 +29,6 @@ interface PropiedadesPasoTrabajador {
   /** Trabajador ya identificado, o null. */
   trabajador: FichaTrabajadorApi | null;
   alIdentificar: (ficha: FichaTrabajadorApi) => void;
-  /** Vuelve a mostrar el escáner para identificar a otra persona. */
-  alCambiar: () => void;
   /** Apaga el escáner (por ejemplo mientras no se ha elegido almacén). */
   activo?: boolean;
 }
@@ -40,7 +37,7 @@ interface PropiedadesPasoTrabajador {
  * Paso 1 de la entrega: identificar al trabajador con la credencial (cámara o pistola), su número de
  * empleado o su nombre. Al identificarlo aparece su ficha; si no es vigente, toda en rojo (E-02).
  */
-export function PasoTrabajador({ trabajador, alIdentificar, alCambiar, activo = true }: PropiedadesPasoTrabajador) {
+export function PasoTrabajador({ trabajador, alIdentificar, activo = true }: PropiedadesPasoTrabajador) {
   const [buscando, setBuscando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [candidatos, setCandidatos] = useState<CandidatoApi[] | null>(null);
@@ -120,30 +117,31 @@ export function PasoTrabajador({ trabajador, alIdentificar, alCambiar, activo = 
     }
   };
 
+  // La acción "No es esta persona" vive en el pie fijo de la pantalla, junto a "Continuar": nunca queda fuera de alcance.
   if (trabajador) {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
+        <h2>Confirma que es la persona correcta</h2>
         <FichaTrabajador trabajador={trabajador} variante="completa" />
-        <Boton variante="contorno" onClick={alCambiar} className="self-start">
-          <UserRoundIcon aria-hidden="true" />
-          Es otra persona
-        </Boton>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-base text-muted-foreground">Escanea la credencial del trabajador o escribe su número o su nombre.</p>
+      <div className="flex flex-col gap-1">
+        <h2 className="text-lg">Escanea la credencial del trabajador</h2>
+        <p className="text-sm text-muted-foreground">Si no la tiene a la mano, escribe su número o su nombre.</p>
+      </div>
       <Escaner
         activo={activo && !buscando}
         onCodigo={(codigo, origen) => void alCodigo(codigo, origen)}
         etiquetaCampo="Escribir número o nombre"
-        placeholderCampo="Por ejemplo EMP-1001 o Juan"
+        placeholderCampo="EMP-1001 o Juan"
       />
       {buscando ? <Cargando variante="en-linea" texto="Buscando al trabajador…" /> : null}
       {mensaje ? (
-        <p role="alert" className="flex items-start gap-2 rounded-lg border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-base font-medium">
+        <p role="alert" className="flex items-start gap-2 rounded-xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-sm font-medium">
           <SearchXIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-semaforo-amarillo" />
           {mensaje}
         </p>
@@ -157,9 +155,9 @@ export function PasoTrabajador({ trabajador, alIdentificar, alCambiar, activo = 
                 <button
                   type="button"
                   onClick={() => void elegir(c)}
-                  className="flex min-h-14 w-full flex-col items-start rounded-xl border bg-card px-4 py-2 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex min-h-12 w-full flex-col items-start rounded-2xl border bg-card px-4 py-2 text-left shadow-xs hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <span className="text-lg font-semibold">{c.nombre}</span>
+                  <span className="text-base font-semibold">{c.nombre}</span>
                   <span className="text-sm text-muted-foreground">
                     N.º {c.numero_empleado} · {c.estado_texto}
                   </span>

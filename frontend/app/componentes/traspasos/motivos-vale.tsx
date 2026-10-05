@@ -13,9 +13,9 @@ const COLOR_ICONO: Record<NivelSemaforo, string> = {
 };
 const BORDE: Record<NivelSemaforo, string> = {
   VERDE: "border",
-  AMARILLO: "border-2 border-semaforo-amarillo bg-semaforo-amarillo/10",
-  NARANJA: "border-2 border-semaforo-amarillo bg-semaforo-amarillo/10",
-  ROJO: "border-2 border-semaforo-rojo bg-semaforo-rojo/10",
+  AMARILLO: "border border-semaforo-amarillo bg-semaforo-amarillo/10",
+  NARANJA: "border border-semaforo-amarillo bg-semaforo-amarillo/10",
+  ROJO: "border border-semaforo-rojo bg-semaforo-rojo/10",
 };
 
 /**
@@ -29,7 +29,7 @@ export function MotivosDelVale({ motivos, className }: { motivos: MotivoRegla[];
       {motivos.map((m, i) => {
         const Icono = ICONO[m.nivel];
         return (
-          <li key={`${m.regla}-${i}`} className={cn("flex items-start gap-2 rounded-xl p-3 text-base", BORDE[m.nivel])}>
+          <li key={`${m.regla}-${i}`} className={cn("flex items-start gap-2 rounded-xl p-3 text-sm", BORDE[m.nivel])}>
             <Icono aria-hidden="true" strokeWidth={3} className={cn("mt-1 size-4 shrink-0", COLOR_ICONO[m.nivel])} />
             <span className="min-w-0 flex-1">
               <span className="sr-only">{TEXTO[m.nivel]}: </span>

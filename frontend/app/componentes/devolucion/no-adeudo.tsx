@@ -138,7 +138,7 @@ export function useAccionNoAdeudo(trabajador: TrabajadorNoAdeudo | null, alCambi
         }
       >
         <div className="flex flex-col gap-4">
-          <p className="text-base text-muted-foreground">{NOTA_CONSUMIBLES}</p>
+          <p className="text-sm text-muted-foreground">{NOTA_CONSUMIBLES}</p>
           {pendientes ? <ListaPendientes pendientes={pendientes} /> : null}
         </div>
       </Hoja>
@@ -164,7 +164,7 @@ export function useAccionNoAdeudo(trabajador: TrabajadorNoAdeudo | null, alCambi
       >
         {vale ? (
           <div className="flex flex-col items-center gap-4">
-            <p role="status" className="flex items-center gap-2 text-lg font-bold">
+            <p role="status" className="flex items-center gap-2 text-base font-semibold">
               <CircleCheckIcon aria-hidden="true" className="size-6 text-semaforo-verde" strokeWidth={3} />
               Vale emitido
             </p>

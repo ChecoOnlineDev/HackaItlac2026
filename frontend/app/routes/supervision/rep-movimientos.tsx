@@ -103,34 +103,34 @@ export default function ReporteMovimientos() {
     else cambiar({ [clave]: null } as Record<(typeof CLAVES)[number], null>);
   }
 
-  const filtros = (
+  const filtros = (v: Record<string, string>, c: (parcial: Record<string, string | null>) => void) => (
     <>
-      <FiltroPeriodo desde={valores.desde} hasta={valores.hasta} alCambiar={(r) => cambiar({ desde: r.desde, hasta: r.hasta })} />
+      <FiltroPeriodo desde={v.desde} hasta={v.hasta} alCambiar={(r) => c({ desde: r.desde, hasta: r.hasta })} />
       {alcance.todos && almacenes.disponible ? (
         <FiltroLista
           etiqueta="Almacén"
           vacio="Todos los almacenes"
-          valor={valores.almacen_id}
+          valor={v.almacen_id}
           opciones={almacenes.opciones}
-          alCambiar={(v) => cambiar({ almacen_id: v })}
+          alCambiar={(v) => c({ almacen_id: v })}
         />
       ) : null}
       <FiltroLista
         etiqueta="Tipo de movimiento"
         vacio="Todos los tipos"
-        valor={valores.tipo}
+        valor={v.tipo}
         opciones={TIPOS_DE_MOVIMIENTO}
-        alCambiar={(v) => cambiar({ tipo: v })}
+        alCambiar={(v) => c({ tipo: v })}
       />
       <FiltroLista
         etiqueta="Quién lo hizo"
         vacio="Todos los usuarios"
-        valor={valores.usuario_id}
+        valor={v.usuario_id}
         opciones={usuarios.opciones}
-        alCambiar={(v) => cambiar({ usuario_id: v })}
+        alCambiar={(v) => c({ usuario_id: v })}
       />
-      <SelectorBusqueda tipo="trabajador" valor={valores.trabajador_id} alCambiar={(id) => cambiar({ trabajador_id: id })} />
-      <SelectorBusqueda tipo="articulo" valor={valores.articulo_id} alCambiar={(id) => cambiar({ articulo_id: id })} />
+      <SelectorBusqueda tipo="trabajador" valor={v.trabajador_id} alCambiar={(id) => c({ trabajador_id: id })} />
+      <SelectorBusqueda tipo="articulo" valor={v.articulo_id} alCambiar={(id) => c({ articulo_id: id })} />
     </>
   );
 
@@ -138,6 +138,8 @@ export default function ReporteMovimientos() {
     <Pantalla titulo="Reporte de movimientos" descripcion="Qué se movió, cuándo y quién lo hizo.">
       <MarcoReporte<MovimientoReporte>
         unidad="movimientos"
+        valores={valores}
+        alAplicar={(v) => cambiar(v)}
         filtros={filtros}
         activos={activos}
         alQuitar={quitar}
@@ -148,54 +150,52 @@ export default function ReporteMovimientos() {
         alDescargar={() => descargarCsv("/reportes/movimientos", parametros, "movimientos.csv")}
         nota={<NotaAlcance almacen={alcance.almacen} />}
         tabla={(elementos) => (
-          <div className="overflow-x-auto rounded-xl border">
-            <Table className="w-full text-left">
+          <Table>
               <TableCaption className="sr-only">Movimientos de inventario</TableCaption>
-              <TableHeader className="bg-muted text-sm">
+              <TableHeader>
                 <TableRow>
-                  <TableHead scope="col" className="p-3 font-semibold">Fecha y hora</TableHead>
-                  <TableHead scope="col" className="p-3 font-semibold">Folio</TableHead>
-                  <TableHead scope="col" className="p-3 font-semibold">Tipo</TableHead>
-                  <TableHead scope="col" className="p-3 font-semibold">Artículo</TableHead>
-                  <TableHead scope="col" className="p-3 text-right font-semibold">Cantidad</TableHead>
-                  <TableHead scope="col" className="p-3 font-semibold">De</TableHead>
-                  <TableHead scope="col" className="p-3 font-semibold">A</TableHead>
-                  <TableHead scope="col" className="p-3 font-semibold">Responsable</TableHead>
-                  <TableHead scope="col" className="p-3 font-semibold">Saldo</TableHead>
+                  <TableHead scope="col">Fecha y hora</TableHead>
+                  <TableHead scope="col">Folio</TableHead>
+                  <TableHead scope="col">Tipo</TableHead>
+                  <TableHead scope="col">Artículo</TableHead>
+                  <TableHead scope="col" className="text-right">Cantidad</TableHead>
+                  <TableHead scope="col">De</TableHead>
+                  <TableHead scope="col">A</TableHead>
+                  <TableHead scope="col">Responsable</TableHead>
+                  <TableHead scope="col">Saldo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {elementos.map((m) => (
-                  <TableRow key={m.id} className="border-t align-top">
-                    <TableCell className="p-3 whitespace-nowrap tabular-nums">{formatearFechaHora(comoUtc(m.fecha))}</TableCell>
-                    <TableHead scope="row" className="p-3 font-semibold whitespace-nowrap">
-                      <Link to={`/vales/${m.vale_id}`} className="inline-flex min-h-12 items-center underline underline-offset-4">
+                  <TableRow key={m.id} className="align-top">
+                    <TableCell className="tabular-nums">{formatearFechaHora(comoUtc(m.fecha))}</TableCell>
+                    <TableHead scope="row">
+                      <Link to={`/vales/${m.vale_id}`} className="inline-flex min-h-10 items-center text-primary underline underline-offset-4">
                         {m.folio}
                       </Link>
                     </TableHead>
-                    <TableCell className="p-3">{m.tipo_texto}</TableCell>
-                    <TableCell className="p-3">
+                    <TableCell>{m.tipo_texto}</TableCell>
+                    <TableCell>
                       <Articulo m={m} />
                     </TableCell>
                     <TableCell className="p-3 text-right font-semibold tabular-nums">{m.cantidad}</TableCell>
-                    <TableCell className="p-3">{m.origen}</TableCell>
-                    <TableCell className="p-3">{m.destino}</TableCell>
-                    <TableCell className="p-3">{m.responsable}</TableCell>
-                    <TableCell className="p-3">
+                    <TableCell>{m.origen}</TableCell>
+                    <TableCell>{m.destino}</TableCell>
+                    <TableCell>{m.responsable}</TableCell>
+                    <TableCell>
                       <Saldo m={m} />
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </div>
         )}
         tarjetas={(elementos) => (
           <ul className="flex flex-col gap-3">
             {elementos.map((m) => (
-              <li key={m.id} className="flex flex-col gap-2 rounded-xl border p-4">
+              <li key={m.id} className="flex flex-col gap-2 rounded-2xl border bg-card p-4 shadow-xs">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Link to={`/vales/${m.vale_id}`} className="inline-flex min-h-12 items-center text-lg font-bold underline underline-offset-4">
+                  <Link to={`/vales/${m.vale_id}`} className="inline-flex min-h-10 items-center text-base font-semibold text-primary underline underline-offset-4">
                     {m.folio}
                   </Link>
                   <Insignia estado="neutra">{m.tipo_texto}</Insignia>
@@ -204,7 +204,7 @@ export default function ReporteMovimientos() {
                 <p>
                   <Articulo m={m} />
                 </p>
-                <p className="text-lg">
+                <p className="text-sm">
                   Cantidad: <span className="font-bold tabular-nums">{m.cantidad}</span>
                 </p>
                 <p>

@@ -8,10 +8,10 @@ type VarianteBoton = "principal" | "normal" | "secundario" | "contorno" | "texto
 
 interface PropiedadesBoton extends Omit<ComponentProps<typeof Button>, "variant" | "size"> {
   /**
-   * - `principal`: la acción de la pantalla; 56 px y a todo el ancho. Una por pantalla.
-   * - `normal`: acción azul de 48 px (por ejemplo "Sí, confirmar" en una ventana).
-   * - `secundario`: acción de apoyo, 48 px, azul suave.
-   * - `contorno`: acción neutra, 48 px, con borde.
+   * - `principal`: la acción de la pantalla; 48 px y a todo el ancho. Una por pantalla.
+   * - `normal`: acción azul de 40 px (por ejemplo "Sí, confirmar" en una ventana).
+   * - `secundario`: acción de apoyo, 40 px, azul suave.
+   * - `contorno`: acción neutra, 40 px, con borde.
    * - `texto`: sin fondo, para "Atrás" o "Cancelar".
    * - `peligro`: acción que no se deshace.
    */

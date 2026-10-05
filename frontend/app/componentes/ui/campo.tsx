@@ -25,14 +25,14 @@ export function Campo({ etiqueta, error, ayuda, claseContenedor, id, className, 
 
   return (
     <div className={cn("flex flex-col gap-1.5", claseContenedor)}>
-      <Label htmlFor={idCampo} className="text-base font-medium text-foreground">
+      <Label htmlFor={idCampo} className="text-sm font-medium text-foreground">
         {etiqueta}
       </Label>
       <Input
         id={idCampo}
         aria-invalid={error ? true : undefined}
         aria-describedby={descripcion}
-        className={cn("h-12 rounded-lg px-3 text-base md:text-base", className)}
+        className={cn("h-11 px-3 text-base md:text-base", className)}
         {...props}
       />
       {ayuda ? (

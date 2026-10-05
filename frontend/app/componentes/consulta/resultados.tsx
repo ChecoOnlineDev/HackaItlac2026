@@ -10,11 +10,11 @@ import type { Busqueda } from "./tipos";
 function Fila({ a, principal, secundario, derecha, icono }: { a: string; principal: string; secundario?: string; derecha?: React.ReactNode; icono: React.ReactNode }) {
   return (
     <li>
-      <Link to={a} className="flex min-h-14 items-center gap-3 px-3 py-2 hover:bg-muted focus-visible:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
+      <Link to={a} className="flex min-h-12 items-center gap-3 px-3 py-2 hover:bg-muted focus-visible:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
         {icono}
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-base font-semibold">{principal}</span>
-          {secundario ? <span className="truncate text-sm text-muted-foreground">{secundario}</span> : null}
+          <span className="text-base font-semibold wrap-break-word">{principal}</span>
+          {secundario ? <span className="text-sm text-muted-foreground wrap-break-word">{secundario}</span> : null}
         </span>
         {derecha}
         <ChevronRightIcon aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
@@ -48,7 +48,7 @@ export function ResultadosBusqueda({ busqueda, texto }: { busqueda: Busqueda; te
     <div className="flex flex-col gap-6">
       {trabajadores.elementos.length > 0 ? (
         <Seccion titulo={`Trabajadores (${trabajadores.total})`}>
-          <ul className="flex flex-col divide-y rounded-xl border">
+          <ul className="flex flex-col divide-y rounded-2xl border">
             {trabajadores.elementos.map((t) => (
               <Fila
                 key={t.id}
@@ -65,7 +65,7 @@ export function ResultadosBusqueda({ busqueda, texto }: { busqueda: Busqueda; te
       ) : null}
       {articulos.elementos.length > 0 ? (
         <Seccion titulo={`Artículos (${articulos.total})`}>
-          <ul className="flex flex-col divide-y rounded-xl border">
+          <ul className="flex flex-col divide-y rounded-2xl border">
             {articulos.elementos.map((a) => (
               <Fila
                 key={a.id}
@@ -82,7 +82,7 @@ export function ResultadosBusqueda({ busqueda, texto }: { busqueda: Busqueda; te
       ) : null}
       {piezas.elementos.length > 0 ? (
         <Seccion titulo={`Piezas (${piezas.total})`}>
-          <ul className="flex flex-col divide-y rounded-xl border">
+          <ul className="flex flex-col divide-y rounded-2xl border">
             {piezas.elementos.map((p) => (
               <Fila
                 key={p.id}

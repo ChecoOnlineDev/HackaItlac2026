@@ -80,7 +80,7 @@ export interface PropiedadesRenglonSemaforo {
 function Motivo({ motivo }: { motivo: MotivoRegla }) {
   const Icono = ICONO_NIVEL[motivo.nivel];
   return (
-    <li className="flex items-start gap-2 text-base leading-snug">
+    <li className="flex items-start gap-2 text-sm leading-snug">
       <Icono aria-hidden="true" strokeWidth={3} className={cn("mt-1 size-4 shrink-0", COLOR_TEXTO_ICONO[motivo.nivel])} />
       <span className="min-w-0 flex-1">
         <span className="sr-only">{TEXTO_NIVEL[motivo.nivel]}: </span>
@@ -134,23 +134,23 @@ export function RenglonSemaforo({
       aria-label={`${nombre}. ${textoNivel}`}
       data-nivel={nivel}
       className={cn(
-        "flex overflow-hidden rounded-xl border transition-colors duration-150 motion-reduce:transition-none",
+        "flex overflow-hidden rounded-2xl border transition-colors duration-150 motion-reduce:transition-none",
         resaltado ? "bg-accent ring-2 ring-primary" : COLOR_FONDO[nivel],
         nota && "ring-2 ring-semaforo-rojo",
         className,
       )}
     >
-      <div aria-hidden="true" className={cn("w-2.5 shrink-0", COLOR_FRANJA[nivel])} />
+      <div aria-hidden="true" className={cn("w-2 shrink-0", COLOR_FRANJA[nivel])} />
       <div className="flex min-w-0 flex-1 flex-col gap-2 p-3">
         <div className="flex items-start gap-3">
           <span
             aria-hidden="true"
-            className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full text-white", COLOR_FRANJA[nivel])}
+            className={cn("mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-white", COLOR_FRANJA[nivel])}
           >
-            <Icono className="size-5" strokeWidth={3} />
+            <Icono className="size-4" strokeWidth={3} />
           </span>
           <div className="flex min-w-0 flex-1 flex-col">
-            <p className="text-lg leading-tight font-semibold wrap-break-word">{nombre}</p>
+            <p className="text-base leading-tight font-semibold wrap-break-word">{nombre}</p>
             {detalleNombre ? <p className="text-sm text-muted-foreground">{detalleNombre}</p> : null}
             <p className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{renglon.codigo}</span>
@@ -161,7 +161,7 @@ export function RenglonSemaforo({
           </div>
         </div>
 
-        <p className="flex flex-wrap items-center gap-2 text-sm font-bold">
+        <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
           <span className={cn(nivel === "ROJO" && "text-semaforo-rojo")}>{textoNivel}</span>
           {autorizado ? <Insignia estado="verde">Autorizado</Insignia> : null}
           {enEspera ? <Insignia estado="neutra">Esperando al supervisor</Insignia> : null}
@@ -176,7 +176,7 @@ export function RenglonSemaforo({
         ) : null}
 
         {observacion ? (
-          <p className="rounded-lg bg-muted p-2 text-sm">
+          <p className="rounded-xl bg-muted p-2 text-sm">
             <span className="font-semibold">Observación: </span>
             {observacion}
           </p>
@@ -192,7 +192,7 @@ export function RenglonSemaforo({
             <div className="flex items-center gap-1" role="group" aria-label="Cantidad">
               <Boton
                 variante="contorno"
-                className="w-12 px-0"
+                className="w-10 px-0"
                 aria-label="Quitar una"
                 disabled={deshabilitado || cantidad <= 1}
                 onClick={() => onCantidad?.(Math.max(1, cantidad - 1))}
@@ -204,13 +204,13 @@ export function RenglonSemaforo({
                 aria-label={`Cantidad ${cantidad}. Toca para teclearla`}
                 disabled={deshabilitado}
                 onClick={() => setTeclado(true)}
-                className="h-12 min-w-14 rounded-lg border border-input bg-background px-3 text-xl font-bold tabular-nums hover:bg-muted disabled:opacity-50"
+                className="h-10 min-w-12 rounded-xl border border-input bg-background px-3 text-base font-semibold tabular-nums hover:bg-muted disabled:opacity-50"
               >
                 {cantidad}
               </button>
               <Boton
                 variante="contorno"
-                className="w-12 px-0"
+                className="w-10 px-0"
                 aria-label="Agregar una"
                 disabled={deshabilitado || cantidad >= cantidadMaxima}
                 onClick={() => onCantidad?.(Math.min(cantidadMaxima, cantidad + 1))}
@@ -220,7 +220,7 @@ export function RenglonSemaforo({
             </div>
           ) : (
             <p className="text-base">
-              Cantidad: <span className="text-xl font-bold tabular-nums">{cantidad}</span>
+              Cantidad: <span className="text-lg font-semibold tabular-nums">{cantidad}</span>
             </p>
           )}
 
@@ -236,7 +236,7 @@ export function RenglonSemaforo({
                 variante="contorno"
                 disabled={deshabilitado}
                 onClick={onPedirAutorizacion}
-                className="border-2 border-semaforo-naranja bg-semaforo-naranja/10 font-semibold hover:bg-semaforo-naranja/20"
+                className="border border-semaforo-naranja bg-semaforo-naranja/10 font-semibold hover:bg-semaforo-naranja/20"
               >
                 <LockIcon aria-hidden="true" />
                 Pedir autorización

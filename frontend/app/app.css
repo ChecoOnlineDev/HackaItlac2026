@@ -20,8 +20,8 @@
   --font-sans: "Poppins", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji";
-  /* Texto base: 18 px en celular y tableta, 16 px en computadora (ver :root abajo). */
-  --text-base: 1.125rem;
+  /* Texto base de 16 px en todos los tamaños de pantalla. */
+  --text-base: 1rem;
   --text-base--line-height: 1.5;
 }
 
@@ -85,8 +85,8 @@
   --accent-foreground: #1b1f8a;
   /* Error de formulario o acción destructiva; distinto del rojo del semáforo. */
   --destructive: #991b1b;
-  --border: #d1d5db;
-  --input: #9ca3af;
+  --border: #e2e5ea;
+  --input: #b6bcc6;
   --ring: #0054a6;
   --radius: 0.75rem; /* 12 px */
   --sidebar: #f8fafc;
@@ -105,15 +105,10 @@
   --semaforo-naranja: #ea580c;
   --semaforo-rojo: #b91c1c;
 
-  /* Objetivos táctiles. */
-  --toque-minimo: 48px;
-  --toque-principal: 56px;
-}
-
-@media (min-width: 1024px) {
-  :root {
-    --text-base: 1rem;
-  }
+  /* Objetivos táctiles: 40 px mínimo, 44 px en campos, 48 px en la acción principal. */
+  --toque-minimo: 40px;
+  --toque-campo: 44px;
+  --toque-principal: 48px;
 }
 
 @layer base {
@@ -132,11 +127,23 @@
   h2,
   h3 {
     color: var(--marino);
-    font-weight: 700;
+    font-weight: 600;
   }
+  /* Escala: título de página 20 px (24 px desde tableta), sección 16 px, cuerpo 16 px, ayudas 14 px. */
   h1 {
-    font-size: 1.5rem; /* 24 px */
-    line-height: 2rem;
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+    letter-spacing: -0.01em;
+  }
+  h2 {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+  @media (min-width: 768px) {
+    h1 {
+      font-size: 1.5rem;
+      line-height: 2rem;
+    }
   }
   :focus-visible {
     outline: 3px solid var(--ring);

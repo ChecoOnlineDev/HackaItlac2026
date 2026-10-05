@@ -82,10 +82,10 @@ export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, a
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3" aria-labelledby={`${idTexto}-t`}>
-        <h2 id={`${idTexto}-t`} className="text-xl font-bold">
+        <h2 id={`${idTexto}-t`} className="text-lg font-semibold">
           Pega la tabla copiada de Excel
         </h2>
-        <p className="text-base text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           En Excel selecciona las celdas (con los encabezados, si los tiene), cópialas y pégalas aquí. Todavía no se guarda nada.
         </p>
         <label htmlFor={idTexto} className="sr-only">
@@ -104,7 +104,7 @@ export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, a
             alCambiarTexto(e.target.value);
             setConEncabezadosElegido(null);
           }}
-          className="min-h-48 w-full rounded-lg border border-input bg-background p-3 font-mono text-base leading-snug"
+          className="min-h-48 w-full rounded-xl border border-input bg-background p-3 text-base leading-snug"
         />
         <div id={`${idTexto}-estado`} aria-live="polite" className="flex flex-col gap-3">
           {lectura && !lectura.ok ? (
@@ -126,13 +126,13 @@ export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, a
                 />
                 La primera fila trae los encabezados
               </label>
-              <div className="overflow-x-auto [contain:inline-size] rounded-xl border">
-                <Table className="w-full text-left text-base">
+              <div className="[contain:inline-size]">
+                <Table>
                   <TableCaption className="sr-only">Primeras filas de lo pegado</TableCaption>
-                  <TableHeader className="bg-muted">
+                  <TableHeader>
                     <TableRow>
                       {Array.from({ length: columnas }, (_, i) => (
-                        <TableHead key={i} scope="col" className="px-3 py-2 font-semibold whitespace-nowrap">
+                        <TableHead key={i} scope="col">
                           {nombreDeColumna(conEncabezados ? filas[0] : null, i)}
                         </TableHead>
                       ))}
@@ -140,9 +140,9 @@ export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, a
                   </TableHeader>
                   <TableBody>
                     {filas.slice(conEncabezados ? 1 : 0, (conEncabezados ? 1 : 0) + 3).map((f, i) => (
-                      <TableRow key={i} className="border-t">
+                      <TableRow key={i}>
                         {f.map((c, j) => (
-                          <TableCell key={j} className="max-w-56 truncate px-3 py-2">
+                          <TableCell key={j} className="max-w-56 truncate">
                             {c}
                           </TableCell>
                         ))}
@@ -156,17 +156,17 @@ export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, a
         </div>
       </section>
 
-      <div className="flex items-center gap-3 text-base text-muted-foreground" aria-hidden="true">
+      <div className="flex items-center gap-3 text-sm text-muted-foreground" aria-hidden="true">
         <span className="h-px flex-1 bg-border" />
         o
         <span className="h-px flex-1 bg-border" />
       </div>
 
       <section className="flex flex-col gap-3" aria-labelledby={`${idArchivo}-t`}>
-        <h2 id={`${idArchivo}-t`} className="text-xl font-bold">
+        <h2 id={`${idArchivo}-t`} className="text-lg font-semibold">
           Sube un archivo de Excel
         </h2>
-        <p className="text-base text-muted-foreground">Un archivo .xlsx de hasta 5 MB. Se lee la primera hoja; la primera fila con datos son los encabezados.</p>
+        <p className="text-sm text-muted-foreground">Un archivo .xlsx de hasta 5 MB. Se lee la primera hoja; la primera fila con datos son los encabezados.</p>
         <input
           ref={entradaArchivo}
           id={idArchivo}

@@ -238,9 +238,9 @@ export function HojaAutorizacion({ abierta, alCambiar, trabajadorId, renglones, 
               disabled={enviando !== null || bloqueado}
             />
             {error ? (
-              <p role="alert" className="rounded-lg border border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-base font-medium">
+              <p role="alert" className="rounded-xl border border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-sm font-medium">
                 {error}
-                {bloqueado ? <span className="mt-1 block text-lg font-bold">Podrás intentar en {formatearEspera(segundosRestantes)}</span> : null}
+                {bloqueado ? <span className="mt-1 block text-base font-semibold">Podrás intentar en {formatearEspera(segundosRestantes)}</span> : null}
               </p>
             ) : null}
             <Boton type="submit" variante="normal" cargando={enviando === "autorizar"} disabled={enviando !== null || bloqueado}>
@@ -261,7 +261,7 @@ export function HojaAutorizacion({ abierta, alCambiar, trabajadorId, renglones, 
           </form>
         )}
         {modo === "elegir" && error ? (
-          <p role="alert" className="rounded-lg border border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-base font-medium">
+          <p role="alert" className="rounded-xl border border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-sm font-medium">
             {error}
           </p>
         ) : null}

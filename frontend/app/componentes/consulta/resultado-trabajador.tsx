@@ -23,7 +23,7 @@ export function ResultadoTrabajador({ id }: { id: string }) {
     <div className="flex flex-col gap-4">
       <FichaTrabajador trabajador={datos} variante="completa" />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+      <div className="flex flex-wrap gap-2">
         {puede("entregas.crear") && datos.vigencia.vigente ? (
           <Boton variante="normal" nativeButton={false} render={<Link to="/entregar" />}>
             <PackageCheckIcon aria-hidden="true" />
@@ -46,7 +46,7 @@ export function ResultadoTrabajador({ id }: { id: string }) {
 
       {piezas.length > 0 && puede("catalogo.ver") ? (
         <Seccion titulo="Abrir la ficha de una pieza">
-          <ul className="flex flex-col divide-y rounded-xl border">
+          <ul className="flex flex-col divide-y rounded-2xl border">
             {piezas.map((p) => (
               <li key={p.pieza_id}>
                 <Link

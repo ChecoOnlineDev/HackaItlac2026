@@ -53,12 +53,12 @@ const LIMITE_INICIAL = 50;
 
 function Dato({ etiqueta, valor, tono }: { etiqueta: string; valor: number; tono?: "error" }) {
   return (
-    <div className={cn("flex flex-col gap-0.5 rounded-xl border p-3", tono === "error" && valor > 0 && "border-2 border-semaforo-rojo bg-semaforo-rojo/5")}>
-      <dt className="flex items-center gap-1.5 text-base text-muted-foreground">
+    <div className={cn("flex flex-col gap-0.5 rounded-2xl border p-3", tono === "error" && valor > 0 && "border-2 border-semaforo-rojo bg-semaforo-rojo/5")}>
+      <dt className="flex items-center gap-1.5 text-sm text-muted-foreground">
         {tono === "error" && valor > 0 ? <XIcon aria-hidden="true" strokeWidth={3} className="size-4 text-semaforo-rojo" /> : null}
         {etiqueta}
       </dt>
-      <dd className="text-2xl font-bold tabular-nums">{valor.toLocaleString("es-MX")}</dd>
+      <dd className="text-xl font-semibold tabular-nums">{valor.toLocaleString("es-MX")}</dd>
     </div>
   );
 }
@@ -119,7 +119,7 @@ export function PasoRevision({
   return (
     <div className="flex flex-col gap-6">
       {avisoCambio ? (
-        <p role="alert" className="flex items-start gap-2 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-base font-semibold">
+        <p role="alert" className="flex items-start gap-2 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-sm font-semibold">
           <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-semaforo-rojo" />
           {avisoCambio}
         </p>
@@ -129,7 +129,7 @@ export function PasoRevision({
       {!vista && !error ? <Esqueleto tipo="tarjeta" cantidad={2} /> : null}
 
       {error && vista ? (
-        <section role="alert" className="flex flex-col gap-2 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
+        <section role="alert" className="flex flex-col gap-2 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
           <p className="flex items-start gap-2 text-base font-semibold">
             <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
             No pudimos actualizar la revisión. Lo que ves puede no estar al día.
@@ -143,7 +143,7 @@ export function PasoRevision({
       {vista ? (
         <div className={cn("flex flex-col gap-6", cargando && "opacity-70")} aria-busy={cargando}>
           <section aria-labelledby="resumen-titulo" className="flex flex-col gap-3">
-            <h2 id="resumen-titulo" className="flex items-center gap-3 text-xl font-bold">
+            <h2 id="resumen-titulo" className="flex items-center gap-3 text-lg font-semibold">
               Resumen
               {cargando ? <Cargando variante="en-linea" texto="Actualizando…" className="p-0" /> : null}
             </h2>
@@ -162,7 +162,7 @@ export function PasoRevision({
           {vista.avisos.length > 0 ? (
             <ul aria-label="Avisos" className="flex flex-col gap-2">
               {vista.avisos.map((a, i) => (
-                <li key={i} className="flex items-start gap-2 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-base">
+                <li key={i} className="flex items-start gap-2 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-sm">
                   <TriangleAlertIcon aria-hidden="true" strokeWidth={3} className="mt-1 size-4 shrink-0 text-semaforo-amarillo" />
                   <span>
                     <span className="sr-only">Aviso: </span>
@@ -174,8 +174,8 @@ export function PasoRevision({
           ) : null}
 
           {hayDesconocidas ? (
-            <section aria-labelledby="cat-titulo" className="flex flex-col gap-3 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
-              <h2 id="cat-titulo" className="flex items-center gap-2 text-xl font-bold">
+            <section aria-labelledby="cat-titulo" className="flex flex-col gap-3 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">
+              <h2 id="cat-titulo" className="flex items-center gap-2 text-lg font-semibold">
                 <TriangleAlertIcon aria-hidden="true" strokeWidth={3} className="size-5 text-semaforo-amarillo" />
                 Categorías que no existen
               </h2>
@@ -223,7 +223,7 @@ export function PasoRevision({
           ) : null}
 
           <section aria-labelledby="alm-titulo" className="flex flex-col gap-3">
-            <h2 id="alm-titulo" className="text-xl font-bold">
+            <h2 id="alm-titulo" className="text-lg font-semibold">
               Almacén
             </h2>
             {almacenes.error ? (
@@ -245,7 +245,7 @@ export function PasoRevision({
           {vista.filas_error.length > 0 ? (
             <section aria-labelledby="err-titulo" className="flex flex-col gap-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 id="err-titulo" className="flex items-center gap-2 text-xl font-bold">
+                <h2 id="err-titulo" className="flex items-center gap-2 text-lg font-semibold">
                   <XIcon aria-hidden="true" strokeWidth={3} className="size-5 text-semaforo-rojo" />
                   Filas con error ({vista.filas_error.length})
                 </h2>
@@ -254,12 +254,12 @@ export function PasoRevision({
                   Descargar filas con error
                 </Boton>
               </div>
-              <p className="text-base text-muted-foreground">Estas filas no se importarán. Corrígelas en Excel y vuelve a importarlas después.</p>
+              <p className="text-sm text-muted-foreground">Estas filas no se importarán. Corrígelas en Excel y vuelve a importarlas después.</p>
               <ul className="flex flex-col gap-3">
                 {(verTodasErrores ? vista.filas_error : vista.filas_error.slice(0, LIMITE_INICIAL)).map((f) => (
-                  <li key={f.fila} className="flex flex-col gap-1.5 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/5 p-3">
-                    <p className="text-lg font-bold">Fila {f.fila}</p>
-                    <p className="text-base text-muted-foreground">{resumenDeDatos(f.datos) || "Fila sin datos reconocibles"}</p>
+                  <li key={f.fila} className="flex flex-col gap-1.5 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/5 p-3">
+                    <p className="text-base font-semibold">Fila {f.fila}</p>
+                    <p className="text-sm text-muted-foreground">{resumenDeDatos(f.datos) || "Fila sin datos reconocibles"}</p>
                     <ul className="flex flex-col gap-1">
                       {f.motivos.map((m, i) => (
                         <li key={i} className="flex items-start gap-2 text-base">
@@ -283,8 +283,8 @@ export function PasoRevision({
           ) : null}
 
           {vista.articulos_nuevos.length > 0 ? (
-            <details className="rounded-xl border p-3">
-              <summary className="flex min-h-12 cursor-pointer items-center text-lg font-bold">Artículos nuevos que se crearán ({vista.articulos_nuevos.length})</summary>
+            <details className="rounded-2xl border p-3">
+              <summary className="flex min-h-12 cursor-pointer items-center text-base font-semibold">Artículos nuevos que se crearán ({vista.articulos_nuevos.length})</summary>
               <ul className="mt-2 flex flex-col divide-y">
                 {vista.articulos_nuevos.map((a) => (
                   <li key={a.codigo} className="flex flex-col py-2 text-base">
@@ -303,15 +303,15 @@ export function PasoRevision({
           ) : null}
 
           {vista.filas_validas.length > 0 ? (
-            <details className="rounded-xl border p-3">
-              <summary className="flex min-h-12 cursor-pointer items-center text-lg font-bold">Filas listas para importar ({vista.filas_validas.length})</summary>
-              <div className="mt-2 overflow-x-auto [contain:inline-size]">
-                <Table className="w-full text-left text-base">
+            <details className="rounded-2xl border p-3">
+              <summary className="flex min-h-12 cursor-pointer items-center text-base font-semibold">Filas listas para importar ({vista.filas_validas.length})</summary>
+              <div className="mt-2 [contain:inline-size]">
+                <Table>
                   <TableCaption className="sr-only">Filas que se importarán</TableCaption>
-                  <TableHeader className="bg-muted">
+                  <TableHeader>
                     <TableRow>
                       {["Fila", "Código", "Nombre", "Cantidad", "Almacén", "Pieza / serie"].map((t) => (
-                        <TableHead key={t} scope="col" className="px-3 py-2 font-semibold whitespace-nowrap">
+                        <TableHead key={t} scope="col">
                           {t}
                         </TableHead>
                       ))}
@@ -319,8 +319,8 @@ export function PasoRevision({
                   </TableHeader>
                   <TableBody>
                     {(verTodasValidas ? vista.filas_validas : vista.filas_validas.slice(0, LIMITE_INICIAL)).map((f) => (
-                      <TableRow key={f.fila} className="border-t">
-                        <TableCell className="px-3 py-2 text-muted-foreground">{f.fila}</TableCell>
+                      <TableRow key={f.fila}>
+                        <TableCell className="text-muted-foreground">{f.fila}</TableCell>
                         <TableCell className="px-3 py-2 whitespace-nowrap">{f.codigo}</TableCell>
                         <TableCell className="px-3 py-2">
                           {f.nombre}
@@ -350,8 +350,8 @@ export function PasoRevision({
       ) : null}
 
       {errorConfirmacion ? (
-        <section role="alert" className="flex flex-col gap-1 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-4">
-          <p className="flex items-start gap-2 text-base font-bold">
+        <section role="alert" className="flex flex-col gap-1 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-4">
+          <p className="flex items-start gap-2 text-base font-semibold">
             {errorConfirmacion.tipo === "conexion" ? <WifiOffIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" /> : <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />}
             {errorConfirmacion.mensaje}
           </p>

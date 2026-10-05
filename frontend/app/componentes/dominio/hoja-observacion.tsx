@@ -79,7 +79,7 @@ export function HojaObservacion({
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="flex items-start gap-2 rounded-lg border bg-muted p-3 text-base">
+        <p className="flex items-start gap-2 rounded-xl border bg-muted p-3 text-sm">
           <InfoIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-marino" />
           <span>
             {motivo}
@@ -101,7 +101,7 @@ export function HojaObservacion({
             aria-describedby={error ? `${id}-error` : undefined}
             placeholder="Escribe aquí"
             className={cn(
-              "min-h-28 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-base outline-none placeholder:text-muted-foreground",
+              "min-h-28 w-full resize-y rounded-xl border border-input bg-background px-3 py-2 text-base outline-none placeholder:text-muted-foreground",
               "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
               error && "border-destructive",
             )}

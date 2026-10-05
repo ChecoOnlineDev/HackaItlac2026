@@ -26,7 +26,7 @@ interface PropiedadesCampoFecha {
   claseContenedor?: string;
 }
 
-/** Etiqueta + botón de 48 px que abre el calendario de shadcn. Entrega y recibe `YYYY-MM-DD`. */
+/** Etiqueta + botón de 44 px que abre el calendario de shadcn. Entrega y recibe `YYYY-MM-DD`. */
 export function CampoFecha({ etiqueta, value, alCambiar, min, max, error, ayuda, disabled, claseContenedor }: PropiedadesCampoFecha) {
   const id = useId();
   const esMovil = useIsMobile();
@@ -44,10 +44,10 @@ export function CampoFecha({ etiqueta, value, alCambiar, min, max, error, ayuda,
       disabled={disabled}
       aria-invalid={error ? true : undefined}
       onClick={esMovil ? () => setAbierto(true) : undefined}
-      className={cn("w-full justify-start font-normal", !value && "text-muted-foreground", error && "border-destructive")}
+      className={cn("h-11 w-full justify-start font-normal", !value && "text-muted-foreground", error && "border-destructive")}
     >
       <CalendarDaysIcon aria-hidden="true" />
-      <span className="truncate">{value ? formatearFecha(value) : "Elige una fecha"}</span>
+      <span>{value ? formatearFecha(value) : "Elige una fecha"}</span>
     </Boton>
   );
 

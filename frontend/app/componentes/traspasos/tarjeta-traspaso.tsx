@@ -16,11 +16,11 @@ export function TarjetaTraspaso({ traspaso, mostrarDestino }: { traspaso: Traspa
     <li>
       <Link
         to={`/recibir/${traspaso.id}`}
-        className="flex min-h-14 items-center gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="flex min-h-12 items-center gap-3 rounded-2xl border bg-card p-4 transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="text-xl font-bold tracking-wide text-marino">{traspaso.folio}</span>
+            <span className="text-lg font-semibold tracking-wide text-marino">{traspaso.folio}</span>
             {conDiferencias ? <Insignia estado="amarillo">Recibido en parte</Insignia> : <Insignia estado="info">En camino</Insignia>}
           </span>
           <span className="flex flex-wrap items-center gap-1.5 text-base font-semibold">
@@ -28,7 +28,7 @@ export function TarjetaTraspaso({ traspaso, mostrarDestino }: { traspaso: Traspa
             <ArrowRightIcon aria-label="hacia" className="size-4 shrink-0" />
             {mostrarDestino ? traspaso.destino.nombre : "este almacén"}
           </span>
-          <span className="text-base text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             {conDiferencias
               ? `Faltan ${textoRenglones(pendientes)} por llegar`
               : `${textoRenglones(traspaso.renglones.length)} · ${traspaso.pendiente_total} por recibir`}

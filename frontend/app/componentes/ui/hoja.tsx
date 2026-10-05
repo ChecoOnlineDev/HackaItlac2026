@@ -23,12 +23,12 @@ export function Hoja({ abierta, alCambiar, titulo, descripcion, children, pie }:
       <SheetContent
         side={esMovil ? "bottom" : "right"}
         showCloseButton={false}
-        className="max-h-[92dvh] gap-0 rounded-t-2xl data-[side=right]:rounded-none data-[side=right]:sm:max-w-md"
+        className="max-h-[92dvh] gap-0 rounded-t-3xl data-[side=right]:rounded-l-3xl data-[side=right]:rounded-r-none data-[side=right]:sm:max-w-md"
       >
         <SheetHeader className="flex-row items-start justify-between gap-3 border-b p-4">
           <div className="flex flex-col gap-1">
-            <SheetTitle className="text-xl font-bold text-marino">{titulo}</SheetTitle>
-            {descripcion ? <SheetDescription className="text-base">{descripcion}</SheetDescription> : null}
+            <SheetTitle className="text-lg font-semibold text-marino">{titulo}</SheetTitle>
+            {descripcion ? <SheetDescription className="text-sm">{descripcion}</SheetDescription> : null}
           </div>
           <SheetClose render={<Boton variante="texto" aria-label="Cerrar" className="-mr-2 -mt-1" />}>
             <XIcon aria-hidden="true" />

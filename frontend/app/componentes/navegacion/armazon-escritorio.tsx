@@ -32,8 +32,8 @@ function Elemento({ elemento, contador }: { elemento: ElementoMenu; contador?: n
     : pathname === elemento.ruta;
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton size="lg" isActive={activo} className="text-base" render={<NavLink to={elemento.ruta} end />}>
-        <elemento.icono aria-hidden="true" className="size-5" />
+      <SidebarMenuButton isActive={activo} className="h-auto min-h-10 rounded-xl py-2 text-sm [&>span:last-child]:whitespace-normal" render={<NavLink to={elemento.ruta} end />}>
+        <elemento.icono aria-hidden="true" className="size-4.5" />
         <span>{elemento.titulo}</span>
       </SidebarMenuButton>
       {contador ? <SidebarMenuBadge className="bg-primary text-primary-foreground">{contador}</SidebarMenuBadge> : null}
@@ -54,8 +54,8 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
         <SidebarHeader className="flex-row items-center gap-3 p-4">
           <img src="/logo-imhotep.png" alt="" width={44} height={41} className="h-auto w-11" />
           <div className="min-w-0">
-            <p className="text-base font-bold text-marino">IMHOTEP</p>
-            <p className="truncate text-sm text-muted-foreground">{sesion.almacen?.nombre ?? "Todos los almacenes"}</p>
+            <p className="text-base font-semibold text-marino">IMHOTEP</p>
+            <p className="text-xs text-muted-foreground">{sesion.almacen?.nombre ?? "Todos los almacenes"}</p>
           </div>
         </SidebarHeader>
         <SidebarContent className="px-2">
@@ -63,8 +63,8 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton size="lg" className="text-base" render={<NavLink to="/" end />}>
-                    <HomeIcon aria-hidden="true" className="size-5" />
+                  <SidebarMenuButton className="h-auto min-h-10 rounded-xl py-2 text-sm" render={<NavLink to="/" end />}>
+                    <HomeIcon aria-hidden="true" className="size-4.5" />
                     <span>Inicio</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -92,8 +92,8 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3">
             <Avatar nombre={sesion.usuario.nombre} tamano="sm" />
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">{sesion.usuario.nombre}</p>
-              <p className="truncate text-xs text-muted-foreground">{sesion.rol.nombre}</p>
+              <p className="text-sm leading-tight font-semibold">{sesion.usuario.nombre}</p>
+              <p className="text-xs text-muted-foreground">{sesion.rol.nombre}</p>
             </div>
           </div>
           <InstalarApp />
@@ -104,7 +104,7 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <main className="mx-auto w-full max-w-6xl flex-1 p-8">{children}</main>
+        <main className="mx-auto w-full max-w-6xl flex-1 p-6 xl:p-8">{children}</main>
       </SidebarInset>
       <ConfirmarSalida abierta={confirmandoSalida} alCambiar={setConfirmandoSalida} />
     </SidebarProvider>

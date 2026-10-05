@@ -25,7 +25,7 @@ interface PropiedadesHojaPieza {
 function ErrorEnHoja({ mensaje }: { mensaje: string | null }) {
   if (!mensaje) return null;
   return (
-    <p role="alert" className="flex items-start gap-2 rounded-lg border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-base font-semibold">
+    <p role="alert" className="flex items-start gap-2 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-sm font-semibold">
       <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-semaforo-rojo" />
       {mensaje}
     </p>
@@ -64,7 +64,7 @@ function CampoObservacion({
         aria-describedby={error ? `${id}-error` : undefined}
         placeholder="Escribe aquí"
         className={cn(
-          "min-h-24 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-base outline-none placeholder:text-muted-foreground",
+          "min-h-24 w-full resize-y rounded-xl border border-input bg-background px-3 py-2 text-base outline-none placeholder:text-muted-foreground",
           "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
           error && "border-destructive",
         )}
@@ -149,11 +149,11 @@ export function HojaInspeccion({ pieza, abierta, alCambiar, alGuardar }: Propied
     >
       <div className="flex flex-col gap-5">
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-base font-bold text-marino">Revisa cada punto</legend>
+          <legend className="mb-1 text-base font-semibold text-marino">Revisa cada punto</legend>
           {PUNTOS_INSPECCION.map((p) => {
             const valor = puntos[p.clave];
             return (
-              <div key={p.clave} className="flex flex-col gap-2 rounded-lg border p-3">
+              <div key={p.clave} className="flex flex-col gap-2 rounded-xl border p-3">
                 <p className="text-base font-medium">{p.etiqueta}</p>
                 <div className="grid grid-cols-2 gap-2">
                   <Boton
@@ -179,12 +179,12 @@ export function HojaInspeccion({ pieza, abierta, alCambiar, alGuardar }: Propied
         </fieldset>
 
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-base font-bold text-marino">Resultado</legend>
+          <legend className="mb-1 text-base font-semibold text-marino">Resultado</legend>
           <div className="grid grid-cols-2 gap-2">
             <Boton
               variante={resultado === "APTO" ? "normal" : "contorno"}
               aria-pressed={resultado === "APTO"}
-              className="h-14 text-base"
+              className="h-12 text-base"
               onClick={() => setResultado("APTO")}
             >
               <CheckIcon aria-hidden="true" />
@@ -193,7 +193,7 @@ export function HojaInspeccion({ pieza, abierta, alCambiar, alGuardar }: Propied
             <Boton
               variante={resultado === "NO_APTO" ? "peligro" : "contorno"}
               aria-pressed={resultado === "NO_APTO"}
-              className="h-14 text-base"
+              className="h-12 text-base"
               onClick={() => setResultado("NO_APTO")}
             >
               <XIcon aria-hidden="true" />
@@ -268,7 +268,7 @@ export function HojaMarcarNoApta({ pieza, abierta, alCambiar, alGuardar }: Propi
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="rounded-lg border bg-muted p-3 text-base">
+        <p className="rounded-xl border bg-muted p-3 text-sm">
           Mientras esté no apta no se entrega a nadie. Solo una inspección nueva la regresa a apta.
         </p>
         <CampoObservacion
@@ -363,7 +363,7 @@ export function HojaAjusteVigencia({ pieza, abierta, alCambiar, alGuardar }: Pro
         }
       >
         <div className="flex flex-col gap-4">
-          <p className="rounded-lg border bg-muted p-3 text-base">
+          <p className="rounded-xl border bg-muted p-3 text-sm">
             {actual ? `Hoy la inspección vale hasta el ${formatearFecha(actual)}. ` : "Esta pieza no tiene inspección vigente. "}
             {limite ? `Puede llegar, como máximo, hasta el ${formatearFecha(limite)}. ` : ""}
             Acortarla no tiene límite. El resultado de la inspección no cambia.

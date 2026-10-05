@@ -6,7 +6,7 @@ export function Seccion({ titulo, children, accion }: { titulo: string; children
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold text-marino">{titulo}</h2>
+        <h2 className="text-base font-semibold text-marino">{titulo}</h2>
         {accion}
       </div>
       {children}
@@ -28,7 +28,7 @@ export function VolverAConsultar() {
   return (
     <Link
       to="/consultar"
-      className="inline-flex min-h-12 w-fit items-center gap-2 text-base font-semibold text-primary underline-offset-2 hover:underline"
+      className="inline-flex min-h-10 w-fit items-center gap-2 text-base font-semibold text-primary underline-offset-2 hover:underline"
     >
       <ArrowLeftIcon aria-hidden="true" className="size-5" />
       Volver a Consultar

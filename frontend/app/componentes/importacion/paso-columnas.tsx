@@ -41,10 +41,10 @@ export function PasoColumnas({ tabla, columnas, alCambiar, puedeCostos, alContin
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3" aria-labelledby="columnas-titulo">
-        <h2 id="columnas-titulo" className="text-xl font-bold">
+        <h2 id="columnas-titulo" className="text-lg font-semibold">
           ¿Qué trae cada columna?
         </h2>
-        <p className="flex items-start gap-2 text-base text-muted-foreground">
+        <p className="flex items-start gap-2 text-sm text-muted-foreground">
           <InfoIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-marino" />
           {tabla.encabezados
             ? "Propusimos las columnas según sus encabezados. Revísalas y corrige las que no sean."
@@ -57,7 +57,7 @@ export function PasoColumnas({ tabla, columnas, alCambiar, puedeCostos, alContin
               etiqueta={
                 <>
                   {ETIQUETA_CAMPO[campo]}
-                  {campo === "codigo" ? <span className="font-bold text-destructive"> (obligatorio)</span> : null}
+                  {campo === "codigo" ? <span className="font-semibold text-destructive"> (obligatorio)</span> : null}
                 </>
               }
               ayuda={AYUDA_CAMPO[campo]}
@@ -71,21 +71,21 @@ export function PasoColumnas({ tabla, columnas, alCambiar, puedeCostos, alContin
       </section>
 
       <section className="flex flex-col gap-2" aria-labelledby="muestra-titulo">
-        <h2 id="muestra-titulo" className="text-xl font-bold">
+        <h2 id="muestra-titulo" className="text-lg font-semibold">
           Primeras filas
         </h2>
-        <div className="overflow-x-auto [contain:inline-size] rounded-xl border">
-          <Table className="w-full text-left text-base">
+        <div className="[contain:inline-size]">
+          <Table>
             <TableCaption className="sr-only">Primeras filas de la tabla, con el dato que trae cada columna</TableCaption>
-            <TableHeader className="bg-muted">
+            <TableHeader>
               <TableRow>
-                <TableHead scope="col" className="px-3 py-2 font-semibold whitespace-nowrap">
+                <TableHead scope="col">
                   Fila
                 </TableHead>
                 {Array.from({ length: ancho }, (_, i) => {
                   const campo = dueno(i);
                   return (
-                    <TableHead key={i} scope="col" className="px-3 py-2 align-top font-semibold whitespace-nowrap">
+                    <TableHead key={i} scope="col" className="align-top">
                       {nombreDeColumna(tabla.encabezados, i)}
                       <span className="block text-sm font-medium text-marino">{campo ? `→ ${ETIQUETA_CAMPO[campo]}` : "No se usa"}</span>
                     </TableHead>
@@ -95,10 +95,10 @@ export function PasoColumnas({ tabla, columnas, alCambiar, puedeCostos, alContin
             </TableHeader>
             <TableBody>
               {muestra.map((f, i) => (
-                <TableRow key={i} className="border-t">
-                  <TableCell className="px-3 py-2 text-muted-foreground">{tabla.primeraFila + i}</TableCell>
+                <TableRow key={i}>
+                  <TableCell className="text-muted-foreground">{tabla.primeraFila + i}</TableCell>
                   {Array.from({ length: ancho }, (_, j) => (
-                    <TableCell key={j} className="max-w-56 truncate px-3 py-2">
+                    <TableCell key={j} className="max-w-56 truncate">
                       {f[j] ?? ""}
                     </TableCell>
                   ))}
