@@ -6,12 +6,19 @@ import type { EvaluacionApi } from "./tipos";
 
 /** El cuerpo de `POST /api/vales/evaluar` (el mismo que el de confirmar, sin la firma). */
 export interface CuerpoEvaluar {
-  tipo: "ENTREGA";
+  tipo: "ENTREGA" | "DEVOLUCION";
   almacen_id: string | null;
-  trabajador_id: string;
+  /** En una devolución solo hace falta si hay renglones por cantidad (una pieza se abona a su titular). */
+  trabajador_id?: string;
   id_cliente: string;
   autorizacion_id?: string;
-  renglones: { codigo: string; cantidad: number; observacion?: string }[];
+  renglones: {
+    codigo: string;
+    cantidad: number;
+    observacion?: string;
+    /** Solo en la devolución. */
+    condicion?: "BUENO" | "DESGASTE" | "DANADO";
+  }[];
 }
 
 interface Resultado {

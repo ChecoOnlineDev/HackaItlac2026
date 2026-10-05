@@ -50,6 +50,8 @@ Cómo se presenta y se comporta cada pantalla del [app flow](app-flow.md). Cubre
 
 **Observación.** Hoja que sube desde abajo, con el motivo que la pide, un campo de texto y respuestas rápidas cuando aplica.
 
+**Condición de lo devuelto.** `ControlCondicion` (`frontend/app/componentes/devolucion/`): tres botones de 56 px, Bueno, Desgaste por uso y Dañado, con icono y texto; el elegido lleva palomita y relleno azul (no usa los colores del semáforo). Va debajo de cada renglón de una devolución y en la hoja de cantidad. Al elegir Dañado se abre la hoja de observación obligatoria (V-05) y el renglón admite una foto del daño, que el navegador reduce a unos 1024 px antes de mandarla. Una devolución nunca se pinta en rojo por la vigencia del trabajador (SM-05): su resguardo es una lista neutra con "Devolver" en cada artículo.
+
 **Confirmación.** Solo para lo que no se puede deshacer: confirmar un vale, inactivar un artículo, emitir el no adeudo. Dice qué va a pasar en una frase. En la captura solo aparece cuando el servidor marca una cantidad inusual en un renglón (E-27), por ejemplo "¿Entregar 10 pares de guantes?", con "Sí, confirmar" y "Corregir"; en las demás lecturas no hay ventana.
 
 **Impresión.** Lo que se imprime (el vale y la hoja de etiquetas) se marca con la clase `zona-impresion`, que pone `EstiloImpresion` (`frontend/app/componentes/dominio/`). Al imprimir solo sale esa zona, en hoja carta, sin menús, botones ni avisos. El QR se dibuja en el navegador, siempre negro sobre blanco y con margen, y contiene exactamente el código registrado. Ningún vale muestra costos.
