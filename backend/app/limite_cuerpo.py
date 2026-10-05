@@ -2,7 +2,9 @@
 
 Sin él, una petición de decenas de megas (incluso sin sesión) se leía completa. Aquí:
 
-- Si trae `Content-Length` mayor que el límite de su ruta, responde 413 SIN leer el cuerpo.
+- Si trae `Content-Length` mayor que el límite de su ruta, responde 413 sin
+  procesar el cuerpo (solo descarta lo que llegue, acotado, para que el cliente reciba la
+  respuesta y no un reinicio de la conexión).
 - Si no trae `Content-Length` (transferencia por trozos, `chunked`), cuenta los bytes mientras los
   recibe y responde 413 en cuanto pasa del límite, sin llamar a la aplicación. Como mucho se
   guarda en memoria un cuerpo del tamaño del límite, que es pequeño.
@@ -16,6 +18,7 @@ foto de un trabajador y 6 MB para la importación.
 No usa `BaseHTTPMiddleware` (leería y copiaría el cuerpo por su cuenta).
 """
 
+import asyncio
 import json
 import re
 from collections.abc import Callable, MutableMapping
@@ -26,6 +29,13 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from app.config import Settings, get_settings
 
 CODIGO = "CUERPO_MUY_GRANDE"
+
+# ANTES de responder 413 se descarta lo que siga llegando (uvicorn ya no entrega el cuerpo una
+# vez enviada la respuesta), un rato y hasta cierto tamaño: si se cierra
+# la conexión con el cliente todavía enviando, el sistema la reinicia y el cliente puede perder la
+# respuesta 413. No se guarda nada de lo descartado.
+DRENAJE_BYTES_MAXIMO = 64 * 1024 * 1024
+DRENAJE_SEGUNDOS_MAXIMO = 10
 
 _RUTA_VALES = re.compile(r"^/api/vales(/evaluar)?/?$")
 _RUTA_FOTO_TRABAJADOR = re.compile(r"^/api/trabajadores/[^/]+/foto/?$")
@@ -64,11 +74,30 @@ async def _responder_413(send: Send, limite: int) -> None:
             "headers": [
                 (b"content-type", b"application/json"),
                 (b"content-length", str(len(cuerpo)).encode()),
-                (b"connection", b"close"),
             ],
         }
     )
     await send({"type": "http.response.body", "body": cuerpo})
+
+
+async def _descartar_resto(receive: Receive) -> None:
+    """Lee y tira el resto del cuerpo (acotado en bytes y en tiempo) para que el cliente reciba
+    su 413 en vez de un reinicio de la conexión."""
+
+    async def leer() -> None:
+        total = 0
+        while total < DRENAJE_BYTES_MAXIMO:
+            mensaje = await receive()
+            if mensaje["type"] == "http.disconnect":
+                return
+            total += len(mensaje.get("body", b""))
+            if not mensaje.get("more_body", False):
+                return
+
+    try:
+        await asyncio.wait_for(leer(), timeout=DRENAJE_SEGUNDOS_MAXIMO)
+    except TimeoutError:
+        return
 
 
 def _cabecera(scope: Scope, nombre: bytes) -> bytes | None:
@@ -107,6 +136,7 @@ class LimiteCuerpoMiddleware:
             except ValueError:
                 declarado = limite + 1  # una longitud ilegible no se acepta
             if declarado > limite:
+                await _descartar_resto(receive)
                 await _responder_413(send, limite)
                 return
             await self.app(scope, receive, send)
@@ -121,6 +151,8 @@ class LimiteCuerpoMiddleware:
                 return
             total += len(mensaje.get("body", b""))
             if total > limite:
+                if mensaje.get("more_body", False):
+                    await _descartar_resto(receive)
                 await _responder_413(send, limite)
                 return
             mensajes.append(mensaje)
