@@ -44,7 +44,14 @@ function useCargarContadores(): Contadores {
       if (!control.signal.aborted) setContadores({ porRecibir, porAutorizar });
     };
     void cargar();
-    const intervalo = window.setInterval(cargar, 30_000);
+    // Quien resuelve autorizaciones ve el número subir casi al instante; los demás, cada 30 s.
+    // Con la pestaña oculta no se pregunta.
+    const intervalo = window.setInterval(
+      () => {
+        if (document.visibilityState === "visible") void cargar();
+      },
+      verAutorizaciones ? 5_000 : 30_000,
+    );
     return () => {
       control.abort();
       window.clearInterval(intervalo);
