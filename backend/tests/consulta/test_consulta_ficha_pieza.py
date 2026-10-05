@@ -193,3 +193,13 @@ def test_RG_12_la_ficha_de_pieza_nunca_trae_costos(cliente_como, datos):
     assert respuesta.status_code == 200
     assert "55555.55" not in respuesta.text
     assert "costo" not in respuesta.text.lower()
+
+
+def test_C_02_las_fechas_del_historial_llevan_la_Z_de_UTC(cliente_como, datos):
+    """El navegador solo convierte bien a la hora local una fecha con zona (bug de las 6 horas)."""
+    pieza, *_ = _armar_pieza_con_vida_completa(datos)
+
+    historial = cliente_como("Almacenista").get(f"{RUTA}/{pieza.id}").json()["historial"]
+
+    fechas = [h["fecha"] for h in historial]
+    assert fechas and all(f.endswith("Z") for f in fechas), fechas

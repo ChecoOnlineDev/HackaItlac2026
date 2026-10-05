@@ -4,13 +4,23 @@ Nada aquí lleva costos (RG-12), CURP ni NSS (RG-13).
 """
 
 import uuid
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
+from typing import Annotated
 
-from pydantic import BaseModel
+from pydantic import BaseModel, PlainSerializer
 
 from app.core.paginacion import Pagina
 from app.modulos.movimientos.models import TipoVale
+
+
+def _a_utc(valor: datetime) -> str:
+    return valor.replace(tzinfo=UTC).isoformat().replace("+00:00", "Z")
+
+
+# Las fechas de la base son UTC sin zona; se envían con la `Z` para que el navegador las
+# convierta bien a la hora local (api-contracts: horas en UTC).
+FechaUtc = Annotated[datetime, PlainSerializer(_a_utc, return_type=str)]
 
 MENSAJE_SIN_RESULTADOS = "No se encontró nada con ese código o texto."
 MENSAJE_SIN_REGISTROS = "No hay registros con esos filtros."
@@ -120,7 +130,7 @@ class ResumenVale(BaseModel):
     tipo: str
     tipo_texto: str
     estado: str
-    fecha: datetime
+    fecha: FechaUtc
     almacen_clave: str
     trabajador: str | None
     responsable: str
@@ -218,7 +228,7 @@ class HistorialItem(BaseModel):
     """Un hecho de la vida de la pieza. Los campos que no aplican al `tipo` van en `null`."""
 
     tipo: TipoHistorial
-    fecha: datetime  # UTC
+    fecha: FechaUtc  # UTC
     titulo: str
     detalle: str | None = None
     usuario: str | None = None
@@ -316,7 +326,7 @@ class ExistenciaReporteItem(BaseModel):
 
 class MovimientoReporteItem(BaseModel):
     id: uuid.UUID
-    fecha: datetime  # UTC
+    fecha: FechaUtc  # UTC
     vale_id: uuid.UUID
     folio: str
     tipo: str
@@ -349,7 +359,7 @@ class AdeudoReporteItem(BaseModel):
     articulo: str
     numero_serie: str | None
     cantidad: int
-    desde: datetime | None  # UTC
+    desde: FechaUtc | None  # UTC
     folio: str | None
     almacen_clave: str | None
     almacen: str | None
