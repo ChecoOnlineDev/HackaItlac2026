@@ -90,7 +90,12 @@ RUTAS: list[tuple[str, str, APIRoute]] = [
 # Públicas por diseño: entrar con usuario y contraseña, y comprobar que la aplicación vive.
 PUBLICAS = {("POST", "/api/sesion"), ("GET", "/api/salud")}
 # Rutas del propio framework (documentación interactiva): públicas, sin datos del negocio.
-PUBLICAS_DEL_FRAMEWORK = {"/api/docs", "/api/openapi.json", "/docs/oauth2-redirect", "/redoc"}
+PUBLICAS_DEL_FRAMEWORK = {
+    "/api/docs",
+    "/api/openapi.json",
+    "/docs/oauth2-redirect",
+    "/api/redoc",
+}
 
 # Rutas que piden SOLO sesión (api-contracts: «Sesión»). Cada una explica por qué no lleva un
 # permiso fijo en la dependencia.
@@ -281,7 +286,7 @@ ROLES_8_2: dict[str, str] = {
     P.TRABAJADORES_VER: "ASR",
     P.TRABAJADORES_VER_DATOS_PERSONALES: "R",
     P.TRABAJADORES_ADMINISTRAR: "R",
-    P.TRABAJADORES_INICIAR_BAJA: "AR",
+    P.TRABAJADORES_INICIAR_BAJA: "ASR",
     P.CATALOGO_VER: "ASC",
     P.CATALOGO_ADMINISTRAR: "SC",
     P.CATALOGO_COSTOS: "C",
@@ -428,12 +433,11 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
         ("GET", "/api/personal", None, set()),
         ("PATCH", f"/api/usuarios/{UUID_FALSO}/almacen", {"almacen_id": None}, set()),
     ],
-    # Además de `etiquetas.imprimir`, las credenciales piden `trabajadores.ver` y las piezas y
-    # los estantes, `catalogo.ver` (api-contracts, Etiquetas).
+    # Basta `etiquetas.imprimir` para los tres tipos (api-contracts, Etiquetas).
     P.ETIQUETAS_IMPRIMIR: [
-        ("GET", "/api/etiquetas?tipo=credenciales", None, {P.TRABAJADORES_VER}),
-        ("GET", "/api/etiquetas?tipo=estantes", None, {P.CATALOGO_VER}),
-        ("GET", "/api/etiquetas?tipo=piezas", None, {P.CATALOGO_VER}),
+        ("GET", "/api/etiquetas?tipo=credenciales", None, set()),
+        ("GET", "/api/etiquetas?tipo=estantes", None, set()),
+        ("GET", "/api/etiquetas?tipo=piezas", None, set()),
     ],
 }
 # Permisos del catálogo sin endpoint propio que devuelva 403 (se prueban por comportamiento):

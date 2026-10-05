@@ -611,6 +611,7 @@ def paso_5_traspasos_y_recepciones(g: Guion) -> None:
             "tipo": "RECEPCION",
             "vale_origen_id": trs2["id"],
             "renglones": [{"codigo": "ALT-001"}, {"codigo": "CINCEL", "cantidad": 3}],
+            "observacion": "Llegaron tres cinceles; falta uno en la caja.",  # RG-14
         },
     )
     assert re.fullmatch(r"MID-REC-\d{6}", rec2["folio"])
