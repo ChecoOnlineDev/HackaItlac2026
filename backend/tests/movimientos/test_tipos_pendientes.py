@@ -45,12 +45,11 @@ def test_un_tipo_pendiente_responde_501_con_permiso_y_403_sin_el(almacenista, cl
         assert sin_permisos.post(ruta, json=cuerpo).status_code == 403  # sin el permiso del tipo
 
 
-def test_los_endpoints_de_traspasos_no_adeudo_y_cancelacion_exigen_permiso(cliente_como, session):
+def test_los_endpoints_de_traspasos_no_adeudo_y_cancelacion_exigen_permiso(cliente_como):
     rh = cliente_como("Recursos Humanos")
-    t = crear_trabajador(session)
     assert rh.get("/api/traspasos/por-recibir").status_code == 403
     sin_permiso = rh.post(
-        f"/api/trabajadores/{t.id}/no-adeudo", json={"id_cliente": str(uuid.uuid4())}
+        f"/api/trabajadores/{uuid.uuid4()}/no-adeudo", json={"id_cliente": str(uuid.uuid4())}
     )
     assert sin_permiso.status_code == 403
     cancelacion = {"motivo": "Error", "id_cliente": str(uuid.uuid4()), "rehacer": False}
