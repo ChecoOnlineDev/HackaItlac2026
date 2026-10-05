@@ -264,7 +264,7 @@ Sustento (referencia, no asesoría legal; la empresa debe validarlo con su aboga
 | I-01 | Las existencias nacen solo con una entrada: de Proveedor a un almacén. Las compras entran por Kepler; la carga inicial puede ir a cualquier almacén. | Plática min 5 y 32 |
 | I-02 | Cada pieza entra con su código único, marca y número de serie del fabricante. Un código repetido se rechaza. | PDF p.2; plática min 37 |
 | I-03 | Una pieza que requiere inspección entra con su inspección inicial (fecha y resultado). Sin ella queda pendiente y no se puede entregar. | PDF p.2 |
-| I-04 | Se captura el costo unitario. Sirve para valuar el inventario y solo lo ve Compras (RG-12). | PDF p.10; plática min 38–39 |
+| I-04 | El costo unitario se captura en el catálogo, al crear o editar el artículo, y en la importación de inventario (solo en artículos nuevos), siempre con el permiso `catalogo.costos`. La entrada de inventario no recibe costos: el vale nunca lleva costos (RG-12, F-12). Sirve para valuar el inventario y solo lo ve quien tiene `catalogo.costos`; de inicio, Compras. | PDF p.10; plática min 38–39; decisión del equipo |
 | I-05 | Cada artículo puede tener un mínimo por almacén. Se compara contra lo disponible: no cuenta lo No apto, en mantenimiento ni en calibración. Al bajar del mínimo se marca en rojo en la pantalla de Compras. | Plática min 47 y 50 |
 | I-06 | El inventario inicial se carga pegando o subiendo una tabla de Excel, con vista previa antes de guardar. | Plática min 34 |
 | I-07 | Todo artículo por cantidad tiene un QR de producto que se imprime como etiqueta de estante. | Plática min 20–21 |
@@ -316,7 +316,7 @@ Cómo se aplican en el servidor: E-01 también cubre escanear el código de un a
 | ID | Regla | Nivel | Origen |
 |---|---|---|---|
 | V-01 | Pieza: al escanearla el sistema sabe quién es el titular; no hace falta la credencial. La devolución se abona al titular, la traiga quien la traiga. | Verde | Plática min 5 |
-| V-02 | La pieza no está en resguardo de nadie. No hay nada que devolver; se muestra dónde está según el sistema. | Amarillo | Propuesta |
+| V-02 | La pieza no está en resguardo de nadie. No hay nada que devolver; se muestra dónde está según el sistema. El renglón es Amarillo y no genera movimiento. Si todos los renglones del vale son V-02, el vale completo sale Rojo (no hay nada que devolver) y no se confirma. | Amarillo (Rojo si es lo único que trae el vale) | Propuesta |
 | V-03 | Por cantidad: se identifica al trabajador y se elige de su lista. No se puede devolver más de lo que tiene. | Rojo si excede | Propuesta |
 | V-04 | La condición al volver es obligatoria: Bueno, Desgaste por uso o Dañado. | — | PDF p.4; plática min 41 |
 | V-05 | Dañado: exige observación y admite foto. Una pieza entra al almacén como No apta. Un artículo por cantidad no regresa a existencias: va a Baja. En ningún caso genera cargo al trabajador. | Amarillo | Plática min 41–42 |
@@ -544,12 +544,12 @@ Un permiso de acción incluye el de ver su módulo: quien puede entregar ve la f
 | P0 | Catálogo configurable | CF-01, CF-02, CF-05 a CF-13, CF-15, E-19, E-26, I-09 |
 | P0 | Registrar y reingresar a un trabajador | T-01 a T-03, T-05 a T-08, E-12 |
 | P0 | Cargar inventario | I-01 a I-04, I-06, I-07 |
-| P0 | Surtir EPP y una herramienta por escaneo | E-01 a E-06, E-15 a E-18, E-20 a E-22, E-24, E-25, F-02 (en pantalla), F-03, F-05, F-07 (con sesión), F-12 |
+| P0 | Surtir EPP y una herramienta por escaneo | E-01 a E-06, E-15 a E-18, E-20 a E-22, E-24, E-25, E-27, E-28, F-02 (en pantalla), F-03, F-05, F-07 (con sesión), F-12 |
 | P0 | Intentar una entrega que exceda el límite | L-01 a L-05, E-07, A-01 a A-07, F-04 |
 | P0 | Traspaso entre almacenes | X-01 a X-04, X-06 a X-13, F-09 |
 | P0 | Devolución | V-01 a V-07, V-11, V-12, V-14, F-08 |
 | P0 | Baja con pendientes y vale de no adeudo | B-01 a B-05, B-07 a B-09 |
-| P0 | Caso especial de alturas | E-05, E-06, P-01 a P-03 |
+| P0 | Caso especial de alturas | E-05, E-06, P-01 a P-03, P-07 |
 | P0 | Consulta y reportes | C-01 a C-06, C-08, C-11, C-12 |
 | P0 | Identidad con foto (opcional) | T-09, F-11 |
 | P0 | Corregir un error | K-01 a K-05, X-14 |
@@ -557,7 +557,6 @@ Un permiso de acción incluye el de ver su módulo: quien puede entregar ve la f
 | P1 | Cierre de mantenimiento y valor del inventario | CP-01 a CP-05, C-09 |
 | P1 | Dotación y avisos no bloqueantes | D-01 a D-03, E-09, E-10, E-11 |
 | P1 | Mínimos y estados de pieza | I-05, P-06, E-14, X-05 |
-| P1 | Identidad con foto | T-09, F-11 |
 | P1 | Ajustes finos del catálogo | CF-03, CF-04, CF-14 |
 | P1 | Control de acceso configurable y asignación de personal | AC-08 a AC-13 |
 | P2 | Lista de revisión y reporte de EPP por trabajador | RG-14, C-07, C-10 |
@@ -576,6 +575,7 @@ Los supuestos con los que se escribieron estas reglas, y qué pasa si resultan d
 
 ## 11. Historial
 
+- **Versión 6 (5 oct 2026).** Alineación con el código construido, sin reglas nuevas. I-04: el costo unitario se captura en el catálogo y en la importación, no en la entrada. V-02: un vale con solo renglones V-02 sale en rojo y no se confirma. Prioridades (sección 9): E-27, E-28 y P-07 pasan a P0, y T-09 y F-11 quedan solo en P0.
 - **Versión 5 (4 oct 2026).** Escanear solo agrega a un borrador y las existencias cambian al confirmar (E-28); aviso de cantidad inusual por artículo (E-27, sección 5.4); filtro por usuario en el reporte de movimientos y rastreo de desapariciones (C-05, C-11). La carta de aceptación queda pospuesta (T-04, F-01). Cancelar y rehacer (K-05), Mis movimientos de hoy (C-12) y ajuste de la vigencia de una inspección por un supervisor o administrador (P-07, permiso `piezas.ajustar_vigencia`). RG-07 aclara que cada almacenista usa su propia cuenta y dispositivo. Entran el reporte de consumo (C-08, permiso `reportes.consumo`) y la foto opcional del trabajador (T-09). Se agregan AC-12 y AC-13 y el permiso `almacenes.asignar_personal` para asignar personal a almacenes con FEAT-006.
 - **Versión 4 (4 oct 2026).** El acceso pasa de perfiles fijos a roles con permisos por clave (sección 8, reglas AC-01 a AC-11). RG-07, RG-12, RG-13 y A-01 se redactan en términos de permisos. De los [escenarios](escenarios.md) salen dos aclaraciones: T-02 dice cómo se extiende un contrato, y V-14 y E-18 qué hacer con una etiqueta ilegible.
 - **Versión 3 (4 oct 2026).** Se agrega el catálogo configurable (sección 5): categorías con plantilla de reglas, requisitos especiales por artículo, e inactivar y reactivar. Reglas nuevas E-19, E-26, I-09, X-09 y K-04. El daño en artículos por cantidad va a Baja (V-05). La cancelación de vales entra al MVP y se agrega el índice de casos especiales (7.12).

@@ -49,7 +49,7 @@ Son los diferenciadores (prioridad P1). Se construyen como features, una por una
 4. [FEAT-004](../features/FEAT-004-minimos-y-estados.md): mínimos, estados de pieza y alertas.
 5. [FEAT-005](../features/FEAT-005-identidad-con-foto.md): identidad con foto. **Pasó al MVP** como foto opcional en el alta (T-09); el brief queda como referencia.
 
-Aparte está [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md), control de acceso configurable. No compite por ese orden: toca solo el módulo de acceso y puede avanzar en paralelo, en una rama aparte, desde el cierre de la Fase 1. Su base, los permisos por clave, ya es parte del MVP ([ADR-007](../architecture/decisions/ADR-007-permisos-por-clave.md)).
+Aparte está [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md), control de acceso configurable. No compite por ese orden: toca solo el módulo de acceso y puede avanzar en paralelo, en una rama aparte, desde el cierre de la Fase 1. **Parte ya está integrada en el servidor:** usuarios (alta, edición, restablecer contraseña) y asignación de personal a almacenes. **Sigue pospuesta** la matriz editable de roles y permisos. Su base, los permisos por clave, ya es parte del MVP ([ADR-007](../architecture/decisions/ADR-007-permisos-por-clave.md)).
 
 ## Excluido explícitamente
 
@@ -61,7 +61,7 @@ Aparte está [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md),
 - Órdenes de compra, proveedores y facturas.
 - Firma electrónica avanzada y constancias NOM-151.
 - Impresión directa a impresoras térmicas; se imprime desde el navegador.
-- Administración de usuarios y de roles desde la interfaz; en el MVP se crean con el script de datos de prueba. Llega con FEAT-006.
+- Matriz editable de roles y permisos desde la interfaz: los cinco roles iniciales se cargan con el script de datos de prueba. Llega con la parte pendiente de FEAT-006. La administración de usuarios y la asignación de personal a almacenes ya están integradas en el servidor (`/api/usuarios`, `/api/personal`; ver [api-contracts.md](../architecture/api-contracts.md)); solo les falta su pantalla.
 - Niveles del semáforo configurables por regla.
 - Límites sumados por categoría.
 - Rutas de traspaso obligatorias; una ruta inusual solo avisa.
@@ -106,5 +106,5 @@ Un evaluador que no conoce el sistema completa el flujo principal desde un celul
 
 - Sin modo sin conexión: si se cae la red, la captura se detiene. El borrador del vale se conserva en el dispositivo.
 - La firma en pantalla es firma electrónica simple; su fuerza depende de la evidencia que la acompaña.
-- Sin administración de usuarios en pantalla.
+- Sin administración de usuarios ni de roles en pantalla: el servidor ya la permite para usuarios y personal, pero la interfaz no la tiene.
 - Los parámetros generales son valores fijos de configuración.

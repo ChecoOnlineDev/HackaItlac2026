@@ -17,7 +17,6 @@ dependencies = [
     "pymysql>=1.2.0",
     "python-multipart>=0.0.32",
     "sqlalchemy>=2.0.52",
-    "pywebpush>=2.5.0",
     "openpyxl>=3.1.5",
 ]
 

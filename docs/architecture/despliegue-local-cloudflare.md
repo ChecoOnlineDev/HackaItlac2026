@@ -2,7 +2,7 @@
 
 Cómo publicar la aplicación desde la computadora de desarrollo (Windows) con HTTPS, usando el dominio que ya está en Cloudflare. Sirve para probar en celular desde hoy y mudarse al servidor cuando exista.
 
-Estado: el `docker-compose.yml` y el `Dockerfile` de la raíz existen y están probados (base, aplicación con API e interfaz, salud, sesión). El servicio `tunel` está definido pero **no se ha probado con un token real**; los comandos de `cloudflared` son los estándar de la herramienta.
+Estado: el `docker-compose.yml`, el `Dockerfile` de la raíz y los scripts de respaldo y restauración existen y están probados (base, aplicación con API e interfaz, salud, sesión, respaldo y restauración en otra base). El servicio `tunel` está definido pero **no se ha probado con un token real**; los comandos de `cloudflared` son los estándar de la herramienta.
 
 ## Por qué hace falta
 
@@ -167,13 +167,88 @@ Si la recarga automática no llega al celular, se recarga la página a mano. No 
 - **Dos túneles con el mismo token.** Si la laptop y el servidor corren el mismo túnel a la vez, Cloudflare reparte el tráfico entre ambos. Apagar uno antes de encender el otro.
 - **Caché de Cloudflare.** Si un archivo estático no se actualiza, activar Development Mode en el panel o recargar forzando.
 
+## Respaldo y restauración
+
+La base (MySQL) y los archivos (firmas y fotos, volumen `imhotep_archivos`, `/data/archivos` dentro del contenedor `app`) se respaldan juntos. Los scripts están en `scripts/` en dos versiones con el mismo comportamiento: `.sh` (bash: Git Bash en Windows, o Linux) y `.ps1` (PowerShell). Necesitan Docker corriendo y el contenedor de la base arriba.
+
+### Hacer un respaldo
+
+```bash
+./scripts/respaldo.sh            # Git Bash o Linux
+.\scripts\respaldo.ps1           # PowerShell
+```
+
+Deja en `respaldos/` (o en `RESPALDOS_DIR`) dos archivos con la misma marca de fecha y hora:
+
+| Archivo | Contenido |
+|---|---|
+| `bd-AAAAMMDD-HHMMSS.sql.gz` | Volcado de la base (`mysqldump --single-transaction --routines --triggers`, hecho dentro del contenedor, sin bloquear la operación). |
+| `archivos-AAAAMMDD-HHMMSS.tar.gz` | Firmas y fotos. Se toman del contenedor `app` si corre; si no, de la carpeta local `backend/almacenamiento` (desarrollo). |
+
+Variables, en el entorno o en `.env` (todas opcionales):
+
+| Variable | Para qué | Por defecto |
+|---|---|---|
+| `RESPALDOS_DIR` | Carpeta de destino (ruta absoluta o relativa a la raíz del repositorio). Está en `.gitignore`. | `respaldos` |
+| `RESPALDOS_CONSERVAR` | Cuántos respaldos guardar; los más viejos se borran. `0` guarda todos. | `0` |
+| `MYSQL_DATABASE` | Base a respaldar. | `imhotep` |
+| `DB_CONTENEDOR` | Nombre del contenedor de MySQL. | `imhotep_db` |
+| `APP_CONTENEDOR` | Nombre del contenedor de la aplicación, si no se encuentra solo con `docker compose ps`. | (se busca) |
+
+La contraseña de MySQL nunca aparece en la línea de comandos ni en la salida: el volcado corre dentro del contenedor y toma la clave de root del entorno del contenedor. Si no hay de dónde leer los archivos (ni contenedor `app` ni carpeta local), el script respalda la base, avisa que el respaldo quedó **incompleto** y sale con código 2.
+
+### Restaurar
+
+```bash
+./scripts/restaurar.sh                          # el respaldo más reciente, sobre la base de producción
+./scripts/restaurar.sh 20261005-021500          # el de esa marca
+./scripts/restaurar.sh --base imhotep_prueba    # en OTRA base, sin tocar producción
+```
+
+En PowerShell: `.\scripts\restaurar.ps1 --base imhotep_prueba` (acepta también `-Base`).
+
+- Sobre la base de producción pide escribir su nombre antes de sobrescribir, y devuelve los archivos al volumen de la aplicación. `--si` omite la pregunta (para automatizar; con cuidado).
+- Con `--base OTRA` crea la base si no existe, restaura en ella y extrae los archivos en `respaldos/restaurado-MARCA/archivos`, sin tocar el volumen de la aplicación.
+- Después de restaurar, comprobar que todo cuadra (en PowerShell, `$env:MYSQL_DATABASE='imhotep_prueba'` antes del comando):
+
+```bash
+cd backend
+MYSQL_DATABASE=imhotep_prueba uv run python -m app.mantenimiento verificar   # debe decir "Todo cuadra" y salir con 0
+```
+
+### Cómo se probó
+
+Con una base de prueba con los datos de prueba, dos entregas con firma y una cancelación: se respaldó con `respaldo.sh` y con `respaldo.ps1`, se restauró en otra base con `restaurar.sh --base` y con `restaurar.ps1 --base`, y `verificar` dio código 0 en la original y en la restaurada, con los mismos conteos de vales, movimientos y existencias. Conviene repetirlo en el servidor antes del release (casilla de la [checklist](../releases/mvp-checklist.md)).
+
+### Programar el respaldo diario
+
+**Windows (Programador de tareas).** Una tarea diaria a las 2:00 que corre el script en PowerShell (ajustar la ruta del repositorio):
+
+```powershell
+schtasks /Create /SC DAILY /ST 02:00 /TN "Imhotep respaldo" /TR "powershell -NoProfile -ExecutionPolicy Bypass -File C:\ruta\al\repositorio\scripts\respaldo.ps1" /F
+```
+
+Para conservar solo los últimos 14, definir antes `RESPALDOS_CONSERVAR=14` en el `.env` del repositorio. Se puede probar con `schtasks /Run /TN "Imhotep respaldo"` y revisar `respaldos/`. La tarea corre con la sesión iniciada y Docker Desktop abierto, salvo que se configure «Ejecutar tanto si el usuario inició sesión como si no» en las propiedades de la tarea.
+
+**Linux (cron).** Con `crontab -e`, a las 2:00 y conservando 14 respaldos:
+
+```cron
+0 2 * * * cd /opt/imhotep && RESPALDOS_CONSERVAR=14 ./scripts/respaldo.sh >> respaldos/respaldo.log 2>&1
+```
+
+Los scripts no copian los respaldos fuera de la máquina: conviene sincronizar `respaldos/` a otro equipo o a la nube. Un respaldo que vive solo en el servidor no protege contra la pérdida del servidor.
+
+### Si las existencias dejan de cuadrar
+
+`python -m app.mantenimiento verificar` lista las diferencias. `reconstruir-existencias --simular` muestra lo que deberían valer las existencias según la bitácora sin escribir nada; `--aplicar` las corrige, pide una frase de confirmación y deja registro en la auditoría. Hacer un respaldo antes. Ver [security-model.md](security-model.md).
+
 ## Paso al servidor
 
 1. Instalar Docker en el servidor.
 2. Clonar el repositorio y copiar el `.env`, con contraseñas nuevas para producción.
 3. Detener el túnel en la laptop: `docker compose stop tunel`.
 4. En el servidor: `docker compose --profile tunel up -d --build`.
-5. Pasar los datos con un respaldo de MySQL, o cargar de nuevo los datos de prueba.
+5. Pasar los datos con un respaldo (`scripts/respaldo.*` en la laptop y `scripts/restaurar.*` en el servidor, sección anterior), o cargar de nuevo los datos de prueba.
 
 El subdominio y el certificado no cambian, así que las etiquetas QR impresas siguen sirviendo. No hace falta Caddy ni abrir puertos en el servidor.
 

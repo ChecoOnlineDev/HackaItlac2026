@@ -43,11 +43,11 @@ Como Compras, quiero registrar lo que entra a un almacén, para que haya existen
 - Un artículo inactivo se rechaza.
 - Al confirmar se emite un vale de entrada con folio y suben las existencias de ese almacén.
 - La pantalla de inventario muestra las existencias por almacén.
-- El costo unitario lo captura y lo ve solo quien tiene el permiso de costos; de inicio, Compras.
+- La entrada no recibe costos: el vale nunca los lleva. El costo unitario se captura en el catálogo (artículo) y en la importación, y solo lo captura y lo ve quien tiene el permiso de costos; de inicio, Compras (I-04, RG-12).
 
 **Reglas:** I-01 a I-04, I-09, RG-01, RG-06, RG-09, RG-12.
 
-**Fuera de alcance:** importación (US-IMP-001); solicitud de compra; mínimos.
+**Fuera de alcance:** importación (US-IMP-001); solicitud de compra; mínimos; capturar el costo en la entrada (se captura en el catálogo).
 
 **Casos límite:** un renglón con error impide guardar todo el vale y se marca.
 

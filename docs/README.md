@@ -18,12 +18,12 @@ Regla de uso: **los documentos globales orientan, los briefs pequeños autorizan
 | 6. UI/UX | [product/ui-ux.md](product/ui-ux.md) | ¿Cómo se ve y se comporta? | Escrito |
 | 7. TRD | [architecture/trd.md](architecture/trd.md) | ¿Cómo se construye? | Escrito |
 | 7. Complementos | [overview](architecture/overview.md), [datos](architecture/data-model.md), [API](architecture/api-contracts.md), [seguridad](architecture/security-model.md), [decisiones](architecture/decisions/) | Módulos, tablas, endpoints, controles y decisiones | Escrito |
-| 7. Entorno | [despliegue-local-cloudflare.md](architecture/despliegue-local-cloudflare.md) | ¿Cómo se publica con HTTPS? | Escrito, sin probar |
+| 7. Entorno | [despliegue-local-cloudflare.md](architecture/despliegue-local-cloudflare.md) | ¿Cómo se publica con HTTPS y cómo se respalda? | Compose y respaldo probados; el túnel, sin token real |
 | 8. Roadmap | [product/roadmap.md](product/roadmap.md) | ¿En qué orden? | Escrito |
 | 9. Historias | [stories/](stories/) | ¿Qué necesidad resuelve cada fase? | Fases 1 a 7 |
 | 10. Tareas | En el roadmap (Fase 0 y Fase 7) | ¿Qué cambia en el código? | El resto se planea por historia |
 | Segunda ola | [features/](features/) | ¿Qué sigue después del núcleo? | Seis briefs |
-| Release | [releases/mvp-checklist.md](releases/mvp-checklist.md) | ¿Cuándo está terminado? | Escrito |
+| Release | [releases/mvp-checklist.md](releases/mvp-checklist.md), [changelog](releases/changelog.md), [guía del almacenista](guia-almacenista.md) | ¿Cuándo está terminado, qué trae y cómo se usa? | Escritos; la checklist se va marcando |
 | Plantillas | [templates/](templates/) | Historias, FEAT, FIX, TECH, ADR, reporte y prompts | Listas |
 
 Fuentes del reto: [el PDF](HackaItlacTrack3_2026.pdf) y la carpeta [info_track/](info_track/). Las instrucciones para agentes están en [AGENTS.md](../AGENTS.md), en la raíz.
@@ -75,10 +75,15 @@ Ya decididas con el equipo: identificadores UUID y folio por contador ([ADR-006]
 
 ## Estado de los gates
 
+Lo construido está en el [changelog](releases/changelog.md); lo que falta del release, en la [checklist](releases/mvp-checklist.md).
+
 - [x] Descubrimiento: usuarios, problema e incógnitas identificados.
 - [ ] PRD: escrito; falta la aprobación del equipo.
 - [ ] Alcance del MVP: escrito; falta la aprobación del equipo.
 - [x] App flow: cada camino del MVP tiene entrada, salida y errores.
 - [x] UI/UX: cada pantalla tiene comportamiento y estados. No hay maquetas.
-- [x] TRD: arquitectura, datos, contratos y seguridad definidos. Cinco decisiones se toman en la Fase 0.
-- [ ] Fase 0: sin empezar.
+- [x] TRD: arquitectura, datos, contratos y seguridad definidos. Las decisiones de la Fase 0 ya se tomaron (sección 16).
+- [x] Fase 0 (construida): un solo desplegable con Docker, base con migraciones, interfaz servida por FastAPI y comandos comprobados. Falta lo que depende del dueño del dominio: el túnel con un token real y la lectura de un QR con la cámara de un celular por HTTPS.
+- [x] Fases 1 a 6: acceso y catálogo, entrega, límite y autorización, devolución y baja, traspasos, consulta, reportes e importación, construidas en backend y en la interfaz.
+- [ ] Fase 7: construidos la cancelación de vales, el respaldo con su restauración y la verificación de consistencia. Pendiente el ensayo manual del flujo principal en el entorno publicado y, desde un celular, la revisión de estados de pantalla.
+- [ ] Fase 8: en curso, ver la checklist.

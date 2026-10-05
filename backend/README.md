@@ -26,6 +26,8 @@ Documentación interactiva de la API: `http://localhost:21002/api/docs`.
 | Migración nueva | `uv run alembic revision --autogenerate -m "descripcion"` (revisar a mano) |
 | Verificar que modelos y migraciones coinciden | `uv run alembic check` |
 | Deshacer todo | `uv run alembic downgrade base` |
+| Verificar la consistencia de la base (solo lectura; `0` si cuadra, `1` si no) | `uv run python -m app.mantenimiento verificar` |
+| Existencias según la bitácora, sin escribir | `uv run python -m app.mantenimiento reconstruir-existencias --simular` |
 
 ## Variables de entorno (`../.env`)
 
@@ -86,6 +88,10 @@ Cómo queda vencida la `ALT-005` sin escribir en la base a mano: la inspección 
 | `tests/test_permisos_sistematicos.py` | Descubre todas las rutas de `app`: 401 sin sesión, un permiso por clave en cada ruta (y su coincidencia con `api-contracts.md`), la matriz de la sección 8.2 por rol y por permiso, datos reservados (CURP, NSS, costos) y la cookie de sesión. |
 | `tests/invariantes.py` | `verificar_invariantes(session, huella=None)`: las invariantes de `data-model.md` y los folios sobre la base de la prueba. `tomar_huella(session)` hace la foto de vales, movimientos e inspecciones para detectar ediciones. Reutilizable en cualquier prueba; `tests/test_verificador_invariantes.py` comprueba que detecta cada una. |
 | `tests/ayudas_guion.py` | Ayudas de esas pruebas: alta de trabajador por la API, evaluar y confirmar, existencias por la API. |
+
+## Mantenimiento y respaldo
+
+`app/mantenimiento.py` es un módulo aislado (solo importa modelos) con dos comandos de línea de comandos: `verificar` compara la base con las invariantes de `docs/architecture/data-model.md` y `reconstruir-existencias` recalcula las existencias desde la bitácora (`--simular` no escribe; `--aplicar` pide confirmación y deja auditoría, y es la única escritura de `existencia` fuera del motor). Usa la base de `MYSQL_DATABASE`, así que para revisar una copia restaurada: `MYSQL_DATABASE=otra_base uv run python -m app.mantenimiento verificar`. Sus pruebas están en `tests/test_mantenimiento.py`. Los scripts de respaldo y restauración están en `../scripts/` y se explican en el README de la raíz.
 
 ## El motor de vales
 
