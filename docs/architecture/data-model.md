@@ -2,7 +2,7 @@
 
 Entidades, relaciones e invariantes del MVP. Es también el entregable del PDF "descripción breve de la estructura de datos". Los nombres van en español, sin acentos ni ñ.
 
-Estado: es el diseño. Las tablas se crean por migraciones a partir de la Fase 1.
+Estado: las 21 tablas existen en la migración inicial `0001_esquema_inicial` (Fase 0). Los modelos están en el `models.py` del módulo dueño de cada tabla.
 
 ## Idea central
 
@@ -42,7 +42,7 @@ Decisión completa en [ADR-006](decisions/ADR-006-identificadores-uuid-y-folio.m
 
 | Tabla | Campos | Notas |
 |---|---|---|
-| `usuario` | `id`, `nombre`, `usuario`, `contrasena_hash`, `pin_hash`, `rol_id`, `almacen_id`, `activo`, `creado_en` | `usuario` es único. Cada usuario tiene un rol. `almacen_id` es su almacén asignado, uno solo por usuario; varios usuarios pueden compartir almacén (RG-07). Puede ir vacío si su rol tiene `almacenes.todos`. `pin_hash` solo en quien puede autorizar. |
+| `usuario` | `id`, `nombre`, `usuario`, `contrasena_hash`, `pin_hash`, `rol_id`, `almacen_id`, `activo`, `creado_en`, `intentos_fallidos`, `bloqueado_hasta`, `pin_intentos_fallidos`, `pin_bloqueado_hasta` | `usuario` es único. Cada usuario tiene un rol. `almacen_id` es su almacén asignado, uno solo por usuario; varios usuarios pueden compartir almacén (RG-07). Puede ir vacío si su rol tiene `almacenes.todos`. `pin_hash` solo en quien puede autorizar. Bloqueo por intentos: cinco contraseñas fallidas seguidas ponen `bloqueado_hasta` cinco minutos adelante (429 `DEMASIADOS_INTENTOS`) y reinician `intentos_fallidos`; un acierto lo reinicia. El PIN tiene su propio contador (`pin_intentos_fallidos`, `pin_bloqueado_hasta`). |
 | `rol` | `id`, `nombre`, `descripcion`, `protegido`, `activo`, `creado_en` | `nombre` único. `protegido` marca al Administrador, que no se elimina ni pierde `acceso.administrar`. |
 | `rol_permiso` | `rol_id`, `permiso` | Llave: ambas columnas. `permiso` es una clave del catálogo, como `entregas.crear`. El catálogo vive en el código, no en una tabla (AC-01). |
 | `trabajador` | `id`, `numero_empleado`, `nombre`, `curp`, `nss`, `tallas`, `foto_adjunto_id`, `estado`, `creado_en` | `numero_empleado` único; `curp` único si existe. `estado`: ACTIVO, BAJA_EN_PROCESO, INACTIVO. `foto_adjunto_id` va vacío si el trabajador no tiene foto (T-09). |
@@ -83,6 +83,25 @@ Decisión completa en [ADR-006](decisions/ADR-006-identificadores-uuid-y-folio.m
 | `evento_pieza` | `id`, `pieza_id`, `estado_anterior`, `estado_nuevo`, `observacion`, `usuario_id`, `creado_en` | Cambios de estado que no son inspección. |
 | `adjunto` | `id`, `tipo`, `ruta`, `mime`, `tamano`, `sha256`, `vale_id`, `movimiento_id`, `subido_por`, `creado_en` | `tipo`: FIRMA, FOTO_DANO, FOTO_TRABAJADOR. El archivo vive en el volumen, no en la base. |
 | `auditoria` | `id`, `usuario_id`, `accion`, `entidad`, `entidad_id`, `antes`, `despues`, `creado_en` | Entradas al sistema, cambios de catálogo, inactivaciones (CF-15). |
+
+## Decisiones de implementación
+
+Fijadas al construir las tablas; son parte del contrato para los demás módulos.
+
+- **Cantidades enteras.** `movimiento.cantidad`, `saldo_origen`, `saldo_destino` y `existencia.cantidad` son enteros. Un artículo que se mide en otra unidad (metros, litros) se cuenta en su unidad mínima.
+- **Nombres de constraints estables.** `pk_`, `fk_`, `uq_`, `ck_` e `ix_` seguidos de tabla y columnas (por ejemplo `uq_usuario_usuario`, `ck_existencia_cantidad_no_negativa`). El servidor traduce los errores de la base por ese nombre (`app/core/errores_bd.py`). Un CHECK violado llega de MySQL como `OperationalError` (3819), no como `IntegrityError`; por eso los services capturan `DBAPIError`.
+- **Enums de dominio** son `StrEnum` guardados como VARCHAR con CHECK (`ck_<tabla>_<columna>`), no como `ENUM` de MySQL.
+- **Fechas** `DATETIME(6)` en UTC sin zona; las pone el servidor.
+- **Mayúsculas.** La colación es `utf8mb4_0900_ai_ci`: usuarios, códigos y claves son únicos sin distinguir mayúsculas ni acentos.
+- **`ubicacion`**: además de que exactamente uno de `almacen_id`, `trabajador_id` y `virtual` tiene valor, `tipo` (ALMACEN, TRABAJADOR, VIRTUAL) debe coincidir con cuál es; cada uno es único (una ubicación por almacén, por trabajador y por tipo virtual).
+- **`pieza.ubicacion_id`** puede ir vacía mientras la pieza no tenga su primer movimiento (la entrada). `(articulo_id, numero_serie)` es único.
+- **`categoria` y `articulo`**: `requiere_inspeccion` solo con `control = PIEZA` (CHECK); límite, periodo, vigencia y aviso, positivos si existen; un artículo inactivo exige `motivo_inactivacion`; el costo no es negativo.
+- **`movimiento`**: `cantidad > 0`, una pieza siempre con cantidad 1, `origen_id` distinto de `destino_id`, `(vale_id, renglon)` único, `nivel` (VERDE, AMARILLO, NARANJA, ROJO). `reglas` es una lista JSON de IDs de regla.
+- **`autorizacion`**: `resuelta_por` no puede ser `solicitada_por` (AC-07, A-05).
+- **`periodo_contrato`**: `fin >= inicio`.
+- **Llaves circulares.** `trabajador.foto_adjunto_id` y `vale.firma_adjunto_id` apuntan a `adjunto`, que a su vez apunta a `vale` y `movimiento`; la migración las agrega al final.
+- **Dueños.** `acceso`: usuario, rol, rol_permiso. `trabajadores`: trabajador, periodo_contrato. `almacenes`: almacen, ubicacion. `catalogo`: categoria, articulo, pieza, codigo. `movimientos`: vale, movimiento, existencia, serie_folio. `autorizaciones`: autorizacion. `inspecciones`: inspeccion, ajuste_vigencia, evento_pieza. `archivos`: adjunto. `auditoria`: auditoria.
+- **Lo que no se puede expresar en la base** y queda para los services: que `vale` y `movimiento` no se actualicen (salvo `vale.estado`), que `existencia` sea la suma de los movimientos, que `pieza.ubicacion_id` sea el destino de su último movimiento, que `control` y `retornable` no cambien con movimientos (CF-05), y que siempre exista un usuario activo con `acceso.administrar` (AC-09).
 
 ## Qué movimientos genera cada vale
 

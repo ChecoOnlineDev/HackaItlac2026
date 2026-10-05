@@ -21,15 +21,21 @@ Sistema web de control de herramientas y EPP para el Reto IMHOTEP (Hacka ITLAC 2
 ## Estructura del repositorio
 
 ```
-backend/app/modulos/<dominio>/   router.py, service.py, models.py, schemas.py
-backend/alembic/                 migraciones
-backend/tests/                   pruebas
-frontend/app/routes/             una ruta por pantalla
-frontend/app/componentes/        escáner, renglón con semáforo, fichas
-docs/                            documentación; el índice es docs/README.md
+backend/app/main.py, config.py, db.py, seguridad.py   aplicación, ajustes, base y sesión
+backend/app/core/                 excepciones base, handlers, paginación, ids y fechas; no importa módulos
+backend/app/integraciones/        adaptadores a lo externo (archivos.py: volumen de firmas y fotos)
+backend/app/modulos/<dominio>/    router.py, service.py, repository.py, models.py, schemas.py, exceptions.py
+backend/app/datos_prueba.py       carga repetible; cada módulo aporta su modulos/<dominio>/datos_prueba.py
+backend/alembic/                  migraciones
+backend/tests/                    pruebas (conftest.py trae los fixtures)
+frontend/app/routes/              una ruta por pantalla
+frontend/app/componentes/         escáner, renglón con semáforo, fichas
+docs/                             documentación; el índice es docs/README.md
 ```
 
-La estructura de `backend/app/` se crea en la Fase 0. Hoy el backend es `backend/main.py` y el frontend es la plantilla.
+Los módulos son once: `acceso`, `almacenes`, `catalogo`, `trabajadores`, `movimientos`, `autorizaciones`, `inspecciones`, `consulta`, `importacion`, `archivos` y `auditoria`. Todos tienen su `router.py` montado en `main.py`: quien construye un módulo llena sus archivos y no toca `main.py`. El backend es **síncrono** (PyMySQL): endpoints con `def` y `Session` de SQLAlchemy. Flujo: Router, Service, Repository, Model; el service controla la transacción y el repository nunca hace commit. Detalle en `docs/architecture/overview.md`.
+
+El frontend sigue siendo la plantilla de React Router.
 
 ## Arquitectura y límites
 
@@ -76,27 +82,31 @@ La estructura de `backend/app/` se crea en la Fase 0. Hoy el backend es `backend
 
 ## Comandos
 
-Funcionan hoy:
+Frontend, dentro de `frontend/`:
 
 | Acción | Comando |
 |---|---|
-| Instalar el frontend | `pnpm install` dentro de `frontend/` |
-| Servidor de desarrollo del frontend | `pnpm dev` dentro de `frontend/` |
-| Verificar tipos | `pnpm typecheck` dentro de `frontend/` |
-| Construir el frontend | `pnpm build` dentro de `frontend/` |
-| Instalar el backend | `uv sync` dentro de `backend/` |
+| Instalar | `pnpm install` |
+| Servidor de desarrollo | `pnpm dev` |
+| Verificar tipos | `pnpm typecheck` |
+| Construir | `pnpm build` |
 
-Quedan disponibles al cerrar la Fase 0; hasta entonces son el objetivo, no un hecho:
+Backend, dentro de `backend/` (comprobados en la Fase 0). Copiar antes `.env.example` a `.env` en la raíz:
 
 | Acción | Comando |
 |---|---|
-| Servidor de desarrollo del backend | `uv run fastapi dev app/main.py` dentro de `backend/` |
-| Pruebas | `uv run pytest` dentro de `backend/` |
-| Lint | `uv run ruff check .` dentro de `backend/` |
-| Migraciones | `uv run alembic upgrade head` dentro de `backend/` |
-| Levantar todo | `docker compose up -d --build` en la raíz |
+| Levantar la base (raíz del repo) | `docker compose up -d db` |
+| Instalar | `uv sync` |
+| Migraciones | `uv run alembic upgrade head` (y `uv run alembic downgrade base`) |
+| Datos de prueba (repetible) | `uv run python -m app.datos_prueba` |
+| Servidor de desarrollo | `uv run fastapi dev app/main.py --port 21002` |
+| Pruebas | `uv run pytest` |
+| Lint | `uv run ruff check .` |
+| Formato | `uv run ruff format .` |
 
-Quien cierre la Fase 0 actualiza esta sección con los comandos comprobados.
+Puertos: MySQL en el host `21001` (`MYSQL_PUERTO`), servidor de desarrollo `21002`; el `21003` en adelante está reservado (túnel y otros). Las pruebas usan la base `{MYSQL_DATABASE}_test_{TEST_DB_SUFFIX}`: quien corra pruebas en paralelo contra el mismo MySQL usa un `TEST_DB_SUFFIX` distinto.
+
+Pendiente de las tareas de despliegue (TASK-F0-03 a F0-06): `docker compose up -d --build` con aplicación y túnel, y el Dockerfile de la raíz.
 
 ## Definition of Done
 

@@ -41,3 +41,6 @@ pnpm-debug.log*
 *.log
 *.tmp
 *.swp
+
+# --- Archivos subidos (volumen local) ---
+backend/almacenamiento/

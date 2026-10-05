@@ -19,3 +19,27 @@ dependencies = [
     "sqlalchemy>=2.0.52",
     "pywebpush>=2.5.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.9",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "N"]
+ignore = ["B008", "N818"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["N802"]

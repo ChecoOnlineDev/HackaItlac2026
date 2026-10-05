@@ -1,0 +1,31 @@
+# Base de datos del sistema. Los servicios de la aplicación y del túnel
+# se agregan en la tarea del despliegue (TASK-F0-04).
+services:
+  db:
+    image: mysql:8.4
+    container_name: imhotep_db
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+00:00
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?define MYSQL_ROOT_PASSWORD en .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-imhotep}
+      MYSQL_USER: ${MYSQL_USER:-imhotep}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?define MYSQL_PASSWORD en .env}
+      TZ: UTC
+    ports:
+      # Solo escucha en la máquina local; no se publica por el túnel.
+      - "127.0.0.1:${MYSQL_PUERTO:-21001}:3306"
+    volumes:
+      - imhotep_db_datos:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+volumes:
+  imhotep_db_datos:

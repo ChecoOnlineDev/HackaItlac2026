@@ -31,15 +31,16 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 | 409 | `CON_MOVIMIENTOS` | No se puede eliminar ni cambiar control o retorno. |
 | 409 | `NO_CANCELABLE` | El vale no se puede cancelar; incluye el motivo (K-03, K-04). |
 | 422 | `DATOS_INVALIDOS` | Falta un dato o tiene forma incorrecta. Incluye el campo. |
-| 429 | `DEMASIADOS_INTENTOS` | Contraseña o PIN fallidos; incluye los segundos de espera. |
+| 403 | `PIN_INCORRECTO` | El PIN de autorización no es válido (403 y no 401, para no cerrar la sesión). |
+| 429 | `DEMASIADOS_INTENTOS` | Cinco contraseñas o PIN fallidos seguidos: bloqueo de cinco minutos. Incluye `detalles.segundos_espera` y la cabecera `Retry-After`. Se responde ya en el quinto intento fallido. |
 
 ## Acceso
 
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
-| `POST /api/sesion` | Público | Entra con `{usuario, contrasena}`. Responde el usuario, su rol, su almacén y sus permisos. |
+| `POST /api/sesion` | Público | Entra con `{usuario, contrasena}` y deja la cookie de sesión. Responde `{usuario: {id, nombre, usuario}, rol: {id, nombre}, almacen: {id, clave, nombre} o null, permisos: [claves]}`. Credenciales incorrectas o usuario inactivo: 401 con "Usuario o contraseña incorrectos", sin decir cuál falló. |
 | `GET /api/sesion` | Sesión | Devuelve la sesión actual con la lista de permisos. La interfaz la usa para mostrar menús y botones. |
-| `DELETE /api/sesion` | Sesión | Sale. |
+| `DELETE /api/sesion` | Sesión | Sale y borra la cookie. Responde 204. |
 
 ## Escaneo y búsqueda
 

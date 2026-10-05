@@ -1,0 +1,185 @@
+"""Reglas del módulo `acceso`: entrada, bloqueo por intentos, permisos, PIN y almacén operativo."""
+
+import math
+import uuid
+from datetime import timedelta
+
+from sqlalchemy.orm import Session
+
+from app.config import get_settings
+from app.core.excepciones import DatosInvalidos, DemasiadosIntentos, SinPermiso
+from app.core.tiempo import ahora_utc
+from app.modulos.acceso.exceptions import CredencialesIncorrectas, PinIncorrecto
+from app.modulos.acceso.models import Usuario
+from app.modulos.acceso.permisos import CLAVES, P
+from app.modulos.acceso.repository import RolRepository, UsuarioRepository
+from app.modulos.acceso.schemas import (
+    AlmacenSesionOut,
+    RolSesionOut,
+    SesionOut,
+    UsuarioSesionOut,
+)
+from app.modulos.almacenes.service import AlmacenService
+from app.modulos.auditoria.service import AuditoriaService
+from app.seguridad import HASH_RELLENO, leer_token, verificar_secreto
+
+
+class AccesoService:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+        self.usuarios = UsuarioRepository(session)
+        self.roles = RolRepository(session)
+        self.auditoria = AuditoriaService(session)
+        self.almacenes = AlmacenService(session)
+
+    # ------------------------------------------------------------------ sesión
+
+    def autenticar(self, nombre_usuario: str, contrasena: str) -> Usuario:
+        """Valida usuario y contraseña. 5 intentos fallidos bloquean 5 minutos (US-ACC-001).
+
+        El mensaje de error es el mismo si falla el usuario, la contraseña o está inactivo.
+        """
+        ajustes = get_settings()
+        usuario = self.usuarios.get_by_usuario(nombre_usuario)
+        if usuario is None:
+            verificar_secreto(contrasena, HASH_RELLENO)  # mismo tiempo que un usuario real
+            raise CredencialesIncorrectas()
+
+        ahora = ahora_utc()
+        if usuario.bloqueado_hasta is not None:
+            if usuario.bloqueado_hasta > ahora:
+                raise DemasiadosIntentos(_segundos_restantes(usuario.bloqueado_hasta, ahora))
+            usuario.bloqueado_hasta = None  # el bloqueo ya venció
+
+        if not verificar_secreto(contrasena, usuario.contrasena_hash):
+            usuario.intentos_fallidos += 1
+            if usuario.intentos_fallidos >= ajustes.intentos_maximos:
+                usuario.intentos_fallidos = 0
+                usuario.bloqueado_hasta = ahora + timedelta(seconds=ajustes.bloqueo_segundos)
+                self.auditoria.registrar(
+                    usuario_id=usuario.id,
+                    accion="sesion.bloqueo",
+                    entidad="usuario",
+                    entidad_id=usuario.id,
+                    despues={"bloqueado_hasta": usuario.bloqueado_hasta},
+                )
+                self.session.commit()
+                raise DemasiadosIntentos(ajustes.bloqueo_segundos)
+            self.session.commit()
+            raise CredencialesIncorrectas()
+
+        if not usuario.activo:
+            raise CredencialesIncorrectas()
+
+        usuario.intentos_fallidos = 0
+        usuario.bloqueado_hasta = None
+        self.auditoria.registrar(
+            usuario_id=usuario.id, accion="sesion.entrada", entidad="usuario", entidad_id=usuario.id
+        )
+        self.session.commit()
+        return usuario
+
+    def usuario_de_token(self, token: str | None) -> Usuario | None:
+        """El usuario activo al que pertenece el token, leído de la base en cada petición."""
+        if not token:
+            return None
+        usuario_id = leer_token(token)
+        if usuario_id is None:
+            return None
+        usuario = self.usuarios.get(usuario_id)
+        if usuario is None or not usuario.activo:
+            return None
+        return usuario
+
+    def construir_sesion(self, usuario: Usuario) -> SesionOut:
+        almacen = self.almacenes.obtener(usuario.almacen_id) if usuario.almacen_id else None
+        return SesionOut(
+            usuario=UsuarioSesionOut(id=usuario.id, nombre=usuario.nombre, usuario=usuario.usuario),
+            rol=RolSesionOut(id=usuario.rol.id, nombre=usuario.rol.nombre),
+            almacen=AlmacenSesionOut.model_validate(almacen) if almacen else None,
+            permisos=sorted(self.permisos_de(usuario)),
+        )
+
+    # ---------------------------------------------------------------- permisos
+
+    def permisos_de(self, usuario: Usuario) -> frozenset[str]:
+        """Permisos del rol del usuario, leídos de la base en cada llamada (AC-04, AC-10)."""
+        if not usuario.rol.activo:
+            return frozenset()
+        return frozenset(self.roles.permisos(usuario.rol_id) & CLAVES)
+
+    def tiene_permiso(self, usuario: Usuario, clave: str) -> bool:
+        return clave in self.permisos_de(usuario)
+
+    def exigir_permiso(self, usuario: Usuario, clave: str) -> None:
+        if not self.tiene_permiso(usuario, clave):
+            raise SinPermiso()
+
+    def puede_operar_todos_los_almacenes(self, usuario: Usuario) -> bool:
+        """AC-06: con `almacenes.todos` el usuario elige almacén; sin él, solo el suyo."""
+        return self.tiene_permiso(usuario, P.ALMACENES_TODOS)
+
+    def resolver_almacen(self, usuario: Usuario, almacen_id: uuid.UUID | None = None) -> uuid.UUID:
+        """El almacén sobre el que opera el usuario (RG-07, AC-06).
+
+        Sin `almacenes.todos` sale del usuario de la sesión (y si se indica otro, se rechaza).
+        Con `almacenes.todos` hay que indicarlo con `almacen_id`.
+        """
+        if self.puede_operar_todos_los_almacenes(usuario):
+            if almacen_id is None:
+                raise DatosInvalidos(
+                    "Indica el almacén.",
+                    [{"campo": "almacen_id", "mensaje": "Indica el almacén."}],
+                )
+            self.almacenes.obtener(almacen_id)
+            return almacen_id
+        if usuario.almacen_id is None:
+            raise SinPermiso("No tienes un almacén asignado.")
+        if almacen_id is not None and almacen_id != usuario.almacen_id:
+            raise SinPermiso("Solo puedes operar tu almacén.")
+        return usuario.almacen_id
+
+    # --------------------------------------------------------------------- PIN
+
+    def verificar_pin(self, usuario: Usuario, pin: str) -> None:
+        """Verifica el PIN de `usuario` (secreto distinto de la contraseña) con su bloqueo.
+
+        Éxito: reinicia el contador (sin commit; lo hace quien llama). Fallo: guarda el contador
+        con commit, lo que también confirma lo pendiente de la sesión, así que llámese ANTES de
+        escribir lo demás. Cinco fallos bloquean cinco minutos (429). Para autorizar, quien llama
+        verifica además que el usuario tenga el permiso (`autorizaciones.resolver`).
+        """
+        ajustes = get_settings()
+        ahora = ahora_utc()
+        if usuario.pin_bloqueado_hasta is not None:
+            if usuario.pin_bloqueado_hasta > ahora:
+                raise DemasiadosIntentos(_segundos_restantes(usuario.pin_bloqueado_hasta, ahora))
+            usuario.pin_bloqueado_hasta = None
+
+        hash_pin = usuario.pin_hash or HASH_RELLENO
+        if usuario.pin_hash is not None and verificar_secreto(pin, hash_pin):
+            usuario.pin_intentos_fallidos = 0
+            self.session.flush()
+            return
+
+        if usuario.pin_hash is None:
+            verificar_secreto(pin, HASH_RELLENO)
+        usuario.pin_intentos_fallidos += 1
+        if usuario.pin_intentos_fallidos >= ajustes.intentos_maximos:
+            usuario.pin_intentos_fallidos = 0
+            usuario.pin_bloqueado_hasta = ahora + timedelta(seconds=ajustes.bloqueo_segundos)
+            self.auditoria.registrar(
+                usuario_id=usuario.id,
+                accion="pin.bloqueo",
+                entidad="usuario",
+                entidad_id=usuario.id,
+                despues={"pin_bloqueado_hasta": usuario.pin_bloqueado_hasta},
+            )
+            self.session.commit()
+            raise DemasiadosIntentos(ajustes.bloqueo_segundos)
+        self.session.commit()
+        raise PinIncorrecto()
+
+
+def _segundos_restantes(hasta, ahora) -> int:
+    return max(1, math.ceil((hasta - ahora).total_seconds()))
