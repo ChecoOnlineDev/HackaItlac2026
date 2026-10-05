@@ -147,6 +147,8 @@ class NoAdeudoTipo(ManejadorTipo):
         if trabajador.estado == EstadoTrabajador.ACTIVO:
             # B-01: el almacenista inicia la baja cuando el trabajador pide su vale. Queda en
             # Baja en proceso aunque haya pendientes (se confirma antes de responder el 409).
+            # Iniciar la baja tiene su propio permiso: emitir el vale no lo da (tabla 8.2).
+            servicio.acceso.exigir_permiso(usuario, P.TRABAJADORES_INICIAR_BAJA)
             servicio.trabajadores.iniciar_baja(trabajador_id, usuario)
             trabajador = servicio.trabajadores.obtener(trabajador_id)
         conflicto = _con_pendientes(servicio, trabajador, usuario)

@@ -494,7 +494,7 @@ A es Almacenista, S Supervisor, C Compras y R Recursos Humanos. El Administrador
 | Trabajadores | `trabajadores.ver` | Ficha básica: nombre, número, puesto, vigencia y resguardo | A, S, R |
 | | `trabajadores.ver_datos_personales` | CURP y NSS | R |
 | | `trabajadores.administrar` | Alta, reingreso, credencial y cancelar una baja | R |
-| | `trabajadores.iniciar_baja` | Iniciar la baja | A, R |
+| | `trabajadores.iniciar_baja` | Iniciar la baja | A, S, R |
 | Catálogo | `catalogo.ver` | Categorías, artículos y piezas | A, S, C |
 | | `catalogo.administrar` | Categorías, artículos, requisitos, límites e inactivar | S, C |
 | | `catalogo.costos` | Ver y capturar costos | C |
