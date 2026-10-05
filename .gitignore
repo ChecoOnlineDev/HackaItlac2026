@@ -44,3 +44,6 @@ pnpm-debug.log*
 
 # --- Archivos subidos (volumen local) ---
 backend/almacenamiento/
+
+# --- Árboles de trabajo de agentes ---
+.claude/worktrees/
