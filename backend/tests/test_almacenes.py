@@ -9,13 +9,13 @@ from collections.abc import Callable
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from app.modulos.acceso.permisos import P
 from app.modulos.almacenes.repository import AlmacenRepository, UbicacionRepository
 from app.modulos.almacenes.service import AlmacenService
-from app.modulos.catalogo.models import Articulo, EstadoPieza
+from app.modulos.catalogo.models import Articulo, EstadoPieza, Pieza
 from app.modulos.catalogo.service import CatalogoService
 from app.modulos.movimientos.models import Existencia
 from tests.conftest import iniciar_sesion_en
@@ -82,6 +82,7 @@ def test_RG_08_existencias_de_un_almacen_inexistente_responde_404(cliente_como):
 def test_I_05_existencias_y_disponibles_por_articulo(cliente_como, session):
     # La carga inicial de `movimientos` dejó existencias: esta prueba parte de un inventario vacío.
     session.execute(delete(Existencia))
+    session.execute(update(Pieza).values(ubicacion_id=None))  # y sin las piezas de prueba
     kep = _ubicacion(session, "KEP")
     flexometro = _articulo(session, "FLEXOM")
     arnes = _articulo(session, "ARN-KEV")

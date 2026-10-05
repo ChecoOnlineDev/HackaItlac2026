@@ -9,7 +9,7 @@ from collections.abc import Callable
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from app.core.excepciones import DatosInvalidos
@@ -686,6 +686,9 @@ def test_C_03_el_disponible_de_un_articulo_por_pieza_no_cuenta_piezas_no_aptas(
     articulo = _articulo_por_codigo(session, "ARN-POL")
     servicio = CatalogoService(session)
     kep = _ubicacion_kep(session)
+    # Los datos de prueba ya dieron entrada a piezas de este artículo: la prueba parte sin ellas.
+    session.execute(update(Pieza).where(Pieza.articulo_id == articulo.id).values(ubicacion_id=None))
+    session.execute(delete(Existencia).where(Existencia.articulo_id == articulo.id))
     estados = [EstadoPieza.APTO, EstadoPieza.NO_APTO, EstadoPieza.EN_MANTENIMIENTO]
     for n, estado in enumerate(estados):
         pieza = servicio.registrar_pieza(articulo.id, f"ALT-C03-{n}", f"S{n}", estado=estado)
