@@ -224,7 +224,7 @@ def test_E_07_un_naranja_por_limite_impide_confirmar_hasta_autorizar_o_quitar(
     assert ok.status_code == 201
 
 
-def test_L_04_el_limite_no_aplica_a_un_articulo_sin_limite_aunque_haya_mucho_en_posesion(
+def test_L_01_el_limite_no_aplica_a_un_articulo_sin_limite_aunque_haya_mucho_en_posesion(
     almacenista, compras, session, trabajador
 ):
     casco = crear_articulo(session, retornable=True)
