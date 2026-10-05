@@ -54,7 +54,7 @@ export const MENU: readonly ElementoMenu[] = [
   { id: "consultar", titulo: "Consultar", ruta: "/consultar", icono: Search, grupo: "Consulta", inicio: "flujo" },
   { id: "mis-movimientos", titulo: "Mis movimientos de hoy", ruta: "/mis-movimientos", icono: History, permisosAlguno: ["vales.ver"], grupo: "Consulta", inicio: "gestion" },
   { id: "autorizaciones", titulo: "Autorizaciones", ruta: "/autorizaciones", icono: ShieldCheck, permisosAlguno: ["autorizaciones.resolver"], grupo: "Supervisión", inicio: "siempre", contador: "porAutorizar" },
-  { id: "trabajadores", titulo: "Trabajadores", ruta: "/trabajadores", icono: Users, permisosAlguno: ["trabajadores.administrar"], grupo: "Personas", inicio: "gestion", prefijoActivo: "/trabajadores" },
+  { id: "trabajadores", titulo: "Trabajadores", ruta: "/trabajadores", icono: Users, permisosAlguno: ["trabajadores.ver"], grupo: "Personas", inicio: "gestion", prefijoActivo: "/trabajadores" },
   { id: "alta-trabajador", titulo: "Alta de trabajador", ruta: "/trabajadores/nuevo", icono: UserPlus, permisosAlguno: ["trabajadores.administrar"], grupo: "Personas", inicio: "gestion" },
   { id: "inventario", titulo: "Inventario", ruta: "/inventario", icono: Boxes, permisosAlguno: ["inventario.ver"], grupo: "Inventario y catálogo", inicio: "gestion" },
   { id: "entradas", titulo: "Entradas", ruta: "/entradas/nueva", icono: PackagePlus, permisosAlguno: ["inventario.entradas"], grupo: "Inventario y catálogo", inicio: "gestion" },
