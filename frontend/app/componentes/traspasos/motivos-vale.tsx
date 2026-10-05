@@ -13,9 +13,9 @@ const COLOR_ICONO: Record<NivelSemaforo, string> = {
 };
 const BORDE: Record<NivelSemaforo, string> = {
   VERDE: "border",
-  AMARILLO: "border-2 border-semaforo-amarillo bg-semaforo-amarillo/10",
-  NARANJA: "border-2 border-semaforo-amarillo bg-semaforo-amarillo/10",
-  ROJO: "border-2 border-semaforo-rojo bg-semaforo-rojo/10",
+  AMARILLO: "border border-semaforo-amarillo bg-semaforo-amarillo/10",
+  NARANJA: "border border-semaforo-amarillo bg-semaforo-amarillo/10",
+  ROJO: "border border-semaforo-rojo bg-semaforo-rojo/10",
 };
 
 /**

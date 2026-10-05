@@ -78,7 +78,7 @@ export function CapturaPieza({ articulo, inicial, codigoLeido, alGuardar, alCanc
     <section
       ref={refTarjeta}
       aria-labelledby={`${id}-titulo`}
-      className="flex flex-col gap-4 rounded-xl border-2 border-primary p-4"
+      className="flex flex-col gap-4 rounded-2xl border border-primary p-4"
     >
       <header className="flex flex-col">
         <h2 id={`${id}-titulo`} className="text-base font-semibold text-marino">

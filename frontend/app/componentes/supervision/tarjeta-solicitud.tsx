@@ -86,9 +86,9 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
     <article
       aria-label={`Solicitud de ${solicitud.trabajador.nombre}`}
       className={cn(
-        "flex flex-col gap-4 rounded-xl border-2 bg-card p-4 transition-colors",
+        "flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-xs transition-colors",
         cerrada ? "border-border bg-muted/60 opacity-70" : "border-semaforo-naranja",
-        nueva && !cerrada && "ring-4 ring-semaforo-naranja/30",
+        nueva && !cerrada && "ring-2 ring-semaforo-naranja/30",
       )}
     >
       <div className="flex items-start gap-3">
@@ -123,12 +123,12 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
               {r.articulo ?? r.codigo}
             </p>
             {r.limite !== null && r.tiene !== null ? (
-              <p className="text-base">
+              <p className="text-sm">
                 Límite {r.limite}, tiene {r.tiene}, pide {r.cantidad}
                 {r.excedente ? <span className="font-semibold"> · Se pasa por {r.excedente}</span> : null}
               </p>
             ) : (
-              <p className="text-base">Pide {r.cantidad}.</p>
+              <p className="text-sm">Pide {r.cantidad}.</p>
             )}
             {r.mensaje && (r.limite === null || r.tiene === null) ? <p className="text-sm text-muted-foreground">{r.mensaje}</p> : null}
             <p className="text-xs text-muted-foreground">Regla {r.regla}</p>
@@ -137,7 +137,7 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
       </ul>
 
       <div className="flex flex-col gap-1">
-        <p className="text-base">
+        <p className="text-sm">
           <span className="font-semibold">Motivo: </span>
           {solicitud.motivo}
         </p>

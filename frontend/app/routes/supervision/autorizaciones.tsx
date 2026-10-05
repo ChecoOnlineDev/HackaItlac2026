@@ -39,7 +39,7 @@ export default function Autorizaciones() {
       {!cargando && error && sinNada ? <EstadoError error={error} alReintentar={() => void recargar()} /> : null}
 
       {!cargando && error && !sinNada ? (
-        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-semaforo-amarillo bg-semaforo-amarillo/10 p-3">
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3">
           <p className="text-base font-semibold">No pudimos actualizar la lista. {mensajeDeError(error)}</p>
           <Boton variante="contorno" onClick={() => void recargar()}>
             Reintentar

@@ -25,7 +25,7 @@ interface PropiedadesHojaPieza {
 function ErrorEnHoja({ mensaje }: { mensaje: string | null }) {
   if (!mensaje) return null;
   return (
-    <p role="alert" className="flex items-start gap-2 rounded-xl border-2 border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-sm font-semibold">
+    <p role="alert" className="flex items-start gap-2 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-sm font-semibold">
       <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-semaforo-rojo" />
       {mensaje}
     </p>

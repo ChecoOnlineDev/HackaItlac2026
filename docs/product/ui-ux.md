@@ -13,7 +13,18 @@ Cómo se presenta y se comporta cada pantalla del [app flow](app-flow.md). Cubre
 
 ## Sistema de diseño
 
-- **Tipografía.** Fuente del sistema, sin descargas. Base de 18 px en celular y 16 px en computadora; títulos de 24 px; datos clave (nombre del trabajador, folio) de 20 px en negritas.
+- **Tipografía.** Poppins en toda la aplicación (servida desde el propio sitio), sin `font-mono`: los códigos también van en Poppins, con `tabular-nums` si ayuda a alinear cifras. Escala única en celular, tableta y computadora:
+
+| Uso | Tamaño | Peso |
+|---|---|---|
+| Título de página (`h1`) | 20 px (24 px desde 768 px) | Semibold |
+| Título de sección (`h2`) | 16 px | Semibold |
+| Cuerpo | 16 px | Regular |
+| Subtítulo, ayudas y datos secundarios | 14 px, color apagado | Regular |
+| Etiquetas de sección y encabezados de tabla | 12 px, mayúsculas | Semibold |
+| Datos clave (nombre del trabajador, folio) | 16 px | Semibold |
+
+Los títulos pueden ocupar dos líneas; nada se corta con "…". Una frase de ayuda por pantalla como máximo.
 - **Colores.** Azul IMHOTEP como primario (`#0054A6`), azul marino para encabezados (`#1B1F8A`), fondo blanco y grises neutros para el texto secundario. El logotipo está en `docs/recursos/logo_imhotep.jpg`.
 - **Semáforo.** Colores reservados; no se usan para nada más:
 
@@ -25,13 +36,13 @@ Cómo se presenta y se comporta cada pantalla del [app flow](app-flow.md). Cubre
 | Rojo | `#B91C1C` | Cruz | "No se puede entregar" |
 
 - **Espaciado.** Múltiplos de 4 px; 16 px de margen lateral en celular.
-- **Radios y sombras.** Radio de 12 px en tarjetas y botones; sombras solo en lo que flota (hojas y avisos).
+- **Radios y sombras.** Tarjetas y tablas con `rounded-2xl` (18 px), botones y campos con `rounded-xl` (12 px), borde sutil (`#E2E5EA`) y sombra muy suave (`shadow-xs`) en las tarjetas; las hojas y los avisos que flotan llevan sombra propia. Los avisos de color (semáforo) usan borde de 1 px y fondo al 10 %.
 - **Iconografía.** Un solo juego de iconos de trazo; se elige en la Fase 0.
-- **Objetivos táctiles.** Mínimo 48 px de alto; los botones principales, 56 px y a todo el ancho en celular.
+- **Objetivos táctiles.** Botón normal de 40 px de alto (nunca menos), campos y listas de 44 px, botón principal de 48 px y a todo el ancho. Las filas que son un solo toque (una tarjeta, un renglón de lista) miden 48 px o más.
 
 ## Navegación
 
-- **Celular.** El inicio del almacenista es una cuadrícula de botones grandes: Entregar, Devolver, Trasladar, Recibir y Consultar. Arriba, el nombre del almacén y el usuario. Dentro de un flujo solo hay "Atrás" y la acción principal, fija en la parte baja.
+- **Celular.** El inicio del almacenista es una cuadrícula de botones grandes: Entregar, Devolver, Trasladar, Recibir y Consultar. Arriba, el nombre del almacén y el usuario. Dentro de un flujo solo hay "Atrás" (uno solo, en la barra de arriba; en los flujos de pasos regresa un paso en vez de salir) y la acción principal, fija en la parte baja.
 - **Tableta.** Igual que el celular, con la lista de renglones y el detalle lado a lado en horizontal.
 - **Computadora.** Menú lateral con las secciones que permite el rol; tablas con filtros arriba; formularios a un ancho máximo de 720 px.
 
@@ -46,11 +57,17 @@ Cómo se presenta y se comporta cada pantalla del [app flow](app-flow.md). Cubre
 
 **Renglón con semáforo.** Franja de color a la izquierda, icono, nombre con marca, código o serie, cantidad con botones + y -, y debajo los motivos en frases cortas. Al tocar el número de la cantidad se abre un teclado numérico para teclearla. Todo renglón tiene un botón "Quitar" a la mano, sin importar su nivel; uno naranja muestra además "Pedir autorización". Al agregar un renglón aparece un aviso "Se agregó <artículo>. Deshacer" durante 5 segundos; tocarlo quita el renglón. Escanear solo agrega al borrador: nada se descuenta hasta confirmar el vale (E-28).
 
-**Ficha breve del trabajador.** Foto, nombre, número, puesto, área y vigencia con fecha. Sin foto, un aviso "Sin foto registrada" que no bloquea. Debajo, lo que tiene en resguardo. Si no es vigente, toda la ficha va en rojo con el motivo.
+**Ficha breve del trabajador.** Tarjeta compacta: foto, nombre (puede ocupar dos líneas), número, puesto y área, una píldora con la vigencia y su fecha, y cuántos artículos tiene en resguardo; la lista de lo que tiene queda plegada en "Ver lo que tiene en resguardo". Sin foto, una píldora "Sin foto registrada" que no bloquea. Si no es vigente, la tarjeta lleva borde rojo y una banda con el motivo.
+
+**Pie fijo de acciones.** `AccionPrincipal` (`frontend/app/componentes/pantalla.tsx`) fija en la parte baja, con el área segura del teléfono (`env(safe-area-inset-bottom)`), la acción principal de un flujo y, debajo, las secundarias que no deben quedar fuera de alcance ("No es esta persona"). Mide unos 130 px como máximo, así que cabe completo en 375 x 667. En computadora va al final del contenido.
+
+**Tabla.** Contenedor redondeado con borde (`components/ui/table.tsx`), encabezado en fondo suave con texto de 12 px en mayúsculas, filas con separador fino y resalte al pasar el cursor, números a la derecha con `tabular-nums`, y desplazamiento horizontal dentro del contenedor. La primera celda de una fila (`scope="row"`) se ve como dato, no como encabezado. En celular y tableta (menos de 1024 px, o 768 px en Trabajadores) la misma lista se presenta como tarjetas.
+
+**Hoja de filtros.** `HojaFiltros` (`frontend/app/componentes/ui/hoja-filtros.tsx`): un botón "Filtros" con el contador de filtros activos que abre una hoja (por la derecha en computadora, desde abajo en celular). Los campos trabajan sobre un borrador y no se aplican hasta tocar "Aplicar"; "Limpiar" quita todos. La búsqueda por texto no va dentro: queda visible junto al botón, en `CampoBusqueda`, y todas las búsquedas usan `useRetraso` (300 ms). Lo usan Inventario, Artículos y los cuatro reportes.
 
 **Observación.** Hoja que sube desde abajo, con el motivo que la pide, un campo de texto y respuestas rápidas cuando aplica.
 
-**Condición de lo devuelto.** `ControlCondicion` (`frontend/app/componentes/devolucion/`): tres botones de 56 px, Bueno, Desgaste por uso y Dañado, con icono y texto; el elegido lleva palomita y relleno azul (no usa los colores del semáforo). Va debajo de cada renglón de una devolución y en la hoja de cantidad. Al elegir Dañado se abre la hoja de observación obligatoria (V-05) y el renglón admite una foto del daño, que el navegador reduce a unos 1024 px antes de mandarla. Una devolución nunca se pinta en rojo por la vigencia del trabajador (SM-05): su resguardo es una lista neutra con "Devolver" en cada artículo.
+**Condición de lo devuelto.** `ControlCondicion` (`frontend/app/componentes/devolucion/`): tres botones de 48 px, Bueno, Desgaste por uso y Dañado, con icono y texto; el elegido lleva palomita y relleno azul (no usa los colores del semáforo). Va debajo de cada renglón de una devolución y en la hoja de cantidad. Al elegir Dañado se abre la hoja de observación obligatoria (V-05) y el renglón admite una foto del daño, que el navegador reduce a unos 1024 px antes de mandarla. Una devolución nunca se pinta en rojo por la vigencia del trabajador (SM-05): su resguardo es una lista neutra con "Devolver" en cada artículo.
 
 **Confirmación.** Solo para lo que no se puede deshacer: confirmar un vale, inactivar un artículo, emitir el no adeudo. Dice qué va a pasar en una frase. En la captura solo aparece cuando el servidor marca una cantidad inusual en un renglón (E-27), por ejemplo "¿Entregar 10 pares de guantes?", con "Sí, confirmar" y "Corregir"; en las demás lecturas no hay ventana.
 
@@ -84,7 +101,7 @@ Cómo se presenta y se comporta cada pantalla del [app flow](app-flow.md). Cubre
 ### Entregar
 
 - **Objetivo:** emitir un vale de entrega en el menor número de toques.
-- **Paso 1, trabajador.** El escáner ocupa la pantalla; debajo, "Escribir número o nombre". Al identificarlo aparece su ficha breve.
+- **Paso 1, trabajador.** Título "Escanea la credencial del trabajador" y una línea de apoyo; luego el escáner y, debajo, "Escribir número o nombre". Al identificarlo, la pantalla cambia a "Confirma que es la persona correcta" con su ficha compacta, y el pie fijo trae "Continuar" y "No es esta persona", siempre a la vista sin desplazarse. El mismo pie sirve de patrón para cualquier ficha de confirmación.
 - **Paso 2, artículos.** Ficha del trabajador reducida arriba; lista de renglones con semáforo; botón "Escanear" siempre visible. Cada lectura se agrega al borrador; nada se descuenta hasta "Confirmar entrega". Acción primaria: "Continuar", deshabilitada mientras haya rojos o naranjas sin resolver, con el motivo escrito debajo.
 - **Paso 3, firma.** Resumen de artículos, leyenda de responsabilidad y un recuadro para firmar con el dedo, con "Borrar". Acción primaria: "Confirmar entrega".
 - **Resultado.** Folio en grande, QR del vale y dos botones: "Nueva entrega" y "Imprimir".
@@ -125,14 +142,14 @@ Cómo se presenta y se comporta cada pantalla del [app flow](app-flow.md). Cubre
 
 ### Inventario, entradas e importación (Compras)
 
-- **Inventario:** tabla por almacén con artículo, categoría, existencia y disponible; filtro por almacén y categoría; búsqueda.
+- **Inventario:** tabla por almacén con artículo, categoría, existencia y disponible; búsqueda a la vista y filtros de almacén y categoría en la hoja "Filtros".
 - **Entrada:** renglones como en la entrega; un artículo por pieza abre la captura de códigos de pieza.
 - **Importar:** tres pasos visibles: pegar o subir, relacionar columnas, vista previa. Las filas con error van en rojo con su motivo.
 
 ### Catálogo (Compras y supervisor)
 
 - **Categorías:** lista con tipo y resumen de su plantilla; formulario con interruptores para cada regla.
-- **Artículos:** lista con búsqueda y filtros por categoría y estado (activos, inactivos). Los inactivos aparecen atenuados con su motivo.
+- **Artículos:** lista con búsqueda a la vista y filtros por categoría y estado (activos, inactivos) en la hoja "Filtros". Los inactivos aparecen atenuados con su motivo.
 - **Detalle de artículo:** datos generales; sección "Reglas de entrega" con límite y requisitos especiales, cada uno con su interruptor y su motivo; sección "Estado" con Inactivar o Reactivar. Control y retorno aparecen bloqueados con una nota si ya hay movimientos.
 - **Estados:** al guardar, aviso breve "Cambio guardado. Aplica desde la siguiente entrega."
 
@@ -151,8 +168,8 @@ Cómo se presenta y se comporta cada pantalla del [app flow](app-flow.md). Cubre
 
 ### Reportes y etiquetas
 
-- **Reportes:** filtros arriba, tabla, total de registros y "Descargar CSV". El periodo se elige con un selector de rango de fechas, con atajos como Hoy, Ayer, Últimos 7 días y Este mes. El reporte de movimientos filtra además por almacén, tipo, trabajador, artículo y usuario; el filtro de usuario es informativo y no estorba la operación habitual. El reporte de consumo muestra el total por artículo y se abre para ver el desglose por trabajador.
-- **Patrón de reporte (`MarcoReporte`):** los filtros viven en la dirección (se comparten y sobreviven a una recarga); en computadora van arriba en una tarjeta y en celular dentro de la hoja "Filtros", con el contador de filtros activos y el botón "Ver N registros". Cada filtro activo es un chip que se quita con un toque. Quien no tiene `almacenes.todos` no ve el filtro de almacén: una nota dice que solo ve el suyo. Tabla en computadora y tarjetas en celular; "Descargar CSV" usa los mismos filtros.
+- **Reportes:** botón "Filtros" (hoja lateral), tabla, total de registros y "Descargar CSV". El periodo se elige con un selector de rango de fechas, con atajos como Hoy, Ayer, Últimos 7 días y Este mes. El reporte de movimientos filtra además por almacén, tipo, trabajador, artículo y usuario; el filtro de usuario es informativo y no estorba la operación habitual. El reporte de consumo muestra el total por artículo y se abre para ver el desglose por trabajador.
+- **Patrón de reporte (`MarcoReporte`):** los filtros viven en la dirección (se comparten y sobreviven a una recarga); en todos los tamaños van en la hoja "Filtros" (con contador y "Aplicar"/"Limpiar"), junto a "Descargar CSV". Cada filtro activo es un chip que se quita con un toque. Quien no tiene `almacenes.todos` no ve el filtro de almacén: una nota dice que solo ve el suyo. Tabla en computadora y tarjetas en celular; "Descargar CSV" usa los mismos filtros.
 - **Etiquetas:** selección de elementos y vista previa de la hoja; cada etiqueta lleva QR y texto legible.
 
 ## Accesibilidad

@@ -49,11 +49,11 @@ const ESTILOS: Record<Nivel, { caja: string; icono: typeof CheckIcon; color: str
 export function BandaEstadoPieza({ lectura, className }: { lectura: LecturaPieza; className?: string }) {
   const { caja, icono: Icono, color } = ESTILOS[lectura.nivel];
   return (
-    <div role={lectura.nivel === "rojo" ? "alert" : "status"} className={cn("flex items-start gap-3 rounded-xl border-2 p-4", caja, className)}>
-      <Icono aria-hidden="true" className={cn("mt-0.5 size-7 shrink-0", color)} strokeWidth={3} />
+    <div role={lectura.nivel === "rojo" ? "alert" : "status"} className={cn("flex items-start gap-3 rounded-2xl border p-4", caja, className)}>
+      <Icono aria-hidden="true" className={cn("mt-0.5 size-6 shrink-0", color)} strokeWidth={3} />
       <div className="flex flex-col gap-0.5">
         <p className="text-lg leading-tight font-semibold">{lectura.titulo}</p>
-        <p className="text-base">{lectura.detalle}</p>
+        <p className="text-sm">{lectura.detalle}</p>
       </div>
     </div>
   );
