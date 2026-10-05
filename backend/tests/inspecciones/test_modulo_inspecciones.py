@@ -116,12 +116,14 @@ def test_P_01_la_inspeccion_que_vence_hoy_sigue_vigente_y_la_de_ayer_no(session,
 
 def test_P_01_inspeccion_no_apta_sin_observacion_se_rechaza(cliente_como, session, pieza):
     cliente = cliente_como("Almacenista")
+    # Las piezas de los datos de prueba ya traen sus inspecciones iniciales.
+    antes = session.scalar(select(func.count()).select_from(Inspeccion))
     for extra in ({}, {"observacion": ""}, {"observacion": "   "}):
         r = _inspeccionar(cliente, pieza, "NO_APTO", **extra)
         assert r.status_code == 422, r.text
         assert r.json()["codigo"] == "DATOS_INVALIDOS"
         assert r.json()["detalles"][0]["regla"] == "P-01"
-    assert session.scalar(select(func.count()).select_from(Inspeccion)) == 0
+    assert session.scalar(select(func.count()).select_from(Inspeccion)) == antes
     session.refresh(pieza)
     assert pieza.estado == EstadoPieza.APTO
 
@@ -589,6 +591,7 @@ def test_P_07_todo_cambio_queda_en_la_auditoria(cliente_como, session, pieza):
 
 def test_P_01_si_falla_la_inspeccion_no_queda_nada(session, pieza, monkeypatch):
     servicio = InspeccionService(session)
+    antes = session.scalar(select(func.count()).select_from(Inspeccion))
 
     def falla(*_, **__):
         raise RuntimeError("falla simulada")
@@ -601,5 +604,5 @@ def test_P_01_si_falla_la_inspeccion_no_queda_nada(session, pieza, monkeypatch):
             pieza.id, InspeccionCreate(resultado="APTO"), _usuario(session, "almacenista")
         )
     session.expire_all()
-    assert session.scalar(select(func.count()).select_from(Inspeccion)) == 0
+    assert session.scalar(select(func.count()).select_from(Inspeccion)) == antes
     assert session.get(Pieza, pieza.id).inspeccion_vigente_hasta is None

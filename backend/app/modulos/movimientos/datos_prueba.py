@@ -5,8 +5,8 @@ vales de ENTRADA reales con el servicio del módulo y el usuario `compras`. Es i
 carga lleva un `id_cliente` fijo y, si ya existe, no se repite. Solo hace `flush`; el commit lo
 hace `app/datos_prueba.py`.
 
-NO carga piezas por serie (equipo de alturas, detectores...): las carga `inspecciones`, que
-registra también su inspección inicial.
+NO carga piezas por serie (equipo de alturas, detectores...): las carga `app/datos_prueba_piezas.py`
+al final del orquestador, con una entrada real y su inspección inicial.
 """
 
 import uuid

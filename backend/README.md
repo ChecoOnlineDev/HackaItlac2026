@@ -60,6 +60,33 @@ usuario por rol. **Son datos de prueba, no reales.** Todos usan la contraseña `
 
 También carga las existencias iniciales de los artículos por cantidad en Kepler y Contratistas con vales de entrada reales (`movimientos/datos_prueba.py`, usuario `compras`): folios `KEP-ING-000001` y `CON-ING-000001`. Es repetible y no duplica.
 
+### Piezas de prueba (equipo de alturas y herramientas por serie)
+
+`app/datos_prueba_piezas.py` (módulo neutral: depende de `catalogo`, `movimientos` e `inspecciones` a la vez; corre al final del orquestador) da entrada en Kepler a las piezas de abajo con **un vale de entrada real** (`KEP-ING-000002`, usuario `compras`) y su inspección inicial (I-03). Es repetible: cada pieza se identifica por su código, solo se da entrada a las que faltan y el `id_cliente` del vale es determinista, así que no duplica. Una pieza apta ya cargada no se reinspecciona: su vigencia corre desde el día de la primera carga.
+
+| Código | Artículo | Serie | Situación |
+|---|---|---|---|
+| `ALT-001`, `ALT-002` | Arnés Kevlar | `SN-ARN-K-0001`, `0002` | Apta, inspección vigente (180 días) |
+| `ALT-003` | Arnés Kevlar | `SN-ARN-K-0003` | **No apta** (costura dañada) |
+| `ALT-004` | Arnés Poliéster | `SN-ARN-P-0001` | Apta, inspección vigente |
+| `ALT-005` | Arnés Poliéster | `SN-ARN-P-0002` | **Inspección vencida** (hace 20 días) |
+| `ALT-006`, `ALT-007`, `ALT-008` | Bandola, gancho doble de vida, retráctil 3 mts | `SN-BAN-0001`, `SN-GAN-0001`, `SN-RET-0001` | Aptas, inspección vigente |
+| `HER-001`, `HER-002` | Minipulidor | `SN-MIN-0001`, `0002` | Aptas |
+| `HER-003`, `HER-004` | Detector de gases | `SN-DET-0001`, `0002` | Aptas |
+| `HER-005` | Radio de comunicación (artículo `RADIO`, nuevo; categoría «Equipo de alto valor») | `SN-RAD-0001` | Apta |
+
+Cómo queda vencida la `ALT-005` sin escribir en la base a mano: la inspección inicial de la entrada admite `fecha` (no futura) y el servicio de inspecciones calcula `vigente_hasta = fecha + vigencia del artículo`. La pieza entra con `fecha = hoy - 200 días` y vigencia de 180, así que venció hace 20 días, igual que si pasara el tiempo. Los minipulidores, detectores y el radio no requieren inspección.
+
+## Pruebas de punta a punta
+
+| Archivo | Qué cubre |
+|---|---|
+| `tests/test_guion_pdf.py` | El guion del PDF (los seis pasos del «Flujo principal») en un solo escenario encadenado, solo por la API con sesiones reales, con existencias exactas, folios, estados, responsable y ausencia de costos en cada paso; al final corre el verificador de invariantes y compara los reportes con lo operado. |
+| `tests/test_guion_extremos.py` | Los escenarios más delicados de `docs/product/escenarios.md`: ES-05, 09, 10, 11, 12, 13, 14, 15, 19, 26 y 28. |
+| `tests/test_permisos_sistematicos.py` | Descubre todas las rutas de `app`: 401 sin sesión, un permiso por clave en cada ruta (y su coincidencia con `api-contracts.md`), la matriz de la sección 8.2 por rol y por permiso, datos reservados (CURP, NSS, costos) y la cookie de sesión. |
+| `tests/invariantes.py` | `verificar_invariantes(session, huella=None)`: las invariantes de `data-model.md` y los folios sobre la base de la prueba. `tomar_huella(session)` hace la foto de vales, movimientos e inspecciones para detectar ediciones. Reutilizable en cualquier prueba; `tests/test_verificador_invariantes.py` comprueba que detecta cada una. |
+| `tests/ayudas_guion.py` | Ayudas de esas pruebas: alta de trabajador por la API, evaluar y confirmar, existencias por la API. |
+
 ## El motor de vales
 
 `app/modulos/movimientos/` es el motor: evaluar el semáforo, confirmar vales y consultarlos. Su diseño, el contrato para agregar un tipo de vale (`ManejadorTipo`) y lo que falta de cada tipo están en `app/modulos/movimientos/README.md`; el porqué de sus bloqueos, en [ADR-008](../docs/architecture/decisions/ADR-008-bloqueos-del-motor-de-vales.md).

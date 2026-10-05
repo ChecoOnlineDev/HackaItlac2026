@@ -165,7 +165,7 @@ El script carga, de forma repetible:
 - Las siete categorías iniciales (sección 5.1 de las reglas).
 - Los quince artículos de la página 7 del PDF y el EPP de la página 10, con sus costos.
 - Existencias iniciales de los artículos por cantidad en Kepler y Contratistas, cargadas con un vale de entrada real por almacén (folio `KEP-ING-000001`, `CON-ING-000001`), nunca escribiendo saldos. Es repetible: cada carga lleva un `id_cliente` fijo y no se duplica.
-- Piezas de equipo de alturas, entre ellas una apta, una no apta y una con la inspección vencida (las carga el módulo `inspecciones`, con su inspección inicial).
+- Piezas de prueba, en Kepler, dadas de alta con **un vale de entrada real** y su inspección inicial (las carga `app/datos_prueba_piezas.py`, que corre al final porque depende de `catalogo`, `movimientos` e `inspecciones`; es repetible y no duplica): ocho de equipo de alturas (`ALT-001` a `ALT-008`: arneses Kevlar y Poliéster, bandola, gancho doble de vida y retráctil) y cinco herramientas por serie (`HER-001` a `HER-005`: minipulidores, detectores de gases y un radio). Entre las de alturas, `ALT-001`, `ALT-002` y `ALT-004` están aptas con inspección vigente, `ALT-003` está **no apta** y `ALT-005` tiene la **inspección vencida**: entra con una inspección inicial de hace 200 días y el servicio de inspecciones le calcula la vigencia (180 días) como a cualquier pieza. El artículo `RADIO` (Radio de comunicación) se crea ahí mismo.
 - Los cinco roles iniciales con sus permisos (sección 8.2 de las reglas).
 - Un usuario por rol, y un almacenista para cada almacén que se use en la prueba.
 

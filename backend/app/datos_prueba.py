@@ -11,6 +11,7 @@ import logging
 from sqlalchemy.orm import Session
 
 import app.modelos_registro  # noqa: F401
+from app import datos_prueba_piezas as piezas
 from app.db import get_sessionmaker
 from app.modulos.acceso import datos_prueba as acceso
 from app.modulos.almacenes import datos_prueba as almacenes
@@ -31,6 +32,8 @@ PASOS = (
     ("movimientos", movimientos.cargar),
     ("inspecciones", inspecciones.cargar),
     ("autorizaciones", autorizaciones.cargar),
+    # Depende de catálogo, movimientos e inspecciones a la vez: va al final.
+    ("piezas", piezas.cargar),
 )
 
 
