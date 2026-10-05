@@ -23,7 +23,7 @@ Regla de uso: **los documentos globales orientan, los briefs pequeños autorizan
 | 9. Historias | [stories/](stories/) | ¿Qué necesidad resuelve cada fase? | Fases 1 a 7 |
 | 10. Tareas | En el roadmap (Fase 0 y Fase 7) | ¿Qué cambia en el código? | El resto se planea por historia |
 | Segunda ola | [features/](features/) | ¿Qué sigue después del núcleo? | Seis briefs |
-| Release | [releases/mvp-checklist.md](releases/mvp-checklist.md), [changelog](releases/changelog.md), [guía del almacenista](guia-almacenista.md) | ¿Cuándo está terminado, qué trae y cómo se usa? | Escritos; la checklist se va marcando |
+| Release | [releases/mvp-checklist.md](releases/mvp-checklist.md), [changelog](releases/changelog.md), [guía del almacenista](guia-almacenista.md), [guía por rol](guia-por-rol.md) | ¿Cuándo está terminado, qué trae y cómo se usa? | Escritos; la checklist se va marcando |
 | Plantillas | [templates/](templates/) | Historias, FEAT, FIX, TECH, ADR, reporte y prompts | Listas |
 
 Fuentes del reto: [el PDF](HackaItlacTrack3_2026.pdf) y la carpeta [info_track/](info_track/). Las instrucciones para agentes están en [AGENTS.md](../AGENTS.md), en la raíz.
