@@ -12,6 +12,8 @@
 Solo este módulo escribe vales, movimientos, existencias, folios y `pieza.ubicacion_id`.
 """
 
+import hashlib
+import json
 import secrets
 import uuid
 from datetime import UTC, date, datetime, time, timedelta
@@ -52,6 +54,7 @@ from app.modulos.movimientos.exceptions import (
     AlmacenCambio,
     ExistenciaInsuficiente,
     IdClienteEnUso,
+    IdClienteOtroCuerpo,
     ValeCambio,
     ValeNoEncontrado,
 )
@@ -96,6 +99,15 @@ from app.modulos.trabajadores.service import TrabajadorService
 # principio; con el orden canónico de bloqueos casi nunca ocurre.
 INTENTOS_INTERBLOQUEO = 3
 ERRNO_INTERBLOQUEO = 1213
+
+
+def huella_del_cuerpo(cuerpo: ConfirmarIn) -> str:
+    """SHA-256 del cuerpo canónico de una confirmación (llaves ordenadas, sin espacios). La imagen
+    y el trazo de la firma quedan fuera: pesan mucho y un reintento puede volver a firmar sin
+    que el vale cambie (el vale conserva la firma de la primera vez)."""
+    datos = cuerpo.model_dump(mode="json", exclude={"firma": {"imagen", "trazo"}})
+    canonico = json.dumps(datos, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonico.encode("utf-8")).hexdigest()
 
 
 def _a_utc_naive(valor: datetime) -> datetime:
@@ -347,6 +359,7 @@ class MovimientoService:
             Vale(
                 id=nuevo_id(),
                 id_cliente=cuerpo.id_cliente,
+                huella_cuerpo=huella_del_cuerpo(cuerpo),
                 tipo=manejador.tipo,
                 folio=self._asignar_folio(ctx, manejador.tipo),
                 almacen_id=ctx.almacen.id,
@@ -507,9 +520,12 @@ class MovimientoService:
         self.codigos.registrar(vale.folio, TipoCodigo.VALE, vale.id)
 
     def _repetido(self, vale: Vale, usuario: Usuario, cuerpo: ConfirmarIn) -> ValeConfirmadoOut:
-        """Idempotencia: el mismo `id_cliente` devuelve el vale ya guardado, nunca otro."""
+        """Idempotencia: el mismo `id_cliente` con el MISMO cuerpo devuelve el vale ya guardado,
+        nunca otro. Con otro cuerpo, 409: no se oculta un cambio devolviendo el vale original."""
         if vale.responsable_id != usuario.id or vale.tipo != cuerpo.tipo:
             raise IdClienteEnUso()
+        if vale.huella_cuerpo is not None and vale.huella_cuerpo != huella_del_cuerpo(cuerpo):
+            raise IdClienteOtroCuerpo()
         return self._confirmada(vale)
 
     def _vale_cambio(self, ctx: ContextoVale, evaluacion: Evaluacion) -> ValeCambio:
