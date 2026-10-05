@@ -194,6 +194,8 @@ class FichaOut(FichaBreveOut):
     `trabajadores.ver_datos_personales` (RG-13): sin el permiso la clave ni aparece."""
 
     periodo: PeriodoOut | None
+    # Todos los periodos de contrato (reingresos y extensiones), del más reciente al más antiguo.
+    periodos: list[PeriodoOut]
     situacion: Situacion
     situacion_texto: str
     tallas: dict[str, str] | None

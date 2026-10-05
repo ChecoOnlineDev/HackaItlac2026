@@ -353,7 +353,7 @@ class TrabajadorService:
             self.session.rollback()
             dueno = self._describir_dueno(exc.detalles or {})
             raise CodigoRepetido(
-                f"El código {exc.detalles['codigo']} ya pertenece a {dueno}.",
+                f"El código {exc.detalles['codigo']} ya está en uso por {dueno}.",
                 {**exc.detalles, "regla": "T-05", "descripcion": dueno},
             ) from exc
         self.auditoria.registrar(
@@ -506,6 +506,7 @@ class TrabajadorService:
         campos: dict = {
             **breve.model_dump(),
             "periodo": PeriodoOut.model_validate(periodo) if periodo else None,
+            "periodos": [PeriodoOut.model_validate(p) for p in periodos],
             "situacion": situacion,
             "situacion_texto": TEXTO_SITUACION[situacion],
             "tallas": trabajador.tallas,

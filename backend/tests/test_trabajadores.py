@@ -1210,3 +1210,20 @@ def test_T_05_un_codigo_de_credencial_de_prueba_no_se_puede_ligar_a_otro(
     with pytest.raises(CodigoRepetido) as error:
         servicio.ligar_codigo(otro.id, "TRB-1001", actor)
     assert "Juan Pérez Soto" in error.value.mensaje
+
+
+def test_T_02_la_ficha_lista_todos_los_periodos(rh: TestClient) -> None:
+    creado = dar_de_alta(rh)
+    hoy = hoy_mx()
+    rh.post(
+        f"/api/trabajadores/{creado['id']}/periodos",
+        json={
+            "inicio": (hoy + timedelta(days=400)).isoformat(),
+            "fin": (hoy + timedelta(days=500)).isoformat(),
+        },
+    )
+
+    ficha = rh.get(f"/api/trabajadores/{creado['id']}").json()
+
+    assert len(ficha["periodos"]) == 2
+    assert ficha["periodos"][0]["inicio"] > ficha["periodos"][1]["inicio"]
