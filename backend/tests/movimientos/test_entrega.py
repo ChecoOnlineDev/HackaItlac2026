@@ -626,6 +626,23 @@ def test_AC_13_si_el_usuario_cambio_de_almacen_el_vale_no_se_guarda(
     assert total_vales(session) == vales
 
 
+def test_AC_13_almacen_cambio_trae_el_detalle_del_contrato_al_evaluar_y_al_confirmar(
+    almacenista, session, trabajador
+):
+    """Contrato: `detalles = {almacen_captura_id, almacen: {id, clave, nombre}}` en ambos caminos."""
+    guantes = crear_articulo(session)
+    otro = almacen(session, "CON")
+    propio = almacen(session, "KEP")
+    cuerpo = cuerpo_entrega(trabajador, [renglon(guantes.codigo)], almacen_id=str(otro.id))
+    for url, cuerpo_enviado in ((VALES, cuerpo), (EVALUAR, {**cuerpo, "tipo": "ENTREGA"})):
+        r = almacenista.post(url, json=cuerpo_enviado)
+        assert r.status_code == 409 and r.json()["codigo"] == "ALMACEN_CAMBIO"
+        assert r.json()["detalles"] == {
+            "almacen_captura_id": str(otro.id),
+            "almacen": {"id": str(propio.id), "clave": "KEP", "nombre": propio.nombre},
+        }
+
+
 def test_AC_06_quien_opera_todos_los_almacenes_indica_cual(
     supervisor, compras, session, trabajador
 ):

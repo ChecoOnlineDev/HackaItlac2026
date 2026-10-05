@@ -18,13 +18,6 @@ class ValeCambio(Conflicto):
     mensaje_defecto = "El vale cambió mientras lo capturabas. Revisa los renglones marcados."
 
 
-class AlmacenCambio(Conflicto):
-    """AC-13: el usuario ya no está asignado al almacén en el que capturó el vale."""
-
-    codigo = "ALMACEN_CAMBIO"
-    mensaje_defecto = "Cambiaste de almacén. El vale no se guardó; tu borrador se conserva."
-
-
 class IdClienteEnUso(Conflicto):
     """El `id_cliente` ya identifica el vale de otro usuario u otro tipo."""
 

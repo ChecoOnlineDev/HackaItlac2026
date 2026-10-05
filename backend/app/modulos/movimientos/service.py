@@ -50,7 +50,6 @@ from app.modulos.movimientos.contexto import (
     RenglonEvaluado,
 )
 from app.modulos.movimientos.exceptions import (
-    AlmacenCambio,
     ExistenciaInsuficiente,
     IdClienteEnUso,
     ValeCambio,
@@ -142,17 +141,7 @@ class MovimientoService:
             return self.acceso.resolver_almacen(usuario, almacen_id)
         if usuario.almacen_id is None:
             raise SinPermiso("No tienes un almacén asignado.")
-        if almacen_id is not None and almacen_id != usuario.almacen_id:
-            actual = self.almacenes.obtener(usuario.almacen_id)
-            raise AlmacenCambio(
-                detalles={
-                    "almacen": {
-                        "id": str(actual.id),
-                        "clave": actual.clave,
-                        "nombre": actual.nombre,
-                    }
-                }
-            )
+        self.acceso.exigir_mismo_almacen(usuario, almacen_id)
         return usuario.almacen_id
 
     # ======================================================================= contexto
