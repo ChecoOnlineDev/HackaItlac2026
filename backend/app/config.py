@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     intentos_maximos: int = 5
     bloqueo_segundos: int = 300
 
+    # Vigencia de una solicitud de autorización, en minutos (A-03, US-AUT-001)
+    autorizacion_vigencia_minutos: int = 15
+
     # Archivos (firmas y fotos)
     archivos_dir: Path = Path("./almacenamiento")
     archivo_tamano_maximo: int = 2 * 1024 * 1024
