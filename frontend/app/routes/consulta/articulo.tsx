@@ -1,19 +1,197 @@
-import { Package } from "lucide-react";
+import { PackageCheckIcon, PencilIcon, UsersIcon, WarehouseIcon } from "lucide-react";
+import { Link, useParams } from "react-router";
 
+import { Dato, Seccion, VolverAConsultar } from "~/componentes/consulta/bloques";
+import { textoControl } from "~/componentes/consulta/formato";
+import type { FichaArticulo } from "~/componentes/consulta/tipos";
+import { useCarga } from "~/componentes/consulta/use-carga";
 import { Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
+import { Boton } from "~/componentes/ui/boton";
+import { EstadoError } from "~/componentes/ui/estado-error";
 import { EstadoVacio } from "~/componentes/ui/estado-vacio";
+import { Esqueleto } from "~/componentes/ui/esqueleto";
+import { Insignia } from "~/componentes/ui/insignia";
+import { useSesion } from "~/sesion/sesion";
 
-// Pantalla pendiente: quien la construya reemplaza el estado vacío. No toca `routes.ts` ni los layouts.
 export const handle: ManejadorRuta = { permiso: "catalogo.ver" };
 
+function reglas(a: FichaArticulo): string[] {
+  const lista: string[] = [];
+  if (a.limite_cantidad) {
+    lista.push(
+      a.limite_periodo_dias
+        ? `Máximo ${a.limite_cantidad} cada ${a.limite_periodo_dias} días por trabajador.`
+        : `Máximo ${a.limite_cantidad} en resguardo por trabajador.`,
+    );
+  }
+  if (a.cantidad_aviso) lista.push(`Avisa si piden ${a.cantidad_aviso} o más de una vez.`);
+  if (a.requiere_inspeccion) {
+    lista.push(
+      a.vigencia_inspeccion_dias
+        ? `Pide inspección vigente. Cada inspección dura ${a.vigencia_inspeccion_dias} días.`
+        : "Pide inspección vigente.",
+    );
+  }
+  if (a.requiere_autorizacion) lista.push(`Pide autorización del supervisor${a.motivo_uso_especial ? ` (${a.motivo_uso_especial})` : ""}.`);
+  return lista;
+}
+
 export default function FichaArticulo() {
+  const { id } = useParams();
+  const { puede } = useSesion();
+  const { datos: articulo, error, cargando, recargar } = useCarga<FichaArticulo>(id ? `/articulos/${id}` : null);
+
+  if (cargando) {
+    return (
+      <Pantalla titulo="Ficha de artículo" ancho="formulario">
+        <VolverAConsultar />
+        <Esqueleto tipo="tarjeta" cantidad={2} />
+        <Esqueleto tipo="lista" cantidad={3} />
+      </Pantalla>
+    );
+  }
+
+  if (error || !articulo) {
+    return (
+      <Pantalla titulo="Ficha de artículo" ancho="formulario">
+        <VolverAConsultar />
+        <EstadoError error={error ?? undefined} alReintentar={recargar} />
+      </Pantalla>
+    );
+  }
+
+  const listaReglas = reglas(articulo);
+  const totalDisponible = articulo.existencias.reduce((s, e) => s + e.disponible, 0);
+  const totalCantidad = articulo.existencias.reduce((s, e) => s + e.cantidad, 0);
+  const costo = articulo.costo_unitario;
+
   return (
-    <Pantalla titulo="Ficha de artículo" descripcion="Existencias por almacén y quién lo tiene.">
-      <EstadoVacio
-        icono={Package}
-        titulo="Esta pantalla todavía no está lista"
-        descripcion="Estamos construyéndola. Por ahora, regresa al inicio."
-      />
+    <Pantalla
+      titulo={articulo.nombre}
+      descripcion={[`Código ${articulo.codigo}`, articulo.marca, articulo.modelo].filter(Boolean).join(" · ")}
+      ancho="formulario"
+    >
+      <VolverAConsultar />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Insignia estado={articulo.activo ? "info" : "neutra"}>{articulo.activo ? "Activo" : "Inactivo"}</Insignia>
+        <Insignia estado="neutra">{articulo.categoria_nombre}</Insignia>
+        <Insignia estado="neutra">{textoControl(articulo.control)}</Insignia>
+      </div>
+      {!articulo.activo && articulo.motivo_inactivacion ? (
+        <p className="rounded-lg border bg-muted p-3 text-base">No se entrega: {articulo.motivo_inactivacion}</p>
+      ) : null}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        {puede("entregas.crear") && articulo.activo ? (
+          <Boton variante="normal" nativeButton={false} render={<Link to="/entregar" />}>
+            <PackageCheckIcon aria-hidden="true" />
+            Entregar
+          </Boton>
+        ) : null}
+        {puede("catalogo.administrar") ? (
+          <Boton variante="contorno" nativeButton={false} render={<Link to={`/catalogo/articulos?articulo=${articulo.id}`} />}>
+            <PencilIcon aria-hidden="true" />
+            Editar en el catálogo
+          </Boton>
+        ) : null}
+      </div>
+
+      <Seccion titulo="Dónde hay">
+        {articulo.existencias.length === 0 ? (
+          <EstadoVacio icono={WarehouseIcon} titulo="No hay existencias" descripcion="Este artículo no está en ningún almacén." />
+        ) : (
+          <>
+            <div className="overflow-x-auto rounded-xl border">
+              <table className="w-full text-left text-base">
+                <thead className="bg-muted text-sm">
+                  <tr>
+                    <th scope="col" className="px-3 py-2 font-semibold">Almacén</th>
+                    <th scope="col" className="px-3 py-2 text-right font-semibold">Hay</th>
+                    <th scope="col" className="px-3 py-2 text-right font-semibold">Disponible</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {articulo.existencias.map((e) => (
+                    <tr key={e.almacen_id}>
+                      <th scope="row" className="px-3 py-3 font-semibold">{e.nombre}</th>
+                      <td className="px-3 py-3 text-right tabular-nums">{e.cantidad}</td>
+                      <td className="px-3 py-3 text-right font-bold tabular-nums">{e.disponible}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                {articulo.existencias.length > 1 ? (
+                  <tfoot className="border-t-2 bg-muted/50">
+                    <tr>
+                      <th scope="row" className="px-3 py-2 font-semibold">Total</th>
+                      <td className="px-3 py-2 text-right font-semibold tabular-nums">{totalCantidad}</td>
+                      <td className="px-3 py-2 text-right font-bold tabular-nums">{totalDisponible}</td>
+                    </tr>
+                  </tfoot>
+                ) : null}
+              </table>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {articulo.control === "PIEZA"
+                ? "Disponible es lo que se puede entregar hoy: no cuenta las piezas no aptas, en mantenimiento ni en calibración."
+                : "Disponible es lo que se puede entregar hoy."}
+            </p>
+          </>
+        )}
+      </Seccion>
+
+      <Seccion titulo="Quién lo tiene">
+        {articulo.en_posesion.length === 0 ? (
+          <EstadoVacio icono={UsersIcon} titulo="Nadie lo tiene ahora" descripcion="Ningún trabajador lo tiene en resguardo." />
+        ) : (
+          <ul className="flex flex-col divide-y rounded-xl border">
+            {articulo.en_posesion.map((t) => (
+              <li key={t.trabajador_id} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="flex min-w-0 flex-col">
+                  {puede("trabajadores.ver") ? (
+                    <Link to={`/trabajadores/${t.trabajador_id}`} className="min-h-6 text-base font-semibold text-primary underline underline-offset-2">
+                      {t.nombre}
+                    </Link>
+                  ) : (
+                    <span className="text-base font-semibold">{t.nombre}</span>
+                  )}
+                  <span className="text-sm text-muted-foreground">Número {t.numero_empleado}</span>
+                </div>
+                <span className="flex shrink-0 flex-col items-end leading-tight">
+                  <span className="text-xl font-bold tabular-nums">{t.cantidad}</span>
+                  <span className="text-xs text-muted-foreground">en resguardo</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Seccion>
+
+      <Seccion titulo="Reglas de entrega">
+        {listaReglas.length === 0 ? (
+          <p className="text-base text-muted-foreground">No tiene reglas especiales.</p>
+        ) : (
+          <ul className="flex list-disc flex-col gap-1.5 rounded-xl border p-4 pl-8 text-base">
+            {listaReglas.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+        )}
+      </Seccion>
+
+      <Seccion titulo="Datos">
+        <dl className="grid grid-cols-1 gap-3 rounded-xl border p-4 sm:grid-cols-2">
+          <Dato etiqueta="Unidad" valor={articulo.unidad} />
+          <Dato etiqueta="Se devuelve" valor={articulo.retornable ? "Sí" : "No, se consume"} />
+          {articulo.talla ? <Dato etiqueta="Talla" valor={articulo.talla} /> : null}
+          {costo !== undefined && costo !== null ? (
+            <Dato
+              etiqueta="Costo por unidad"
+              valor={Number(costo).toLocaleString("es-MX", { style: "currency", currency: "MXN" })}
+            />
+          ) : null}
+        </dl>
+      </Seccion>
     </Pantalla>
   );
 }
