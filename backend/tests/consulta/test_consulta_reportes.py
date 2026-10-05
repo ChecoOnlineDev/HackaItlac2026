@@ -946,3 +946,25 @@ def test_C_08_un_consumo_atribuido_al_vale_sin_trabajador_en_el_renglon_usa_el_d
     (item,) = pedir(cliente_como("Supervisor"), CONSUMO, articulo_id=guante.id)["elementos"]
 
     assert item["trabajadores"][0]["trabajador"] == "Juan Pérez"
+
+
+def test_C_11_las_opciones_de_usuario_son_quienes_hicieron_vales_dentro_del_alcance(
+    cliente_como, datos
+):
+    """El filtro «quién lo hizo» necesita una lista que no exija permisos de administración."""
+    datos.vale(TipoVale.ENTRADA, "KEP", responsable="compras")
+    datos.vale(TipoVale.ENTRADA, "CON", responsable="alm_con")
+
+    almacenista = cliente_como("Almacenista").get("/api/reportes/usuarios")
+    supervisor = cliente_como("Supervisor").get("/api/reportes/usuarios")
+
+    assert almacenista.status_code == 200 and supervisor.status_code == 200
+    de_almacenista = {u["usuario"] for u in almacenista.json()["elementos"]}
+    de_supervisor = {u["usuario"] for u in supervisor.json()["elementos"]}
+    assert "compras" in de_almacenista and "alm_con" not in de_almacenista  # solo su almacén
+    assert {"compras", "alm_con"} <= de_supervisor  # todos los almacenes
+    assert all(set(u) == {"id", "nombre", "usuario"} for u in supervisor.json()["elementos"])
+
+
+def test_AC_04_las_opciones_de_usuario_exigen_el_permiso_de_la_bitacora(cliente_como):
+    assert cliente_como("Recursos Humanos").get("/api/reportes/usuarios").status_code == 403

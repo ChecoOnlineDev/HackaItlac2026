@@ -87,6 +87,13 @@ class ConsultaRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    def usuarios_que_hicieron_vales(self, almacen_id: uuid.UUID | None) -> list[Usuario]:
+        """Quienes firmaron al menos un vale (en el almacén indicado, o en cualquiera), por nombre."""
+        consulta = select(Usuario).join(Vale, Vale.responsable_id == Usuario.id).distinct()
+        if almacen_id is not None:
+            consulta = consulta.where(Vale.almacen_id == almacen_id)
+        return list(self.session.scalars(consulta.order_by(Usuario.nombre, Usuario.id)))
+
     # ------------------------------------------------------------------ escaneo
 
     def articulo(self, articulo_id: uuid.UUID) -> tuple[Articulo, str] | None:

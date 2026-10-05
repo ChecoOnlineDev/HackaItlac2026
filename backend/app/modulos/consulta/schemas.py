@@ -217,6 +217,18 @@ class InspeccionOut(BaseModel):
     usuario: str
 
 
+class UsuarioOpcionOut(BaseModel):
+    """Una persona que ha hecho vales, para el filtro «quién lo hizo» de la bitácora (C-11)."""
+
+    id: uuid.UUID
+    nombre: str
+    usuario: str
+
+
+class UsuariosOpcionesOut(BaseModel):
+    elementos: list[UsuarioOpcionOut]
+
+
 class TipoHistorial(StrEnum):
     MOVIMIENTO = "MOVIMIENTO"
     INSPECCION = "INSPECCION"

@@ -29,6 +29,7 @@ from app.modulos.consulta.schemas import (
     MovimientosFilters,
     PaginaReporte,
     PiezaFichaOut,
+    UsuariosOpcionesOut,
 )
 
 router = APIRouter(tags=["consulta"])
@@ -76,6 +77,12 @@ def reporte_existencias(
     if filtros.formato == FormatoReporte.CSV:
         return respuesta_csv(*service.csv_existencias(filtros, usuario))
     return service.reporte_existencias(filtros, usuario, pagina)
+
+
+@router.get("/reportes/usuarios", response_model=UsuariosOpcionesOut)
+def opciones_usuarios(usuario: VerMovimientos, service: ConsultaServiceDep) -> UsuariosOpcionesOut:
+    """`reportes.movimientos`. Quién ha hecho vales, para el filtro «quién lo hizo» (C-11)."""
+    return service.opciones_usuarios(usuario)
 
 
 @router.get("/reportes/movimientos", response_model=PaginaReporte[MovimientoReporteItem])

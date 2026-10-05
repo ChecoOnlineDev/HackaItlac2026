@@ -57,6 +57,8 @@ from app.modulos.consulta.schemas import (
     TipoEscaneo,
     TipoHistorial,
     UbicacionOut,
+    UsuarioOpcionOut,
+    UsuariosOpcionesOut,
 )
 from app.modulos.trabajadores.models import Trabajador
 from app.modulos.trabajadores.repository import TrabajadorRepository
@@ -162,6 +164,19 @@ class ConsultaService:
             total=total,
             sin_registros=sin,
             mensaje=MENSAJE_SIN_REGISTROS if sin else None,
+        )
+
+    # ============================================================== opciones de filtros
+
+    def opciones_usuarios(self, usuario: Usuario) -> UsuariosOpcionesOut:
+        """Quién hizo vales, para el filtro de la bitácora (C-11): con `almacenes.todos` de todos
+        los almacenes; sin él, solo de su almacén (AC-06)."""
+        alcance = self._alcance(usuario, None)
+        if alcance.vacio:
+            return UsuariosOpcionesOut(elementos=[])
+        filas = self.consultas.usuarios_que_hicieron_vales(alcance.almacen_id)
+        return UsuariosOpcionesOut(
+            elementos=[UsuarioOpcionOut(id=u.id, nombre=u.nombre, usuario=u.usuario) for u in filas]
         )
 
     # ========================================================================== escaneo

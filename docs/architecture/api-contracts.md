@@ -405,6 +405,7 @@ Las filas vacías se ignoran (cuentan en `vacias`). Un artículo que ya existe s
 |---|---|---|
 | `GET /api/reportes/existencias` | `reportes.existencias` | Por almacén y artículo. Filtros: `almacen_id`, `categoria_id`. |
 | `GET /api/reportes/movimientos` | `reportes.movimientos` | Bitácora. Filtros: fechas, almacén, tipo, trabajador, artículo y `usuario_id` (quien hizo el vale, C-11). Sin `almacenes.todos`, solo el almacén asignado, también al filtrar por usuario; con él, todos los almacenes y usuarios. |
+| `GET /api/reportes/usuarios` | `reportes.movimientos` | Quién ha hecho vales, para el filtro «quién lo hizo» de la bitácora: `{elementos: [{id, nombre, usuario}]}`. Con `almacenes.todos`, de todos los almacenes; sin él, solo de su almacén (AC-06, C-11). |
 | `GET /api/reportes/adeudos` | `reportes.adeudos` | Pendientes por trabajador. Filtro: `solo_no_vigentes`. |
 | `GET /api/reportes/consumo` | `reportes.consumo` | Consumo de artículos consumibles (C-08). Filtros: fechas, `almacen_id`, `categoria_id`, `articulo_id`, `trabajador_id`. Responde por artículo el total y el desglose por trabajador, restando las cancelaciones. Sin `almacenes.todos`, solo el almacén asignado. Sin costos (RG-12). |
 
