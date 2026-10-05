@@ -45,5 +45,8 @@ pnpm-debug.log*
 # --- Archivos subidos (volumen local) ---
 backend/almacenamiento/
 
+# --- Respaldos (base y archivos): contienen datos, no se suben ---
+respaldos/
+
 # --- Árboles de trabajo de agentes ---
 .claude/worktrees/
