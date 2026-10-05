@@ -25,7 +25,9 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 | 403 | `SIN_PERMISO` | El rol del usuario no tiene el permiso del endpoint. |
 | 404 | `NO_ENCONTRADO` | El recurso no existe. |
 | 409 | `VALE_CAMBIO` | Al confirmar, la evaluación ya no es la misma. Incluye la evaluación nueva en `detalles`. |
-| 409 | `ALMACEN_CAMBIO` | Al confirmar, el usuario ya no está asignado al almacén en el que capturó el vale. No se guarda; incluye el almacén nuevo y el borrador se conserva (AC-13). |
+| 409 | `ALMACEN_CAMBIO` | Al confirmar, el usuario ya no está asignado al almacén en el que capturó el vale (`almacen_id` del cuerpo). No se guarda; `detalles` trae `{almacen_captura_id, almacen: {id, clave, nombre} o null}` con el almacén actual del usuario, y el borrador se conserva (AC-13). Lo lanza `AccesoService.exigir_mismo_almacen`. |
+| 409 | `USUARIO_EXISTE` | Al dar de alta, el nombre de usuario ya lo usa otra persona (sin distinguir mayúsculas). |
+| 409 | `ULTIMO_ADMINISTRADOR` | No se inactiva ni se le quita el rol al último usuario activo con `acceso.administrar` (AC-09). |
 | 409 | `CODIGO_REPETIDO` | El código ya identifica otra cosa. Incluye en `detalles` su `tipo`, su `ref_id` y una `descripcion` de quién es. |
 | 409 | `TRABAJADOR_EXISTE` | Al dar de alta, el número de empleado o la CURP ya existen (T-02). Incluye en `detalles.trabajador` a la persona (`id`, `numero_empleado`, `nombre`, `estado`) y en `detalles.coincide_por` el dato que coincidió, para ofrecer el reingreso. |
 | 409 | `CON_PENDIENTES` | No se puede emitir el vale de no adeudo. Incluye los pendientes. |
@@ -46,6 +48,21 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 | `POST /api/sesion` | Público | Entra con `{usuario, contrasena}` y deja la cookie de sesión. Responde `{usuario: {id, nombre, usuario}, rol: {id, nombre}, almacen: {id, clave, nombre} o null, permisos: [claves]}`. Credenciales incorrectas o usuario inactivo: 401 con "Usuario o contraseña incorrectos", sin decir cuál falló. |
 | `GET /api/sesion` | Sesión | Devuelve la sesión actual con la lista de permisos. La interfaz la usa para mostrar menús y botones. |
 | `DELETE /api/sesion` | Sesión | Sale y borra la cookie. Responde 204. |
+
+## Usuarios y personal
+
+Parte de [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md). Ninguna respuesta trae contraseñas, PIN ni hashes. Los cambios quedan en el registro de cambios sin secretos.
+
+| Método y ruta | Permiso | Qué hace |
+|---|---|---|
+| `GET /api/personal?almacen_id=&sin_almacen=&q=` | `almacenes.asignar_personal` | `{elementos, total}` de los usuarios que operan un almacén (los que no tienen `almacenes.todos`): `{id, nombre, usuario, rol: {id, nombre}, almacen: {id, clave, nombre} o null, activo}`. `sin_almacen=true` trae a quienes no tienen almacén; no se combina con `almacen_id` (422). `q` busca en nombre y usuario. |
+| `PATCH /api/usuarios/{id}/almacen` | `almacenes.asignar_personal` | `{almacen_id}`; `null` deja al usuario sin almacén. Responde el renglón de personal. Solo se asigna a quien opera un almacén (no a quien tiene `almacenes.todos`), el almacén debe existir y estar activo y el usuario no puede estar inactivo; si no, 422. Aplica en la siguiente petición del usuario y queda en el registro de cambios con el almacén anterior y el nuevo (AC-12, AC-13). No toca vales ni movimientos ya hechos. No cambia roles ni permisos. |
+| `GET /api/roles` | `acceso.administrar` | Roles, solo lectura, para selectores: `[{id, nombre, descripcion, activo, protegido}]`. |
+| `GET /api/usuarios?q=&rol_id=&almacen_id=&sin_almacen=&activo=` | `acceso.administrar` | `{elementos, total}`: lo del personal más `tiene_pin` y `creado_en`; sin límite de roles. |
+| `GET /api/usuarios/{id}` | `acceso.administrar` | Un usuario. |
+| `POST /api/usuarios` | `acceso.administrar` | Alta con `{nombre, usuario, contrasena, rol_id, almacen_id, pin}`. `almacen_id` es obligatorio si el rol no tiene `almacenes.todos` y va vacío si lo tiene (RG-07). `pin` (4 a 8 dígitos, distinto de la contraseña) solo si el rol tiene `autorizaciones.resolver`. Responde 201. 409 `USUARIO_EXISTE`. |
+| `PATCH /api/usuarios/{id}` | `acceso.administrar` | Solo `nombre`, `rol_id`, `activo` y `almacen_id`; cualquier otro campo es 422. Cambiar a un rol con `almacenes.todos` quita el almacén; volver a uno que no lo tiene exige indicarlo. 409 `ULTIMO_ADMINISTRADOR` (AC-09). |
+| `POST /api/usuarios/{id}/contrasena` | `acceso.administrar` | `{contrasena, pin}` (`pin` opcional). Restablece la contraseña y, si se manda, el PIN, y reinicia los bloqueos. |
 
 ## Escaneo y búsqueda
 
@@ -100,6 +117,8 @@ La emisión del vale de no adeudo (B-04, B-08) es de `movimientos`, en `POST /ap
 ## Vales
 
 El mismo cuerpo sirve para evaluar y para confirmar.
+
+El cuerpo de `POST /api/vales` puede traer `almacen_id`: el almacén en el que se capturó el vale. Si viene y el usuario no tiene `almacenes.todos`, el servidor lo compara con el almacén de la sesión (`AccesoService.exigir_mismo_almacen`) y, si ya no coincide, responde 409 `ALMACEN_CAMBIO` sin guardar nada (AC-13). Quien tiene `almacenes.todos` elige el almacén en cada vale y la comparación no aplica.
 
 ```json
 {
@@ -223,5 +242,4 @@ Todos aceptan `formato=csv`.
 | FEAT-002 | `POST /api/almacenes`, `POST /api/almacenes/{id}/cierre`, `GET /api/almacenes/{id}/reporte-cierre`, `GET /api/reportes/valor-inventario` | `almacenes.administrar`; `reportes.valor_inventario` |
 | FEAT-003 | `GET`, `PUT /api/puestos/{id}/dotacion` | `catalogo.ver`; `catalogo.administrar` |
 | FEAT-004 | `PUT /api/almacenes/{id}/minimos`; `POST /api/piezas/{id}/estado` admite mantenimiento y calibración | `inventario.minimos`; `piezas.inspeccionar` |
-| FEAT-006 | `GET /api/permisos`; `GET`, `POST`, `PATCH /api/roles`; `PUT /api/roles/{id}/permisos`; `GET`, `POST`, `PATCH /api/usuarios`; `POST /api/usuarios/{id}/contrasena` | `acceso.administrar` |
-| FEAT-006 (asignación de personal) | `GET /api/personal?almacen_id=&sin_almacen=`; `PATCH /api/usuarios/{id}/almacen` con `{almacen_id}` | `almacenes.asignar_personal` |
+| FEAT-006 | `GET /api/permisos`; `POST`, `PATCH /api/roles`; `PUT /api/roles/{id}/permisos` (la matriz de roles; la lista de roles, los usuarios y el personal ya están en [Usuarios y personal](#usuarios-y-personal)) | `acceso.administrar` |

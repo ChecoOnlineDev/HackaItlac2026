@@ -1,6 +1,7 @@
 """Contratos de entrada y salida del módulo `acceso`."""
 
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -36,3 +37,70 @@ class SesionOut(BaseModel):
     rol: RolSesionOut
     almacen: AlmacenSesionOut | None
     permisos: list[str]
+
+
+# ------------------------------------------------- usuarios, personal y roles (FEAT-006)
+
+
+class RolOut(BaseModel):
+    """Un rol, para poblar selectores. Los permisos del rol son de la matriz de FEAT-006."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    nombre: str
+    descripcion: str | None
+    activo: bool
+    protegido: bool
+
+
+class PersonalOut(BaseModel):
+    """Quien opera un almacén. Nunca trae contraseñas ni PIN."""
+
+    id: uuid.UUID
+    nombre: str
+    usuario: str
+    rol: RolSesionOut
+    almacen: AlmacenSesionOut | None
+    activo: bool
+
+
+class UsuarioOut(PersonalOut):
+    tiene_pin: bool
+    creado_en: datetime
+
+
+class AsignarAlmacenIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # `null` deja al usuario sin almacén.
+    almacen_id: uuid.UUID | None
+
+
+class UsuarioCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nombre: str = Field(min_length=1, max_length=150)
+    usuario: str = Field(min_length=3, max_length=60, pattern=r"^[A-Za-z0-9._-]+$")
+    contrasena: str = Field(min_length=8, max_length=200)
+    rol_id: uuid.UUID
+    almacen_id: uuid.UUID | None = None
+    pin: str | None = Field(default=None, pattern=r"^\d{4,8}$")
+
+
+class UsuarioUpdate(BaseModel):
+    """Lista cerrada de campos editables: no admite contraseñas ni hashes."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nombre: str | None = Field(default=None, min_length=1, max_length=150)
+    rol_id: uuid.UUID | None = None
+    activo: bool | None = None
+    almacen_id: uuid.UUID | None = None
+
+
+class RestablecerContrasenaIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    contrasena: str = Field(min_length=8, max_length=200)
+    pin: str | None = Field(default=None, pattern=r"^\d{4,8}$")
