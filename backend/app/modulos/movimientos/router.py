@@ -111,9 +111,16 @@ def listar(
 
 
 @router.get("/traspasos/por-recibir", response_model=None)
-def traspasos_por_recibir(usuario: UsuarioTraspasos, service: ServiceDep) -> Any:
-    """`traspasos.operar`. Traspasos en tránsito hacia el almacén de la sesión (tipo RECEPCION)."""
-    return service.traspasos_por_recibir(usuario)
+def traspasos_por_recibir(
+    usuario: UsuarioTraspasos,
+    service: ServiceDep,
+    solo_contar: bool = False,
+    almacen_id: uuid.UUID | None = None,
+) -> Any:
+    """`traspasos.operar`. Traspasos en tránsito hacia el almacén de la sesión (tipo RECEPCION).
+    `solo_contar=true` responde solo `{total}` (contador del inicio); `almacen_id` solo lo usa
+    quien tiene `almacenes.todos`."""
+    return service.traspasos_por_recibir(usuario, solo_contar=solo_contar, almacen_id=almacen_id)
 
 
 @router.post("/trabajadores/{trabajador_id}/no-adeudo", response_model=None)

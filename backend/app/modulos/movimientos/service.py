@@ -768,10 +768,12 @@ class MovimientoService:
 
     # ================================================== operaciones propias de otros endpoints
 
-    def traspasos_por_recibir(self, usuario: Usuario):
+    def traspasos_por_recibir(
+        self, usuario: Usuario, *, solo_contar: bool = False, almacen_id: uuid.UUID | None = None
+    ):
         """`GET /api/traspasos/por-recibir`: lo resuelve el tipo RECEPCION."""
         manejador = self.exigir_permiso_del_tipo(usuario, TipoVale.RECEPCION)
-        return manejador.por_recibir(self, usuario)
+        return manejador.por_recibir(self, usuario, solo_contar=solo_contar, almacen_id=almacen_id)
 
     def emitir_no_adeudo(self, usuario: Usuario, trabajador_id: uuid.UUID, datos):
         """`POST /api/trabajadores/{id}/no-adeudo`: lo resuelve el tipo NO_ADEUDO."""

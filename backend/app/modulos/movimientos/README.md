@@ -14,8 +14,9 @@ es **genérico**: no conoce las reglas de ningún tipo de vale. Cada tipo vive e
 | `contexto.py` | Tipos que el motor y los tipos se pasan: `ContextoVale`, `Evaluacion`, `RenglonEvaluado`, `PlanBloqueo`, `MovimientoNuevo`, `DatosVale`. |
 | `tipos/base.py` | El contrato: `ManejadorTipo` (y `TipoPendiente`, el stub). |
 | `tipos/__init__.py` | La tabla `TIPOS`: un manejador por `TipoVale`. |
-| `tipos/entrada.py`, `tipos/entrega.py` | Los dos tipos completos. |
-| `tipos/devolucion.py`, `traspaso.py`, `recepcion.py`, `cancelacion.py`, `no_adeudo.py` | Stubs (`TipoPendiente`): todo responde 501 `TIPO_NO_IMPLEMENTADO`. |
+| `tipos/entrada.py`, `tipos/entrega.py`, `tipos/traspaso.py`, `tipos/recepcion.py` | Los tipos completos. |
+| `evaluador_traspasos.py`, `repository_traspasos.py`, `schemas_traspasos.py` | Lo propio de los traspasos: reglas puras (X-02 a X-04, X-09, X-10, X-12, X-13), consultas de lo enviado y lo recibido, y el contrato de `por-recibir`. |
+| `tipos/devolucion.py`, `cancelacion.py`, `no_adeudo.py` | Stubs (`TipoPendiente`): todo responde 501 `TIPO_NO_IMPLEMENTADO`. |
 | `service.py` | `MovimientoService`: permisos por tipo, `evaluar`, `confirmar`, consultas. Controla commit y rollback. |
 | `repository.py` | Consultas, bloqueos `FOR UPDATE` e inserciones. Nunca hace commit. |
 | `router.py`, `schemas.py`, `exceptions.py` | HTTP, contratos y errores de dominio. |
@@ -71,7 +72,7 @@ Atributos de clase: `tipo` (`TipoVale`), `permiso` (clave), `requiere_firma`, `f
 | `datos_vale(ctx, cuerpo, evaluacion) -> DatosVale` | Trabajador, periodo, destino, `vale_origen_id`, estado inicial, `firma_modo` | obligatorio |
 | `construir_movimientos(ctx, cuerpo, evaluacion) -> list[MovimientoNuevo]` | Los movimientos (origen y destino son ubicaciones). Puede crear entidades propias con `flush` (la ENTRADA crea sus piezas) | obligatorio |
 | `al_confirmar(ctx, cuerpo, evaluacion, vale, movimientos)` | Efectos propios con el vale ya insertado (inspección inicial, `vale.estado` del original, dejar Inactivo al trabajador) | opcional |
-| `por_recibir`, `emitir_no_adeudo`, `cancelar` | Las operaciones de sus endpoints propios | solo RECEPCION, NO_ADEUDO y CANCELACION |
+| `por_recibir(servicio, usuario, solo_contar, almacen_id)`, `emitir_no_adeudo`, `cancelar` | Las operaciones de sus endpoints propios | solo RECEPCION, NO_ADEUDO y CANCELACION |
 
 ### Ejemplo: enchufar un tipo
 
@@ -143,13 +144,20 @@ sus esquemas en un archivo propio si el cuerpo necesita campos nuevos.
 | Tipo | Permiso | Movimientos | Reglas | Ganchos especiales |
 |---|---|---|---|---|
 | **DEVOLUCION** (`tipos/devolucion.py`) | `devoluciones.crear` | trabajador -> almacén; artículo por cantidad dañado -> BAJA (V-05); pieza dañada entra como No apta (`CatalogoService.actualizar_estado_pieza`) | V-01 a V-07, V-11 a V-14, F-08, **SM-05: nunca se bloquea por E-02** (trabajador no vigente) | `bloqueos`: trabajador, existencias y piezas. La condición (`Condicion`) es obligatoria |
-| **TRASPASO** (`tipos/traspaso.py`) | `traspasos.operar` | almacén origen -> EN_TRANSITO | X-01 a X-07, X-09, F-09 | `datos_vale`: `estado=EN_TRANSITO`, `destino_almacen_id` |
-| **RECEPCION** (`tipos/recepcion.py`) | `traspasos.operar` | EN_TRANSITO -> almacén destino | X-08, X-10 a X-13 | `datos_vale.vale_origen_id`; `bloqueos.vales` con el traspaso; `al_confirmar` cambia `vale.estado` del original (RECIBIDO o RECIBIDO_CON_DIFERENCIAS); `por_recibir(servicio, usuario)` |
 | **CANCELACION** (`tipos/cancelacion.py`) | `vales.cancelar` / `vales.cancelar_todos` | inversos de los del original | K-01 a K-05, X-14 | `bloqueos.vales`; `al_confirmar` pone el original en CANCELADO; `cancelar(servicio, usuario, vale_id, datos)` arma el cuerpo y llama a `servicio.confirmar(usuario, cuerpo, ...)`. Con `rehacer` devuelve el borrador |
 | **NO_ADEUDO** (`tipos/no_adeudo.py`) | `no_adeudo.emitir` | ninguno | B-04, B-08, invariante 8 | `construir_movimientos` devuelve `[]`; `al_confirmar` llama `TrabajadorService.marcar_inactivo`; `emitir_no_adeudo(servicio, usuario, trabajador_id, datos)`; 409 `CON_PENDIENTES` si hay pendientes |
 
+TRASPASO y RECEPCION (fase 5) ya están hechos. Cómo funcionan:
+
+- **TRASPASO** (`tipos/traspaso.py`): almacén de la sesión -> EN_TRANSITO; `datos_vale` pone `estado=EN_TRANSITO` y `destino_almacen_id`. `evaluar` trae X-03 en los motivos del vale (verde, amarillo o rojo) y X-02, X-04, X-09 por renglón. Bloquea las existencias (origen, EN_TRANSITO) y las piezas.
+- **RECEPCION** (`tipos/recepcion.py`): EN_TRANSITO -> almacén de la sesión, `vale_origen_id` = el traspaso. Bloquea primero el traspaso (`PlanBloqueo.vales`): dos recepciones del mismo traspaso se turnan y la segunda vuelve a evaluar con lo que la primera recibió (X-12 si ya no hay pendiente). `al_confirmar` recalcula lo pendiente (enviado menos recibido en todas las recepciones) y deja el traspaso en RECIBIDO o RECIBIDO_CON_DIFERENCIAS (X-13). Un traspaso con diferencias se puede recibir otra vez hasta completarse. Una recepción sin renglones se rechaza; para "recibir todo" se mandan todos los pendientes.
+- **`por_recibir`**: traspasos EN_TRANSITO o con diferencias hacia el almacén de la sesión; `solo_contar=true` solo cuenta (consulta ligera para el contador del inicio). Con `almacenes.todos`, `almacen_id` filtra y sin él trae todos.
+- Cambio al motor (aditivo): `por_recibir` y `traspasos_por_recibir` reciben `solo_contar` y `almacen_id`, y el router los toma como parámetros de consulta.
+
 Nota para quien implemente CANCELACION: el límite de consumo (L-03) ya ignora los vales con
-`estado = CANCELADO`.
+`estado = CANCELADO`. Una recepción nunca se cancela (K-04). `por-recibir` y la RECEPCION ignoran los traspasos
+`CANCELADO` (rojo X-14 en la evaluación). Si un traspaso con recepciones parciales se puede
+cancelar lo decide CANCELACION; la RECEPCION no lo impide.
 
 ## Integración con otros módulos
 

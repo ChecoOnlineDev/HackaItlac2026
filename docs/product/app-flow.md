@@ -204,7 +204,7 @@ Abrir el traspaso
 Confirmar -> vale de recepción; el traspaso queda Recibido
 ```
 
-- **Decisiones:** lo que no se reciba sigue En tránsito y el traspaso queda "Recibido con diferencias" (X-13).
+- **Decisiones:** lo que no se reciba sigue En tránsito y el traspaso queda "Recibido con diferencias" (X-13). Mientras le falte algo, el traspaso sigue en la lista de por recibir y se puede recibir otra vez hasta completarlo; entonces queda Recibido. "Recibir todo" manda todos los renglones pendientes del traspaso.
 - **Éxito:** las existencias entran al destino, con origen y destino conservados (X-07).
 - **Error:** el traspaso es para otro almacén (X-10); lo escaneado no pertenece a este traspaso (X-12).
 

@@ -133,7 +133,7 @@ El folio tiene la forma `CLAVE-TIPO-CONSECUTIVO`, por ejemplo `KEP-ENT-000123`.
 2. `existencia.cantidad` nunca es negativa en almacenes, trabajadores ni En tránsito. PROVEEDOR no lleva existencia.
 3. En artículos por pieza, cada movimiento lleva `pieza_id` y cantidad 1; en artículos por cantidad, `pieza_id` va vacío.
 4. `pieza.ubicacion_id` es el destino de su último movimiento.
-5. `movimiento` y `vale` no reciben actualizaciones ni borrados. La única excepción es `vale.estado`, que avanza de EN_TRANSITO a RECIBIDO, o pasa a CANCELADO cuando existe su vale de cancelación.
+5. `movimiento` y `vale` no reciben actualizaciones ni borrados. La única excepción es `vale.estado`, que avanza de EN_TRANSITO a RECIBIDO o a RECIBIDO_CON_DIFERENCIAS, o pasa a CANCELADO cuando existe su vale de cancelación. Un traspaso queda RECIBIDO_CON_DIFERENCIAS mientras le quede algo pendiente (lo enviado menos lo recibido en sus recepciones, que son los vales RECEPCION con su `vale_origen_id`); cada recepción lo recalcula, y al completarse pasa a RECIBIDO. Lo pendiente sigue en la ubicación EN_TRANSITO. El vale RECEPCION queda en estado EMITIDO y sin `destino_almacen_id`: su `almacen_id` es el que recibe.
 6. Un valor de `codigo` aparece una sola vez en todo el sistema.
 7. `articulo.control` y `articulo.retornable` no cambian si el artículo tiene movimientos (CF-05).
 8. Un trabajador con existencias de artículos retornables no puede recibir un vale NO_ADEUDO.
