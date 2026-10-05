@@ -55,6 +55,11 @@ class ManejadorTipo(ABC):
         consulta. `confirmar` es verdadero en `POST /api/vales` (ahí se exige firma, renglones)."""
         return None
 
+    def exigir_al_confirmar(self, cuerpo: ValeIn, evaluacion: Evaluacion) -> None:
+        """Gancho de la confirmación, ya con la evaluación hecha bajo bloqueo: el tipo puede
+        rechazar con un 422 propio lo que `validar_cuerpo` no ve (depende de la base)."""
+        return None
+
     def almacen_operativo(
         self, servicio: MovimientoService, usuario: Usuario, cuerpo: ValeIn
     ) -> uuid.UUID:

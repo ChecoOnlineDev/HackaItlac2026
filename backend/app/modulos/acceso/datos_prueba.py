@@ -38,6 +38,7 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
     "Supervisor": frozenset(
         {
             P.TRABAJADORES_VER,
+            P.TRABAJADORES_INICIAR_BAJA,
             P.CATALOGO_VER,
             P.CATALOGO_ADMINISTRAR,
             P.INVENTARIO_VER,

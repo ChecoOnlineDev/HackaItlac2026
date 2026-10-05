@@ -169,8 +169,5 @@ def eliminar_articulo(
 def listar_etiquetas(
     tipo: TipoEtiqueta, usuario: Imprimir, service: CatalogoServiceDep
 ) -> EtiquetasOut:
-    """`etiquetas.imprimir`. Lista de `{codigo, texto}` para imprimir.
-
-    Las credenciales piden además `trabajadores.ver`; piezas y estantes, `catalogo.ver`.
-    """
+    """`etiquetas.imprimir` basta para los tres tipos. Lista de `{codigo, texto}` para imprimir."""
     return service.listar_etiquetas(tipo, usuario)

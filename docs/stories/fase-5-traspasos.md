@@ -39,11 +39,12 @@ Como almacenista del almacén de destino, quiero recibir un traspaso escaneando 
 - Al confirmar se emite un vale de recepción; las existencias entran al destino y las piezas cambian de ubicación.
 - Quien recibe queda como responsable de lo recibido.
 - Dado que no se recibe todo, entonces lo faltante sigue En tránsito y el traspaso queda "Recibido con diferencias".
+- Dado que quedan diferencias, entonces se pide una observación obligatoria (RG-14); una recepción completa no la pide.
 - Dado un almacén distinto al destino, entonces no puede recibirlo.
 - Dado un artículo que no es de ese traspaso, entonces se rechaza.
 - El historial de cada pieza muestra origen, tránsito y destino.
 
-**Reglas:** X-08, X-10 a X-13, F-09, RG-05.
+**Reglas:** X-08, X-10 a X-13, F-09, RG-05, RG-14.
 
 **Fuera de alcance:** resolver las diferencias; regresar al origen lo no recibido.
 

@@ -13,7 +13,6 @@ import { Cargando } from "~/componentes/ui/cargando";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { EstadoVacio } from "~/componentes/ui/estado-vacio";
 import { Input } from "~/components/ui/input";
-import { useSesionActiva } from "~/sesion/sesion";
 
 export const handle: ManejadorRuta = { permiso: "etiquetas.imprimir" };
 
@@ -21,16 +20,15 @@ type TipoEtiqueta = "credenciales" | "piezas" | "estantes";
 
 interface RespuestaEtiquetas extends Pagina<EtiquetaElemento> {}
 
-const TIPOS: { tipo: TipoEtiqueta; nombre: string; ayuda: string; icono: LucideIcon; permiso: "trabajadores.ver" | "catalogo.ver" }[] = [
-  { tipo: "credenciales", nombre: "Credenciales", ayuda: "Un QR por trabajador", icono: IdCardIcon, permiso: "trabajadores.ver" },
-  { tipo: "piezas", nombre: "Piezas", ayuda: "Un QR por herramienta o equipo", icono: TagIcon, permiso: "catalogo.ver" },
-  { tipo: "estantes", nombre: "Estantes", ayuda: "Un QR por artículo de cantidad", icono: PackageIcon, permiso: "catalogo.ver" },
+const TIPOS: { tipo: TipoEtiqueta; nombre: string; ayuda: string; icono: LucideIcon }[] = [
+  { tipo: "credenciales", nombre: "Credenciales", ayuda: "Un QR por trabajador", icono: IdCardIcon },
+  { tipo: "piezas", nombre: "Piezas", ayuda: "Un QR por herramienta o equipo", icono: TagIcon },
+  { tipo: "estantes", nombre: "Estantes", ayuda: "Un QR por artículo de cantidad", icono: PackageIcon },
 ];
 
 export default function Etiquetas() {
-  const { puede } = useSesionActiva();
-  // Las credenciales piden además `trabajadores.ver`; piezas y estantes, `catalogo.ver`. El servidor lo vuelve a verificar.
-  const disponibles = TIPOS.filter((t) => puede(t.permiso));
+  // `etiquetas.imprimir` basta para los tres tipos (la ruta ya lo exige; el servidor lo verifica).
+  const disponibles = TIPOS;
 
   const [tipo, setTipo] = useState<TipoEtiqueta | null>(disponibles[0]?.tipo ?? null);
   const [elementos, setElementos] = useState<EtiquetaElemento[] | null>(null);

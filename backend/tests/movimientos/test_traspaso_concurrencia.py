@@ -90,6 +90,7 @@ def recepcion(cliente, traspaso_id, renglones, **extra):
             "vale_origen_id": traspaso_id,
             "id_cliente": str(uuid.uuid4()),
             "renglones": renglones,
+            "observacion": "Faltó en el contenedor",  # RG-14: con diferencias se exige
         }
         | extra,
     )

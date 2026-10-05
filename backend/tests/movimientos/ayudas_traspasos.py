@@ -75,6 +75,8 @@ def cuerpo_recepcion(traspaso_id: str | uuid.UUID, renglones: list[dict], **extr
         "vale_origen_id": str(traspaso_id),
         "id_cliente": str(uuid.uuid4()),
         "renglones": renglones,
+        # RG-14: una recepción con diferencias exige observación; las completas no la usan.
+        "observacion": "Faltó en el contenedor",
     } | extra
 
 

@@ -267,7 +267,7 @@ TABLA_8_2 = {
     "trabajadores.ver": "ASR",
     "trabajadores.ver_datos_personales": "R",
     "trabajadores.administrar": "R",
-    "trabajadores.iniciar_baja": "AR",
+    "trabajadores.iniciar_baja": "ASR",
     "catalogo.ver": "ASC",
     "catalogo.administrar": "SC",
     "catalogo.costos": "C",

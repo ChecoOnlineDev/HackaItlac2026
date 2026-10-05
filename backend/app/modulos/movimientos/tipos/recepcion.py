@@ -44,6 +44,7 @@ from app.modulos.movimientos.evaluador_traspasos import (
     HechosRenglonRecepcion,
     estado_despues_de_recibir,
     regla_estado_del_traspaso,
+    regla_rg14_observacion,
     regla_x10_destino,
     regla_x12_pertenece,
     regla_x13_diferencias,
@@ -199,7 +200,22 @@ class RecepcionTipo(ManejadorTipo):
             x13 = regla_x13_diferencias(pendiente_total - recibido_ahora)
             if x13 is not None:
                 evaluacion.motivos_vale.append(x13)
+            # RG-14: con diferencias, la observación es obligatoria (rojo hasta que se escriba).
+            rg14 = regla_rg14_observacion(
+                pendiente_total - recibido_ahora, getattr(cuerpo, "observacion", None)
+            )
+            if rg14 is not None:
+                evaluacion.motivos_vale.append(rg14)
         return evaluacion
+
+    def exigir_al_confirmar(self, cuerpo: ValeIn, evaluacion: Evaluacion) -> None:
+        """RG-14: una recepción con diferencias sin observación es un 422 sobre ese campo."""
+        for motivo in evaluacion.motivos_vale:
+            if motivo.regla == "RG-14":
+                raise DatosInvalidos(
+                    motivo.mensaje,
+                    [{"campo": "observacion", "mensaje": motivo.mensaje, "regla": "RG-14"}],
+                )
 
     # ---------------------------------------------------------------- confirmación
 

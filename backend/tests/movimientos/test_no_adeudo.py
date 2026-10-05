@@ -302,8 +302,30 @@ def test_permisos_emitir_no_adeudo_exige_no_adeudo_emitir(
         assert r.status_code == 403 and r.json()["codigo"] == "SIN_PERMISO"
     assert estado_de(session, trabajador) == EstadoTrabajador.ACTIVO
     assert vales_nad(session, trabajador) == []
-    con = cliente_de(app, crear_usuario, {P.NO_ADEUDO_EMITIR}, "KEP")
+    con = cliente_de(app, crear_usuario, {P.NO_ADEUDO_EMITIR, P.TRABAJADORES_INICIAR_BAJA}, "KEP")
     assert con.post(ruta(trabajador), json=cuerpo()).status_code == 201
+
+
+def test_B_01_emitir_no_adeudo_a_un_activo_exige_tambien_iniciar_la_baja(
+    app, crear_usuario, cliente_como, session, trabajador
+):
+    """Regresión: emitir el vale no da por sí solo el permiso de iniciar la baja (tabla 8.2)."""
+    solo_emitir = cliente_de(app, crear_usuario, {P.NO_ADEUDO_EMITIR}, "KEP")
+    r = solo_emitir.post(ruta(trabajador), json=cuerpo())
+    assert r.status_code == 403 and r.json()["codigo"] == "SIN_PERMISO"
+    assert estado_de(session, trabajador) == EstadoTrabajador.ACTIVO
+    assert vales_nad(session, trabajador) == []
+    # Con ambos permisos emite.
+    ambos = cliente_de(app, crear_usuario, {P.NO_ADEUDO_EMITIR, P.TRABAJADORES_INICIAR_BAJA}, "KEP")
+    assert ambos.post(ruta(trabajador), json=cuerpo()).status_code == 201
+    # Una baja que ya inició otro no necesita `iniciar_baja`.
+    otro = crear_trabajador(session)
+    assert (
+        cliente_como("Recursos Humanos").post(f"/api/trabajadores/{otro.id}/baja").status_code
+        == 200
+    )
+    r = solo_emitir.post(ruta(otro), json=cuerpo())
+    assert r.status_code == 201 and r.json()["trabajador"]["estado"] == "INACTIVO"
 
 
 def test_un_trabajador_inexistente_es_404(almacenista):

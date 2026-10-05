@@ -115,6 +115,7 @@ Como Compras o RH, quiero imprimir hojas de QR para piezas, estantes y credencia
 
 - Elige qué imprimir: piezas (un QR por pieza), estantes (un QR por artículo por cantidad) o credenciales (un QR por trabajador sin credencial legible).
 - Cada etiqueta muestra el QR y, en texto legible, el nombre y el código.
+- Basta el permiso `etiquetas.imprimir` (Supervisor, Compras y RH) para los tres tipos; una credencial lleva solo nombre y número de empleado, nunca CURP ni NSS.
 - La hoja se imprime desde el navegador en papel carta, sin menús ni encabezados.
 - El QR contiene exactamente el código registrado; lo leen la cámara del celular y la pistola.
 

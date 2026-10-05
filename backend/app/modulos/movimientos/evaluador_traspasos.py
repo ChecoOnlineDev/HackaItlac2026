@@ -239,6 +239,19 @@ def regla_x13_diferencias(faltan: int) -> Motivo | None:
     )
 
 
+def regla_rg14_observacion(faltan: int, observacion: str | None) -> Motivo | None:
+    """RG-14 sobre X-13: una recepción que deja algo pendiente es una excepción que resuelve el
+    almacenista y exige una observación. Rojo del vale mientras falte; la recepción completa no
+    la pide."""
+    if faltan <= 0 or (observacion or "").strip():
+        return None
+    return Motivo(
+        "RG-14",
+        Nivel.ROJO,
+        "Falta algo por recibir. Escribe una observación que explique la diferencia.",
+    )
+
+
 def estado_despues_de_recibir(pendiente_total: int) -> EstadoVale:
     """X-13: sin nada pendiente el traspaso queda Recibido; con algo pendiente, Recibido con
     diferencias (lo no recibido sigue En tránsito)."""
