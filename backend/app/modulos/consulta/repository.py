@@ -88,7 +88,7 @@ class ConsultaRepository:
         self.session = session
 
     def usuarios_que_hicieron_vales(self, almacen_id: uuid.UUID | None) -> list[Usuario]:
-        """Quienes hicieron al menos un vale (en el almacén indicado o en cualquiera), por nombre."""
+        """Quienes hicieron algún vale (en el almacén indicado o en cualquiera), por nombre."""
         consulta = select(Usuario).join(Vale, Vale.responsable_id == Usuario.id).distinct()
         if almacen_id is not None:
             consulta = consulta.where(Vale.almacen_id == almacen_id)
