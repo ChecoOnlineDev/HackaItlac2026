@@ -14,12 +14,14 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.integraciones import archivos as volumen
 from app.modulos.archivos.exceptions import AdjuntoNoEncontrado, ArchivoInvalido
+from app.modulos.archivos.firma import validar_png_de_firma
 from app.modulos.archivos.models import Adjunto, TipoAdjunto
 from app.modulos.archivos.repository import AdjuntoRepository
 
 # Tipos de contenido que acepta cada clase de adjunto.
 MIME_PERMITIDOS: dict[TipoAdjunto, frozenset[str]] = {
-    TipoAdjunto.FIRMA: frozenset({"image/png", "image/jpeg", "image/webp"}),
+    # La firma en pantalla la exporta el lienzo de la interfaz como PNG y se valida a fondo.
+    TipoAdjunto.FIRMA: frozenset({"image/png"}),
     TipoAdjunto.FOTO_DANO: frozenset({"image/png", "image/jpeg", "image/webp"}),
     TipoAdjunto.FOTO_TRABAJADOR: frozenset({"image/png", "image/jpeg", "image/webp"}),
 }
@@ -66,7 +68,14 @@ class ArchivoService:
             )
         mime = volumen.detectar_mime(contenido)
         if mime is None or mime not in MIME_PERMITIDOS[tipo]:
+            if tipo == TipoAdjunto.FIRMA:
+                raise ArchivoInvalido(
+                    "La firma debe ser una imagen PNG.",
+                    [{"campo": "firma.imagen", "mensaje": "La firma debe ser una imagen PNG."}],
+                )
             raise ArchivoInvalido("Solo se aceptan imágenes PNG, JPEG o WEBP.")
+        if tipo == TipoAdjunto.FIRMA:
+            validar_png_de_firma(contenido)  # F-02: no basta con que empiece como un PNG
 
         ruta = volumen.guardar(SUBCARPETA[tipo], volumen.extension_de(mime), contenido)
         return self.adjuntos.add(

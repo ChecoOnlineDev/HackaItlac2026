@@ -248,12 +248,12 @@ def _usuario_id(session):
 
 def test_archivos_guarda_la_imagen_valida_con_nombre_generado_y_sha256(session, volumen):
     adjunto = ArchivoService(session).guardar(
-        tipo=TipoAdjunto.FIRMA, contenido=PNG, subido_por=_usuario_id(session)
+        tipo=TipoAdjunto.FOTO_DANO, contenido=PNG, subido_por=_usuario_id(session)
     )
     assert adjunto.mime == "image/png"
     assert adjunto.tamano == len(PNG)
     assert len(adjunto.sha256) == 64
-    assert adjunto.ruta.startswith("firmas/") and adjunto.ruta.endswith(".png")
+    assert adjunto.ruta.startswith("fotos_dano/") and adjunto.ruta.endswith(".png")
     assert (volumen / adjunto.ruta).read_bytes() == PNG
     leido, contenido = ArchivoService(session).leer(adjunto.id)
     assert contenido == PNG and leido.id == adjunto.id
