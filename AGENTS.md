@@ -35,7 +35,7 @@ docs/                             documentación; el índice es docs/README.md
 
 Los módulos son once: `acceso`, `almacenes`, `catalogo`, `trabajadores`, `movimientos`, `autorizaciones`, `inspecciones`, `consulta`, `importacion`, `archivos` y `auditoria`. Todos tienen su `router.py` montado en `main.py`: quien construye un módulo llena sus archivos y no toca `main.py`. El backend es **síncrono** (PyMySQL): endpoints con `def` y `Session` de SQLAlchemy. Flujo: Router, Service, Repository, Model; el service controla la transacción y el repository nunca hace commit. Detalle en `docs/architecture/overview.md`.
 
-El frontend sigue siendo la plantilla de React Router.
+El frontend es la aplicación construida: `routes.ts` registra una ruta por pantalla (`routes/operacion`, `consulta`, `personas`, `inventario`, `supervision`), `componentes/` agrupa lo reutilizable por área (`dominio` trae el escáner, el renglón con semáforo, la ficha, la firma y el QR; `ui` los componentes base), `api/` es el cliente de la API y `sesion/` la sesión y el menú según permisos. `components/` (en inglés) es el código base de shadcn.
 
 ## Arquitectura y límites
 
@@ -75,7 +75,7 @@ El frontend sigue siendo la plantilla de React Router.
 ## Autenticación, autorización y secretos
 
 - Sesión por cookie `HttpOnly`; identifica al usuario, y de él salen su rol, sus permisos y su almacén.
-- Cada `router.py` declara qué permiso exige cada endpoint.
+- Cada `router.py` declara qué permiso exige cada endpoint. Excepción documentada: seis rutas lo verifican en el servicio porque depende del tipo de vale o del usuario (`POST /api/vales`, `POST /api/vales/evaluar`, `GET /api/escaneo/{codigo}`, `GET /api/busqueda`, `GET /api/autorizaciones/{id}` y `POST /api/autorizaciones/{id}/resolucion`); en ellas el router solo exige sesión.
 - Los roles y sus permisos son datos. Los cinco iniciales los carga el script de datos de prueba.
 - El PIN del supervisor es distinto de su contraseña.
 - Los secretos están en `.env`; `.env.example` documenta las variables.
@@ -103,6 +103,8 @@ Backend, dentro de `backend/` (comprobados en la Fase 0). Copiar antes `.env.exa
 | Pruebas | `uv run pytest` |
 | Lint | `uv run ruff check .` |
 | Formato | `uv run ruff format .` |
+| Verificar consistencia de la base (solo lectura; sale 0 si cuadra, 1 si no) | `uv run python -m app.mantenimiento verificar` |
+| Existencias que deberían valer según la bitácora (no escribe) | `uv run python -m app.mantenimiento reconstruir-existencias --simular` |
 
 Puertos: MySQL en el host `21001` (`MYSQL_PUERTO`), servidor de desarrollo `21002`; la aplicación desplegada `21040`; el resto desde `21003` está reservado. Las pruebas usan la base `{MYSQL_DATABASE}_test_{TEST_DB_SUFFIX}`: quien corra pruebas en paralelo contra el mismo MySQL usa un `TEST_DB_SUFFIX` distinto.
 
@@ -116,6 +118,8 @@ Producción (un solo desplegable, ADR-002), en la raíz del repo; comprobados en
 | Datos de prueba al arrancar | `CARGAR_DATOS_PRUEBA=true` en `.env` |
 | Estado y bitácora | `docker compose ps` / `docker compose logs app` |
 | Apagar (con `-v` borra los datos) | `docker compose down` |
+| Respaldo de la base y de los archivos (`respaldos/`) | `./scripts/respaldo.sh` (bash) o `scripts/respaldo.ps1` (PowerShell) |
+| Restaurar (`--base NOMBRE` para probar en otra base) | `./scripts/restaurar.sh` o `scripts/restaurar.ps1` |
 
 El contenedor `app` aplica `alembic upgrade head` al arrancar y sirve con `uvicorn` en el puerto 8000 interno. FastAPI entrega la interfaz desde `INTERFAZ_DIR` (en la imagen, `/app/interfaz`; si no existe, solo la API). Con el túnel, `COOKIE_SEGURA=true`. El túnel real no se ha probado (requiere token).
 

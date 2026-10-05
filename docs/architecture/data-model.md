@@ -142,6 +142,8 @@ La CANCELACION es genérica: invierte las filas de `movimiento` del vale origina
 9. Un vale que no se confirmó no deja nada en la base: ni vale, ni movimientos, ni cambios de existencias. El borrador vive en el dispositivo (E-28, RG-09).
 10. `inspeccion` y `ajuste_vigencia` solo se insertan. Un ajuste cambia `pieza.inspeccion_vigente_hasta`, no la inspección (P-07).
 
+`uv run python -m app.mantenimiento verificar` (solo lectura) comprueba sobre la base real las invariantes 1 a 6 y 8, el estado de los vales cancelados con su cancelación, y que los folios de cada almacén y tipo sean consecutivos, sin repetidos ni huecos y coincidan con `serie_folio`. Sale con código 0 si todo cuadra y con 1 si no, y lista las diferencias en español. Las invariantes 7, 9 y 10 las garantiza el servicio y no se pueden comprobar después en la base.
+
 ## Índices
 
 - `movimiento`: por `(articulo_id, creado_en)`, por `origen_id`, por `(destino_id, creado_en)` (también para el reporte de consumo), por `(trabajador_id, articulo_id, creado_en)` para los límites por periodo, y por `pieza_id` para el historial.

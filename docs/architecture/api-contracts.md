@@ -9,7 +9,7 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 - Los `id` son UUID en texto, por ejemplo `01a10a17-3a3b-74ed-89d0-2082afd9941a` ([ADR-006](decisions/ADR-006-identificadores-uuid-y-folio.md)). En los ejemplos se abrevian.
 - Las fechas van en ISO 8601; las horas, en UTC.
 - Las listas admiten `pagina` y `tamano` y responden `{elementos, total}`.
-- Cada endpoint exige un **permiso**; la columna "Permiso" da su clave ([ADR-007](decisions/ADR-007-permisos-por-clave.md)). Qué roles lo tienen de inicio está en la sección 8.2 de las [reglas](../product/reglas-de-negocio.md). "Sesión" significa que basta haber entrado.
+- Cada endpoint exige un **permiso**; la columna "Permiso" da su clave ([ADR-007](decisions/ADR-007-permisos-por-clave.md)). Qué roles lo tienen de inicio está en la sección 8.2 de las [reglas](../product/reglas-de-negocio.md). "Sesión" significa que basta haber entrado. Seis rutas (las que dicen "Sesión" o "Según el tipo" en la columna Permiso) solo exigen sesión en el router y verifican el permiso en el servicio, porque depende del tipo de vale o del usuario: `POST /api/vales`, `POST /api/vales/evaluar`, `GET /api/escaneo/{codigo}`, `GET /api/busqueda`, `GET /api/autorizaciones/{id}` y `POST /api/autorizaciones/{id}/resolucion`; sin el permiso responden 403 `SIN_PERMISO` igual que las demás.
 - El almacén sale del usuario de la sesión. Quien tiene `almacenes.todos` lo indica con `almacen_id`.
 - Los datos reservados no se envían sin su permiso de información: `costo_unitario` pide `catalogo.costos`; `curp` y `nss` piden `trabajadores.ver_datos_personales`.
 
@@ -43,6 +43,11 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 | 422 | `DATOS_INVALIDOS` | Falta un dato o tiene forma incorrecta. Incluye el campo. |
 | 403 | `PIN_INCORRECTO` | El PIN de autorización no es válido (403 y no 401, para no cerrar la sesión). |
 | 429 | `DEMASIADOS_INTENTOS` | Cinco contraseñas o PIN fallidos seguidos: bloqueo de cinco minutos. Incluye `detalles.segundos_espera` y la cabecera `Retry-After`. Se responde ya en el quinto intento fallido. |
+| 409 | `CONFLICTO` | 409 genérico: la operación choca con el estado actual y no tiene un código más específico. Es la base de los demás 409; el `mensaje` se puede mostrar tal cual. |
+| 405 | `METODO_NO_PERMITIDO` | El método HTTP no existe para esa ruta (por ejemplo, `DELETE` donde solo hay `GET`). |
+| 413 | `CUERPO_MUY_GRANDE` | El cuerpo de la petición pasa del límite de tamaño que el servidor acepta (según el límite de tamaño configurado; lo agrega el endurecimiento de seguridad). |
+| 500 | `ERROR_INTERNO` | Falla inesperada. El mensaje es genérico, sin detalles técnicos; el detalle queda en la bitácora de la aplicación. |
+| otro | `ERROR` | Cualquier otro error HTTP que el servidor devuelve sin código propio. Mensaje genérico. |
 | 501 | `TIPO_NO_IMPLEMENTADO` | El tipo de vale existe pero su operación no está construida. Los siete tipos del MVP ya están implementados; el código se conserva para tipos futuros. |
 
 ## Acceso

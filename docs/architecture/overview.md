@@ -2,7 +2,7 @@
 
 Qué módulos existen, de qué se encarga cada uno y de quién depende. Es la orientación para cualquier tarea que cruce módulos.
 
-Estado: la fundación del backend (Fase 0) está construida: esqueleto, base de datos, todas las tablas, el módulo `acceso` y la infraestructura de pruebas. Los demás módulos tienen sus archivos creados y su `router.py` ya montado, vacíos, para llenarlos sin tocar `main.py`. El frontend sigue siendo la plantilla de React Router.
+Estado: los once módulos del backend están construidos y montados en `main.py`, y la interfaz cubre todas las pantallas del MVP (una ruta por pantalla en `frontend/app/routes.ts`). Quedan por hacer lo de la segunda ola (FEAT-001 a FEAT-004) y la matriz editable de roles (FEAT-006); el trabajo del release está en la [checklist](../releases/mvp-checklist.md).
 
 ## Estructura del repositorio
 
@@ -14,6 +14,7 @@ backend/
     db.py                 motor, sesión (sin commit automático) y base declarativa
     seguridad.py          contraseñas, PIN y token de sesión
     modelos_registro.py   importa todos los models.py (Alembic y pruebas)
+    mantenimiento.py      comandos de línea de comandos: verificar consistencia y reconstruir existencias
     datos_prueba.py       carga repetible de datos de prueba; orquesta una función por módulo
     core/                 excepciones base, handlers de errores, paginación, ids, fechas,
                           traducción de constraints; NO importa módulos de negocio
@@ -23,9 +24,11 @@ backend/
   tests/                  pruebas
 frontend/
   app/
-    routes/               una ruta por pantalla
-    componentes/          escáner, renglón con semáforo, fichas
+    routes/               una ruta por pantalla (operacion, consulta, personas, inventario, supervision)
+    componentes/          por área; `dominio/` trae el escáner, el renglón con semáforo, fichas, firma y QR
     api/                  cliente de la API
+    sesion/               sesión y menú según permisos
+scripts/                  respaldo y restauración (bash y PowerShell)
 docs/                     esta documentación
 ```
 
@@ -66,7 +69,8 @@ Dependencias permitidas: `Router -> Service`, `Service -> Repository`, `Service 
 
 - **Solo `movimientos` escribe** en vales, movimientos, existencias y en la ubicación de las piezas. Los demás módulos le piden la operación; nunca tocan esas tablas.
 - **`consulta` no escribe nada.**
-- **Cada endpoint declara su permiso en el `router.py`**, por clave; nunca se compara el nombre del rol. Las reglas de negocio van en `service.py`.
+- **Única excepción a «solo `movimientos` escribe existencias»:** `python -m app.mantenimiento reconstruir-existencias --aplicar`, un comando de línea de comandos que corrige las existencias desde la bitácora con confirmación y registro en auditoría. No es un endpoint ni una pantalla (ver [security-model.md](security-model.md), Respaldos y recuperación).
+- **Cada endpoint declara su permiso en el `router.py`**, por clave; nunca se compara el nombre del rol. Las reglas de negocio van en `service.py`. Excepción documentada: seis rutas verifican el permiso en el servicio (con `AccesoService.exigir_permiso`) porque depende del tipo de vale o del usuario: `POST /api/vales`, `POST /api/vales/evaluar`, `GET /api/escaneo/{codigo}`, `GET /api/busqueda`, `GET /api/autorizaciones/{id}` y `POST /api/autorizaciones/{id}/resolucion`. En ellas el router solo exige sesión.
 - **Los permisos de información** (costos, datos personales) se aplican al armar la respuesta, en `schemas.py`.
 
 ## Flujo de una entrega

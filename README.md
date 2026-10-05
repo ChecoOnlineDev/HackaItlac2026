@@ -20,7 +20,26 @@ Para entrar por `http://` (sin túnel), deja `COOKIE_SEGURA=false`.
 
 ### Datos de prueba
 
-Pon `CARGAR_DATOS_PRUEBA=true` en `.env` y vuelve a levantar (`docker compose up -d`): se cargan almacenes, cinco roles y un usuario por rol (`admin`, `supervisor`...) con la contraseña `CLAVE_DATOS_PRUEBA` y, para `admin` y `supervisor`, el PIN `PIN_DATOS_PRUEBA`. Es repetible. Déjalo en `false` en producción. Sin Docker: `uv run python -m app.datos_prueba` dentro de `backend/`.
+Pon `CARGAR_DATOS_PRUEBA=true` en `.env` y vuelve a levantar (`docker compose up -d`): se cargan los seis almacenes, los cinco roles y un usuario por rol, artículos, trabajadores y las entradas iniciales de Kepler y Contratistas. Es repetible. Déjalo en `false` en producción. Sin Docker: `uv run python -m app.datos_prueba` dentro de `backend/`.
+
+#### Usuarios de prueba
+
+**Son datos de prueba, no reales.** Los diez usuarios usan la misma contraseña: el valor de `CLAVE_DATOS_PRUEBA` de tu `.env` (el equipo la comparte por fuera del repositorio; nunca es una contraseña real). El PIN de autorización de `admin` y `supervisor` es el valor de `PIN_DATOS_PRUEBA` del `.env`. El PIN es distinto de la contraseña y solo sirve para autorizar excepciones en el momento.
+
+| Usuario | Rol | Almacén | Para qué sirve en la demostración |
+|---|---|---|---|
+| `admin` | Administrador | todos | Todos los permisos; PIN de prueba |
+| `supervisor` | Supervisor | todos | Autoriza excepciones (desde su celular o con PIN), ajusta vigencias, administra el catálogo; PIN de prueba |
+| `compras` | Compras | todos | Entradas de inventario, importación, catálogo y costos |
+| `rh` | Recursos Humanos | ninguno | Alta de trabajadores, datos personales, adeudos |
+| `almacenista` | Almacenista | Kepler (KEP) | Entregar, devolver, trasladar y recibir |
+| `alm_con` | Almacenista | Contratistas (CON) | Igual, en su almacén |
+| `alm_mid` | Almacenista | Midrex (MID) | Igual, en su almacén |
+| `alm_hyl` | Almacenista | HYL (HYL) | Igual, en su almacén |
+| `alm_lam` | Almacenista | Laminador (LAM) | Igual, en su almacén |
+| `alm_min` | Almacenista | Minas (MIN) | Igual, en su almacén |
+
+Para saber cuál es la contraseña de prueba de tu copia: `grep CLAVE_DATOS_PRUEBA .env` (o `grep PIN_DATOS_PRUEBA .env` para el PIN). Para una demostración, cámbialas en `.env` y vuelve a cargar los datos de prueba (el script las actualiza). La guía de uso está en [`docs/guia-almacenista.md`](docs/guia-almacenista.md).
 
 ### Publicar con HTTPS (túnel de Cloudflare)
 
@@ -41,6 +60,27 @@ El servicio `tunel` no arranca sin el perfil `tunel`, así que el comando normal
 | Ver la bitácora de la aplicación | `docker compose logs -f app` |
 | Apagar (conserva los datos) | `docker compose down` |
 | Apagar y borrar los datos | `docker compose down -v` |
+
+## Respaldo y restauración
+
+Dos archivos con la misma marca de fecha: el volcado de la base (`bd-AAAAMMDD-HHMMSS.sql.gz`) y las firmas y fotos (`archivos-AAAAMMDD-HHMMSS.tar.gz`). Van a `respaldos/` (o a `RESPALDOS_DIR`), que no se sube al repositorio. Hay versión para bash (Git Bash, Linux) y para PowerShell; necesitan Docker y la base arriba.
+
+```bash
+./scripts/respaldo.sh                          # o: .\scripts\respaldo.ps1
+./scripts/restaurar.sh                         # el más reciente, sobre la base de producción (pide confirmación)
+./scripts/restaurar.sh --base imhotep_prueba   # en OTRA base, para probar sin tocar producción
+cd backend && MYSQL_DATABASE=imhotep_prueba uv run python -m app.mantenimiento verificar
+```
+
+- `RESPALDOS_CONSERVAR=14` conserva solo los 14 más recientes. La contraseña de MySQL nunca va en la línea de comandos.
+- `verificar` es de solo lectura: comprueba que las existencias sean la suma de los movimientos, que cada pieza esté donde dejó su último movimiento, que los folios sean consecutivos, que los vales cancelados tengan su cancelación, que los códigos no se repitan y que quien está de baja no deba equipo. Sale con `0` si todo cuadra y con `1` listando las diferencias. `reconstruir-existencias --simular` muestra lo que deberían valer las existencias sin escribir (`--aplicar`, solo con confirmación, queda en la auditoría).
+
+### Programarlo cada día
+
+- **Windows (Programador de tareas):** `schtasks /Create /SC DAILY /ST 02:00 /TN "Imhotep respaldo" /TR "powershell -NoProfile -ExecutionPolicy Bypass -File C:\ruta\al\repositorio\scripts\respaldo.ps1" /F`. Docker Desktop debe estar abierto.
+- **Linux (cron, `crontab -e`):** `0 2 * * * cd /opt/imhotep && RESPALDOS_CONSERVAR=14 ./scripts/respaldo.sh >> respaldos/respaldo.log 2>&1`
+
+Los respaldos se quedan en la misma máquina: copia `respaldos/` a otro equipo. Detalle, variables y cómo se probó: [`docs/architecture/despliegue-local-cloudflare.md`](docs/architecture/despliegue-local-cloudflare.md#respaldo-y-restauración).
 
 ## Desarrollo
 

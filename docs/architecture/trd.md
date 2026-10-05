@@ -30,7 +30,7 @@ Lo instalado hoy, según `backend/pyproject.toml` y `frontend/package.json`:
 | Construcción | Vite 8, pnpm 10 |
 | Paquetes de Python | uv |
 
-Por agregar en la Fase 0: `pytest` y `ruff` como dependencias de desarrollo. `pywebpush` está instalado y no se usa en el MVP (las notificaciones push están excluidas).
+Además: `openpyxl` (leer `.xlsx` al importar), `cryptography` (la necesita PyMySQL para entrar a MySQL 8), `httpx` y `python-multipart`; `pytest` y `ruff` como dependencias de desarrollo. En la interfaz: `qrcode.react` (QR) y los componentes base de shadcn sobre `@base-ui/react`. Se retiró `pywebpush`, que no usaba nada (las notificaciones push están excluidas).
 
 ## 3. Arquitectura general
 
@@ -87,7 +87,7 @@ Están en [api-contracts.md](api-contracts.md). Convenciones:
 - Los datos se piden al entrar a cada ruta y se vuelven a pedir tras cada acción. No hay almacén global de estado.
 - El borrador de un vale vive en el componente y se guarda en el almacenamiento local del navegador para sobrevivir a una recarga o a un corte de red.
 - Las solicitudes de autorización y los traspasos por recibir se consultan cada tres segundos mientras la pantalla está abierta.
-- Un componente de escáner unifica cámara, pistola y teclado. La librería de lectura por cámara se decide en la Fase 0, con la prueba en un celular real.
+- Un componente de escáner unifica cámara, pistola y teclado. La cámara usa la API nativa `BarcodeDetector` del navegador, sin librería ni alternativa: en un navegador que no la tiene (Firefox, Safari de escritorio, algunas versiones de iOS) la cámara no está disponible y se captura con la pistola o con el teclado. Chrome en Android, la referencia del almacenista, la trae.
 
 ## 9. Validación y manejo de errores
 
@@ -117,14 +117,14 @@ Está en [security-model.md](security-model.md).
 - **Local:** Docker Compose con base de datos, aplicación y túnel, según [despliegue-local-cloudflare.md](despliegue-local-cloudflare.md).
 - **Servidor:** el mismo Compose; cambia solo el archivo `.env`.
 - Los secretos (clave de sesión, contraseñas de MySQL, token del túnel) viven en `.env`, que no se sube al repositorio. `.env.example` documenta cada variable sin valores reales.
-- El `frontend/Dockerfile` de la plantilla usa npm y el proyecto usa pnpm: hoy no construye. Se reemplaza por un `Dockerfile` en la raíz que construye la interfaz y la copia a la imagen del servidor.
+- Un `Dockerfile` en la raíz construye la interfaz con pnpm y la copia a la imagen del servidor; el `frontend/Dockerfile` de la plantilla se retiró.
 
 ## 14. Migraciones, backups y recuperación
 
 - Todo cambio de esquema es una migración de Alembic; ninguna tabla se crea a mano.
 - Los datos de prueba se cargan con un script repetible.
-- Respaldo: volcado de MySQL y copia del volumen de archivos, con un comando documentado. Se prueba la restauración antes del release.
-- Las existencias se pueden reconstruir desde la bitácora; un comando compara ambas y reporta diferencias.
+- Respaldo: `scripts/respaldo.sh` o `respaldo.ps1` vuelcan MySQL y copian el volumen de archivos; `restaurar.sh` o `restaurar.ps1` los restauran, en la misma base o en otra para probar. Procedimiento y programación diaria en [despliegue-local-cloudflare.md](despliegue-local-cloudflare.md).
+- Las existencias se pueden reconstruir desde la bitácora: `python -m app.mantenimiento verificar` compara ambas y las demás invariantes (solo lectura) y `reconstruir-existencias --simular` muestra lo que valdrían (`--aplicar` solo por línea de comandos, con confirmación y auditoría).
 
 ## 15. Estrategia de pruebas y CI
 
@@ -135,18 +135,20 @@ Está en [security-model.md](security-model.md).
 - **Revisión:** cada historia la revisa alguien distinto de quien la implementó.
 - CI en GitHub Actions con lint, pruebas y construcción: opcional, se decide en la Fase 0.
 
-## 16. Decisiones pendientes
+## 16. Decisiones técnicas
 
-| Decisión | Cuándo se toma |
+Las que estaban pendientes en la Fase 0 ya se tomaron.
+
+| Decisión | Resultado |
 |---|---|
-| Librería de lectura por cámara y de generación de QR | Fase 0, con prueba en celular |
-| Librería para la firma en pantalla | En la historia que la usa |
-| Excel: `openpyxl` solo para leer `.xlsx` al importar; pegar desde Excel no necesita librería. La exportación es CSV con la biblioteca estándar, con acentos y sin fórmulas inyectadas | Decidido; la dependencia entra en la historia de importación |
-| El código QR lo dibuja el navegador; el servidor solo entrega el código | Decidido; la librería se elige en la Fase 0 |
-| Foto del trabajador: el navegador la reduce y la recomprime antes de subirla; el servidor valida el tipo y el tamaño. No necesita dependencia nueva | Decidido (T-09) |
-| Juego de iconos | Fase 0 |
-| Servidor de producción | Antes de la Fase 8 |
-| CI en GitHub Actions | Fase 0 |
+| Lectura por cámara | API nativa `BarcodeDetector`, sin librería ni alternativa para navegadores que no la traen (sección 8). Limitación aceptada: en ellos se usa pistola o teclado. |
+| Generación de QR | `qrcode.react`: el navegador dibuja el código; el servidor solo entrega el texto. |
+| Firma en pantalla | Lienzo (`canvas`) propio, sin librería (`firma-pad.tsx`); se envía como imagen PNG y el trazo. |
+| Excel | `openpyxl`, solo para leer `.xlsx` al importar; pegar desde Excel no necesita librería. La exportación es CSV con la biblioteca estándar, con acentos y sin fórmulas inyectadas. |
+| Foto del trabajador | El navegador la reduce y la recomprime antes de subirla; el servidor valida el tipo y el tamaño. Sin dependencia nueva (T-09). |
+| Iconos | `lucide-react`. |
+| Servidor de producción | Pendiente: antes de la Fase 8. |
+| CI en GitHub Actions | No se montó; las validaciones se corren a mano. |
 
 ## 17. Fuera de alcance técnico del MVP
 

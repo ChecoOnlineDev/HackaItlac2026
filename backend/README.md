@@ -26,6 +26,8 @@ Documentación interactiva de la API: `http://localhost:21002/api/docs`.
 | Migración nueva | `uv run alembic revision --autogenerate -m "descripcion"` (revisar a mano) |
 | Verificar que modelos y migraciones coinciden | `uv run alembic check` |
 | Deshacer todo | `uv run alembic downgrade base` |
+| Verificar la consistencia de la base (solo lectura; `0` si cuadra, `1` si no) | `uv run python -m app.mantenimiento verificar` |
+| Existencias según la bitácora, sin escribir | `uv run python -m app.mantenimiento reconstruir-existencias --simular` |
 
 ## Variables de entorno (`../.env`)
 
@@ -59,6 +61,10 @@ usuario por rol. **Son datos de prueba, no reales.** Todos usan la contraseña `
 | `alm_con`, `alm_mid`, `alm_hyl`, `alm_lam`, `alm_min` | Almacenista | CON, MID, HYL, LAM, MIN |
 
 También carga las existencias iniciales de los artículos por cantidad en Kepler y Contratistas con vales de entrada reales (`movimientos/datos_prueba.py`, usuario `compras`): folios `KEP-ING-000001` y `CON-ING-000001`. Es repetible y no duplica.
+
+## Mantenimiento y respaldo
+
+`app/mantenimiento.py` es un módulo aislado (solo importa modelos) con dos comandos de línea de comandos: `verificar` compara la base con las invariantes de `docs/architecture/data-model.md` y `reconstruir-existencias` recalcula las existencias desde la bitácora (`--simular` no escribe; `--aplicar` pide confirmación y deja auditoría, y es la única escritura de `existencia` fuera del motor). Usa la base de `MYSQL_DATABASE`, así que para revisar una copia restaurada: `MYSQL_DATABASE=otra_base uv run python -m app.mantenimiento verificar`. Sus pruebas están en `tests/test_mantenimiento.py`. Los scripts de respaldo y restauración están en `../scripts/` y se explican en el README de la raíz.
 
 ## El motor de vales
 
