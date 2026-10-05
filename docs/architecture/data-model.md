@@ -127,6 +127,8 @@ Fijadas al construir las tablas; son parte del contrato para los demás módulos
 
 El folio tiene la forma `CLAVE-TIPO-CONSECUTIVO`, por ejemplo `KEP-ENT-000123`.
 
+La CANCELACION es genérica: invierte las filas de `movimiento` del vale original (mismo `renglon`, `pieza_id`, `cantidad`, `trabajador_id` y `condicion`; origen y destino cambiados). Su `vale.almacen_id` es el del original (en un traspaso, el de origen), `vale.observacion` es el motivo y `vale.vale_origen_id` apunta al original, que pasa a `estado = CANCELADO`. No hay columna aparte para el motivo ni para el folio de la cancelación del original: salen del vale cuyo `vale_origen_id` es el original y cuyo tipo es CANCELACION.
+
 ## Invariantes
 
 1. `existencia.cantidad` es igual a la suma de entradas menos salidas de esa ubicación y artículo en `movimiento`.

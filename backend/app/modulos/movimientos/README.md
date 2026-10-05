@@ -15,7 +15,8 @@ es **genérico**: no conoce las reglas de ningún tipo de vale. Cada tipo vive e
 | `tipos/base.py` | El contrato: `ManejadorTipo` (y `TipoPendiente`, el stub). |
 | `tipos/__init__.py` | La tabla `TIPOS`: un manejador por `TipoVale`. |
 | `tipos/entrada.py`, `tipos/entrega.py` | Los dos tipos completos. |
-| `tipos/devolucion.py`, `traspaso.py`, `recepcion.py`, `cancelacion.py`, `no_adeudo.py` | Stubs (`TipoPendiente`): todo responde 501 `TIPO_NO_IMPLEMENTADO`. |
+| `tipos/cancelacion.py`, `tipos/cancelacion_reglas.py`, `schemas_cancelacion.py` | La CANCELACION: genérica (ver abajo, "La cancelación"), sus reglas puras (K-03, K-04, X-14) y su respuesta (`CancelacionOut`, `BorradorOut`). |
+| `tipos/devolucion.py`, `traspaso.py`, `recepcion.py`, `no_adeudo.py` | Stubs (`TipoPendiente`): todo responde 501 `TIPO_NO_IMPLEMENTADO`. |
 | `service.py` | `MovimientoService`: permisos por tipo, `evaluar`, `confirmar`, consultas. Controla commit y rollback. |
 | `repository.py` | Consultas, bloqueos `FOR UPDATE` e inserciones. Nunca hace commit. |
 | `router.py`, `schemas.py`, `exceptions.py` | HTTP, contratos y errores de dominio. |
@@ -145,11 +146,52 @@ sus esquemas en un archivo propio si el cuerpo necesita campos nuevos.
 | **DEVOLUCION** (`tipos/devolucion.py`) | `devoluciones.crear` | trabajador -> almacén; artículo por cantidad dañado -> BAJA (V-05); pieza dañada entra como No apta (`CatalogoService.actualizar_estado_pieza`) | V-01 a V-07, V-11 a V-14, F-08, **SM-05: nunca se bloquea por E-02** (trabajador no vigente) | `bloqueos`: trabajador, existencias y piezas. La condición (`Condicion`) es obligatoria |
 | **TRASPASO** (`tipos/traspaso.py`) | `traspasos.operar` | almacén origen -> EN_TRANSITO | X-01 a X-07, X-09, F-09 | `datos_vale`: `estado=EN_TRANSITO`, `destino_almacen_id` |
 | **RECEPCION** (`tipos/recepcion.py`) | `traspasos.operar` | EN_TRANSITO -> almacén destino | X-08, X-10 a X-13 | `datos_vale.vale_origen_id`; `bloqueos.vales` con el traspaso; `al_confirmar` cambia `vale.estado` del original (RECIBIDO o RECIBIDO_CON_DIFERENCIAS); `por_recibir(servicio, usuario)` |
-| **CANCELACION** (`tipos/cancelacion.py`) | `vales.cancelar` / `vales.cancelar_todos` | inversos de los del original | K-01 a K-05, X-14 | `bloqueos.vales`; `al_confirmar` pone el original en CANCELADO; `cancelar(servicio, usuario, vale_id, datos)` arma el cuerpo y llama a `servicio.confirmar(usuario, cuerpo, ...)`. Con `rehacer` devuelve el borrador |
 | **NO_ADEUDO** (`tipos/no_adeudo.py`) | `no_adeudo.emitir` | ninguno | B-04, B-08, invariante 8 | `construir_movimientos` devuelve `[]`; `al_confirmar` llama `TrabajadorService.marcar_inactivo`; `emitir_no_adeudo(servicio, usuario, trabajador_id, datos)`; 409 `CON_PENDIENTES` si hay pendientes |
 
-Nota para quien implemente CANCELACION: el límite de consumo (L-03) ya ignora los vales con
-`estado = CANCELADO`.
+El límite de consumo (L-03) ignora los vales con `estado = CANCELADO` (la CANCELACION ya está
+implementada; ver abajo).
+
+## La cancelación (`tipos/cancelacion.py`)
+
+Es el único tipo **genérico**: no conoce las reglas de ningún otro tipo. Trabaja con las filas de
+`movimiento` del vale original y las invierte (K-02); el contrato HTTP está en `api-contracts.md`,
+"Cancelación".
+
+- `almacen_operativo` es el primer gancho que corre y hace las comprobaciones de quién cancela:
+  404 (no existe o fuera de alcance), K-01 (403 si no es suyo y no tiene `vales.cancelar_todos`) y
+  X-14 (el almacén de destino de un traspaso no lo cancela). Devuelve el almacén del vale original.
+- `evaluar` arma un renglón por movimiento del original (el inverso) con las reglas de
+  `cancelacion_reglas.py`. Con las filas ya bloqueadas (`ctx.bloqueado`) un rojo lanza 409
+  `NO_CANCELABLE` (no `VALE_CAMBIO`); sin bloquear (`POST /api/vales/evaluar`) devuelve el semáforo.
+- K-03 para una pieza: debe seguir en el destino del movimiento y ningún otro vale puede haberla
+  movido después (`repository.hay_movimiento_posterior_de_pieza`, por fecha y `id` UUID v7). Para un
+  artículo por cantidad: la existencia del destino original debe alcanzar (se acumula por renglón).
+  Las existencias por cantidad son fungibles: no se rastrea de qué entrega salió cada unidad.
+- `bloqueos`: el vale original, su trabajador, las existencias de origen y destino de cada
+  movimiento (PROVEEDOR no lleva) y sus piezas. Dos cancelaciones simultáneas del mismo vale se
+  serializan en el bloqueo del vale: la segunda ve `CANCELADO` y responde K-03.
+- `al_confirmar` pone el original en `CANCELADO` y registra la auditoría `vale.cancelar` (K-01:
+  entra a la lista de revisión).
+- `cancelar` (endpoint) arma un `ConfirmarIn` con `vale_origen_id` y `observacion = motivo` y llama
+  a `servicio.confirmar`: folio, idempotencia por `id_cliente`, transacción y bloqueos son los del
+  motor. Con `rehacer` agrega el `borrador` (K-05).
+- Cambios aditivos al motor, por esta tarea: `NoCancelable` en `exceptions.py`; `cancelacion_de` y
+  `hay_movimiento_posterior_de_pieza` en `repository.py`; `ValeDetalleOut.cancelacion` (el original
+  CANCELADO muestra folio y motivo de su cancelación) en `schemas.py`/`service.detalle`; el endpoint
+  responde 201 o 200 (repetido) en `router.py`.
+
+### Qué no revierte una cancelación
+
+La cancelación solo invierte movimientos (existencias, resguardo, `pieza.ubicacion_id`) y marca el
+original. Los efectos propios de un tipo que no son un movimiento **no se revierten**:
+
+| Tipo cancelado | Lo que se queda como estaba después de cancelar |
+|---|---|
+| ENTRADA | La pieza creada sigue en el catálogo (queda en PROVEEDOR, sin ubicación en un almacén) con su código y su serie: un código identifica una sola cosa (RG-10). La inspección inicial registrada queda en su historial. |
+| ENTREGA | La autorización que usó queda USADA y no se libera (A-03). |
+| DEVOLUCION | Una pieza devuelta dañada quedó No apta (V-05): la cancelación la devuelve al trabajador pero **no la rehabilita**; si de verdad no estaba dañada, se inspecciona. Lo que se dio de baja (artículos por cantidad dañados, BAJA) sí regresa al trabajador. |
+| TRASPASO | Sin efectos propios: la existencia regresa al almacén de origen. |
+| Todos | La firma del original y su "Validó" no se tocan; los ve el vale original, que sigue visible. |
 
 ## Integración con otros módulos
 

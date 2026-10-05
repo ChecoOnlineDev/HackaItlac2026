@@ -49,3 +49,11 @@ class TipoNoImplementado(AppError):
 
     codigo = "TIPO_NO_IMPLEMENTADO"
     mensaje_defecto = "Esta operación todavía no está disponible."
+
+
+class NoCancelable(Conflicto):
+    """K-03, K-04, X-14: el vale no se puede cancelar. No se escribió nada. `detalles` trae, por
+    cada motivo, `{regla, mensaje}` (y `renglon` y `codigo` si es de un renglón)."""
+
+    codigo = "NO_CANCELABLE"
+    mensaje_defecto = "Este vale no se puede cancelar."

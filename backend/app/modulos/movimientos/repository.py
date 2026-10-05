@@ -15,7 +15,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.orm import Session
 
@@ -70,6 +70,33 @@ class MovimientoRepository:
         self.session.add(movimiento)
         self.session.flush()
         return movimiento
+
+    def cancelacion_de(self, vale_id: uuid.UUID) -> Vale | None:
+        """El vale de CANCELACION que cancela a `vale_id` (K-02), si existe."""
+        return self.session.scalar(
+            select(Vale).where(Vale.vale_origen_id == vale_id, Vale.tipo == TipoVale.CANCELACION)
+        )
+
+    def hay_movimiento_posterior_de_pieza(self, movimiento: Movimiento) -> bool:
+        """K-03: otro vale movió la misma pieza después de `movimiento` (por fecha y, si
+        empatan, por el `id`, que es UUID v7 y crece con el tiempo)."""
+        assert movimiento.pieza_id is not None
+        encontrado = self.session.scalar(
+            select(Movimiento.id)
+            .where(
+                Movimiento.pieza_id == movimiento.pieza_id,
+                Movimiento.vale_id != movimiento.vale_id,
+                or_(
+                    Movimiento.creado_en > movimiento.creado_en,
+                    and_(
+                        Movimiento.creado_en == movimiento.creado_en,
+                        Movimiento.id > movimiento.id,
+                    ),
+                ),
+            )
+            .limit(1)
+        )
+        return encontrado is not None
 
     def renglones_de(self, vale_id: uuid.UUID) -> list[tuple[Movimiento, Articulo, Pieza | None]]:
         filas = self.session.execute(
