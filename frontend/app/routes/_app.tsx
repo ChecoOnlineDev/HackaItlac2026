@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation, useMatches } from "react-router";
 
 import { SinPermiso } from "~/componentes/navegacion/sin-permiso";
 import { ArmazonEscritorio } from "~/componentes/navegacion/armazon-escritorio";
+import { ProveedorAtras } from "~/componentes/navegacion/atras";
 import { ArmazonMovil } from "~/componentes/navegacion/armazon-movil";
 import { manejadorDe } from "~/componentes/pantalla";
 import { Cargando } from "~/componentes/ui/cargando";
@@ -39,7 +40,9 @@ export default function LayoutApp() {
 
   return (
     <ContadoresProvider>
-      {esEscritorio ? <ArmazonEscritorio>{contenido}</ArmazonEscritorio> : <ArmazonMovil contenido={contenido} />}
+      <ProveedorAtras>
+        {esEscritorio ? <ArmazonEscritorio>{contenido}</ArmazonEscritorio> : <ArmazonMovil contenido={contenido} />}
+      </ProveedorAtras>
     </ContadoresProvider>
   );
 }

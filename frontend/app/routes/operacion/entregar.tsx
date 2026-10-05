@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, CircleAlertIcon, InfoIcon, RotateCcwIcon, WifiOffIcon } from "lucide-react";
+import { CircleAlertIcon, InfoIcon, RotateCcwIcon, UserRoundIcon, WifiOffIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker, useNavigate } from "react-router";
 
@@ -29,6 +29,8 @@ import { HojaAutorizacion } from "~/componentes/entrega/hoja-autorizacion";
 import { HojaBusquedaArticulos, type CoincidenciaArticulo } from "~/componentes/entrega/hoja-busqueda-articulos";
 import { PasoFirma } from "~/componentes/entrega/paso-firma";
 import { PasoTrabajador } from "~/componentes/entrega/paso-trabajador";
+import { BotonAtrasPaso, usarAtrasDePasos } from "~/componentes/navegacion/atras";
+import { IndicadorPasos } from "~/componentes/ui/indicador-pasos";
 import { ResultadoEntrega } from "~/componentes/entrega/resultado-entrega";
 import { SelectorAlmacen } from "~/componentes/entrega/selector-almacen";
 import type {
@@ -559,35 +561,31 @@ export default function Entregar() {
     </div>
   );
 
+  const atrasDePaso = () => {
+    if (enviando) return;
+    if (borrador.paso === "trabajador") void navegar("/");
+    else if (borrador.paso === "articulos") irA("trabajador");
+    else irA("articulos");
+  };
+  usarAtrasDePasos(borrador.paso === "resultado" ? null : atrasDePaso);
+
   const encabezado = (
-    <div className="flex items-center justify-between gap-3">
-      {borrador.paso !== "resultado" ? (
-        <Boton
-          variante="texto"
-          className="-ml-3"
-          disabled={enviando}
-          onClick={() => {
-            if (borrador.paso === "trabajador") void navegar("/");
-            else if (borrador.paso === "articulos") irA("trabajador");
-            else irA("articulos");
-          }}
-        >
-          <ArrowLeftIcon aria-hidden="true" />
-          Atrás
-        </Boton>
+    <div className="flex flex-col gap-3">
+      {borrador.paso !== "resultado" ? <BotonAtrasPaso alVolver={atrasDePaso} deshabilitado={enviando} /> : null}
+      {borrador.paso === "resultado" ? (
+        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase" aria-live="polite">
+          Entrega terminada
+        </p>
       ) : (
-        <span />
+        <IndicadorPasos actual={NUMERO_PASO[borrador.paso]} total={3} nombre={NOMBRE_PASO[borrador.paso]} />
       )}
-      <p className="text-base font-semibold text-muted-foreground" aria-live="polite">
-        {borrador.paso === "resultado" ? "Entrega terminada" : `Paso ${NUMERO_PASO[borrador.paso]} de 3 · ${NOMBRE_PASO[borrador.paso]}`}
-      </p>
     </div>
   );
 
   const selector = operaTodos ? (
     <SelectorAlmacen valor={borrador.almacenId} alCambiar={elegirAlmacen} deshabilitado={borrador.renglones.length > 0 && borrador.paso !== "trabajador"} />
   ) : almacenNombre ? (
-    <p className="text-base text-muted-foreground">
+    <p className="text-sm text-muted-foreground">
       Almacén: <span className="font-semibold text-foreground">{almacenNombre}</span>
     </p>
   ) : null;
@@ -611,7 +609,6 @@ export default function Entregar() {
           alIdentificar={(f) =>
             actualizar((b) => ({ ...b, trabajador: f, autorizacion: b.trabajador?.id === f.id ? b.autorizacion : null }))
           }
-          alCambiar={() => actualizar((b) => ({ ...b, trabajador: null, autorizacion: null }))}
         />
       </div>
     );
@@ -620,6 +617,12 @@ export default function Entregar() {
         <Boton variante="principal" disabled={razon !== null} onClick={() => irA("articulos")}>
           Continuar
         </Boton>
+        {borrador.trabajador ? (
+          <Boton variante="texto" onClick={() => actualizar((b) => ({ ...b, trabajador: null, autorizacion: null }))}>
+            <UserRoundIcon aria-hidden="true" />
+            No es esta persona
+          </Boton>
+        ) : null}
       </AccionPrincipal>
     );
   } else if (borrador.paso === "articulos") {
@@ -839,7 +842,7 @@ export default function Entregar() {
   }
 
   return (
-    <Pantalla titulo="Entregar" descripcion={borrador.paso === "resultado" ? undefined : "Entrega equipo o material a un trabajador y emite su vale."}>
+    <Pantalla titulo="Entregar">
       {encabezado}
       {!enLinea && borrador.paso !== "resultado" ? (
         <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
