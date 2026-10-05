@@ -17,7 +17,6 @@ from tests.movimientos.ayudas import crear_trabajador
 PENDIENTES = [
     TipoVale.DEVOLUCION,
     TipoVale.NO_ADEUDO,
-    TipoVale.CANCELACION,
 ]
 
 
@@ -48,9 +47,7 @@ def test_un_tipo_pendiente_responde_501_con_permiso_y_403_sin_el(almacenista, cl
         assert sin_permisos.post(ruta, json=cuerpo).status_code == 403  # sin el permiso del tipo
 
 
-def test_los_endpoints_de_traspasos_no_adeudo_y_cancelacion_existen(
-    almacenista, compras, cliente_como, session
-):
+def test_los_endpoints_de_traspasos_y_no_adeudo_existen(almacenista, cliente_como, session):
     rh = cliente_como("Recursos Humanos")
     t = crear_trabajador(session)
     assert rh.get("/api/traspasos/por-recibir").status_code == 403
@@ -62,14 +59,9 @@ def test_los_endpoints_de_traspasos_no_adeudo_y_cancelacion_existen(
         f"/api/trabajadores/{t.id}/no-adeudo", json={"id_cliente": str(uuid.uuid4())}
     )
     assert sin_permiso.status_code == 403
+    # La cancelación ya está implementada (tests/movimientos/test_cancelacion_*.py).
     cancelacion = {"motivo": "Error", "id_cliente": str(uuid.uuid4()), "rehacer": False}
-    r = almacenista.post(f"/api/vales/{uuid.uuid4()}/cancelacion", json=cancelacion)
-    assert r.status_code == 501
     assert rh.post(f"/api/vales/{uuid.uuid4()}/cancelacion", json=cancelacion).status_code == 403
-    # Compras tiene `vales.cancelar`: el stub responde 501 y no 403.
-    assert (
-        compras.post(f"/api/vales/{uuid.uuid4()}/cancelacion", json=cancelacion).status_code == 501
-    )
 
 
 def test_un_tipo_nuevo_se_enchufa_sin_tocar_el_motor(almacenista, session, monkeypatch):

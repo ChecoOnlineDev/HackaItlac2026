@@ -32,7 +32,7 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 | 409 | `TRABAJADOR_EXISTE` | Al dar de alta, el número de empleado o la CURP ya existen (T-02). Incluye en `detalles.trabajador` a la persona (`id`, `numero_empleado`, `nombre`, `estado`) y en `detalles.coincide_por` el dato que coincidió, para ofrecer el reingreso. |
 | 409 | `CON_PENDIENTES` | No se puede emitir el vale de no adeudo. Incluye los pendientes. |
 | 409 | `CON_MOVIMIENTOS` | No se puede eliminar ni cambiar control o retorno. |
-| 409 | `NO_CANCELABLE` | El vale no se puede cancelar; incluye el motivo (K-03, K-04). |
+| 409 | `NO_CANCELABLE` | El vale no se puede cancelar (K-03, K-04, X-14). `mensaje` explica por qué en español llano y `detalles` trae, por cada motivo, `{regla, mensaje}` (y `renglon` y `codigo` si es de un renglón). No se escribe nada. |
 | 403 | `AUTORIZACION_PROPIA` | Quien pidió la autorización intenta autorizarla (A-05, AC-07). |
 | 409 | `AUTORIZACION_RESUELTA` | La solicitud ya se resolvió o venció; no se resuelve de nuevo. |
 | 409 | `AUTORIZACION_INVALIDA` | La autorización no sirve para este vale: no está aprobada, venció, ya se usó, es de otro almacén o trabajador, o no cubre los renglones ni la cantidad (A-03). |
@@ -43,7 +43,7 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 | 422 | `DATOS_INVALIDOS` | Falta un dato o tiene forma incorrecta. Incluye el campo. |
 | 403 | `PIN_INCORRECTO` | El PIN de autorización no es válido (403 y no 401, para no cerrar la sesión). |
 | 429 | `DEMASIADOS_INTENTOS` | Cinco contraseñas o PIN fallidos seguidos: bloqueo de cinco minutos. Incluye `detalles.segundos_espera` y la cabecera `Retry-After`. Se responde ya en el quinto intento fallido. |
-| 501 | `TIPO_NO_IMPLEMENTADO` | El tipo de vale existe pero su operación todavía no está construida (devolución, traspaso, recepción, cancelación y no adeudo, hasta que se implementen). Solo lo ve quien tiene el permiso del tipo. |
+| 501 | `TIPO_NO_IMPLEMENTADO` | El tipo de vale existe pero su operación todavía no está construida (devolución, traspaso, recepción y no adeudo, hasta que se implementen). Solo lo ve quien tiene el permiso del tipo. |
 
 ## Acceso
 
@@ -145,7 +145,7 @@ El cuerpo de `POST /api/vales` puede traer `almacen_id`: el almacén en el que s
 | `GET /api/vales?tipo=&almacen_id=&desde=&hasta=&trabajador_id=&usuario_id=` | `vales.ver` | Lista paginada, del más nuevo al más viejo. Sin `almacenes.todos`, solo los del almacén asignado, también si filtra por otro almacén o usuario. `desde` y `hasta` son fechas del centro de México, ambas inclusivas. Con el `usuario_id` de la sesión y las fechas de hoy resuelve "Mis movimientos de hoy" (C-12). |
 | `GET /api/traspasos/por-recibir?solo_contar=&almacen_id=` | `traspasos.operar` | Traspasos con algo En tránsito (estado `EN_TRANSITO` o `RECIBIDO_CON_DIFERENCIAS`) hacia el almacén de la sesión, del más antiguo al más nuevo, con sus renglones y lo ya recibido (forma abajo). Sin `almacenes.todos`, solo los del almacén asignado (un `almacen_id` distinto es 409 `ALMACEN_CAMBIO`); con él, `almacen_id` filtra y sin él trae los de todos los almacenes. Con `solo_contar=true` responde solo `{"total": n}`: es la consulta ligera del contador del inicio (cada 30 s). |
 | `POST /api/trabajadores/{id}/no-adeudo` | `no_adeudo.emitir` | Emite el vale de no adeudo (B-04). Responde 409 `CON_PENDIENTES` si los hay. |
-| `POST /api/vales/{id}/cancelacion` | `vales.cancelar` | Cancela con `{motivo, id_cliente, rehacer}` y genera los movimientos inversos (K-01 a K-04). Con `rehacer: true` la respuesta trae además un `borrador` con los renglones del vale original, sin firma ni autorización, para corregirlos y confirmar de nuevo (K-05). Con `vales.cancelar` solo los propios; con `vales.cancelar_todos`, los de cualquiera. Responde 409 `NO_CANCELABLE` si no procede. |
+| `POST /api/vales/{id}/cancelacion` | `vales.cancelar` | Cancela con `{motivo, id_cliente, rehacer}` y genera los movimientos inversos (K-01 a K-04). Con `rehacer: true` la respuesta trae además un `borrador` con los renglones del vale original, sin firma ni autorización, para corregirlos y confirmar de nuevo (K-05). Con `vales.cancelar` solo los propios; con `vales.cancelar_todos`, los de cualquiera. Responde 409 `NO_CANCELABLE` si no procede. Forma exacta abajo, en "Cancelación". |
 
 Permiso y campos propios de cada tipo. El permiso se verifica por clave, según el `tipo` del cuerpo, antes de leer nada (403 `SIN_PERMISO`):
 
@@ -156,6 +156,7 @@ Permiso y campos propios de cada tipo. El permiso se verifica por clave, según 
 | DEVOLUCION | `devoluciones.crear` | `condicion` por renglón; `trabajador_id` solo en renglones por cantidad |
 | TRASPASO | `traspasos.operar` | `destino_almacen_id` (obligatorio); renglones por código de pieza, o de artículo con `cantidad`. Sin `trabajador_id`, `vale_origen_id`, `pieza` ni costos (422). Firma de sesión (F-09): no lleva `firma`. El vale queda `EN_TRANSITO`, folio `CLAVE-TRS-000001`. `almacen_id` solo para quien tiene `almacenes.todos`. `evaluar` trae en `motivos` del vale la regla X-03 (verde, amarillo o rojo) y por renglón X-02, X-04, X-09. |
 | RECEPCION | `traspasos.operar` | `vale_origen_id` (el traspaso, obligatorio); `renglones`: lo escaneado, por código de pieza o de artículo con `cantidad` (para recibir todo, todos los pendientes de `por-recibir`; sin renglones, 422). Sin `trabajador_id` ni `destino_almacen_id` (422). Firma de sesión (F-09). Folio `CLAVE-REC-000001` del almacén que recibe; al confirmar, el traspaso queda `RECIBIDO` o `RECIBIDO_CON_DIFERENCIAS` (X-13). `evaluar`: X-10 (vale y renglones, rojo), X-12 (renglón, rojo), X-13 (vale, amarillo). Un `vale_origen_id` inexistente es 404 y el de un vale que no es traspaso, 422. |
+| CANCELACION | `vales.cancelar` | `vale_origen_id` (el vale que se cancela) y `observacion` (el motivo); sin renglones: salen de los del original. Normalmente se usa `POST /api/vales/{id}/cancelacion`; `POST /api/vales` con este tipo hace lo mismo. |
 
 Respuesta de `GET /api/traspasos/por-recibir` (sin costos; `codigo` es lo que se escanea al recibir: el de la pieza, o el del artículo si es por cantidad):
 
@@ -232,7 +233,63 @@ Al confirmar se agrega:
 - Una ENTREGA sin `firma.imagen` responde 422 con `detalles[0].campo = "firma"` y `regla = "F-02"`.
 - Todo ocurre en una transacción: vale, movimientos, existencias, ubicación de las piezas, firma y autorización usada. El folio es `CLAVE-TIPO-CONSECUTIVO` (`KEP-ENT-000123`; los prefijos de cada tipo están en data-model.md).
 
-Detalle del vale (`GET /api/vales/{id}` y `por-token`): `{id, folio, token, tipo, estado, almacen, destino_almacen, trabajador {id, numero_empleado, nombre, puesto, area_obra}, responsable, observacion, firma_modo, tiene_firma, valido, vale_origen_id, vale_origen_folio, dispositivo, creado_en, renglones}`. Cada renglón: `{renglon, articulo, marca, modelo, talla, codigo_articulo, codigo_pieza, numero_serie, cantidad, condicion, nivel, reglas, observacion, origen, destino, saldo_origen, saldo_destino}`. `valido` es el "Validó" de A-04: `{autorizacion_id, solicito, autorizo, medio, resuelta_en, motivo}` o `null`. Sin costos.
+Detalle del vale (`GET /api/vales/{id}` y `por-token`): `{id, folio, token, tipo, estado, almacen, destino_almacen, trabajador {id, numero_empleado, nombre, puesto, area_obra}, responsable, observacion, firma_modo, tiene_firma, valido, vale_origen_id, vale_origen_folio, cancelacion, dispositivo, creado_en, renglones}`. Cada renglón: `{renglon, articulo, marca, modelo, talla, codigo_articulo, codigo_pieza, numero_serie, cantidad, condicion, nivel, reglas, observacion, origen, destino, saldo_origen, saldo_destino}`. `valido` es el "Validó" de A-04: `{autorizacion_id, solicito, autorizo, medio, resuelta_en, motivo}` o `null`. `cancelacion` solo viene en un vale con `estado = CANCELADO`: `{id, folio, motivo, responsable {id, nombre}, creado_en}` del vale de cancelación que lo canceló (K-02); en los demás es `null`. Sin costos.
+
+### Cancelación (`POST /api/vales/{id}/cancelacion`)
+
+Cuerpo: `{ "motivo": "Capturé el artículo equivocado", "id_cliente": "c4a1…", "rehacer": false }`. `motivo` es obligatorio (sin él, 422; K-01) y queda en `observacion` del vale de cancelación. `id_cliente` lo genera el dispositivo (un doble toque no cancela dos veces). `rehacer` es opcional (`false` por defecto).
+
+Quién (K-01), antes de leer nada más:
+
+- 404 si el vale no existe o está fuera del almacén del usuario (AC-06).
+- 403 `SIN_PERMISO` si el vale no es suyo y no tiene `vales.cancelar_todos`: "Solo puedes cancelar los vales que tú hiciste."
+- 409 `NO_CANCELABLE` (X-14) si quien lo pide es del almacén de destino de un traspaso y no puede operar todos los almacenes: lo cancela el almacén de origen.
+
+Qué hace, en una sola transacción (RG-09): genera un vale de CANCELACION con su propio folio (`KEP-CAN-000001`, del almacén del vale original; en un traspaso, el de origen) y los movimientos inversos de todos los del original (origen y destino invertidos, misma pieza y cantidad; copian `trabajador_id` y `condicion`, así el reporte de consumo C-08 los resta); regresa las existencias y `pieza.ubicacion_id`; deja el original con `estado = CANCELADO`, y anota en la auditoría `vale.cancelar` (entra a la lista de revisión, K-01). La autorización que usó una entrega cancelada sigue USADA (A-03). No se cancela parcialmente.
+
+Cuándo responde 409 `NO_CANCELABLE`, sin escribir nada. Cada motivo lleva su regla:
+
+| Regla | Motivo |
+|---|---|
+| K-03 | La pieza ya se movió después de este vale (el mensaje dice dónde está o quién la tiene), o tuvo otros movimientos después. |
+| K-03 | Las existencias ya no alcanzan para revertirlo ("se necesitan 10 en el almacén KEP y hay 2"). |
+| K-03 | El vale ya está cancelado (el mensaje trae el folio de su cancelación). |
+| K-04 | Es una recepción, un vale de no adeudo o una cancelación. |
+| X-14 | Es un traspaso que ya se recibió (se cancela solo en tránsito, antes de la recepción). |
+
+`POST /api/vales/evaluar` con `{"tipo": "CANCELACION", "vale_origen_id": "…"}` previsualiza lo mismo sin escribir: un renglón por movimiento del original, en rojo con su regla si no se puede.
+
+Respuesta: 201 (o 200 si el `id_cliente` ya existía: la misma respuesta, sin crear nada más):
+
+```json
+{
+  "id": "01a1…", "folio": "KEP-CAN-000001", "token": "…", "creado_en": "2026-10-05T16:20:00Z",
+  "renglones": [ { "renglon": 1, "codigo": "GUA-001", "articulo": "Guantes", "cantidad": 10, "nivel": "VERDE", "reglas": ["K-02"] } ],
+  "vale_cancelado": { "id": "01a0…", "folio": "KEP-ENT-000012", "estado": "CANCELADO" },
+  "motivo": "Capturé el artículo equivocado",
+  "borrador": null
+}
+```
+
+Con `"rehacer": true`, `borrador` trae los datos del vale cancelado, con la forma del cuerpo de `POST /api/vales/evaluar`, listo para que la interfaz lo cargue, corrija y confirme como un vale nuevo (K-05):
+
+```json
+"borrador": {
+  "tipo": "ENTREGA",
+  "almacen_id": "01a0…",
+  "trabajador_id": "01a1…",
+  "destino_almacen_id": null,
+  "observacion": null,
+  "renglones": [
+    { "codigo": "GUA-001", "cantidad": 10, "condicion": "BUENO", "observacion": null, "pieza": null }
+  ]
+}
+```
+
+- Sin `firma`, sin `autorizacion_id` y sin `id_cliente`: el vale nuevo se firma de nuevo, se vuelve a evaluar completo (puede salir naranja o rojo aunque el original no lo fuera) y la interfaz genera su `id_cliente`.
+- `codigo` es el de la pieza en los renglones de una pieza, y el del artículo en los de cantidad. `condicion` y `observacion` son las del movimiento original.
+- `trabajador_id` va en ENTREGA y DEVOLUCION; `destino_almacen_id`, en TRASPASO; `almacen_id` es el almacén del vale original.
+- En una ENTRADA de una pieza, `codigo` es el del artículo y `pieza` trae el `{codigo, numero_serie}` que tenía. Esa pieza sigue registrada (queda en PROVEEDOR) y su código no se puede reutilizar (RG-10): para rehacerla hay que capturar otro código y otra serie.
 
 ## Autorizaciones
 

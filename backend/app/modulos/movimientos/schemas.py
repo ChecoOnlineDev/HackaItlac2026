@@ -286,6 +286,16 @@ class ValidoOut(BaseModel):
     motivo: str
 
 
+class CancelacionVistaOut(BaseModel):
+    """En un vale CANCELADO: su cancelación (K-02): folio, motivo, quién y cuándo."""
+
+    id: uuid.UUID
+    folio: str
+    motivo: str | None
+    responsable: PersonaOut
+    creado_en: FechaUtc
+
+
 class ValeDetalleOut(BaseModel):
     id: uuid.UUID
     folio: str
@@ -302,6 +312,8 @@ class ValeDetalleOut(BaseModel):
     valido: ValidoOut | None
     vale_origen_id: uuid.UUID | None
     vale_origen_folio: str | None
+    # Solo en un vale CANCELADO: el vale que lo canceló, con el motivo.
+    cancelacion: CancelacionVistaOut | None = None
     dispositivo: str | None
     creado_en: FechaUtc
     renglones: list[RenglonValeOut]

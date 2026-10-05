@@ -93,7 +93,8 @@ router.py ──► service.py (MovimientoService: permisos por tipo, evaluar, c
                  │
                  ├─ tipos/__init__.py  TIPOS: un ManejadorTipo por TipoVale
                  │     entrada.py, entrega.py     completos
-                 │     devolucion, traspaso, recepcion, cancelacion, no_adeudo   stubs (501)
+                 │     cancelacion.py             completo (genérico, a partir de las filas de movimiento)
+                 │     devolucion, traspaso, recepcion, no_adeudo   stubs (501)
                  ├─ cargador.py        lee los hechos de la base (no escribe)
                  ├─ evaluador.py       funciones puras: una por regla, con su ID (SM-01, SM-06)
                  └─ repository.py      consultas, bloqueos FOR UPDATE e inserciones

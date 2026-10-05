@@ -58,6 +58,7 @@ from app.modulos.movimientos.exceptions import (
 )
 from app.modulos.movimientos.models import (
     PREFIJO_FOLIO,
+    EstadoVale,
     Movimiento,
     Nivel,
     TipoVale,
@@ -67,6 +68,8 @@ from app.modulos.movimientos.repository import FiltroVales, MovimientoRepository
 from app.modulos.movimientos.schemas import (
     AlmacenResumenOut,
     ArticuloEvaluadoOut,
+    CancelacionIn,
+    CancelacionVistaOut,
     ConfirmarIn,
     EvaluacionOut,
     MotivoOut,
@@ -646,6 +649,7 @@ class MovimientoService:
 
         origen_vale = self.repository.vale(vale.vale_origen_id) if vale.vale_origen_id else None
         return ValeDetalleOut(
+            cancelacion=self._cancelacion_vista(vale),
             id=vale.id,
             folio=vale.folio,
             token=vale.token,
@@ -691,6 +695,23 @@ class MovimientoService:
                 )
                 for m, a, p in filas
             ],
+        )
+
+    def _cancelacion_vista(self, vale: Vale) -> CancelacionVistaOut | None:
+        """K-02: el vale CANCELADO muestra el folio y el motivo de su cancelación."""
+        if vale.estado != EstadoVale.CANCELADO:
+            return None
+        cancelacion = self.repository.cancelacion_de(vale.id)
+        if cancelacion is None:
+            return None
+        quien = self.repository.usuario(cancelacion.responsable_id)
+        assert quien is not None
+        return CancelacionVistaOut(
+            id=cancelacion.id,
+            folio=cancelacion.folio,
+            motivo=cancelacion.observacion,
+            responsable=PersonaOut(id=quien.id, nombre=quien.nombre),
+            creado_en=cancelacion.creado_en,
         )
 
     def _valido(self, vale: Vale) -> ValidoOut | None:
@@ -780,7 +801,7 @@ class MovimientoService:
         manejador = self.exigir_permiso_del_tipo(usuario, TipoVale.NO_ADEUDO)
         return manejador.emitir_no_adeudo(self, usuario, trabajador_id, datos)
 
-    def cancelar(self, usuario: Usuario, vale_id: uuid.UUID, datos):
+    def cancelar(self, usuario: Usuario, vale_id: uuid.UUID, datos: CancelacionIn):
         """`POST /api/vales/{id}/cancelacion`: lo resuelve el tipo CANCELACION."""
         manejador = self.exigir_permiso_del_tipo(usuario, TipoVale.CANCELACION)
         return manejador.cancelar(self, usuario, vale_id, datos)

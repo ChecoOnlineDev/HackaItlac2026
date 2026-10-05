@@ -34,6 +34,7 @@ from app.modulos.movimientos.schemas import (
     ValeFilters,
     ValeListItem,
 )
+from app.modulos.movimientos.schemas_cancelacion import CancelacionOut
 from app.modulos.movimientos.service import MovimientoService
 
 router = APIRouter(tags=["movimientos"])
@@ -131,10 +132,22 @@ def emitir_no_adeudo(
     return service.emitir_no_adeudo(usuario, trabajador_id, datos)
 
 
-@router.post("/vales/{vale_id}/cancelacion", response_model=None)
+@router.post(
+    "/vales/{vale_id}/cancelacion",
+    response_model=CancelacionOut,
+    status_code=status.HTTP_201_CREATED,
+)
 def cancelar(
-    vale_id: uuid.UUID, datos: CancelacionIn, usuario: UsuarioCancelar, service: ServiceDep
-) -> Any:
+    vale_id: uuid.UUID,
+    datos: CancelacionIn,
+    usuario: UsuarioCancelar,
+    service: ServiceDep,
+    respuesta: Response,
+) -> CancelacionOut:
     """`vales.cancelar` (los propios) o `vales.cancelar_todos`. Cancela con movimientos inversos
-    (K-01 a K-05); 409 `NO_CANCELABLE` si no procede."""
-    return service.cancelar(usuario, vale_id, datos)
+    (K-01 a K-05): 201 con la cancelación; 200 si el `id_cliente` ya existía; 409 `NO_CANCELABLE`
+    si no procede. Con `rehacer`, trae el `borrador` del vale cancelado."""
+    cancelacion = service.cancelar(usuario, vale_id, datos)
+    if not cancelacion.creado:
+        respuesta.status_code = status.HTTP_200_OK
+    return cancelacion
