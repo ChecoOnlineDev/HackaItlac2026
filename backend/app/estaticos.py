@@ -121,4 +121,3 @@ def configurar_interfaz(app: FastAPI, directorio: Path, *, cookie_segura: bool) 
     hashes = _hashes_de_scripts(directorio / "index.html") if hay_interfaz else []
     agregar_cabeceras_seguridad(app, csp=politica_csp(hashes), hsts=cookie_segura)
     return montar_interfaz(app, directorio)
-
