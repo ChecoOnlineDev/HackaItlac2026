@@ -54,6 +54,10 @@ Cómo se presenta y se comporta cada pantalla del [app flow](app-flow.md). Cubre
 
 **Impresión.** Lo que se imprime (el vale y la hoja de etiquetas) se marca con la clase `zona-impresion`, que pone `EstiloImpresion` (`frontend/app/componentes/dominio/`). Al imprimir solo sale esa zona, en hoja carta, sin menús, botones ni avisos. El QR se dibuja en el navegador, siempre negro sobre blanco y con margen, y contiene exactamente el código registrado. Ningún vale muestra costos.
 
+**Renglón de recepción.** En Recibir, cada renglón del traspaso es una fila completa que funciona como casilla de recibido (48 px o más): nombre, código o serie, "Enviado, ya recibido, falta" y, en un artículo por cantidad, − y + con cuántas llegaron. Escanear el código marca el renglón; un código que no es del traspaso baja a "Códigos que no son de este traspaso" en rojo con el motivo del servidor. Lo no marcado se avisa como diferencia antes de confirmar. Componente: `frontend/app/componentes/traspasos/renglon-recepcion.tsx`.
+
+**Pasos visibles.** Un asistente de varios pasos (Importar) muestra siempre sus pasos como una lista numerada: el actual resaltado, los hechos con palomita, cada uno con número o icono y su nombre. Componente: `frontend/app/componentes/importacion/pasos.tsx`.
+
 **Estado de una lista.** Carga con esqueleto; vacío con mensaje y acción sugerida; error con "Reintentar".
 
 **Indicador de carga.** El logotipo de IMHOTEP con tres puntos que brincan en cascada. Hay tres variantes: de pantalla completa (al abrir la aplicación o una ruta), solo los puntos dentro de un botón que espera respuesta, y en línea para una sección. Con "reducir movimiento" activo, los puntos parpadean en lugar de brincar.
