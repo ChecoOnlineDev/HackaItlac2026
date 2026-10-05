@@ -50,3 +50,6 @@ respaldos/
 
 # --- Árboles de trabajo de agentes ---
 .claude/worktrees/
+
+# --- Credenciales de prueba en local (no se suben) ---
+docs/*.local.md
