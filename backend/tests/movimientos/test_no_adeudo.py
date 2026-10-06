@@ -120,10 +120,13 @@ def test_B_03_los_consumibles_no_cuentan_como_pendientes(almacenista, compras, s
 
 
 def test_B_04_un_pendiente_de_otro_almacen_se_ve_igual_desde_kepler(
-    app, almacenista, compras, crear_usuario, session, trabajador
+    app, almacenista, cliente_como, compras, crear_usuario, session, trabajador
 ):
     casco = crear_articulo(session, retornable=True)
-    abastecer(compras, casco, 3, almacen_id=str(almacen(session, "CON").id))
+    # Compras es de Kepler: Contratistas lo abastece el Administrador.
+    abastecer(
+        cliente_como("Administrador"), casco, 3, almacen_id=str(almacen(session, "CON").id)
+    )
     de_con = cliente_de(app, crear_usuario, {P.ENTREGAS_CREAR}, "CON")
     r = de_con.post(VALES, json=cuerpo_entrega(trabajador, [{"codigo": casco.codigo}]))
     assert r.status_code == 201, r.text

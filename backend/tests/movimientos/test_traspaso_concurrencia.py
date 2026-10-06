@@ -20,6 +20,13 @@ from tests.movimientos.test_concurrencia import Escenario, en_paralelo
 VALES = "/api/vales"
 
 
+@pytest.fixture
+def almacenista(cliente_como):
+    """El que opera los traspasos de Kepler: su supervisor (`traspasos.operar` es del Supervisor,
+    tabla 8.2; el almacenista no los opera). Se llama `almacenista` por las pruebas ya escritas."""
+    return cliente_como("Supervisor")
+
+
 def renglon(codigo, cantidad=1):
     return {"codigo": codigo, "cantidad": cantidad}
 

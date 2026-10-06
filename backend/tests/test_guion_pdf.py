@@ -47,7 +47,10 @@ from tests.ayudas_guion import (
 )
 from tests.conftest import iniciar_sesion_en
 from tests.invariantes import tomar_huella, verificar_invariantes
-from tests.movimientos.ayudas_traspasos import cliente_almacen  # noqa: F401  (fixture)
+from tests.movimientos.ayudas_traspasos import (  # noqa: F401  (fixtures)
+    cliente_almacen,
+    cliente_almacenista,
+)
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 64
 VALES = "/api/vales"
@@ -67,6 +70,7 @@ class Guion:
     session: object
     rh: TestClient
     sup: TestClient
+    admin: TestClient  # el único que ve todos los almacenes (AC-06)
     compras: TestClient
     kep: TestClient
     con: TestClient
@@ -418,7 +422,7 @@ def paso_4_limite_excedido_requiere_autorizacion(g: Guion, app, crear_usuario) -
     )
     assert r.status_code == 200, r.text
     assert r.json()["estado"] == "APROBADA" and r.json()["medio"] == "PIN"
-    assert r.json()["resuelta_por"]["nombre"] == "Supervisor de prueba"
+    assert r.json()["resuelta_por"]["nombre"] == "Supervisor Kepler"
     vale = entregar(kep, tid, cuerpo["renglones"], autorizacion_id=aut_pin)
     g.vales["entrega_pin"] = vale
     g.movimientos_del_trabajador += 1
@@ -429,7 +433,7 @@ def paso_4_limite_excedido_requiere_autorizacion(g: Guion, app, crear_usuario) -
     valido = kep.get(f"{VALES}/{vale['id']}").json()["valido"]
     assert valido["autorizacion_id"] == aut_pin and valido["medio"] == "PIN"
     assert valido["solicito"]["nombre"] == "Almacenista Kepler"
-    assert valido["autorizo"]["nombre"] == "Supervisor de prueba"
+    assert valido["autorizo"]["nombre"] == "Supervisor Kepler"
     assert valido["motivo"] == "Se le llenaron de grasa"
     # La autorización es de UN SOLO USO (A-03): queda USADA y no vuelve a servir.
     assert kep.get(f"{AUT}/{aut_pin}").json()["estado"] == "USADA"
@@ -485,7 +489,7 @@ def paso_4_limite_excedido_requiere_autorizacion(g: Guion, app, crear_usuario) -
     g.movimientos_del_trabajador += 1
     g.guantes_consumidos += 1
     valido = kep.get(f"{VALES}/{vale['id']}").json()["valido"]
-    assert valido["medio"] == "REMOTA" and valido["autorizo"]["nombre"] == "Supervisor de prueba"
+    assert valido["medio"] == "REMOTA" and valido["autorizo"]["nombre"] == "Supervisor Kepler"
     assert cantidad_en(kep, kep_id, "GUANTE-CAR") == antes - 3
 
     # Variante RECHAZADA: el supervisor dice que no y el vale no se puede guardar.
@@ -541,22 +545,24 @@ def paso_5_traspasos_y_recepciones(g: Guion) -> None:
     cuerpo = _traspaso_cuerpo(
         g, "CON", [{"codigo": "ALT-001"}, {"codigo": "CINCEL", "cantidad": 5}]
     )
-    ev = evaluar(g.kep, cuerpo)
+    # El traspaso entre almacenes lo envía el supervisor del origen y lo recibe el del destino
+    # (`traspasos.operar` es del Supervisor; el almacenista no lo opera).
+    ev = evaluar(g.sup, cuerpo)
     assert ev["puede_confirmar"] is True and ev["nivel"] in ("VERDE", "AMARILLO")
     folio = siguiente_folio(session, "KEP", "TRS")
-    trs1 = confirmar(g.kep, cuerpo)
+    trs1 = confirmar(g.sup, cuerpo)
     assert trs1["folio"] == folio and re.fullmatch(r"KEP-TRS-\d{6}", folio)
     g.vales["trs1"] = trs1
     sin_costos(trs1)
     d = g.kep.get(f"{VALES}/{trs1['id']}").json()
     assert d["estado"] == "EN_TRANSITO" and d["destino_almacen"]["clave"] == "CON"
-    assert d["responsable"]["nombre"] == "Almacenista Kepler"
+    assert d["responsable"]["nombre"] == "Supervisor Kepler"
     assert _suma_cincel(g) == {"KEP": 20, "CON": 10, "MID": 0, "TRANSITO": 5}
     assert cantidad_en(g.kep, g.almacen["KEP"], "ARN-KEV") == 2
     assert ubicacion_de_pieza(g.kep, "ALT-001") == "En tránsito"
 
     # Solo el destino recibe (X-10): otro almacén y el mismo origen salen en rojo.
-    for intruso in (g.hyl, g.kep):
+    for intruso in (g.hyl, g.sup):
         ev = evaluar(
             intruso,
             {
@@ -589,7 +595,7 @@ def paso_5_traspasos_y_recepciones(g: Guion) -> None:
     assert re.fullmatch(r"CON-REC-\d{6}", rec1["folio"])
     assert g.con.get(f"{VALES}/{trs1['id']}").json()["estado"] == "RECIBIDO"
     assert g.con.get(f"{VALES}/{rec1['id']}").json()["responsable"]["nombre"] == (
-        "Almacenista Contratistas"  # X-08
+        "Supervisor Contratistas"  # X-08
     )
     assert _suma_cincel(g) == {"KEP": 20, "CON": 15, "MID": 0, "TRANSITO": 0}
     assert "Contratistas" in ubicacion_de_pieza(g.con, "ALT-001")
@@ -813,8 +819,11 @@ def cierre_invariantes_y_reportes(g: Guion) -> None:
         if f["folio"] == g.vales["entrega_1"]["folio"] and f["codigo_articulo"] == "GUANTE-CAR"
     )
     assert (entrega["saldo_origen"], entrega["destino"]) == (118, "Consumido")
-    # Los traspasos se ven por almacén: tres vales del recorrido de la pieza.
+    # Los traspasos cruzan almacenes: solo quien ve todos (Administrador) los ve juntos. El
+    # supervisor de Kepler ve el que salió de su almacén y no el de Contratistas (AC-06).
     r = sup.get("/api/reportes/movimientos", params={"tipo": "TRASPASO", "tamano": 200})
+    assert {f["folio"] for f in r.json()["elementos"]} == {g.vales["trs1"]["folio"]}
+    r = g.admin.get("/api/reportes/movimientos", params={"tipo": "TRASPASO", "tamano": 200})
     assert {f["folio"] for f in r.json()["elementos"]} >= {
         g.vales["trs1"]["folio"],
         g.vales["trs2"]["folio"],
@@ -849,7 +858,7 @@ def cierre_invariantes_y_reportes(g: Guion) -> None:
     guantes = next(c for c in consumo if c["codigo"] == "GUANTE-CAR")
     assert [(t["trabajador_id"], t["cantidad"]) for t in guantes["trabajadores"]] == [(tid, 5)]
     # --- Adeudos: ya no debe nada ---
-    adeudos = sup.get("/api/reportes/adeudos", params={"tamano": 200}).json()["elementos"]
+    adeudos = g.admin.get("/api/reportes/adeudos", params={"tamano": 200}).json()["elementos"]
     assert all(a["trabajador_id"] != tid for a in adeudos)
     # --- CSV: mismos filtros, con BOM y sin costos ---
     csv = sup.get("/api/reportes/movimientos", params={"trabajador_id": tid, "formato": "csv"})
@@ -865,6 +874,7 @@ def cierre_invariantes_y_reportes(g: Guion) -> None:
 def test_guion_del_pdf_de_los_seis_pasos_de_punta_a_punta(
     cliente_como,
     cliente_almacen,  # noqa: F811
+    cliente_almacenista,  # noqa: F811
     usuario_por_rol,
     session,
     app,
@@ -874,10 +884,11 @@ def test_guion_del_pdf_de_los_seis_pasos_de_punta_a_punta(
         session=session,
         rh=cliente_como("Recursos Humanos"),
         sup=cliente_como("Supervisor"),
+        admin=cliente_como("Administrador"),
         compras=cliente_como("Compras"),
-        kep=cliente_almacen("KEP"),
-        con=cliente_almacen("CON"),
-        mid=cliente_almacen("MID"),
+        kep=cliente_almacenista("KEP"),  # entrega y devuelve; los traspasos son del supervisor
+        con=cliente_almacen("CON"),  # sup_con: recibe en Contratistas y envía a Midrex
+        mid=cliente_almacen("MID"),  # sup_mid: recibe en Midrex
         hyl=cliente_almacen("HYL"),
         pin_supervisor=usuario_por_rol("Supervisor").pin,
         almacen=ids_de_almacen(session),

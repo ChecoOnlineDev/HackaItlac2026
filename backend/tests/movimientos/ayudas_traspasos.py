@@ -54,6 +54,35 @@ def cliente_almacen(app) -> Iterator[Callable[[str], TestClient]]:
         c.close()
 
 
+USUARIO_ALMACENISTA = {
+    "KEP": "almacenista",
+    "CON": "alm_con",
+    "MID": "alm_mid",
+    "HYL": "alm_hyl",
+    "LAM": "alm_lam",
+    "MIN": "alm_min",
+}
+
+
+@pytest.fixture
+def cliente_almacenista(app) -> Iterator[Callable[[str], TestClient]]:
+    """`cliente_almacenista("CON")`: TestClient con la sesión del ALMACENISTA de ese almacén
+    (entrega y devuelve; no opera traspasos)."""
+    ajustes = get_settings()
+    clientes: list[TestClient] = []
+
+    def _cliente(clave: str) -> TestClient:
+        c = TestClient(app)
+        usuario = UsuarioPrueba(USUARIO_ALMACENISTA[clave], ajustes.clave_datos_prueba)
+        assert iniciar_sesion_en(c, usuario).status_code == 200
+        clientes.append(c)
+        return c
+
+    yield _cliente
+    for c in clientes:
+        c.close()
+
+
 def almacen_id(session: Session, clave: str) -> uuid.UUID:
     return AlmacenService(session).obtener_por_clave(clave).id
 

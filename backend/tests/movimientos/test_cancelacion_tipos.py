@@ -358,7 +358,8 @@ def test_X_14_quien_no_hizo_el_traspaso_ni_tiene_cancelar_todos_recibe_403(
 # ----------------------------------------------------------- lo que no se cancela (K-04)
 
 
-def test_K_04_una_recepcion_no_se_cancela(almacenista, supervisor, compras, session):
+def test_K_04_una_recepcion_no_se_cancela(almacenista, cliente_como, compras, session):
+    supervisor = cliente_como("Administrador")  # la recepción es de Contratistas (AC-06)
     guantes = crear_articulo(session, retornable=False)
     abastecer(compras, guantes, 10)
     traspaso = en_transito(session, "KEP", "CON", guantes, 6)

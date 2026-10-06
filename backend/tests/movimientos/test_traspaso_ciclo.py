@@ -7,6 +7,8 @@ muestra su recorrido completo.
 
 from datetime import timedelta
 
+import pytest
+
 from app.core.tiempo import hoy_mx
 from tests.movimientos.ayudas import abastecer, crear_articulo, existencia
 from tests.movimientos.ayudas_traspasos import (
@@ -24,6 +26,13 @@ from tests.movimientos.ayudas_traspasos import (
 )
 from tests.movimientos.test_entrega import pieza_en_kep
 from tests.movimientos.test_invariantes import revisar_folios, revisar_invariantes
+
+
+@pytest.fixture
+def almacenista(cliente_como):
+    """El que opera los traspasos de Kepler: su supervisor (`traspasos.operar` es del Supervisor,
+    tabla 8.2; el almacenista no los opera). Se llama `almacenista` por las pruebas ya escritas."""
+    return cliente_como("Supervisor")
 
 
 def test_paso_5_del_guion_kepler_a_contratistas_y_de_contratistas_a_midrex(

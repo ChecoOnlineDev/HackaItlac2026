@@ -44,6 +44,13 @@ from tests.movimientos.test_entrega import pieza_en_kep
 from tests.movimientos.test_invariantes import revisar_folios, revisar_invariantes
 
 
+@pytest.fixture
+def almacenista(cliente_como):
+    """El que opera los traspasos de Kepler: su supervisor (`traspasos.operar` es del Supervisor,
+    tabla 8.2; el almacenista no los opera). Se llama `almacenista` por las pruebas ya escritas."""
+    return cliente_como("Supervisor")
+
+
 def vigencia():
     return hoy_mx() + timedelta(days=60)
 
@@ -374,12 +381,14 @@ def test_un_traspaso_pide_el_permiso_traspasos_operar(cliente_como, compras, ses
     guantes = crear_articulo(session, retornable=False)
     abastecer(compras, guantes, 5)
     cuerpo = cuerpo_traspaso(session, "CON", [renglon(guantes.codigo)])
-    for rol in ("Recursos Humanos", "Compras"):  # ninguno tiene `traspasos.operar`
+    # Ninguno tiene `traspasos.operar` (tabla 8.2: es del Supervisor; el almacenista no).
+    for rol in ("Recursos Humanos", "Compras", "Almacenista"):
         c = cliente_como(rol)
         assert c.post("/api/vales/evaluar", json=cuerpo).status_code == 403, rol
         assert c.post(VALES, json=cuerpo).status_code == 403, rol
-    assert cliente_como("Almacenista").post("/api/vales/evaluar", json=cuerpo).status_code == 200
-    assert cliente_como("Supervisor").post("/api/vales/evaluar", json=cuerpo).status_code == 422
+    assert cliente_como("Supervisor").post("/api/vales/evaluar", json=cuerpo).status_code == 200
+    # Quien tiene `almacenes.todos` (Administrador) debe indicar el almacén de origen.
+    assert cliente_como("Administrador").post("/api/vales/evaluar", json=cuerpo).status_code == 422
 
 
 def test_quien_opera_todos_los_almacenes_indica_el_almacen_de_origen(
@@ -387,7 +396,7 @@ def test_quien_opera_todos_los_almacenes_indica_el_almacen_de_origen(
 ):
     guantes = crear_articulo(session, retornable=False)
     abastecer(compras, guantes, 5)
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")  # el único con `almacenes.todos`
     cuerpo = cuerpo_traspaso(
         session, "CON", [renglon(guantes.codigo, 2)], almacen_id=str(almacen_id(session, "KEP"))
     )
