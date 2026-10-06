@@ -41,6 +41,13 @@ ROLES_INICIALES: frozenset[str] = frozenset(
 )
 
 
+def es_rol_inicial(rol: Rol) -> bool:
+    """Si es uno de los cinco con los que nace el sistema. Es identidad de los datos iniciales, no
+    una decisión de permisos: eso se verifica siempre por clave (AC-04)."""
+    nombre = rol.nombre
+    return nombre in ROLES_INICIALES
+
+
 def _invalido(campo: str, mensaje: str) -> DatosInvalidos:
     return DatosInvalidos(mensaje, [{"campo": campo, "mensaje": mensaje}])
 
@@ -125,7 +132,7 @@ class RolAdminService:
             if not nombre:
                 raise _invalido("nombre", "Escribe el nombre del rol.")
             if nombre != rol.nombre:
-                if rol.nombre in ROLES_INICIALES:
+                if es_rol_inicial(rol):
                     raise RolProtegido(
                         "Los cinco roles iniciales conservan su nombre; "
                         "crea un rol nuevo si necesitas otro."
@@ -199,7 +206,7 @@ class RolAdminService:
         rol = self._obtener(rol_id)
         if rol.protegido:
             raise RolProtegido("El rol Administrador está protegido y no se puede eliminar.")
-        if rol.nombre in ROLES_INICIALES:
+        if es_rol_inicial(rol):
             raise RolProtegido(
                 "Los cinco roles iniciales no se eliminan. Si ya no lo usas, "
                 "quítale los permisos o inactívalo."
@@ -312,7 +319,7 @@ class RolAdminService:
             descripcion=rol.descripcion,
             activo=rol.activo,
             protegido=rol.protegido,
-            inicial=rol.nombre in ROLES_INICIALES,
+            inicial=es_rol_inicial(rol),
             total_usuarios=usuarios,
             total_permisos=permisos,
         )
