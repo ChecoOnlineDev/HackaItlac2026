@@ -42,6 +42,8 @@ class P:
     ALMACENES_TODOS = "almacenes.todos"
     ALMACENES_ASIGNAR_PERSONAL = "almacenes.asignar_personal"
     ETIQUETAS_IMPRIMIR = "etiquetas.imprimir"
+    COMPRAS_SOLICITAR = "compras.solicitar"
+    COMPRAS_ATENDER = "compras.atender"
 
     # --- Sección 8.3 (los agregan las features o están pospuestos) ---
     ALMACENES_ADMINISTRAR = "almacenes.administrar"
@@ -98,6 +100,8 @@ CATALOGO: tuple[Permiso, ...] = (
         True,
     ),
     Permiso(P.ETIQUETAS_IMPRIMIR, "Hojas de QR", True),
+    Permiso(P.COMPRAS_SOLICITAR, "Pedir una compra urgente", True),
+    Permiso(P.COMPRAS_ATENDER, "Atender las solicitudes de compra", True),
     Permiso(P.ALMACENES_ADMINISTRAR, "Abrir y cerrar almacenes de proyecto", False, "FEAT-002"),
     Permiso(P.REPORTES_VALOR_INVENTARIO, "Valor del inventario", False, "FEAT-002", True),
     Permiso(P.INVENTARIO_MINIMOS, "Fijar mínimos por almacén", False, "FEAT-004"),
