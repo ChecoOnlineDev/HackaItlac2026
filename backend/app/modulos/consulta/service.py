@@ -596,6 +596,7 @@ class ConsultaService:
                 trabajador=f"{f.trabajador} ({f.numero_empleado})" if f.trabajador else None,
                 saldo_origen=f.saldo_origen,
                 saldo_destino=f.saldo_destino,
+                observacion=f.observacion,
             )
             for f in filas
         ]

@@ -104,6 +104,10 @@ def engine() -> Iterator[Engine]:
 
     with get_sessionmaker()() as sesion:
         cargar_todo(sesion)
+        # FEAT-003: los puestos de prueba traen dotación (propuesta del PDF). La línea base de las
+        # pruebas la quita para que las entregas de las demás pruebas, que no hablan de dotación,
+        # no pidan observación (E-09). Las pruebas de la dotación la arman con `dotacion_de_prueba`.
+        sesion.execute(text("DELETE FROM dotacion"))
         sesion.commit()
     yield motor
     motor.dispose()
