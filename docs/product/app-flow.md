@@ -121,17 +121,22 @@ Identificar al trabajador: escanear credencial | teclear número | buscar por no
   -> no encontrado -> mensaje y reintento
   -> no vigente (E-02) -> pantalla en rojo con el motivo -> fin
   -> vigente -> ficha breve: foto, nombre, puesto, vigencia y lo que ya tiene (E-17)
+       -> con dotación: "Dotación: faltan 4 de 11" y "Ver dotación" (solo consulta); sin puesto o sin dotación no se muestra nada (D-02)
 Escanear artículos, uno tras otro (cada lectura se agrega a un borrador; nada se descuenta hasta confirmar, E-28)
+  -> "Dotación sugerida" (solo si hay dotación): hoja con casillas, sin marcar; "Agregar a la entrega" agrega lo marcado
+     como renglones normales con la cantidad que falta, por el mismo camino que escanear (nunca se carga sola)
   -> cada lectura se evalúa y aparece como renglón con nivel y motivos
   -> por cantidad: ajustar con + y -, o teclear la cantidad; volver a escanear suma 1 (E-16)
   -> cantidad inusualmente alta: se pide confirmar la cantidad (E-27)
   -> lectura accidental: Quitar el renglón, o Deshacer durante 5 segundos
   -> rojo: se quita el renglón para poder continuar
-  -> amarillo: se lee; si pide observación, se captura
+  -> amarillo: se lee y no detiene (E-09 fuera de la dotación o sobre lo recomendado, E-10 talla, E-11 inspección por vencer)
   -> naranja: Pedir autorización (flujo 7) o quitar el renglón (A-07)
 Continuar: sin rojos y con los naranjas autorizados (SM-03)
-  -> resumen, leyenda de responsabilidad y firma del trabajador (F-02)
+  -> si algún renglón pide observación (E-09): "¿Por qué se entrega esto?" con respuestas rápidas; obligatoria para confirmar
+  -> resumen (con el motivo), leyenda de responsabilidad y firma del trabajador (F-02)
 Confirmar
+  -> sin observación cuando se pide -> el servidor responde E-09 y el error sale junto al campo
   -> el servidor revalida (RG-08)
        -> algo cambió -> regresa a la lista con el renglón marcado
        -> correcto -> vale emitido: folio y QR -> Imprimir | Nueva entrega

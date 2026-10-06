@@ -153,10 +153,10 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 **Flujo principal: entregar.**
 1. Entra con su usuario y contraseña; ve su inicio.
 2. Toca **Entregar**.
-3. Escanea la credencial del trabajador (o escribe su número o nombre). Aparece su ficha: foto, nombre, número, puesto, vigencia y lo que ya tiene. Compara la foto con la persona.
+3. Escanea la credencial del trabajador (o escribe su número o nombre). Aparece su ficha: foto, nombre, número, puesto, vigencia y lo que ya tiene. Compara la foto con la persona. Si su puesto tiene dotación, la ficha dice «Dotación: faltan 4 de 11» y trae **Ver dotación**; sin dotación no aparece nada.
 4. Si el trabajador no está vigente (contrato vencido, en baja o inactivo), la ficha sale en rojo con el motivo y no se le puede entregar nada (E-02). Fin.
-5. Escanea los artículos, uno tras otro. Cada lectura es un renglón con su color y sus motivos. Escanear no mueve nada del inventario (E-28).
-6. Resuelve cada renglón: verde sigue; amarillo se lee y, si lo pide, se escribe una observación; naranja se **pide autorización** (flujo siguiente) o se quita; rojo se quita porque no hay forma de entregarlo.
+5. Escanea los artículos, uno tras otro. Cada lectura es un renglón con su color y sus motivos. Escanear no mueve nada del inventario (E-28). Con **Dotación sugerida** puede marcar, de la dotación del puesto, lo que quiera entregar y agregarlo de una vez; es una sugerencia, nada se agrega solo, y lo que entregue fuera de la dotación sale en amarillo (E-09).
+6. Resuelve cada renglón: verde sigue; amarillo se lee y sigue (un amarillo de la dotación pide, antes de confirmar, anotar «¿Por qué se entrega esto?», con respuestas rápidas); naranja se **pide autorización** (flujo siguiente) o se quita; rojo se quita porque no hay forma de entregarlo.
 7. Cuando no queda rojo ni naranja sin autorizar, toca **Continuar** (SM-03).
 8. El trabajador firma con el dedo y el almacenista toca **Confirmar entrega**.
 9. El servidor revalida todo (RG-08). Si algo cambió, regresa a la lista con el renglón marcado; si todo cuadra, emite el vale con folio y QR (por ejemplo `KEP-ENT-000123`). Ahí bajan las existencias y sube el resguardo del trabajador.

@@ -11,6 +11,8 @@ interface PropiedadesPasoFirma {
   renglones: RenglonEvaluado[];
   firma: FirmaCapturada | null;
   alCambiarFirma: (firma: FirmaCapturada | null) => void;
+  /** Lo que se anotó en "¿Por qué se entrega esto?" (E-09), si hay; se muestra en el resumen. */
+  observacion?: string;
   /** Bloquea la firma mientras se envía. */
   deshabilitado?: boolean;
 }
@@ -20,7 +22,7 @@ interface PropiedadesPasoFirma {
  * En horizontal (tableta o computadora) el resumen queda a la izquierda y la firma a la derecha.
  * Si la firma ya estaba guardada en el dispositivo (recarga o corte), se muestra su imagen con "Borrar".
  */
-export function PasoFirma({ renglones, firma, alCambiarFirma, deshabilitado }: PropiedadesPasoFirma) {
+export function PasoFirma({ renglones, firma, alCambiarFirma, observacion, deshabilitado }: PropiedadesPasoFirma) {
   // Una firma que ya venía guardada no se puede volver a dibujar sobre el recuadro: se muestra su imagen.
   const [restaurada, setRestaurada] = useState(firma !== null);
   const total = renglones.reduce((suma, r) => suma + r.cantidad, 0);
@@ -46,6 +48,12 @@ export function PasoFirma({ renglones, firma, alCambiarFirma, deshabilitado }: P
             ))}
           </ul>
         </div>
+        {observacion?.trim() ? (
+          <p className="rounded-xl bg-muted p-3 text-sm">
+            <span className="font-semibold">Motivo de la entrega: </span>
+            {observacion.trim()}
+          </p>
+        ) : null}
         <p className="rounded-xl bg-muted p-4 text-sm leading-relaxed">{LEYENDA_RESPONSABILIDAD}</p>
       </section>
 

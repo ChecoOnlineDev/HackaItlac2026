@@ -1,6 +1,6 @@
 # FEAT-003: Dotación por puesto y avisos no bloqueantes
 
-**Estado: servidor construido** (migración `0004_puestos_dotacion`, endpoints de puestos, dotación y `GET /api/trabajadores/{id}/dotacion`, avisos E-09, E-10 y E-11 en la entrega y observación en el reporte de movimientos). **Pendiente: la interfaz** (catálogo de puestos, ficha con lo que falta y observación con respuestas rápidas). Contrato en [api-contracts.md](../architecture/api-contracts.md#puestos-y-dotación); reglas en la sección 4.2 de las [reglas](../product/reglas-de-negocio.md). Los puestos y dotaciones de los datos de prueba son propuestas basadas en el PDF.
+**Estado: servidor construido y entrega con sugerencias lista** (migración `0004_puestos_dotacion`, endpoints de puestos, dotación y `GET /api/trabajadores/{id}/dotacion`, avisos E-09, E-10 y E-11 en la entrega y observación en el reporte de movimientos). La interfaz de la entrega ya trae la línea "Dotación: faltan N de M" y "Ver dotación" en la ficha, el botón "Dotación sugerida", el renglón amarillo, "¿Por qué se entrega esto?" con respuestas rápidas y la observación en el reporte de movimientos. **Pendiente: la pantalla del catálogo de puestos** (a cargo de otro frente). Contrato en [api-contracts.md](../architecture/api-contracts.md#puestos-y-dotación); reglas en la sección 4.2 de las [reglas](../product/reglas-de-negocio.md). Los puestos y dotaciones de los datos de prueba son propuestas basadas en el PDF.
 
 ## Problema u oportunidad
 

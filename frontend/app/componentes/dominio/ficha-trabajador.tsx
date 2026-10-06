@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { CheckIcon, ChevronDownIcon, ImageOffIcon, XIcon } from "lucide-react";
 
 import { Avatar } from "~/componentes/ui/avatar";
+import { Boton } from "~/componentes/ui/boton";
 import { formatearFecha } from "./fechas";
 
 /** Un artículo que el trabajador tiene en resguardo (`PendienteOut` del servidor). */
@@ -37,6 +38,13 @@ interface PropiedadesFichaTrabajador {
   trabajador: DatosFichaTrabajador;
   /** `completa`: foto grande y resguardo. `reducida`: una línea para el paso 2 de la entrega. */
   variante?: "completa" | "reducida";
+  /**
+   * Resumen de la dotación del puesto (FEAT-003), solo en la variante `completa`. Sin dotación, `null` y no se
+   * muestra nada. Es una sugerencia: no bloquea ni avisa.
+   */
+  dotacion?: { faltan: number; total: number } | null;
+  /** Abre la lista de la dotación ("Ver dotación"). */
+  alVerDotacion?: () => void;
   className?: string;
 }
 
@@ -52,7 +60,7 @@ function textoResguardo(n: number): string {
  * <FichaTrabajador trabajador={ficha} variante="completa" />
  * ```
  */
-export function FichaTrabajador({ trabajador, variante = "completa", className }: PropiedadesFichaTrabajador) {
+export function FichaTrabajador({ trabajador, variante = "completa", dotacion = null, alVerDotacion, className }: PropiedadesFichaTrabajador) {
   const { vigencia, periodo } = trabajador;
   const vigente = vigencia.vigente;
   const subtitulo = [trabajador.puesto, trabajador.area_obra].filter(Boolean).join(" · ");
@@ -135,6 +143,19 @@ export function FichaTrabajador({ trabajador, variante = "completa", className }
     <section aria-label={`Trabajador ${trabajador.nombre}`} className={contenedor}>
       {bandaRoja}
       {cabecera}
+      {dotacion && vigente ? (
+        <div className="flex items-center justify-between gap-2 border-t px-3 py-1">
+          <p className="text-sm">
+            <span className="font-semibold">Dotación: </span>
+            {dotacion.faltan === 0 ? "completa" : `faltan ${dotacion.faltan} de ${dotacion.total}`}
+          </p>
+          {alVerDotacion ? (
+            <Boton variante="texto" className="px-2 text-primary" onClick={alVerDotacion}>
+              Ver dotación
+            </Boton>
+          ) : null}
+        </div>
+      ) : null}
       {trabajador.resguardo.length > 0 ? (
         <details className="group border-t">
           <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-2 px-3 text-sm font-medium text-primary [&::-webkit-details-marker]:hidden">

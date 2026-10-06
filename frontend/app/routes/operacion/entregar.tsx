@@ -1,4 +1,4 @@
-import { CircleAlertIcon, InfoIcon, RotateCcwIcon, UserRoundIcon, WifiOffIcon } from "lucide-react";
+import { CircleAlertIcon, ClipboardListIcon, InfoIcon, RotateCcwIcon, UserRoundIcon, WifiOffIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker, useNavigate } from "react-router";
 
@@ -8,7 +8,6 @@ import { useEnLinea } from "~/api/red";
 import { ConfirmarCantidad } from "~/componentes/dominio/confirmar-cantidad";
 import { Escaner, type OrigenLectura } from "~/componentes/dominio/escaner";
 import { FichaTrabajador } from "~/componentes/dominio/ficha-trabajador";
-import { HojaObservacion } from "~/componentes/dominio/hoja-observacion";
 import { ListaRenglones } from "~/componentes/dominio/lista-renglones";
 import { TEXTO_NIVEL } from "~/componentes/dominio/renglon-semaforo";
 import { reproducir } from "~/componentes/dominio/sonido";
@@ -27,6 +26,8 @@ import {
 import { BandaAutorizacion } from "~/componentes/entrega/banda-autorizacion";
 import { HojaAutorizacion } from "~/componentes/entrega/hoja-autorizacion";
 import { HojaBusquedaArticulos, type CoincidenciaArticulo } from "~/componentes/entrega/hoja-busqueda-articulos";
+import { HojaDotacion, type DotacionElegida } from "~/componentes/entrega/hoja-dotacion";
+import { ObservacionEntrega } from "~/componentes/entrega/observacion-entrega";
 import { PasoFirma } from "~/componentes/entrega/paso-firma";
 import { PasoTrabajador } from "~/componentes/entrega/paso-trabajador";
 import { BotonAtrasPaso, usarAtrasDePasos } from "~/componentes/navegacion/atras";
@@ -41,6 +42,7 @@ import type {
   FirmaCapturada,
   ValeConfirmadoApi,
 } from "~/componentes/entrega/tipos";
+import { useDotacion } from "~/componentes/entrega/use-dotacion";
 import { useEvaluacion, type CuerpoEvaluar } from "~/componentes/entrega/use-evaluacion";
 import { AccionPrincipal, Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
 import { aviso } from "~/componentes/ui/aviso";
@@ -135,13 +137,13 @@ export default function Entregar() {
   const [errorEnvio, setErrorEnvio] = useState<ErrorEnvio>(null);
   const [enviando, setEnviando] = useState(false);
   const enviandoRef = useRef(false);
-  const [observando, setObservando] = useState<string | null>(null);
+  const [errorObservacion, setErrorObservacion] = useState<string | null>(null);
+  const [eligiendoDotacion, setEligiendoDotacion] = useState(false);
   const [pidiendoAutorizacion, setPidiendoAutorizacion] = useState(false);
   const [descartando, setDescartando] = useState(false);
   const [resultadosBusqueda, setResultadosBusqueda] = useState<{ texto: string; items: CoincidenciaArticulo[] } | null>(null);
   const [buscandoArticulo, setBuscandoArticulo] = useState(false);
   const [descartadasCantidad, setDescartadasCantidad] = useState<ReadonlySet<string>>(new Set());
-  const observacionPedida = useRef<Set<string>>(new Set());
   const sonidoPendiente = useRef<Set<string>>(new Set());
 
   // ------------------------------------------------------------------ evaluación
@@ -200,17 +202,6 @@ export default function Entregar() {
       reproducir(r.nivel === "ROJO" ? "bloqueo" : r.nivel === "VERDE" ? "ok" : "aviso");
     }
   }, [ev.actual, mapaEvaluados]);
-
-  // El renglón que pide observación abre la hoja una vez.
-  useEffect(() => {
-    if (borrador.paso !== "articulos" || !ev.actual || observando) return;
-    const r = evaluados.find((x) => x.pide_observacion && !borrador.renglones.find((b) => claveDeCodigo(b.codigo) === claveDeCodigo(x.codigo))?.observacion);
-    if (!r) return;
-    const clave = claveDeCodigo(r.codigo);
-    if (observacionPedida.current.has(clave)) return;
-    observacionPedida.current.add(clave);
-    setObservando(clave);
-  }, [borrador.paso, ev.actual, evaluados, borrador.renglones, observando]);
 
   // Un error de almacén al evaluar se atiende igual que al confirmar.
   const errorEvaluacion: ErrorApi | null = cuerpo ? ev.error : null;
@@ -352,11 +343,20 @@ export default function Entregar() {
     }));
   };
 
-  const guardarObservacion = (clave: string, texto: string) => {
-    actualizar((b) => ({
-      ...b,
-      renglones: b.renglones.map((x) => (claveDeCodigo(x.codigo) === clave ? { ...x, observacion: texto } : x)),
-    }));
+  const cambiarObservacion = (texto: string) => {
+    setErrorObservacion(null);
+    actualizar((b) => ({ ...b, observacion: texto }));
+  };
+
+  /** "Dotación sugerida": agrega lo elegido como renglones normales; el servidor evalúa cada uno (E-09 a E-11). */
+  const agregarDeDotacion = (elegidos: DotacionElegida[]) => {
+    setNotas({});
+    setAvisoCambio(null);
+    const existentes = new Set(borradorRef.current.renglones.map((r) => claveDeCodigo(r.codigo)));
+    const nuevos = elegidos.filter((e) => !existentes.has(claveDeCodigo(e.codigo)));
+    if (nuevos.length === 0) return;
+    for (const e of nuevos) sonidoPendiente.current.add(claveDeCodigo(e.codigo));
+    actualizar((b) => ({ ...b, renglones: [...b.renglones, ...nuevos.map((e) => ({ codigo: e.codigo, cantidad: e.cantidad }))] }));
   };
 
   const elegirAlmacen = (almacen: AlmacenResumen) => {
@@ -376,12 +376,12 @@ export default function Entregar() {
 
   const empezarDeNuevo = () => {
     borrarBorrador();
-    observacionPedida.current = new Set();
     sonidoPendiente.current = new Set();
     setNotas({});
     setAvisoCambio(null);
     setAlmacenCambio(null);
     setErrorEnvio(null);
+    setErrorObservacion(null);
     setRetomado(false);
     setDescartadasCantidad(new Set());
     setBorrador(nuevoBorradorEntrega(usuarioId, borradorRef.current.almacenId));
@@ -395,7 +395,9 @@ export default function Entregar() {
     enviandoRef.current = true;
     setEnviando(true);
     setErrorEnvio(null);
+    setErrorObservacion(null);
     setAvisoCambio(null);
+    const observacion = evaluacion?.pide_observacion ? b.observacion?.trim() : undefined;
     try {
       const vale = await apiPost<ValeConfirmadoApi>("/vales", {
         tipo: "ENTREGA",
@@ -403,6 +405,7 @@ export default function Entregar() {
         trabajador_id: b.trabajador.id,
         id_cliente: b.idCliente,
         autorizacion_id: b.autorizacion?.estado === "APROBADA" ? b.autorizacion.id : undefined,
+        observacion: observacion || undefined,
         renglones: b.renglones.map((r) => ({ codigo: r.codigo, cantidad: r.cantidad, observacion: r.observacion || undefined })),
         firma: { modo: "PANTALLA", imagen: b.firma.imagen, trazo: b.firma.trazo },
       });
@@ -429,6 +432,11 @@ export default function Entregar() {
     if (causa.reintentable) {
       // El sistema estaba ocupado: lo capturado sigue aquí y reintentar no duplica el vale.
       setErrorEnvio({ tipo: "conexion", mensaje: causa.message });
+      return;
+    }
+    if (causa.status === 422 && JSON.stringify(causa.detalles ?? "").includes("E-09")) {
+      // El servidor exige el motivo de una entrega fuera de lo recomendado: el error va junto al campo.
+      setErrorObservacion(causa.message);
       return;
     }
     if (causa.codigo === "VALE_CAMBIO" && causa.detalles) {
@@ -474,6 +482,20 @@ export default function Entregar() {
     ? { ...evaluacion.trabajador, periodo: borrador.trabajador?.periodo }
     : borrador.trabajador;
   const almacenNombre = evaluacion?.almacen.nombre ?? sesion.almacen?.nombre ?? null;
+  const dotacion = useDotacion(borrador.trabajador?.id ?? null, borrador.paso);
+  const yaEnLista = useMemo(
+    () =>
+      new Set([
+        ...borrador.renglones.map((r) => claveDeCodigo(r.codigo)),
+        ...evaluados.flatMap((r) => (r.articulo?.codigo ? [claveDeCodigo(r.articulo.codigo)] : [])),
+      ]),
+    [borrador.renglones, evaluados],
+  );
+  const pideObservacion = Boolean(evaluacion?.pide_observacion) || evaluados.some((r) => r.pide_observacion);
+  const motivosDeObservacion = evaluados.flatMap((r) =>
+    r.pide_observacion ? r.motivos.filter((m) => m.regla === "E-09").map((m) => m.mensaje) : [],
+  );
+  const faltaObservacion = pideObservacion && !(borrador.observacion ?? "").trim();
   const naranjasPorAutorizar = evaluados.filter((r) => r.nivel === "NARANJA" && !r.autorizado);
   const naranjasAutorizables = naranjasPorAutorizar.filter((r) => r.autorizable);
   const autorizacionPendiente = autorizacion?.estado === "PENDIENTE";
@@ -502,10 +524,6 @@ export default function Entregar() {
         ? "Esperando la respuesta del supervisor."
         : `${n === 1 ? "Un artículo requiere" : `${n} artículos requieren`} autorización. Pídela o quita el renglón.`;
     }
-    const sinObservacion = evaluados.find(
-      (r) => r.pide_observacion && !borrador.renglones.find((b) => claveDeCodigo(b.codigo) === claveDeCodigo(r.codigo))?.observacion,
-    );
-    if (sinObservacion) return `Falta la observación de ${sinObservacion.articulo?.nombre ?? sinObservacion.codigo}.`;
     const cantidadSinConfirmar = evaluados.find(
       (r) => r.requiere_confirmacion && borrador.cantidadesConfirmadas[claveDeCodigo(r.codigo)] !== r.cantidad,
     );
@@ -632,7 +650,6 @@ export default function Entregar() {
     );
   } else if (borrador.paso === "articulos") {
     const razon = razonParaNoContinuar();
-    const campoDeObservacion = observando ? mapaEvaluados.get(observando) : undefined;
     const claseSinEvaluar = "rounded-2xl border border-dashed bg-muted p-3 text-sm";
     contenido = (
       <div className="flex flex-col gap-4">
@@ -681,7 +698,6 @@ export default function Entregar() {
               onQuitar={quitar}
               onCantidad={cambiarCantidad}
               onPedirAutorizacion={() => setPidiendoAutorizacion(true)}
-              onObservacion={(r) => setObservando(claveDeCodigo(r.codigo))}
               estadoAutorizacion={(r) =>
                 r.autorizado
                   ? "autorizado"
@@ -689,7 +705,6 @@ export default function Entregar() {
                     ? "en_espera"
                     : null
               }
-              observacionDe={(r) => borrador.renglones.find((b) => claveDeCodigo(b.codigo) === claveDeCodigo(r.codigo))?.observacion}
               notas={notas}
               deshabilitado={enviando}
               vacio={
@@ -725,7 +740,7 @@ export default function Entregar() {
 
           <div className="order-1 flex flex-col gap-3 md:sticky md:top-4 md:order-2">
             <Escaner
-              activo={!pidiendoAutorizacion && !observando && !porConfirmar && !resultadosBusqueda && !descartando && !enviando}
+              activo={!pidiendoAutorizacion && !eligiendoDotacion && !porConfirmar && !resultadosBusqueda && !descartando && !enviando}
               sonidoAlLeer={false}
               onCodigo={(codigo, origen) => void alLeerArticulo(codigo, origen)}
               onRepetido={() => reproducir("aviso")}
@@ -733,26 +748,29 @@ export default function Entregar() {
               placeholderCampo="Código, serie o nombre"
             />
             {buscandoArticulo ? <Cargando variante="en-linea" texto="Buscando…" /> : null}
+            {dotacion ? (
+              <Boton variante="contorno" onClick={() => setEligiendoDotacion(true)}>
+                <ClipboardListIcon aria-hidden="true" />
+                Dotación sugerida
+              </Boton>
+            ) : null}
           </div>
         </div>
 
-        <HojaObservacion
-          abierta={observando !== null && campoDeObservacion !== undefined}
-          alCambiar={(abierta) => {
-            if (!abierta) setObservando(null);
-          }}
-          motivo={campoDeObservacion?.motivos.find((m) => m.nivel === "AMARILLO")?.mensaje ?? campoDeObservacion?.motivos[0]?.mensaje ?? "Este artículo pide una observación."}
-          regla={campoDeObservacion?.motivos[0]?.regla}
-          valorInicial={borrador.renglones.find((b) => claveDeCodigo(b.codigo) === observando)?.observacion ?? ""}
-          alGuardar={(texto) => {
-            if (observando) guardarObservacion(observando, texto);
-            setObservando(null);
-          }}
-        />
+        {dotacion ? (
+          <HojaDotacion
+            abierta={eligiendoDotacion}
+            alCambiar={setEligiendoDotacion}
+            dotacion={dotacion}
+            modo="seleccion"
+            yaEnLista={yaEnLista}
+            alAgregar={agregarDeDotacion}
+          />
+        ) : null}
 
         {porConfirmar ? (
         <ConfirmarCantidad
-          abierta={!pidiendoAutorizacion && observando === null}
+          abierta={!pidiendoAutorizacion && !eligiendoDotacion}
           alCambiar={() => {}}
           cantidad={porConfirmar.cantidad}
           articulo={(porConfirmar.articulo?.nombre ?? porConfirmar.codigo).toLocaleLowerCase("es-MX")}
@@ -796,7 +814,7 @@ export default function Entregar() {
       </AccionPrincipal>
     );
   } else if (borrador.paso === "firma") {
-    const listo = Boolean(borrador.firma) && ev.actual && Boolean(evaluacion?.puede_confirmar);
+    const listo = Boolean(borrador.firma) && ev.actual && Boolean(evaluacion?.puede_confirmar) && !faltaObservacion;
     const reintento = errorEnvio?.tipo === "conexion";
     const razon = !borrador.firma
       ? "Pide al trabajador que firme para confirmar."
@@ -804,7 +822,9 @@ export default function Entregar() {
         ? "Revisando la lista…"
         : !evaluacion?.puede_confirmar
           ? "La lista cambió. Regresa para revisarla."
-          : null;
+          : faltaObservacion
+            ? "Anota por qué se entrega esto para confirmar."
+            : null;
     contenido = (
       <div className="flex flex-col gap-4">
         {trabajador ? <FichaTrabajador trabajador={trabajador} variante="reducida" /> : null}
@@ -817,7 +837,17 @@ export default function Entregar() {
             {errorEnvio.tipo === "conexion" ? <p className="text-base">Toca “Reintentar” cuando haya conexión o el sistema responda. No se guardará dos veces.</p> : null}
           </section>
         ) : null}
+        {pideObservacion ? (
+          <ObservacionEntrega
+            valor={borrador.observacion ?? ""}
+            alCambiar={cambiarObservacion}
+            motivos={motivosDeObservacion}
+            error={errorObservacion}
+            deshabilitado={enviando}
+          />
+        ) : null}
         <PasoFirma
+          observacion={pideObservacion ? borrador.observacion : undefined}
           renglones={evaluados}
           firma={borrador.firma}
           alCambiarFirma={(f: FirmaCapturada | null) => actualizar((b) => ({ ...b, firma: f }))}

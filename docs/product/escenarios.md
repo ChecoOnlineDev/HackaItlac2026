@@ -29,7 +29,7 @@ A quien todavía no trae la credencial de la planta se le busca por su número d
 
 **Reglas e historias.** T-03, T-05, E-18, E-20, E-21, F-02; US-TRB-001, US-ENT-001, US-ENT-003.
 
-**Cobertura.** MVP. Con FEAT-003 el sistema muestra además la dotación del puesto y Oscar solo escanea lo que falta.
+**Cobertura.** MVP. Con FEAT-003 el sistema muestra además la dotación del puesto ("Dotación: faltan 4 de 11") y Oscar la agrega a la entrega con "Dotación sugerida" o solo escanea lo que falta.
 
 **Qué vigilar.** La meta es menos de un minuto por trabajador. Es la entrega que conviene cronometrar en el ensayo.
 
