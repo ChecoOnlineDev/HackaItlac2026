@@ -24,7 +24,7 @@ function Que({ solicitud: s }: { solicitud: SolicitudCompra }) {
       <span className="font-medium">{queSePide(s)}</span>
       <span className="block text-xs text-muted-foreground">
         {s.articulo ? s.articulo.codigo : "No está en el catálogo"}
-        {` · Para ${s.motivo}`}
+        <span className="hidden lg:inline">{` · Para ${s.motivo}`}</span>
       </span>
     </>
   );
@@ -71,12 +71,15 @@ export function TablaSolicitudes({ solicitudes, conAlmacen, alCancelar }: Propie
             <TableHead scope="col">Folio</TableHead>
             <TableHead scope="col">Qué se pidió</TableHead>
             <TableHead scope="col" className="text-right">
-              Cantidad
+              <abbr title="Cantidad" className="no-underline">
+                Cant.
+              </abbr>
             </TableHead>
-            <TableHead scope="col">Urgencia</TableHead>
+            <TableHead scope="col" className="hidden lg:table-cell">
+              Urgencia
+            </TableHead>
             <TableHead scope="col">Estado</TableHead>
-            <TableHead scope="col">Quién la pidió</TableHead>
-            <TableHead scope="col">Fecha</TableHead>
+            <TableHead scope="col">Quién y cuándo</TableHead>
             <TableHead scope="col">
               <span className="sr-only">Acciones</span>
             </TableHead>
@@ -93,12 +96,16 @@ export function TablaSolicitudes({ solicitudes, conAlmacen, alCancelar }: Propie
                 >
                   {s.folio}
                 </Link>
+                {/* En tableta no cabe la columna de urgencia: la insignia queda bajo el folio. */}
+                <span className="block lg:hidden">
+                  <InsigniaUrgencia urgencia={s.urgencia} />
+                </span>
               </TableCell>
               <TableCell className="max-w-64 whitespace-normal">
                 <Que solicitud={s} />
               </TableCell>
               <TableCell className="text-right font-semibold">{s.cantidad}</TableCell>
-              <TableCell>
+              <TableCell className="hidden lg:table-cell">
                 <InsigniaUrgencia urgencia={s.urgencia} />
               </TableCell>
               <TableCell className="whitespace-normal">
@@ -107,9 +114,11 @@ export function TablaSolicitudes({ solicitudes, conAlmacen, alCancelar }: Propie
               </TableCell>
               <TableCell className="whitespace-normal">
                 <span>{s.solicitante.nombre}</span>
-                {conAlmacen ? <span className="block text-xs text-muted-foreground">{s.almacen.nombre}</span> : null}
+                <span className="block text-xs text-muted-foreground">
+                  {conAlmacen ? `${s.almacen.nombre} · ` : ""}
+                  {formatearFechaHora(s.creada_en)}
+                </span>
               </TableCell>
-              <TableCell className="whitespace-normal">{formatearFechaHora(s.creada_en)}</TableCell>
               <TableCell>
                 <BotonCancelar solicitud={s} alCancelar={alCancelar} />
               </TableCell>
