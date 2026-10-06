@@ -489,7 +489,16 @@ El sistema decide qué puede hacer y qué puede ver cada usuario por **permisos*
 | AC-12 | Asignar a un usuario a un almacén, o moverlo de uno a otro, requiere el permiso `almacenes.asignar_personal`, que de inicio tiene el Supervisor. Con él se asigna solo a quienes operan un almacén (los que no tienen `almacenes.todos`), sin acceso a roles, permisos ni altas de usuarios. Un usuario tiene un solo almacén; un almacén puede tener varios usuarios (RG-07). | Decisión del equipo |
 | AC-13 | Un cambio de almacén aplica en la siguiente petición y queda en el registro de cambios, con el almacén anterior y el nuevo. Los vales y movimientos ya hechos conservan el almacén en el que se hicieron (RG-03). Un vale a medio capturar en el almacén anterior se rechaza al confirmar y su borrador se conserva. | Decisión del equipo |
 
-AC-01 a AC-07 son parte del MVP. AC-08 a AC-13 llegan con [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md); mientras tanto, los roles y los usuarios se cargan con el script de datos de prueba.
+AC-01 a AC-07 son parte del MVP. AC-08 a AC-13 son de [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md) y ya están construidas, con sus pantallas (`/usuarios`, `/roles`). Los roles y usuarios iniciales siguen cargándose con el script de datos de prueba.
+
+Cómo se cumplen AC-08 a AC-11 en el servidor (`acceso/service_roles.py`):
+
+- **Rol Administrador (AC-09).** Marcado `protegido`: no pierde `acceso.administrar`, no se inactiva ni se elimina. Nadie se quita a sí mismo `acceso.administrar` de su propio rol (`AUTO_BLOQUEO`) y ningún cambio de un rol deja al sistema sin un administrador activo (`ULTIMO_ADMINISTRADOR`); inactivar o cambiar de rol al último administrador ya lo rechazaba el alta y edición de usuarios.
+- **Roles iniciales.** Los cinco nacen con el sistema: se ajustan sus permisos, pero no se eliminan ni cambian de nombre (`ROL_PROTEGIDO`), porque el script de datos de prueba los identifica por nombre.
+- **Rol en uso (AC-11).** Se cuentan todos los usuarios asignados, incluso los inactivos (`ROL_EN_USO`).
+- **Un permiso de acción incluye el de ver su módulo.** Un rol no se guarda con `entregas.crear` sin `trabajadores.ver`, `catalogo.ver` e `inventario.ver`, por ejemplo (422); el mapa viaja como `requiere` en `GET /api/permisos`. Los cinco roles iniciales lo cumplen.
+- **Alcance (RG-07).** Si un rol recibe `almacenes.todos`, sus usuarios dejan el almacén asignado y cada uno queda en el registro de cambios; si lo pierde, quedan sin almacén hasta que alguien con `almacenes.asignar_personal` se lo asigne.
+- **Registro de cambios (AC-10).** `rol.crear`, `rol.editar`, `rol.permisos` (con la lista anterior, la nueva y lo agregado y quitado) y `rol.eliminar`, con quién, cuándo, valor anterior y nuevo.
 
 ### 8.2 Permisos y roles iniciales
 

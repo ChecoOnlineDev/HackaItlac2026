@@ -140,18 +140,18 @@ class RolRepository:
         self.session.delete(rol)
         self.session.flush()
 
-    def conteos(self) -> tuple[dict[uuid.UUID, int], dict[uuid.UUID, int]]:
-        """Usuarios y permisos por rol: `(usuarios, permisos)`."""
+    def conteos(self) -> tuple[dict[uuid.UUID, int], dict[uuid.UUID, list[str]]]:
+        """Usuarios por rol y permisos de cada rol (ordenados): `(usuarios, permisos)`."""
         usuarios = dict(
             self.session.execute(
                 select(Usuario.rol_id, func.count()).group_by(Usuario.rol_id)
             ).all()
         )
-        permisos = dict(
-            self.session.execute(
-                select(RolPermiso.rol_id, func.count()).group_by(RolPermiso.rol_id)
-            ).all()
-        )
+        permisos: dict[uuid.UUID, list[str]] = {}
+        for rol_id, clave in self.session.execute(
+            select(RolPermiso.rol_id, RolPermiso.permiso).order_by(RolPermiso.permiso)
+        ):
+            permisos.setdefault(rol_id, []).append(clave)
         return usuarios, permisos
 
     def contar_usuarios(self, rol_id: uuid.UUID) -> int:

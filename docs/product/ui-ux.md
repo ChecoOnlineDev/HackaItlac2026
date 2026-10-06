@@ -166,6 +166,13 @@ Los títulos pueden ocupar dos líneas; nada se corta con "…", salvo el nombre
 - Computadora y tableta: tabla con nombre, usuario, rol y almacén actual en una insignia; celular: tarjetas redondeadas. Cada persona lleva un botón "Cambiar almacén".
 - Ese botón abre una hoja con la persona, su almacén actual, una lista desplegable con los almacenes activos y "Sin almacén", y una frase de lo que cambiará. "Guardar" (única acción principal) y "Cancelar". Los rechazos del servidor se muestran junto a la lista. Al guardar, aviso breve y la lista se actualiza sin recargar.
 
+### Usuarios y roles (administrador)
+
+- **Usuarios (`/usuarios`):** mismo patrón que Personal: búsqueda siempre visible y filtros de rol, almacén y estado en la hoja "Filtros". En tableta y computadora, una tabla con la persona (nombre y usuario), rol, almacén, estado en una insignia y tres acciones de solo icono de 40 px (Editar, Restablecer contraseña, Inactivar o Reactivar) con su nombre accesible; en celular, tarjetas redondeadas con las mismas acciones con texto. "Nuevo usuario" arriba a la derecha abre una `Hoja`. Los errores del servidor se escriben junto al campo.
+- **Roles (`/roles`):** cuadrícula de tarjetas con nombre, insignia "Protegido" o "Rol inicial", descripción, número de usuarios y de permisos, y los botones "Ver permisos" y "Duplicar".
+- **Matriz de permisos (`/roles/:id`):** tarjetas por módulo ("Operación del almacén", "Trabajadores", "Catálogo"...), en una columna en celular y dos en pantallas anchas. Cada renglón: interruptor, descripción del permiso en lenguaje de persona y la clave técnica en pequeño y gris. Lo reservado (costos, CURP y NSS) lleva la insignia "Información reservada" y, activo, una frase de qué deja ver. Un renglón cambiado se resalta y dice "Se agrega" o "Se quita". Lo que no se puede cambiar queda deshabilitado con la razón debajo, con candado.
+- **Barra de cambios:** con cambios, una barra fija al pie (acción principal) dice en una frase qué cambia y lista los permisos agregados y quitados antes de "Guardar cambios" (que pide confirmación) o "Descartar".
+
 ### Detalle de un vale
 
 - **Jerarquía:** folio, tipo y fecha; trabajador o almacenes; renglones; firma y responsable; QR.

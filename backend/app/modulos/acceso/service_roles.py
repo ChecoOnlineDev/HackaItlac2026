@@ -69,10 +69,13 @@ class RolAdminService:
 
     # ------------------------------------------------------------------ lectura
 
-    def listar(self) -> list[RolResumenOut]:
+    def listar(self) -> list[RolDetalleOut]:
         usuarios, permisos = self.roles.conteos()
         return [
-            self._resumen(r, usuarios.get(r.id, 0), permisos.get(r.id, 0))
+            RolDetalleOut(
+                **self._resumen(r, usuarios.get(r.id, 0), len(permisos.get(r.id, []))).model_dump(),
+                permisos=permisos.get(r.id, []),
+            )
             for r in self.roles.listar()
         ]
 

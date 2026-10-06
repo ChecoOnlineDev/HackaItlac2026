@@ -8,6 +8,7 @@ import type { Pagina } from "~/api/tipos";
 import { HojaContrasena } from "~/componentes/acceso/hoja-contrasena";
 import { HojaUsuario } from "~/componentes/acceso/hoja-usuario";
 import {
+  PERMISO_TODOS_LOS_ALMACENES,
   TAMANO_PAGINA_USUARIOS,
   type AlmacenAcceso,
   type RolAcceso,
@@ -41,12 +42,9 @@ interface Filtros extends Record<string, string> {
 
 const SIN_FILTROS: Filtros = { rol: "", almacen: "", estado: "" };
 
-function AlmacenDe({ usuario }: { usuario: UsuarioAcceso }) {
-  return usuario.almacen ? (
-    <span>{usuario.almacen.nombre}</span>
-  ) : (
-    <span className="text-muted-foreground">Todos los almacenes o ninguno</span>
-  );
+function AlmacenDe({ usuario, opera }: { usuario: UsuarioAcceso; opera: boolean }) {
+  if (usuario.almacen) return <span>{usuario.almacen.nombre}</span>;
+  return <span className="text-muted-foreground">{opera ? "Sin almacén" : "Todos los almacenes"}</span>;
 }
 
 export default function Usuarios() {
@@ -84,6 +82,9 @@ export default function Usuarios() {
   const todosLosRoles = roles.datos ?? [];
   const almacenesActivos = (almacenes.datos ?? []).filter((a) => a.estado === "ACTIVO");
   const usuarios = lista.datos?.elementos ?? [];
+  /** Opera un almacén quien no tiene `almacenes.todos`: ese necesita almacén asignado. */
+  const opera = (u: UsuarioAcceso) =>
+    !(todosLosRoles.find((r) => r.id === u.rol.id)?.permisos.includes(PERMISO_TODOS_LOS_ALMACENES) ?? false);
   const activos = Object.values(filtros).filter((v) => v !== "").length;
   const hayFiltros = q !== "" || activos > 0;
 
@@ -112,26 +113,29 @@ export default function Usuarios() {
     }
   }
 
-  function acciones(u: UsuarioAcceso) {
+  /** `compacto`: solo iconos (tabla); si no, con texto (tarjetas del celular). */
+  function acciones(u: UsuarioAcceso, compacto: boolean) {
     const soyYo = u.id === sesion.usuario.id;
     return (
-      <div className="flex flex-wrap gap-2">
-        <Boton variante="contorno" onClick={() => setEditando(u)} aria-label={`Editar a ${u.nombre}`}>
+      <div className={compacto ? "flex gap-2" : "flex flex-wrap gap-2"}>
+        <Boton variante="contorno" className={compacto ? "size-10 px-0" : undefined} onClick={() => setEditando(u)} aria-label={`Editar a ${u.nombre}`} title="Editar">
           <PencilIcon aria-hidden="true" />
-          Editar
+          {compacto ? null : "Editar"}
         </Boton>
-        <Boton variante="contorno" onClick={() => setRestableciendo(u)} aria-label={`Restablecer la contraseña de ${u.nombre}`}>
+        <Boton variante="contorno" className={compacto ? "size-10 px-0" : undefined} onClick={() => setRestableciendo(u)} aria-label={`Restablecer la contraseña de ${u.nombre}`} title="Restablecer contraseña">
           <KeyRoundIcon aria-hidden="true" />
-          Contraseña
+          {compacto ? null : "Contraseña"}
         </Boton>
         {soyYo ? null : (
           <Boton
-            variante="texto"
+            variante="contorno"
+            className={compacto ? "size-10 px-0" : undefined}
             onClick={() => setCambiandoEstado(u)}
             aria-label={`${u.activo ? "Inactivar" : "Reactivar"} a ${u.nombre}`}
+            title={u.activo ? "Inactivar" : "Reactivar"}
           >
             {u.activo ? <UserXIcon aria-hidden="true" /> : <UserCheckIcon aria-hidden="true" />}
-            {u.activo ? "Inactivar" : "Reactivar"}
+            {compacto ? null : u.activo ? "Inactivar" : "Reactivar"}
           </Boton>
         )}
       </div>
@@ -166,8 +170,7 @@ export default function Usuarios() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead scope="col">Nombre</TableHead>
-                <TableHead scope="col">Usuario</TableHead>
+                <TableHead scope="col">Persona</TableHead>
                 <TableHead scope="col">Rol</TableHead>
                 <TableHead scope="col">Almacén</TableHead>
                 <TableHead scope="col">Estado</TableHead>
@@ -180,14 +183,14 @@ export default function Usuarios() {
                   <TableHead scope="row" className="whitespace-normal">
                     {u.nombre}
                     {u.id === sesion.usuario.id ? <span className="ml-2 text-xs font-normal text-muted-foreground">(tú)</span> : null}
+                    <span className="block text-xs font-normal text-muted-foreground">{u.usuario}</span>
                   </TableHead>
-                  <TableCell>{u.usuario}</TableCell>
                   <TableCell>{u.rol.nombre}</TableCell>
-                  <TableCell className="whitespace-normal"><AlmacenDe usuario={u} /></TableCell>
+                  <TableCell className="whitespace-normal"><AlmacenDe usuario={u} opera={opera(u)} /></TableCell>
                   <TableCell>
                     <Insignia estado={u.activo ? "info" : "neutra"}>{u.activo ? "Activo" : "Inactivo"}</Insignia>
                   </TableCell>
-                  <TableCell className="min-w-64">{acciones(u)}</TableCell>
+                  <TableCell className="w-px whitespace-nowrap">{acciones(u, true)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -209,9 +212,9 @@ export default function Usuarios() {
                 {u.usuario} · {u.rol.nombre}
               </p>
               <p className="text-sm">
-                Almacén: <AlmacenDe usuario={u} />
+                Almacén: <AlmacenDe usuario={u} opera={opera(u)} />
               </p>
-              {acciones(u)}
+              {acciones(u, false)}
             </li>
           ))}
         </ul>

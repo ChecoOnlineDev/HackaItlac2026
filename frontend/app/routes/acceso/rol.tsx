@@ -293,7 +293,7 @@ export default function RolDetalle() {
         abierta={confirmando === "guardar"}
         alCambiar={(a) => !ocupado && !a && setConfirmando(null)}
         mensaje={`¿Guardar los cambios de ${rol.nombre}?`}
-        detalle={`${resumenDeCambios(agregados.length, quitados.length)}. Aplican en la siguiente acción de ${textoUsuarios(rol.total_usuarios).toLowerCase()}.`}
+        detalle={`${resumenDeCambios(agregados.length, quitados.length)}. ${rol.total_usuarios === 0 ? "Todavía nadie tiene este rol." : `Aplican en la siguiente acción de ${textoUsuarios(rol.total_usuarios).toLowerCase()}.`}`}
         etiquetaConfirmar="Sí, guardar"
         etiquetaCancelar="Volver"
         cargando={ocupado}

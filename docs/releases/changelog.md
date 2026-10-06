@@ -2,6 +2,12 @@
 
 Qué trae cada versión. Se escribe a partir del historial del repositorio (`git log`), del [roadmap](../product/roadmap.md) y de los documentos del proyecto; si algo no está construido, no aparece aquí. El formato sigue el orden del roadmap.
 
+## Sin publicar: control de acceso configurable (FEAT-006)
+
+- **Roles y permisos desde la pantalla** (AC-08 a AC-11): `GET /api/permisos`; `GET`, `POST`, `PATCH` y `DELETE /api/roles`; `PUT /api/roles/{id}/permisos`. Protecciones: el Administrador no pierde `acceso.administrar`, no se inactiva ni se elimina (`ROL_PROTEGIDO`); nadie se quita a sí mismo el acceso (`AUTO_BLOQUEO`); nunca queda el sistema sin administrador activo (`ULTIMO_ADMINISTRADOR`); un rol con usuarios no se inactiva ni se elimina (`ROL_EN_USO`); los cinco roles iniciales no se eliminan ni se renombran; un permiso de acción exige los de ver que necesita. Cada cambio queda en el registro de cambios con antes y después, y aplica en la siguiente petición.
+- **Pantallas** `/usuarios` (alta, edición, rol, almacén, activar o inactivar, restablecer contraseña y PIN), `/roles` (lista, nuevo y duplicar) y `/roles/:id` (matriz de permisos por módulo con el resumen de cambios antes de guardar). Menú: grupo "Administración", solo con `acceso.administrar`.
+- Sin migración. Pendiente: el comando que restablece los cinco roles iniciales.
+
 ## Sin publicar: dotación por puesto (FEAT-003, servidor)
 
 - Catálogo de puestos (`/api/puestos`) y dotación recomendada por puesto (`GET` y `PUT /api/puestos/{id}/dotacion`), con la cantidad limitada por el límite del artículo (D-04). Migración `0004_puestos_dotacion` (tablas `puesto` y `dotacion`, `periodo_contrato.puesto_id`).
@@ -96,7 +102,7 @@ Primera versión completa del flujo principal del reto IMHOTEP: de dar de alta a
 
 - **Foto del trabajador** (FEAT-005, T-09): pasó al MVP como foto opcional en el alta.
 - **Ajuste de vigencia de una inspección** por supervisor o administrador, con motivo (P-07, permiso `piezas.ajustar_vigencia`).
-- **Usuarios y asignación de personal a almacenes** (parte de FEAT-006, AC-12 y AC-13, permiso `almacenes.asignar_personal`): API de usuarios y personal y aviso `ALMACEN_CAMBIO`. La pantalla de Personal ya existe; falta la de usuarios y la matriz editable de roles.
+- **Usuarios y asignación de personal a almacenes** (parte de FEAT-006, AC-12 y AC-13, permiso `almacenes.asignar_personal`): API de usuarios y personal y aviso `ALMACEN_CAMBIO`. Sus pantallas ya existen: Personal, Usuarios y Roles y permisos.
 - **Reporte de consumo**, **Mis movimientos de hoy**, **cancelar y rehacer** y el filtro por usuario de la bitácora, descritos arriba.
 
 ### Seguridad
@@ -124,7 +130,7 @@ Lo que existe en el código y está documentado en [security-model.md](../archit
 ### Conocido y pendiente
 
 - Pregunta de producto abierta (H11): si un almacenista puede inspeccionar piezas que están en otro almacén. Aún no se decide.
-- Lo de la segunda ola sigue sin construir: vale como prueba (FEAT-001), cierre de almacén (FEAT-002), dotación (FEAT-003), mínimos y estados (FEAT-004) y la matriz de roles (FEAT-006).
+- Lo de la segunda ola sigue sin construir: vale como prueba (FEAT-001), cierre de almacén (FEAT-002), dotación (FEAT-003) y mínimos y estados (FEAT-004); FEAT-006 ya está construida.
 - La inmutabilidad de vales y movimientos depende solo del código hasta FEAT-001 (sin sello contra alteración).
 - La cámara usa la API nativa `BarcodeDetector`: en un navegador que no la trae se usa pistola o teclado.
 - El túnel de Cloudflare no se ha probado con un token real, y no se ha ensayado el flujo con un celular real ni en el servidor. Ver la [checklist](mvp-checklist.md).

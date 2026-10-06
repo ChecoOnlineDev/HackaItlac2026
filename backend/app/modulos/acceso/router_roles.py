@@ -17,7 +17,6 @@ from app.modulos.acceso.schemas import (
     RolCreate,
     RolDetalleOut,
     RolPermisosIn,
-    RolResumenOut,
     RolUpdate,
 )
 from app.modulos.acceso.service_roles import RolAdminService, catalogo_de_permisos
@@ -39,9 +38,9 @@ def listar_permisos(_: QuienAdministra) -> list[PermisoOut]:
     return catalogo_de_permisos()
 
 
-@router.get("/roles", response_model=list[RolResumenOut])
-def listar_roles(_: QuienAdministra, service: ServiceDep) -> list[RolResumenOut]:
-    """`acceso.administrar`. Roles con su número de usuarios y de permisos."""
+@router.get("/roles", response_model=list[RolDetalleOut])
+def listar_roles(_: QuienAdministra, service: ServiceDep) -> list[RolDetalleOut]:
+    """`acceso.administrar`. Roles con su número de usuarios y sus permisos."""
     return service.listar()
 
 
