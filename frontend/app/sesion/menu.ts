@@ -5,6 +5,8 @@ import {
   FolderTree,
   History,
   Inbox,
+  KeyRound,
+  UserRoundCog,
   PackageCheck,
   PackagePlus,
   Package,
@@ -68,9 +70,11 @@ export const MENU: readonly ElementoMenu[] = [
   { id: "rep-movimientos", titulo: "Movimientos", ruta: "/reportes/movimientos", icono: FileBarChart, permisosAlguno: ["reportes.movimientos"], grupo: "Reportes", inicio: "gestion" },
   { id: "rep-adeudos", titulo: "Adeudos", ruta: "/reportes/adeudos", icono: FileBarChart, permisosAlguno: ["reportes.adeudos"], grupo: "Reportes", inicio: "gestion" },
   { id: "rep-consumo", titulo: "Consumo", ruta: "/reportes/consumo", icono: FileBarChart, permisosAlguno: ["reportes.consumo"], grupo: "Reportes", inicio: "gestion" },
+  { id: "usuarios", titulo: "Usuarios", ruta: "/usuarios", icono: UserRoundCog, permisosAlguno: ["acceso.administrar"], grupo: "Administración", inicio: "gestion" },
+  { id: "roles", titulo: "Roles y permisos", ruta: "/roles", icono: KeyRound, permisosAlguno: ["acceso.administrar"], grupo: "Administración", inicio: "gestion" },
 ];
 
-const ORDEN_GRUPOS = ["Operación", "Consulta", "Supervisión", "Personas", "Inventario y catálogo", "Reportes"];
+const ORDEN_GRUPOS = ["Operación", "Consulta", "Supervisión", "Personas", "Inventario y catálogo", "Reportes", "Administración"];
 
 export function menuPermitido(puedeAlguno: (permisos: readonly Permiso[]) => boolean): ElementoMenu[] {
   return MENU.filter((e) => !e.permisosAlguno || puedeAlguno(e.permisosAlguno));
