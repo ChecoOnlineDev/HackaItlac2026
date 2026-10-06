@@ -16,8 +16,8 @@ Son los cinco roles iniciales. Lo que puede cada uno sale de sus permisos (secci
 
 ```
 Entrar
-  -> Almacenista   -> Inicio de almacén: Entregar | Devolver | Trasladar | Recibir (n) | Consultar
-  -> Supervisor    -> Autorizaciones (n) | Personal | Operar un almacén | Catálogo | Reportes
+  -> Almacenista   -> Inicio de almacén: Entregar | Devolver | Trasladar | Recibir (n) | Consultar (en el menú: Pedir compra urgente | Compras urgentes)
+  -> Supervisor    -> Autorizaciones (n) | Personal | Operar un almacén | Catálogo | Reportes (en el menú: Pedir compra urgente | Compras urgentes)
   -> Compras       -> Inventario | Entradas | Importar | Catálogo | Etiquetas | Reportes
   -> RH            -> Trabajadores | Alta | Bajas
   -> Administrador -> todos los menús anteriores | Administración: Usuarios | Roles y permisos
@@ -308,6 +308,22 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 - **Efecto:** aplica en cuanto la persona vuelve a usar el sistema; no toca vales ni movimientos ya hechos.
 - **Vacío:** "No hay personal con ese filtro". Sin el permiso, "Tu rol no puede hacer esto".
 
+## Flujo 19: Pedir una compra urgente (almacenista y supervisor)
+
+- **Entrada:** Menú -> Operación -> Pedir compra urgente (`/compras/nueva`, permiso `compras.solicitar`). No es un botón del inicio: el inicio del almacenista sigue con Entregar, Devolver y Consultar. Desde "Compras urgentes" también está el botón "Pedir compra urgente". Al abrir la pantalla se genera el `id_cliente` y se guarda con lo escrito en un borrador del dispositivo (SC-10).
+- **Pasos:** (1) ¿Qué hace falta? Se busca un artículo del catálogo por nombre o código (espera 300 ms tras dejar de escribir) o se toca "No está en el catálogo" y se describe con texto libre, por ejemplo "Llave métrica 24 mm" (SC-02). (2) Cantidad, con menos, más y teclado numérico. (3) ¿Para qué trabajo? Respuestas rápidas ("Mantenimiento programado", "Reparación urgente", "Falta de existencia", "Otro") que llenan el motivo, que también se puede escribir. (4) Urgente (elegida) o Normal. (5) Resumen y "Enviar solicitud", deshabilitado hasta tener lo obligatorio. Quien tiene `almacenes.todos` elige además el almacén (obligatorio); los demás piden para el suyo y no lo ven como campo (SC-01).
+- **Éxito:** pantalla "Solicitud enviada" con el folio (`MID-SOL-000001`), el estado y el resumen; "Ver mis solicitudes" lleva a `/compras/mias` y "Pedir otra" empieza una nueva con otro `id_cliente`. Se borra el borrador.
+- **Doble toque o reintento:** el botón se deshabilita al enviar y el servidor devuelve la misma solicitud si el `id_cliente` ya existía con los mismos datos (SC-10). Sin conexión, la solicitud se conserva y se reintenta con el mismo identificador al volver a tocar "Enviar solicitud".
+- **Errores:** los de un dato (422) salen junto al campo; `ID_CLIENTE_EN_USO` (409) avisa que ese envío ya existía con otros datos, renueva el identificador y manda revisar "Compras urgentes"; sin almacén asignado, la pantalla lo dice y no deja enviar.
+- **Sin permiso:** "Tu rol no puede hacer esto". Compras (`compras.atender`) atiende, no pide.
+
+### Compras urgentes de mi almacén (`/compras/mias`)
+
+- **Entrada:** Menú -> Operación -> Compras urgentes (permiso `compras.solicitar`). Para el Administrador (`almacenes.todos`) se llama "Solicitudes de compra" y trae todos los almacenes con un filtro de almacén.
+- **Pasos:** búsqueda por folio, artículo o motivo; en "Filtros", estado, urgencia y "Solo las que yo pedí" (`mias=true`); lista paginada de 20 en el orden del servidor (SC-03): pendientes primero, urgentes antes y las más antiguas primero. Cada fila lleva folio, qué se pidió, cantidad, urgencia, estado, quién la pidió y cuándo; si Compras dejó una nota (por ejemplo, al rechazar) se lee en la misma fila (SC-05). Tocar una solicitud abre su detalle (`/compras/:id`).
+- **Cancelar:** el botón "Cancelar" aparece solo en las pendientes en cuya lista de `acciones` el servidor incluye `cancelar` (la pidió el usuario, o es supervisor de su almacén, o tiene `almacenes.todos`; SC-07). Pide confirmación con una nota opcional. Si Compras ya la tomó (409 `NO_CANCELABLE`), el aviso lo dice y la lista se actualiza.
+- **Vacío:** "Todavía no hay solicitudes". Error: mensaje y "Reintentar".
+
 ## Estados transversales
 
 | Estado | Comportamiento |
@@ -336,6 +352,7 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 | `/mis-movimientos` | Mis movimientos de hoy | Almacenista, supervisor, Compras |
 | `/seguimiento` | Seguimiento de piezas: todas las piezas de un artículo, dónde está o quién tiene cada una, desde cuándo y con qué vale (C-13). Acepta `?articulo=<id>` y `?q=` | Administrador, supervisor y Compras (`reportes.existencias`); cada quien ve solo lo que le toca (AC-06) |
 | `/autorizaciones` | Solicitudes pendientes | Supervisor |
+| `/compras/nueva`, `/compras/mias` | Pedir una compra urgente y ver las solicitudes de mi almacén (todas, para el administrador) | Almacenista, supervisor (`compras.solicitar`) |
 | `/personal` | Personal por almacén: asignar y mover usuarios entre almacenes | Supervisor, administrador (`almacenes.asignar_personal`) |
 | `/usuarios` | Usuarios: alta, edición, rol, almacén, activar o inactivar, restablecer contraseña y PIN | Administrador (`acceso.administrar`) |
 | `/roles`, `/roles/:id` | Roles y permisos: lista de roles y matriz de permisos de cada uno | Administrador (`acceso.administrar`) |
