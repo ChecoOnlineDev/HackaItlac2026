@@ -10,7 +10,7 @@ Quién puede hacer qué, qué puede salir mal y con qué se controla. Es tambié
 | Supervisor | Autoriza excepciones y administra el catálogo. |
 | Compras | Ve costos y carga inventario. |
 | RH | Ve datos personales. |
-| Administrador | Tiene todos los permisos. En el MVP solo carga los datos iniciales; con FEAT-006 administra roles y usuarios. |
+| Administrador | Tiene todos los permisos y es el único que ve todos los almacenes. Administra usuarios, roles y permisos desde las pantallas Usuarios y Roles y permisos (FEAT-006). |
 | Trabajador | No tiene cuenta. Puede intentar sacar equipo sin derecho o devolver equipo ajeno. |
 | Externo | Cualquiera en Internet: el sistema está publicado. |
 
@@ -43,7 +43,7 @@ Quién puede hacer qué, qué puede salir mal y con qué se controla. Es tambié
 | Presentar la credencial de otro. | El almacenista ve los datos del trabajador y su foto (T-09). |
 | Devolver equipo de otra compañía. | Un código desconocido se rechaza (V-12). |
 | Autorizarse a sí mismo un excedente. | Quien captura no puede autorizar (A-05). |
-| Darse permisos de más, o dejar un rol que exponga datos. | Solo quien tiene `acceso.administrar` cambia roles, y cada cambio queda en el registro de cambios. Hasta FEAT-006, los roles solo cambian por el script de datos. |
+| Darse permisos de más, o dejar un rol que exponga datos. | Solo quien tiene `acceso.administrar` cambia roles, y cada cambio queda en el registro de cambios. Los roles se editan desde la pantalla Roles y permisos; el rol Administrador está protegido (no pierde `acceso.administrar`) y los cinco roles iniciales no se eliminan ni se renombran. |
 | Dejar al sistema sin administrador. | El rol Administrador no pierde `acceso.administrar`, y no se inactiva al último usuario que lo tiene (AC-09). |
 | Adivinar una contraseña o un PIN. | Argon2; bloqueo de cinco minutos tras cinco intentos; mensaje de error genérico. El conteo bloquea la fila del usuario (`FOR UPDATE`) ANTES de verificar la clave: peticiones simultáneas se atienden una por una y no hay más de cinco intentos reales por ventana. Un interbloqueo o una espera de bloqueo vencida de MySQL (errores 1213 y 1205) se reintenta tres veces con una pausa corta y, si persiste, responde 503, nunca 500. |
 | Robo de sesión. | Cookie `HttpOnly`, `Secure` y `SameSite=Lax`; la sesión vence. El token lleva la versión de sesión del usuario (`usuario.version_sesion`) y solo sirve si coincide con la de la base: cerrar sesión, restablecer la contraseña o el PIN e inactivar o reactivar al usuario la incrementan y revocan los tokens anteriores, aunque alguien los haya copiado. Cerrar sesión cierra la sesión en TODOS los dispositivos de ese usuario (decisión aceptada: es lo más simple y más seguro; si se quisiera por dispositivo habría que guardar sesiones). |
@@ -86,4 +86,4 @@ Lo que falta: el respaldo se lanza a mano o con la tarea programada del equipo, 
 
 - Sin sello contra alteración hasta FEAT-001: la inmutabilidad de vales y movimientos la garantiza solo el código (no hay endpoint que los edite y los servicios no los actualizan), no la base de datos. Quien tenga acceso directo a MySQL podría modificar un registro sin dejar rastro; `verificar` detecta los cambios que rompen las invariantes (por ejemplo, existencias que ya no suman), pero no una edición que las deje cuadradas.
 - Sin segundo factor de autenticación.
-- Sin administración de usuarios ni de roles en pantalla hasta FEAT-006.
+- Un administrador con credenciales robadas puede cambiar roles y permisos: por eso el cambio queda en el registro de cambios y exige el permiso `acceso.administrar`; no hay segundo factor (ver arriba).

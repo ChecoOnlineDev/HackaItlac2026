@@ -76,7 +76,6 @@ class Guion:
     con: TestClient
     mid: TestClient
     hyl: TestClient
-    admin: TestClient
     pin_supervisor: str
     almacen: dict
     trabajador: dict = field(default_factory=dict)
@@ -893,7 +892,6 @@ def test_guion_del_pdf_de_los_seis_pasos_de_punta_a_punta(
         con=cliente_almacen("CON"),  # sup_con: recibe en Contratistas y envía a Midrex
         mid=cliente_almacen("MID"),  # sup_mid: recibe en Midrex
         hyl=cliente_almacen("HYL"),
-        admin=cliente_como("Administrador"),
         pin_supervisor=usuario_por_rol("Supervisor").pin,
         almacen=ids_de_almacen(session),
     )

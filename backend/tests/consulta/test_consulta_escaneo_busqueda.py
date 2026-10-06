@@ -129,7 +129,13 @@ def test_C_03_escanear_un_articulo_muestra_su_existencia_sin_costos(cliente_como
     datos.existencia(datos.ub_almacen("KEP"), marro, 7)
     datos.existencia(datos.ub_almacen("CON"), marro, 3)
 
-    respuesta = cliente_como("Compras").get(f"{ESCANEO}/ART-C-0001")
+    # El Administrador (único con `almacenes.todos`) ve la suma de todos los almacenes; Compras,
+    # asignado a Kepler, solo lo de Kepler (AC-06).
+    respuesta = cliente_como("Administrador").get(f"{ESCANEO}/ART-C-0001")
+    assert (
+        cliente_como("Compras").get(f"{ESCANEO}/ART-C-0001").json()["resumen"]["existencia_total"]
+        == 7
+    )
 
     assert respuesta.status_code == 200
     cuerpo = respuesta.json()

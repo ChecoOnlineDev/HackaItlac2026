@@ -51,7 +51,7 @@ def test_E_03_una_pieza_en_transito_hacia_mi_almacen_se_explica_al_almacenista_d
     compras, almacenista, cliente_almacen, session, trabajador
 ):
     _, pieza = pieza_en_kep(compras, session, vigente_hasta=vigencia_pieza())
-    enviar(almacenista, session, "MID", [renglon(pieza.codigo)])
+    enviar(cliente_almacen("KEP"), session, "MID", [renglon(pieza.codigo)])
     midrex = cliente_almacen("MID")
 
     ev = evaluar(midrex, trabajador, [renglon(pieza.codigo)])
@@ -65,7 +65,7 @@ def test_E_03_una_pieza_en_transito_hacia_otro_almacen_no_se_explica_al_almaceni
     compras, almacenista, cliente_almacen, session, trabajador
 ):
     _, pieza = pieza_en_kep(compras, session, vigente_hasta=vigencia_pieza())
-    enviar(almacenista, session, "MID", [renglon(pieza.codigo)])
+    enviar(cliente_almacen("KEP"), session, "MID", [renglon(pieza.codigo)])
     contratistas = cliente_almacen("CON")
 
     ev = evaluar(contratistas, trabajador, [renglon(pieza.codigo)])
@@ -123,7 +123,7 @@ def test_X_09_recibir_un_traspaso_sigue_funcionando_para_el_almacen_de_destino(
 ):
     guantes = crear_articulo(session, retornable=False)
     abastecer(compras, guantes, 5)
-    traspaso = enviar(almacenista, session, "MID", [renglon(guantes.codigo, 2)])
+    traspaso = enviar(cliente_almacen("KEP"), session, "MID", [renglon(guantes.codigo, 2)])
     midrex = cliente_almacen("MID")
 
     recibir(midrex, traspaso, [renglon(guantes.codigo, 2)])
