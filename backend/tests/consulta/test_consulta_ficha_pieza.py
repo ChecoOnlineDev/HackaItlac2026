@@ -133,7 +133,8 @@ def test_C_02_una_pieza_sin_movimientos_ni_inspecciones_tiene_historial_vacio(cl
     articulo = datos.articulo("Casco nuevo", control="PIEZA")
     pieza = datos.pieza(articulo, None)
 
-    ficha = cliente_como("Almacenista").get(f"{RUTA}/{pieza.id}").json()
+    # AC-06: una pieza sin ubicación solo la ve quien tiene `almacenes.todos`.
+    ficha = cliente_como("Administrador").get(f"{RUTA}/{pieza.id}").json()
 
     assert ficha["historial"] == []
     assert ficha["ubicacion"] is None
@@ -157,7 +158,9 @@ def test_C_02_la_pieza_en_un_almacen_dice_cual(cliente_como, datos):
     articulo = datos.articulo("Taladro", control="PIEZA")
     pieza = datos.pieza(articulo, datos.ub_almacen("CON"))
 
-    ficha = cliente_como("Almacenista").get(f"{RUTA}/{pieza.id}").json()
+    # AC-06: la pieza de Contratistas la ve el Administrador, no el almacenista de Kepler.
+    assert cliente_como("Almacenista").get(f"{RUTA}/{pieza.id}").status_code == 404
+    ficha = cliente_como("Administrador").get(f"{RUTA}/{pieza.id}").json()
 
     assert ficha["ubicacion"]["tipo"] == "ALMACEN"
     assert ficha["ubicacion"]["almacen_clave"] == "CON"

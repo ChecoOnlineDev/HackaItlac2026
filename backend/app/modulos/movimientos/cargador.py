@@ -10,12 +10,14 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from app.modulos.acceso.models import Usuario
+from app.modulos.acceso.service import AccesoService
 from app.modulos.almacenes.models import Ubicacion, UbicacionVirtual
 from app.modulos.almacenes.service import AlmacenService
 from app.modulos.catalogo.exceptions import ArticuloNoEncontrado, PiezaNoEncontrada
 from app.modulos.catalogo.models import Articulo, Pieza, TipoCodigo
 from app.modulos.catalogo.service import CatalogoService
 from app.modulos.movimientos.evaluador import (
+    TITULAR_OCULTO,
     HechosArticulo,
     HechosCuenta,
     HechosDotacion,
@@ -107,6 +109,15 @@ class Cargador:
         self._identificaciones: dict[str, Identificacion] = {}
         self._fichas: dict[uuid.UUID, FichaBreveOut] = {}
         self._dotaciones: dict[uuid.UUID, DotacionDelTrabajador] = {}
+        self._ve_todos: bool | None = None
+
+    @property
+    def ve_todos_los_almacenes(self) -> bool:
+        """AC-06: solo con `almacenes.todos` se ve dónde está una pieza ajena al almacén."""
+        if self._ve_todos is None:
+            acceso = AccesoService(self.repository.session)
+            self._ve_todos = acceso.puede_operar_todos_los_almacenes(self.usuario)
+        return self._ve_todos
 
     def olvidar_lecturas(self) -> None:
         """Descarta lo leído antes de bloquear las filas: al confirmar se vuelve a leer todo."""
@@ -191,7 +202,13 @@ class Cargador:
         return self.almacenes.ubicacion_virtual(virtual)
 
     def titular_de(self, pieza: Pieza) -> Titular | None:
-        """Dónde está la pieza según el sistema (E-03)."""
+        """Dónde está la pieza según el sistema (E-03).
+
+        AC-06: quien no tiene `almacenes.todos` no se entera de qué hay en otros almacenes. Una
+        pieza en otro almacén, o en tránsito hacia otro almacén, llega como OCULTO (sin lugar ni
+        nombre). Lo que tiene un trabajador (su resguardo) se sigue viendo: la devolución lo
+        necesita (V-01).
+        """
         if pieza.ubicacion_id is None:
             return Titular(None, None, "", "no está registrada en ningún almacén")
         datos = self.repository.ubicaciones([pieza.ubicacion_id]).get(pieza.ubicacion_id)
@@ -207,6 +224,8 @@ class Cargador:
                 numero_empleado=clave,
             )
         if ubicacion.tipo == "ALMACEN":
+            if not self._es_mi_almacen(ubicacion.almacen_id):
+                return TITULAR_OCULTO
             return Titular(
                 "ALMACEN",
                 ubicacion.almacen_id,
@@ -220,10 +239,28 @@ class Cargador:
         nombre = _NOMBRE_VIRTUAL.get(virtual, "Fuera de los almacenes")
         if virtual == UbicacionVirtual.EN_TRANSITO:
             destino = self.repository.destino_del_transito(pieza.id, ubicacion.id)
-            if destino:
-                nombre = f"En tránsito a {destino}"
-                texto = f"está en tránsito hacia {destino}"
+            if destino is None or not self._es_mi_almacen(destino.id):
+                return TITULAR_OCULTO
+            nombre = f"En tránsito a {destino.nombre}"
+            texto = f"está en tránsito hacia {destino.nombre}"
         return Titular("VIRTUAL", None, nombre, texto)
+
+    def _es_mi_almacen(self, almacen_id: uuid.UUID | None) -> bool:
+        """Verdadero si el usuario ve lo de ese almacén (`almacenes.todos` o el suyo)."""
+        return self.ve_todos_los_almacenes or (
+            almacen_id is not None and almacen_id == self.usuario.almacen_id
+        )
+
+    def titular_para_entrega(self, pieza: Pieza) -> Titular | None:
+        """E-03: quien no tiene `almacenes.todos` no ve dónde está una pieza que no es de su
+        almacén, ni siquiera si la tiene un trabajador: solo que no está registrada en su almacén.
+        Una pieza en tránsito hacia su almacén sí se explica (se recibe por el traspaso)."""
+        titular = self.titular_de(pieza)
+        if titular is None or self.ve_todos_los_almacenes:
+            return titular
+        if titular.tipo in ("TRABAJADOR", None):
+            return TITULAR_OCULTO
+        return titular
 
     # ---------------------------------------------------------------- existencias
 
@@ -286,7 +323,7 @@ class Cargador:
             )
         titular = None
         if pieza is not None and pieza.ubicacion_id != ubicacion_almacen_id:
-            titular = self.titular_de(pieza)
+            titular = self.titular_para_entrega(pieza)
         return HechosRenglonEntrega(
             codigo=codigo,
             cantidad=cantidad,

@@ -65,6 +65,7 @@ from app.modulos.trabajadores.repository import TrabajadorRepository
 from app.modulos.trabajadores.service import TrabajadorService, calcular_vigencia
 
 LONGITUD_MINIMA_BUSQUEDA = 2
+TEXTO_OTRO_ALMACEN = "Otro almacén"
 TEXTO_RESULTADO_INSPECCION = {"APTO": "Apta", "NO_APTO": "No apta"}
 
 
@@ -211,9 +212,9 @@ class ConsultaService:
             trabajador = self.consultas.trabajador(ref_id)
             return self._escaneo_trabajador(trabajador) if trabajador else self._desconocido()
         if tipo == TipoCodigo.ARTICULO and P.CATALOGO_VER in permisos:
-            return self._escaneo_articulo(ref_id)
+            return self._escaneo_articulo(ref_id, usuario)
         if tipo == TipoCodigo.PIEZA and P.CATALOGO_VER in permisos:
-            return self._escaneo_pieza(ref_id)
+            return self._escaneo_pieza(ref_id, usuario, permisos)
         if tipo == TipoCodigo.VALE and P.VALES_VER in permisos:
             return self._escaneo_vale(ref_id, usuario)
         return self._desconocido()
@@ -237,8 +238,9 @@ class ConsultaService:
         )
         return EscaneoOut(tipo=TipoEscaneo.TRABAJADOR, id=trabajador.id, resumen=resumen)
 
-    def _escaneo_articulo(self, articulo_id: uuid.UUID) -> EscaneoOut:
-        """C-03: el artículo y cuánto hay en los almacenes (sin costo, RG-12)."""
+    def _escaneo_articulo(self, articulo_id: uuid.UUID, usuario: Usuario) -> EscaneoOut:
+        """C-03: el artículo y cuánto hay en los almacenes (sin costo, RG-12). AC-06: sin
+        `almacenes.todos`, `existencia_total` es lo que hay en SU almacén."""
         encontrado = self.consultas.articulo(articulo_id)
         if encontrado is None:
             return self._desconocido()
@@ -252,14 +254,39 @@ class ConsultaService:
             retornable=articulo.retornable,
             unidad=articulo.unidad,
             activo=articulo.activo,
-            existencia_total=self.consultas.existencia_total_en_almacenes(articulo.id),
+            existencia_total=self._existencia_visible(articulo.id, usuario),
         )
         return EscaneoOut(tipo=TipoEscaneo.ARTICULO, id=articulo.id, resumen=resumen)
 
-    def _escaneo_pieza(self, pieza_id: uuid.UUID) -> EscaneoOut:
-        """C-02: estado, inspección y quién la tiene (el historial va en la ficha)."""
+    def _existencia_visible(self, articulo_id: uuid.UUID, usuario: Usuario) -> int:
+        """AC-06: lo que hay del artículo en todos los almacenes con `almacenes.todos`; sin él,
+        solo lo que hay en el almacén del usuario (0 si no tiene almacén)."""
+        if self.acceso.puede_operar_todos_los_almacenes(usuario):
+            return self.consultas.existencia_total_en_almacenes(articulo_id)
+        if usuario.almacen_id is None:
+            return 0
+        return self.consultas.existencia_total_en_almacenes(articulo_id, usuario.almacen_id)
+
+    def _pieza_en_alcance(
+        self, pieza_id: uuid.UUID, usuario: Usuario, permisos: frozenset[str] | None = None
+    ) -> bool:
+        """AC-06, C-02: con `almacenes.todos` se ve cualquier pieza. Sin él, solo la que está en
+        el almacén del usuario, la que tiene un trabajador (su resguardo, con `trabajadores.ver`)
+        o la que va en tránsito o ya salió por un vale de su almacén."""
+        if self.acceso.puede_operar_todos_los_almacenes(usuario):
+            return True
+        permisos = permisos if permisos is not None else self.acceso.permisos_de(usuario)
+        return self.consultas.pieza_visible(
+            pieza_id, usuario.almacen_id, P.TRABAJADORES_VER in permisos
+        )
+
+    def _escaneo_pieza(
+        self, pieza_id: uuid.UUID, usuario: Usuario, permisos: frozenset[str]
+    ) -> EscaneoOut:
+        """C-02: estado, inspección y quién la tiene (el historial va en la ficha). AC-06: una
+        pieza fuera del alcance del usuario llega como DESCONOCIDO."""
         encontrada = self.consultas.pieza(pieza_id)
-        if encontrada is None:
+        if encontrada is None or not self._pieza_en_alcance(pieza_id, usuario, permisos):
             return self._desconocido()
         pieza, articulo = encontrada
         resumen = ResumenPieza(
@@ -336,7 +363,14 @@ class ConsultaService:
                 elementos=[BusquedaArticuloItem.model_validate(dict(f._mapping)) for f in filas],
                 total=total,
             )
-            filas, total = self.consultas.buscar_piezas(texto, pagina.offset, pagina.limit)
+            filas, total = self.consultas.buscar_piezas(
+                texto,
+                pagina.offset,
+                pagina.limit,
+                todos=self.acceso.puede_operar_todos_los_almacenes(usuario),  # AC-06
+                almacen_id=usuario.almacen_id,
+                ver_trabajadores=P.TRABAJADORES_VER in permisos,
+            )
             piezas = Pagina(
                 elementos=[
                     BusquedaPiezaItem(
@@ -380,10 +414,11 @@ class ConsultaService:
 
     # =================================================================== ficha de pieza
 
-    def ficha_pieza(self, pieza_id: uuid.UUID) -> PiezaFichaOut:
-        """C-02: estado, inspección, quién la tiene e historial completo."""
+    def ficha_pieza(self, pieza_id: uuid.UUID, usuario: Usuario) -> PiezaFichaOut:
+        """C-02: estado, inspección, quién la tiene e historial. AC-06: una pieza fuera del
+        alcance del usuario responde igual que una que no existe."""
         encontrada = self.consultas.pieza(pieza_id)
-        if encontrada is None:
+        if encontrada is None or not self._pieza_en_alcance(pieza_id, usuario):
             raise PiezaNoEncontrada()
         pieza, articulo = encontrada
         ultima = self.consultas.ultima_inspeccion(pieza.id)
@@ -398,8 +433,18 @@ class ConsultaService:
             inspeccion_vigente=self._inspeccion_vigente(pieza),
             ultima_inspeccion=self._inspeccion_out(*ultima) if ultima else None,
             ubicacion=self._ubicacion_de(pieza),
-            historial=self._historial(pieza.id),
+            historial=self._historial(pieza.id, usuario),
         )
+
+    @staticmethod
+    def _lugar_visible(fila: Any, prefijo: str, usuario: Usuario) -> str:
+        """El texto de una ubicación del historial; un almacén que no es el del usuario se
+        muestra como "otro almacén" (AC-06)."""
+        if getattr(fila, f"{prefijo}_tipo") == "ALMACEN" and (
+            getattr(fila, f"{prefijo}_almacen_id") != usuario.almacen_id
+        ):
+            return TEXTO_OTRO_ALMACEN
+        return _texto_ubicacion(fila, prefijo)
 
     @staticmethod
     def _articulo_de_pieza(articulo: Articulo) -> ArticuloPiezaOut:
@@ -429,25 +474,47 @@ class ConsultaService:
             usuario=usuario,
         )
 
-    def _historial(self, pieza_id: uuid.UUID) -> list[HistorialItem]:
+    def _historial(self, pieza_id: uuid.UUID, usuario: Usuario) -> list[HistorialItem]:
         """Movimientos, inspecciones, cambios de estado y ajustes de vigencia, del más reciente
-        al más antiguo."""
+        al más antiguo.
+
+        AC-06: sin `almacenes.todos`, de los movimientos solo se ven los de un vale de su almacén
+        (sale de él o va hacia él, con sus lugares completos) y los que pasan por un trabajador (el
+        resguardo de la pieza), donde el almacén ajeno se muestra como "otro almacén"."""
         items: list[HistorialItem] = []
+        todos = self.acceso.puede_operar_todos_los_almacenes(usuario)
         for f in self.consultas.historial_movimientos(pieza_id):
-            origen, destino = _texto_ubicacion(f, "origen"), _texto_ubicacion(f, "destino")
+            propio = True  # el vale es de este almacén, o el usuario ve todos
+            if not todos:
+                propio = usuario.almacen_id is not None and usuario.almacen_id in (
+                    f.vale_almacen_id,
+                    f.vale_destino_almacen_id,
+                )
+                if not propio and "TRABAJADOR" not in (f.origen_tipo, f.destino_tipo):
+                    continue
+            if propio:
+                origen, destino = _texto_ubicacion(f, "origen"), _texto_ubicacion(f, "destino")
+                detalle = f"De {origen} a {destino}. Vale {f.folio}."
+                vale_id, folio, responsable = f.vale_id, f.folio, f.responsable
+            else:
+                # Un vale de otro almacén: sin folio, sin enlace, sin responsable ni almacén.
+                origen = self._lugar_visible(f, "origen", usuario)
+                destino = self._lugar_visible(f, "destino", usuario)
+                detalle = f"De {origen} a {destino}."
+                vale_id, folio, responsable = None, None, TEXTO_OTRO_ALMACEN
             items.append(
                 HistorialItem(
                     tipo=TipoHistorial.MOVIMIENTO,
                     fecha=f.creado_en,
                     titulo=TEXTO_TIPO_VALE.get(f.tipo, f.tipo),
-                    detalle=f"De {origen} a {destino}. Vale {f.folio}.",
-                    usuario=f.responsable,
-                    vale_id=f.vale_id,
-                    folio=f.folio,
+                    detalle=detalle,
+                    usuario=responsable,
+                    vale_id=vale_id,
+                    folio=folio,
                     tipo_vale=f.tipo,
                     origen=origen,
                     destino=destino,
-                    responsable=f.responsable,
+                    responsable=responsable,
                     condicion=f.condicion,
                 )
             )

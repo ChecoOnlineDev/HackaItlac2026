@@ -13,6 +13,8 @@ from dataclasses import dataclass
 
 from app.modulos.movimientos.evaluador import (
     ESTADO_PIEZA_TEXTO,
+    MENSAJE_PIEZA_AJENA,
+    TITULAR_OCULTO,
     HechosArticulo,
     HechosPieza,
     Motivo,
@@ -96,6 +98,8 @@ def regla_x02_origen(h: HechosRenglonTraspaso) -> Motivo | None:
         return None
     if h.pieza is not None:
         if h.pieza.ubicacion_id != h.ubicacion_origen_id:
+            if h.titular == TITULAR_OCULTO:  # AC-06: sin decir dónde está
+                return Motivo("X-02", Nivel.ROJO, f"{MENSAJE_PIEZA_AJENA} No se puede enviar.")
             donde = h.titular.descripcion if h.titular else "no está registrada en ningún almacén"
             return Motivo("X-02", Nivel.ROJO, f"La pieza no está en este almacén: {donde}.")
         if h.cantidad != 1:

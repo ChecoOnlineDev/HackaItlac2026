@@ -115,7 +115,8 @@ def crear_articulo(
 def ficha_articulo(
     articulo_id: uuid.UUID, usuario: Ver, service: CatalogoServiceDep
 ) -> ArticuloFichaOut:
-    """`catalogo.ver`. Ficha: reglas, existencias por almacén y quién lo tiene (C-03)."""
+    """`catalogo.ver`. Ficha: reglas, existencias y quién lo tiene (C-03). Sin `almacenes.todos`,
+    las existencias son solo las de su almacén (AC-06)."""
     return service.ficha_articulo(articulo_id, usuario)
 
 

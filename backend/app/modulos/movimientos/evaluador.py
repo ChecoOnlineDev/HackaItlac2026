@@ -95,6 +95,11 @@ class Titular:
     numero_empleado: str | None = None
 
 
+# AC-06: lo que ve quien no tiene `almacenes.todos` de una pieza que no está en su almacén.
+MENSAJE_PIEZA_AJENA = "Esta pieza no está registrada en tu almacén."
+TITULAR_OCULTO = Titular(None, None, "", "no está registrada en tu almacén")
+
+
 @dataclass(frozen=True)
 class HechosTrabajador:
     vigente: bool
@@ -225,9 +230,12 @@ def regla_e19_inactivo(h: HechosRenglonEntrega) -> Motivo | None:
 
 
 def regla_e03_ubicacion(h: HechosRenglonEntrega) -> Motivo | None:
-    """E-03: la pieza no está en este almacén según el sistema. Se dice dónde está."""
+    """E-03: la pieza no está en este almacén según el sistema. Quien tiene `almacenes.todos` ve
+    dónde está; los demás solo saben que no está en su almacén (AC-06)."""
     if h.pieza is None or h.pieza.ubicacion_id == h.ubicacion_almacen_id:
         return None
+    if h.titular is not None and h.titular == TITULAR_OCULTO:
+        return Motivo("E-03", Nivel.ROJO, MENSAJE_PIEZA_AJENA + " No se puede entregar.")
     donde = h.titular.descripcion if h.titular else "no está registrada en ningún almacén"
     return Motivo("E-03", Nivel.ROJO, f"La pieza no está en este almacén: {donde}.")
 

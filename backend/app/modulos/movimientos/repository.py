@@ -222,11 +222,11 @@ class MovimientoRepository:
                 salida[ub.id] = (ub, ub.virtual or "", None)
         return salida
 
-    def destino_del_transito(self, pieza_id: uuid.UUID, transito_id: uuid.UUID) -> str | None:
-        """El nombre del almacén al que va una pieza en tránsito: el destino del traspaso que la
-        llevó a la ubicación EN_TRANSITO (su último movimiento hacia allá)."""
+    def destino_del_transito(self, pieza_id: uuid.UUID, transito_id: uuid.UUID) -> Almacen | None:
+        """El almacén al que va una pieza en tránsito: el destino del traspaso que la llevó a la
+        ubicación EN_TRANSITO (su último movimiento hacia allá)."""
         return self.session.scalar(
-            select(Almacen.nombre)
+            select(Almacen)
             .select_from(Movimiento)
             .join(Vale, Vale.id == Movimiento.vale_id)
             .join(Almacen, Almacen.id == Vale.destino_almacen_id)
