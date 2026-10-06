@@ -13,7 +13,7 @@ from app.core.paginacion import PaginacionDep
 from app.modulos.acceso.dependencies import UsuarioActual, requiere_permiso
 from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import P
-from app.modulos.consulta.dependencies import ConsultaServiceDep
+from app.modulos.consulta.dependencies import ConsultaServiceDep, SeguimientoServiceDep
 from app.modulos.consulta.exportacion import respuesta_csv
 from app.modulos.consulta.schemas import (
     AdeudoReporteItem,
@@ -31,6 +31,7 @@ from app.modulos.consulta.schemas import (
     PiezaFichaOut,
     UsuariosOpcionesOut,
 )
+from app.modulos.consulta.schemas_seguimiento import PaginaSeguimiento, SeguimientoFilters
 
 router = APIRouter(tags=["consulta"])
 
@@ -67,6 +68,21 @@ def ficha_pieza(
     """`catalogo.ver`. Estado, inspección, ubicación e historial de la pieza (C-02). Sin
     `almacenes.todos`, una pieza fuera del alcance del usuario responde 404 (AC-06)."""
     return service.ficha_pieza(pieza_id, usuario)
+
+
+@router.get("/seguimiento/piezas", response_model=PaginaSeguimiento)
+def seguimiento_piezas(
+    usuario: VerExistencias,
+    service: SeguimientoServiceDep,
+    pagina: PaginacionDep,
+    filtros: Annotated[SeguimientoFilters, Query()],
+):
+    """`reportes.existencias`. Seguimiento de piezas (C-13): dónde está cada pieza o quién la
+    tiene, desde cuándo y con qué vale, con un resumen de conteos. Solo lo que el usuario puede
+    ver (AC-06). Con `formato=csv` descarga el archivo."""
+    if filtros.formato == FormatoReporte.CSV:
+        return respuesta_csv(*service.csv_seguimiento_piezas(filtros, usuario))
+    return service.seguimiento_piezas(filtros, usuario, pagina)
 
 
 @router.get("/reportes/existencias", response_model=PaginaReporte[ExistenciaReporteItem])

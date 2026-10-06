@@ -429,6 +429,7 @@ El trabajador devuelve en la planta la herramienta y el equipo de alturas, y en 
 | C-10 | Lista de revisión: excepciones con su observación, para el supervisor. | Propuesta |
 | C-11 | Rastrear una desaparición: el reporte de movimientos se filtra por usuario, artículo, almacén y periodo para ver quién tocó el equipo y cuándo, y el historial de la pieza (C-02) completa el rastro. Quien tiene `reportes.movimientos` ve el filtro de usuario siempre dentro de su alcance (AC-06): el almacenista, su almacén; quien tiene `almacenes.todos`, todos los almacenes y usuarios. Es informativo y no forma parte de la operación habitual. | Idea del equipo |
 | C-12 | **Mis movimientos de hoy.** Cada usuario ve la lista de los vales que hizo en el día, con acceso a su detalle y a cancelarlos o rehacerlos (K-01, K-05). Es una consulta de apoyo y no forma parte de la operación habitual. | Idea del equipo |
+| C-13 | **Seguimiento de piezas.** Para ver dónde está cada pieza, no solo cuántas hay: lista las piezas de un artículo (o de lo que se busque por artículo, serie, código o trabajador) y a cada una le pone dónde está o quién la tiene ("En resguardo de Juan Pérez", "En Kepler", "En tránsito a Contratistas"), su estado e inspección, desde cuándo está ahí y con qué vale. "Desde" es el movimiento que la dejó en su ubicación actual; con un trabajador, su entrega más reciente (una cancelación que se la regresa no cambia desde cuándo la tiene). Trae un resumen de conteos (total, en almacén, en resguardo, en tránsito y no aptas) y se descarga en CSV. Requiere `reportes.existencias` (de inicio, Administrador, Supervisor y Compras) y respeta el alcance de C-02 (AC-06): con `almacenes.todos`, todas; sin él, las de su almacén, las que tienen trabajadores (con `trabajadores.ver`) y el tránsito desde o hacia su almacén. El folio de un vale de otro almacén no se muestra. Solo lee: no mueve nada, y nunca muestra costos, CURP ni NSS (RG-12, RG-13). | Idea del equipo |
 
 ### 7.12 Índice de casos especiales
 
@@ -526,7 +527,7 @@ A es Almacenista, S Supervisor (de almacén), C Compras y R Recursos Humanos. El
 | Autorizaciones | `autorizaciones.resolver` | Autorizar o rechazar excedentes y entregas restringidas de su almacén | S |
 | Piezas | `piezas.inspeccionar` | Inspeccionar y marcar No apta | A, S |
 | | `piezas.ajustar_vigencia` | Ajustar la fecha de vigencia de una inspección (P-07) de piezas de su almacén | S |
-| Reportes | `reportes.existencias` | Reporte de existencias | S, C |
+| Reportes | `reportes.existencias` | Reporte de existencias y seguimiento de piezas (C-13) | S, C |
 | | `reportes.movimientos` | Reporte de movimientos, con su filtro por usuario | S, C |
 | | `reportes.adeudos` | Reporte de adeudos | S, R |
 | | `reportes.consumo` | Reporte de consumo | S, C |
@@ -570,7 +571,7 @@ Usuarios iniciales por almacén: cada almacén (Kepler, Contratistas, Midrex, HY
 | P0 | Devolución | V-01 a V-07, V-11, V-12, V-14, F-08 |
 | P0 | Baja con pendientes y vale de no adeudo | B-01 a B-05, B-07 a B-09 |
 | P0 | Caso especial de alturas | E-05, E-06, P-01 a P-03, P-07 |
-| P0 | Consulta y reportes | C-01 a C-06, C-08, C-11, C-12 |
+| P0 | Consulta y reportes | C-01 a C-06, C-08, C-11 a C-13 |
 | P0 | Identidad con foto (opcional) | T-09, F-11 |
 | P0 | Corregir un error | K-01 a K-05, X-14 |
 | P1 | Vale como prueba | F-02 (en papel), F-06, F-07 (integridad y acceso sin sesión), F-10 |
