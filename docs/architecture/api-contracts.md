@@ -21,7 +21,8 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 
 | HTTP | `codigo` | Cuándo |
 |---|---|---|
-| 401 | `NO_AUTENTICADO` | No hay sesión o venció. |
+| 401 | `NO_AUTENTICADO` | No hay sesión, o el token de acceso venció (dura 15 minutos): la interfaz llama a `POST /api/sesion/refresh` y repite la petición. |
+| 401 | `SESION_VENCIDA` | Solo en `POST /api/sesion/refresh`: el token de renovación no existe, venció, llegó al tope de 30 días, ya se había cambiado hace más de 10 segundos, lo revocaron (salir, contraseña o PIN, inactivar) o el usuario ya no está activo. Borra las dos cookies; hay que entrar con la contraseña (AC-17, AC-18, AC-22). |
 | 403 | `SIN_PERMISO` | El rol del usuario no tiene el permiso del endpoint. |
 | 404 | `NO_ENCONTRADO` | El recurso no existe. |
 | 409 | `VALE_CAMBIO` | Al confirmar, la evaluación ya no es la misma. Incluye la evaluación nueva en `detalles`. |
@@ -60,9 +61,13 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
-| `POST /api/sesion` | Público | Entra con `{usuario, contrasena}` y deja la cookie de sesión. Responde `{usuario: {id, nombre, usuario}, rol: {id, nombre}, almacen: {id, clave, nombre} o null, permisos: [claves]}`. Credenciales incorrectas o usuario inactivo: 401 con "Usuario o contraseña incorrectos", sin decir cuál falló. |
-| `GET /api/sesion` | Sesión | Devuelve la sesión actual con la lista de permisos. La interfaz la usa para mostrar menús y botones. |
-| `DELETE /api/sesion` | Sesión | Sale y borra la cookie. Responde 204. Además REVOCA el token: sube `usuario.version_sesion`, así que la cookie copiada antes deja de servir (401) y se cierran las sesiones de ese usuario en todos sus dispositivos. Restablecer la contraseña o el PIN de un usuario y inactivarlo (o reactivarlo) hacen lo mismo. |
+| `POST /api/sesion` | Público | Entra con `{usuario, contrasena}` y abre la sesión de ESTE dispositivo (AC-14). Deja dos cookies `HttpOnly` y `SameSite=Lax` (y `Secure` con `COOKIE_SEGURA=true`): `sesion` (token de acceso, `Path=/`, `Max-Age` de `ACCESO_MINUTOS`, 15 min) y `sesion_renovar` (token de renovación opaco, `Path=/api/sesion`, `Max-Age` de `REFRESH_DIAS`, 7 días). Si el navegador ya traía una sesión, esa se cierra. Responde `{usuario: {id, nombre, usuario}, rol: {id, nombre}, almacen: {id, clave, nombre} o null, permisos: [claves]}`. Credenciales incorrectas o usuario inactivo: 401 con "Usuario o contraseña incorrectos", sin decir cuál falló y sin cookies; cinco fallos seguidos bloquean cinco minutos (429). |
+| `POST /api/sesion/refresh` | Público | Sin cuerpo; lo identifica la cookie `sesion_renovar`, no la de acceso. Cambia el token de renovación por un token de acceso nuevo y un token de renovación nuevo (AC-15). Responde lo mismo que `POST /api/sesion` (permisos y almacén recién leídos de la base, AC-23) y vuelve a fijar las dos cookies; la ventana se extiende `REFRESH_DIAS` días desde ahora, sin pasar de `inicio + REFRESH_TOPE_DIAS` (30 días, AC-18). **Tolerancia (AC-16):** si el token ya se había cambiado hace `REFRESH_TOLERANCIA_SEGUNDOS` (10) o menos, responde 200 con la misma sesión y fija solo la cookie `sesion` (acceso nuevo); no cambia otra vez ni toca `sesion_renovar`. **Reutilización (AC-17):** un token ya cambiado hace más de 10 segundos revoca toda la familia de ese dispositivo y responde 401 `SESION_VENCIDA`. Sin cookie, inventado, vencido, pasado el tope, revocado, de una versión de sesión vieja o de un usuario inactivo: 401 `SESION_VENCIDA` y se borran las dos cookies. No depende de un token de acceso vigente. |
+| `GET /api/sesion` | Sesión | Devuelve la sesión actual con la lista de permisos. La interfaz la usa para mostrar menús y botones; al arrancar, si responde 401 intenta renovar antes de pedir la contraseña. |
+| `DELETE /api/sesion` | Sesión | Sale: cierra SOLO la sesión de este dispositivo y borra las dos cookies. Responde 204. Su token de acceso, aunque lo hayan copiado, y su token de renovación dejan de servir de inmediato (401); las sesiones de los demás dispositivos siguen abiertas (AC-19). |
+| `DELETE /api/sesion/otras` | Sesión | Cierra las sesiones de los demás dispositivos del usuario y conserva esta. Responde `{cerradas: n}`. No cambia `version_sesion` (AC-20). |
+| `DELETE /api/sesion/todas` | Sesión | Cierra las sesiones de TODOS los dispositivos del usuario, también esta: sube `usuario.version_sesion` (con lo que todo token de acceso ya emitido deja de servir) y borra las cookies. Responde 204 (AC-20). |
+| `GET /api/sesion/dispositivos` | Sesión | Los dispositivos con sesión abierta del usuario (no cerrados, dentro de su ventana y de su tope), el más reciente primero: `{dispositivos: [{id, inicio, ultimo_uso, vence_en, agente, actual}]}`. `id` es el de la familia del dispositivo; `ultimo_uso` es la última renovación (se precisa al `ACCESO_MINUTOS`); `vence_en` es hasta cuándo sirve sin usarla; `agente` es el navegador y sistema resumidos ("Chrome en Windows", sin versión); `actual` marca el de esta petición. Sin huellas, tokens ni IP (AC-21). |
 
 ## Usuarios y personal
 

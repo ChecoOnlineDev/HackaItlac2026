@@ -38,7 +38,11 @@ Documentación interactiva de la API: `http://localhost:21002/api/docs`.
 | `MYSQL_ROOT_PASSWORD` | Crea el contenedor y las bases de pruebas | sin valor |
 | `ENTORNO` | `desarrollo` solo avisa de una configuración insegura; `produccion` se niega a arrancar con una clave de sesión de ejemplo o de menos de 32 caracteres, sin `COOKIE_SEGURA=true`, o con `CARGAR_DATOS_PRUEBA=true` y `CLAVE_DATOS_PRUEBA` vacía, y apaga `/api/docs`, `/api/redoc` y `/api/openapi.json` | `desarrollo` |
 | `CLAVE_SESION` | Firma del token de sesión (mín. 32 caracteres en producción; `python -c "import secrets; print(secrets.token_urlsafe(48))"`) | cambiarla |
-| `SESION_HORAS` | Duración de la sesión | `12` |
+| `ACCESO_MINUTOS` | Vida del token de acceso (la interfaz lo renueva sola) | `15` |
+| `REFRESH_DIAS` | Días de sesión sin usar; cada renovación los da completos | `7` |
+| `REFRESH_TOPE_DIAS` | Tope absoluto desde que se entró; luego hay que volver a escribir la contraseña | `30` |
+| `REFRESH_TOLERANCIA_SEGUNDOS` | Plazo en que un token de renovación ya cambiado aún se acepta (carreras entre pestañas) | `10` |
+| `SESION_HORAS` | Obsoleta: se ignora (antes era la vida del único token de 12 h) | n/a |
 | `COOKIE_SEGURA` | `true` bajo HTTPS; `false` en desarrollo local por http | `false` |
 | `FORWARDED_ALLOW_IPS` | Redes de las que `uvicorn` acepta `X-Forwarded-*` (solo en el contenedor; acótala a la subred de la red de compose) | redes privadas |
 | `LIMITE_CUERPO_JSON`, `LIMITE_CUERPO_VALE`, `LIMITE_CUERPO_FOTO_TRABAJADOR`, `LIMITE_CUERPO_IMPORTACION` | Bytes máximos del cuerpo de una petición (413 `CUERPO_MUY_GRANDE`) | 1 MB, 12 MB, 3 MB, 6 MB |
@@ -88,6 +92,8 @@ Cómo queda vencida la `ALT-005` sin escribir en la base a mano: la inspección 
 |---|---|
 | `tests/test_guion_pdf.py` | El guion del PDF (los seis pasos del «Flujo principal») en un solo escenario encadenado, solo por la API con sesiones reales, con existencias exactas, folios, estados, responsable y ausencia de costos en cada paso; al final corre el verificador de invariantes y compara los reportes con lo operado. |
 | `tests/test_guion_extremos.py` | Los escenarios más delicados de `docs/product/escenarios.md`: ES-05, 09, 10, 11, 12, 13, 14, 15, 19, 26 y 28. |
+| `tests/test_sesiones.py` | Sesiones por dispositivo (AC-14 a AC-24): entrar abre la sesión, renovar, vigencia que se renueva con el uso y tope de 30 días, salir por dispositivo, cerrar todas y las demás, lista de dispositivos, versión de sesión, permisos al día tras renovar y atributos de las cookies. Los vencimientos mueven fechas en la base, sin pausas. |
+| `tests/seguridad/test_refresh.py` | Rotación del token de renovación, tolerancia de 10 segundos (incluida una carrera real con hilos) y revocación por reutilización (AC-15 a AC-17). |
 | `tests/test_permisos_sistematicos.py` | Descubre todas las rutas de `app`: 401 sin sesión, un permiso por clave en cada ruta (y su coincidencia con `api-contracts.md`), la matriz de la sección 8.2 por rol y por permiso, datos reservados (CURP, NSS, costos) y la cookie de sesión. |
 | `tests/invariantes.py` | `verificar_invariantes(session, huella=None)`: las invariantes de `data-model.md` y los folios sobre la base de la prueba. `tomar_huella(session)` hace la foto de vales, movimientos e inspecciones para detectar ediciones. Reutilizable en cualquier prueba; `tests/test_verificador_invariantes.py` comprueba que detecta cada una. |
 | `tests/ayudas_guion.py` | Ayudas de esas pruebas: alta de trabajador por la API, evaluar y confirmar, existencias por la API. |

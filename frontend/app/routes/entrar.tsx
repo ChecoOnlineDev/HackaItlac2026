@@ -1,4 +1,4 @@
-import { CircleAlertIcon, TimerIcon, UserRoundIcon } from "lucide-react";
+import { CircleAlertIcon, ClockAlertIcon, TimerIcon, UserRoundIcon } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
 
@@ -14,7 +14,7 @@ export function meta() {
 }
 
 export default function Entrar() {
-  const { estado, iniciarSesion } = useSesion();
+  const { estado, motivoSinSesion, iniciarSesion } = useSesion();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const volver = rutaDeRegreso(params.get("volver"));
@@ -69,6 +69,16 @@ export default function Entrar() {
         <img src="/logo-imhotep.png" alt="IMHOTEP" width={160} height={151} className="h-auto w-36" />
         <h1>Control de herramientas y equipo de protección</h1>
       </div>
+
+      {motivoSinSesion === "vencida" ? (
+        <div
+          role="status"
+          className="flex items-start gap-2 rounded-xl border border-border bg-muted p-3 text-sm font-medium text-foreground"
+        >
+          <ClockAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" />
+          <p>Tu sesión venció. Entra de nuevo para continuar donde estabas.</p>
+        </div>
+      ) : null}
 
       <form onSubmit={enviar} className="flex flex-col gap-5" noValidate>
         <Campo

@@ -62,6 +62,21 @@ export interface Sesion {
   permisos: string[];
 }
 
+/** Una sesión abierta del usuario en un dispositivo (`GET /api/sesion/dispositivos`). Fechas en UTC. */
+export interface Dispositivo {
+  id: string;
+  inicio: string;
+  ultimo_uso: string;
+  vence_en: string;
+  /** Navegador y sistema resumidos, por ejemplo "Chrome en Windows". */
+  agente: string | null;
+  actual: boolean;
+}
+
+export interface Dispositivos {
+  dispositivos: Dispositivo[];
+}
+
 /** Lista paginada estándar: `{elementos, total}`. */
 export interface Pagina<T> {
   elementos: T[];

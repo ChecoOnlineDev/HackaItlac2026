@@ -32,7 +32,8 @@ Entrar
 - **Decisiones:** credenciales válidas; usuario activo.
 - **Éxito:** inicio del rol, o la ruta que se intentó abrir.
 - **Error:** "Usuario o contraseña incorrectos", sin decir cuál; tras cinco intentos, espera de cinco minutos.
-- **Salida:** "Salir" cierra la sesión y regresa a Entrar.
+- **Salida:** "Salir" cierra la sesión de este dispositivo y regresa a Entrar; las de los demás dispositivos siguen abiertas.
+- **Sesión que se renueva sola:** al vencer el acceso (15 minutos) la aplicación lo renueva sin avisar y repite lo que se estaba haciendo; reabrirla a los 3 días no pide la contraseña. La contraseña se vuelve a pedir si pasan 7 días sin usarla, si se cumplen 30 días desde que se entró, o si la sesión se cerró en otro lado (cambio de contraseña o de PIN, usuario inactivado, «cerrar todas»). En ese caso Entrar dice «Tu sesión venció. Entra de nuevo para continuar donde estabas.» y, al entrar, regresa a la pantalla donde se estaba (AC-14 a AC-24).
 
 ## Flujo 2: Alta y reingreso de trabajador (RH)
 
