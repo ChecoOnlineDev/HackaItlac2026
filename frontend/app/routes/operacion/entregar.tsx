@@ -768,6 +768,7 @@ export default function Entregar() {
             abierta={pidiendoAutorizacion}
             alCambiar={setPidiendoAutorizacion}
             trabajadorId={borrador.trabajador.id}
+            almacenId={borrador.almacenId}
             renglones={naranjasAutorizables}
             alSolicitar={(nueva: AutorizacionBorrador) => {
               actualizar((b) => ({ ...b, autorizacion: nueva }));

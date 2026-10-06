@@ -53,29 +53,23 @@ export function useCategoriasFiltro() {
 }
 
 /**
- * Usuarios para el filtro "Quién lo hizo". El servidor no ofrece una lista abierta: el
- * administrador usa la lista de usuarios y el supervisor la del personal de los almacenes. El resto
- * solo puede elegirse a sí mismo.
+ * Usuarios para el filtro "Quién lo hizo": quienes han hecho vales (`GET /api/reportes/usuarios`).
+ * Con `almacenes.todos` vienen de todos los almacenes; si no, solo los del almacén de quien mira.
  */
 export function useUsuariosFiltro() {
-  const { sesion, puede } = useSesion();
-  const ruta = puede("acceso.administrar") ? "/usuarios" : puede("almacenes.asignar_personal") ? "/personal" : null;
+  const { sesion } = useSesion();
   const consulta = useConsulta(
-    (signal) =>
-      ruta
-        ? apiGet<Pagina<{ id: string; nombre: string }>>(ruta, { tamano: 200 }, signal)
-        : Promise.resolve({ elementos: [], total: 0 }),
-    `usuarios|${ruta}`,
+    (signal) => apiGet<{ elementos: { id: string; nombre: string }[] }>("/reportes/usuarios", undefined, signal),
+    "usuarios-vales",
   );
-  const opciones = useMemo<OpcionLista[]>(() => {
-    const mapa = new Map<string, string>();
-    for (const u of consulta.datos?.elementos ?? []) mapa.set(u.id, u.nombre);
-    if (sesion) mapa.set(sesion.usuario.id, sesion.usuario.nombre);
-    return [...mapa.entries()]
-      .map(([valor, nombre]) => ({ valor, texto: valor === sesion?.usuario.id ? `${nombre} (tú)` : nombre }))
-      .sort((a, b) => a.texto.localeCompare(b.texto, "es"));
-  }, [consulta.datos, sesion]);
-  return { opciones, soloYo: ruta === null };
+  const opciones = useMemo<OpcionLista[]>(
+    () =>
+      (consulta.datos?.elementos ?? [])
+        .map((u) => ({ valor: u.id, texto: u.id === sesion?.usuario.id ? `${u.nombre} (tú)` : u.nombre }))
+        .sort((a, b) => a.texto.localeCompare(b.texto, "es")),
+    [consulta.datos, sesion],
+  );
+  return { opciones, soloYo: false };
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -14,7 +14,7 @@ import { useSesion } from "~/sesion/sesion";
 export const handle: ManejadorRuta = { permiso: "autorizaciones.resolver" };
 
 export default function Autorizaciones() {
-  const { puede } = useSesion();
+  const { puede, sesion } = useSesion();
   const { pendientes, cerradas, cargando, error, nuevas, recargar, resuelta, descartar } = useSolicitudes();
 
   // Un reloj para las cuentas regresivas y para atenuar las que vencen sin esperar al servidor.
@@ -63,6 +63,7 @@ export default function Autorizaciones() {
               solicitud={s}
               ahora={ahora}
               nueva={nuevas.has(s.id)}
+              esPropia={s.solicitada_por.id === sesion?.usuario.id}
               puedeVerTrabajador={puedeVerTrabajador}
               alResolver={() => resuelta(s.id)}
               alRefrescar={() => void recargar()}

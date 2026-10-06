@@ -14,6 +14,8 @@ interface PropiedadesHojaAutorizacion {
   abierta: boolean;
   alCambiar: (abierta: boolean) => void;
   trabajadorId: string;
+  /** Almacén que se está operando; quien opera todos los almacenes debe indicarlo (RG-07). */
+  almacenId?: string | null;
   /** Los renglones naranja que se piden autorizar (todos juntos, en una sola solicitud). */
   renglones: RenglonEvaluado[];
   /** Se llama cuando la solicitud quedó creada (en espera) o ya resuelta por PIN. */
@@ -39,7 +41,7 @@ function motivoNaranja(renglon: RenglonEvaluado) {
  * pantalla de la entrega consulta cada 3 segundos). No decide nada: el servidor valida el PIN, que
  * quien captura no se autorice (A-05) y que un rojo no se pueda enviar (A-06).
  */
-export function HojaAutorizacion({ abierta, alCambiar, trabajadorId, renglones, alSolicitar }: PropiedadesHojaAutorizacion) {
+export function HojaAutorizacion({ abierta, alCambiar, trabajadorId, almacenId, renglones, alSolicitar }: PropiedadesHojaAutorizacion) {
   const [motivo, setMotivo] = useState("");
   const [errorMotivo, setErrorMotivo] = useState<string | null>(null);
   const [modo, setModo] = useState<Modo>("elegir");
@@ -77,6 +79,7 @@ export function HojaAutorizacion({ abierta, alCambiar, trabajadorId, renglones, 
     if (solicitud.current) return solicitud.current;
     const creada = await apiPost<SolicitudCreada>("/autorizaciones", {
       trabajador_id: trabajadorId,
+      almacen_id: almacenId ?? undefined,
       motivo: motivo.trim(),
       renglones: renglones.map((r) => {
         const m = motivoNaranja(r);
@@ -186,7 +189,7 @@ export function HojaAutorizacion({ abierta, alCambiar, trabajadorId, renglones, 
           value={motivo}
           onChange={(e) => setMotivo(e.target.value)}
           maxLength={255}
-          placeholder="Por qué se necesita más de lo permitido"
+          placeholder="Ej. Trabajo especial"
           error={errorMotivo}
           autoComplete="off"
           disabled={modo === "pin" || enviando !== null}
