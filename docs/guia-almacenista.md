@@ -25,7 +25,7 @@ Cada artículo que agregas a la lista trae una franja de color, un dibujo y una 
 | Color | Dice | Qué hacer |
 |---|---|---|
 | **Verde** (palomita) | «Listo» | Nada. Puedes seguir. |
-| **Amarillo** (triángulo) | «Aviso» | Lee el aviso. Si pide una observación, escríbela. Puedes seguir. Ejemplo: cantidad más alta de lo normal; te pide confirmar la cantidad. |
+| **Amarillo** (triángulo) | «Aviso» | Lee el aviso y sigue: nunca te detiene. Si el aviso es de la dotación (E-09), al final te pide anotar por qué se entrega (sección 3). Ejemplos: el artículo no está en la dotación de su puesto, pasa de lo recomendado, la talla no coincide (E-10) o la inspección vence en 7 días o menos (E-11). También es amarillo una cantidad más alta de lo normal: te pide confirmarla. |
 | **Naranja** (candado) | «Requiere autorización» | No puedes entregarlo solo. Toca **Pedir autorización** (sección 4) o toca **Quitar** y entrega lo demás. |
 | **Rojo** (cruz) | «No se puede entregar» | No hay forma de entregarlo, ni con permiso. Lee el motivo debajo (por ejemplo: pieza no apta, inspección vencida, trabajador con contrato vencido). Toca **Quitar** para poder continuar. |
 
@@ -38,13 +38,17 @@ Inicio → **Entregar**. Si operas más de un almacén, primero eliges **el alma
 **Paso 1: el trabajador.** *Captura: el escáner ocupa la pantalla y debajo dice «Escribir número o nombre».* Escanea el código QR de su credencial, o escribe su número o su nombre en «Escribir número o nombre». Aparece su ficha: foto, nombre, número, puesto, área, vigencia y lo que ya tiene en resguardo.
 - **Compara la foto con la persona.** Si no tiene foto, aparece «Sin foto registrada»; es un aviso, no impide entregar.
 - Si el trabajador no está vigente (contrato vencido), toda la ficha sale en **rojo** con el motivo y no se le puede entregar nada.
+- Si su puesto tiene dotación, la ficha dice, por ejemplo, «**Dotación:** faltan 4 de 11» y trae el botón **Ver dotación**, que abre la lista de lo que le toca y lo que ya tiene. Si no tiene puesto o su puesto no tiene dotación, no aparece nada y no habrá avisos. Es solo una ayuda: nada se agrega solo.
 
 **Paso 2: los artículos.** Escanea con la cámara o con la pistola lectora, o escribe el código o el nombre en «Escribir código o nombre» y toca **Agregar**. Lee uno tras otro. Cada lectura aparece como un renglón con su color.
 - Artículos por cantidad (guantes, discos): volver a escanear suma uno. Con **+** y **−**, o tocando el número, pones la cantidad exacta.
 - Cada vez que agregas algo aparece «Se agregó… **Deshacer**» durante 5 segundos. Si escaneaste lo que no era, toca **Deshacer** o **Quitar** en el renglón.
-- Cuando no quede ningún rojo ni naranja sin resolver, toca **Continuar**. Si no puedes continuar, la pantalla escribe el motivo debajo del botón.
+- **Dotación sugerida.** Si el trabajador tiene dotación, debajo del escáner aparece el botón **Dotación sugerida**. Abre una hoja con cada artículo de su dotación: nombre, código y «Falta 2 de 2» o «Completo». Marca con la casilla lo que quieras entregar ahora (por omisión no hay nada marcado) o usa **Marcar lo que falta** y **Quitar marcas**, y toca **Agregar a la entrega**. Lo marcado entra a la lista con la cantidad que falta, igual que si lo hubieras escaneado, y el sistema lo revisa y le pone su color. Los completos salen atenuados y sin casilla; lo que ya está en la lista dice «Ya está en la lista»; lo que se entrega por pieza (como el arnés) dice «Escanea la pieza». Puedes seguir escaneando otros artículos aunque no estén en la dotación: saldrán en amarillo.
+- Cuando no quede ningún rojo ni naranja sin resolver, toca **Continuar**. Un amarillo no te detiene. Si no puedes continuar, la pantalla escribe el motivo debajo del botón.
 
 **Paso 3: la firma.** *Captura: resumen de artículos, una leyenda de responsabilidad y un recuadro para firmar.* Pide al trabajador que firme con el dedo. **Borrar** limpia el recuadro. Si el trazo es muy corto, la pantalla dice «Firma un poco más» y no deja confirmar hasta que firme de nuevo. Toca **Confirmar entrega**.
+- **Si algún renglón salió amarillo por la dotación (E-09)**, arriba del recuadro de firma aparece «**¿Por qué se entrega esto?**». Escribe el motivo (hasta 200 letras) o toca una respuesta rápida: «Se mojaron», «Se llenaron de grasa», «Se perdieron», «Desgaste por uso» u «Otro motivo». La respuesta se escribe en el campo y la puedes editar. Mientras esté vacío, **Confirmar entrega** no se activa y la pantalla lo dice debajo del botón. El motivo queda en el vale y el supervisor lo ve en el reporte de movimientos, en la columna «Autorizó, motivo y observación». Los avisos de talla (E-10) y de inspección por vencer (E-11) no piden motivo.
+- Si un renglón además pasa su límite, sale en **naranja** con los dos motivos: se pide autorización como siempre (sección 4) y, al confirmar, también se anota el motivo.
 
 **Resultado.** *Captura: el folio en grande, por ejemplo KEP-ENT-000123, y el código QR del vale.* Aquí ya se descontó del inventario. **Imprimir** saca el vale en hoja carta; **Nueva entrega** empieza otra.
 
