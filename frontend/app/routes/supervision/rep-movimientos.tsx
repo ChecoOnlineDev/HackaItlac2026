@@ -55,11 +55,17 @@ function Articulo({ m }: { m: MovimientoReporte }) {
 }
 
 function Autorizacion({ m }: { m: MovimientoReporte }) {
-  if (!m.autorizado_por && !m.motivo) return <span className="text-muted-foreground">—</span>;
+  if (!m.autorizado_por && !m.motivo && !m.observacion) return <span className="text-muted-foreground">—</span>;
   return (
     <>
       {m.autorizado_por ? <span className="block">{m.autorizado_por}</span> : null}
       {m.motivo ? <span className="block text-sm text-muted-foreground">{m.motivo}</span> : null}
+      {m.observacion ? (
+        <span className="block text-sm">
+          <span className="text-muted-foreground">Observación: </span>
+          {m.observacion}
+        </span>
+      ) : null}
     </>
   );
 }
@@ -172,7 +178,7 @@ export default function ReporteMovimientos() {
                   <TableHead scope="col">De</TableHead>
                   <TableHead scope="col">A</TableHead>
                   <TableHead scope="col">Responsable</TableHead>
-                  <TableHead scope="col">Autorizó y motivo</TableHead>
+                  <TableHead scope="col">Autorizó, motivo y observación</TableHead>
                   <TableHead scope="col">Saldo</TableHead>
                 </TableRow>
               </TableHeader>
@@ -231,7 +237,7 @@ export default function ReporteMovimientos() {
                   <span className="text-muted-foreground">Responsable: </span>
                   {m.responsable}
                 </p>
-                {m.autorizado_por || m.motivo ? (
+                {m.autorizado_por || m.motivo || m.observacion ? (
                   <p className="text-sm">
                     {m.autorizado_por ? (
                       <>
@@ -243,6 +249,12 @@ export default function ReporteMovimientos() {
                       <span className="block">
                         <span className="text-muted-foreground">Motivo: </span>
                         {m.motivo}
+                      </span>
+                    ) : null}
+                    {m.observacion ? (
+                      <span className="block">
+                        <span className="text-muted-foreground">Observación: </span>
+                        {m.observacion}
                       </span>
                     ) : null}
                   </p>

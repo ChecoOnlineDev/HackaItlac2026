@@ -36,6 +36,8 @@ export interface BorradorEntrega {
   almacenId: string | null;
   trabajador: FichaTrabajadorApi | null;
   renglones: RenglonBorrador[];
+  /** "¿Por qué se entrega esto?" (E-09): una observación para todo el vale. Se borra junto con el borrador. */
+  observacion?: string;
   /** Cantidad ya confirmada por la persona en un renglón con cantidad inusual (E-27), por código. */
   cantidadesConfirmadas: Record<string, number>;
   autorizacion: AutorizacionBorrador | null;

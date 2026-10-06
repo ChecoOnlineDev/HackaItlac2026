@@ -7,7 +7,9 @@ import { Escaner, type OrigenLectura } from "~/componentes/dominio/escaner";
 import { FichaTrabajador } from "~/componentes/dominio/ficha-trabajador";
 import { reproducir } from "~/componentes/dominio/sonido";
 import { Cargando } from "~/componentes/ui/cargando";
-import type { FichaTrabajadorApi } from "./tipos";
+import { HojaDotacion } from "./hoja-dotacion";
+import { resumenDeDotacion, type FichaTrabajadorApi } from "./tipos";
+import { useDotacion } from "./use-dotacion";
 
 interface EscaneoApi {
   tipo: "TRABAJADOR" | "ARTICULO" | "PIEZA" | "VALE" | "DESCONOCIDO";
@@ -42,6 +44,8 @@ export function PasoTrabajador({ trabajador, alIdentificar, activo = true }: Pro
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [candidatos, setCandidatos] = useState<CandidatoApi[] | null>(null);
   const [textoBuscado, setTextoBuscado] = useState("");
+  const [viendoDotacion, setViendoDotacion] = useState(false);
+  const dotacion = useDotacion(trabajador?.id ?? null);
   const secuencia = useRef(0);
   const vivo = useRef(true);
   useEffect(() => {
@@ -122,7 +126,13 @@ export function PasoTrabajador({ trabajador, alIdentificar, activo = true }: Pro
     return (
       <div className="flex flex-col gap-3">
         <h2>Confirma que es la persona correcta</h2>
-        <FichaTrabajador trabajador={trabajador} variante="completa" />
+        <FichaTrabajador
+          trabajador={trabajador}
+          variante="completa"
+          dotacion={resumenDeDotacion(dotacion)}
+          alVerDotacion={() => setViendoDotacion(true)}
+        />
+        {dotacion ? <HojaDotacion abierta={viendoDotacion} alCambiar={setViendoDotacion} dotacion={dotacion} modo="consulta" /> : null}
       </div>
     );
   }

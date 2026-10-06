@@ -26,6 +26,8 @@ export interface EvaluacionApi {
   motivos: MotivoRegla[];
   almacen: AlmacenResumen;
   trabajador: FichaTrabajadorApi | null;
+  /** Algún renglón pide observación (E-09): hace falta anotarla en el vale antes de confirmar. */
+  pide_observacion?: boolean;
   /** Si la autorización enviada no sirve, por qué (A-03). */
   autorizacion_error: string | null;
   renglones: RenglonEvaluado[];
@@ -130,4 +132,24 @@ export interface ValeListaApi {
 export interface FirmaCapturada {
   imagen: string;
   trazo: Trazo;
+}
+
+/** Un artículo de la dotación de un trabajador (`GET /api/trabajadores/{id}/dotacion`). */
+export interface RenglonDotacionApi {
+  articulo: { id: string; codigo: string; nombre: string; unidad: string; control: "PIEZA" | "CANTIDAD" };
+  recomendada: number;
+  entregada: number;
+  falta: number;
+}
+
+/** Sin puesto del catálogo o con el puesto sin dotación, `renglones` va vacío. */
+export interface DotacionApi {
+  puesto: { id: string; nombre: string } | null;
+  renglones: RenglonDotacionApi[];
+}
+
+/** Cuántos artículos de la dotación le faltan al trabajador, para la línea de la ficha. */
+export function resumenDeDotacion(dotacion: DotacionApi | null): { faltan: number; total: number } | null {
+  if (!dotacion || dotacion.renglones.length === 0) return null;
+  return { faltan: dotacion.renglones.filter((r) => r.falta > 0).length, total: dotacion.renglones.length };
 }

@@ -41,6 +41,8 @@ export interface MovimientoReporte {
   trabajador: string | null;
   autorizado_por: string | null;
   motivo: string | null;
+  /** Lo que anotó quien hizo el vale en este renglón (por ejemplo el porqué de E-09); null si no hay. */
+  observacion?: string | null;
   saldo_origen: number | null;
   saldo_destino: number | null;
 }
