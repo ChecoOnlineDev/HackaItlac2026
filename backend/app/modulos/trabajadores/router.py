@@ -13,6 +13,7 @@ from app.db import SesionDep
 from app.modulos.acceso.dependencies import requiere_permiso
 from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import P
+from app.modulos.catalogo.schemas import PuestoRefOut
 from app.modulos.trabajadores.schemas import (
     BajaOut,
     CodigoCreate,
@@ -65,6 +66,15 @@ def crear(datos: TrabajadorCreate, usuario: UsuarioAdministrar, service: Service
     """`trabajadores.administrar`. Alta (T-03). 409 `TRABAJADOR_EXISTE` si ya existe (T-02)."""
     trabajador = service.crear(datos, usuario)
     return service.construir_ficha(trabajador, usuario)
+
+
+@router.get("/puestos", response_model=Pagina[PuestoRefOut])
+def listar_puestos_activos(
+    usuario: UsuarioAdministrar, service: ServiceDep, pagina: PaginacionDep
+) -> Pagina[PuestoRefOut]:
+    """`trabajadores.administrar`. Los puestos activos, para elegir el del alta y el reingreso
+    sin pedir `catalogo.ver` (RH da de alta pero no ve el catálogo)."""
+    return service.puestos_activos(pagina)
 
 
 @router.get("/{trabajador_id}", response_model=FichaOut, **_SIN_NO_ASIGNADOS)

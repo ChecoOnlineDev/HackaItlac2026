@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.core.errores_bd import es_restriccion
 from app.core.excepciones import DatosInvalidos, NoEncontrado
+from app.core.paginacion import Pagina, Paginacion
 from app.core.tiempo import ZONA_MX, a_hora_mx, hoy_mx
 from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import P
@@ -29,6 +30,7 @@ from app.modulos.archivos.service import ArchivoService
 from app.modulos.auditoria.service import AuditoriaService
 from app.modulos.catalogo.codigos import CodigoRepetido, CodigoService
 from app.modulos.catalogo.models import Articulo, Pieza, TipoCodigo
+from app.modulos.catalogo.schemas import PuestoFilters, PuestoRefOut
 from app.modulos.catalogo.service_puestos import PuestoService
 from app.modulos.movimientos.models import Vale
 from app.modulos.trabajadores.exceptions import (
@@ -186,6 +188,14 @@ class TrabajadorService:
         return self._ficha_breve(trabajador, actor, periodos, pendientes)
 
     # ================================================== puesto y dotación (D-01, D-02)
+
+    def puestos_activos(self, pagina: Paginacion) -> Pagina[PuestoRefOut]:
+        """Los puestos activos (solo `id` y `nombre`) para el alta y el reingreso."""
+        activos = self.puestos.listar(PuestoFilters(activo=True), pagina)
+        return Pagina[PuestoRefOut](
+            elementos=[PuestoRefOut(id=p.id, nombre=p.nombre) for p in activos.elementos],
+            total=activos.total,
+        )
 
     def _resolver_puesto(
         self, puesto_id: uuid.UUID | None, texto: str | None

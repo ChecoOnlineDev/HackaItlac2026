@@ -37,19 +37,24 @@ export function cuerpoDePuesto(id: string, texto: string): { puesto_id?: string;
 
 /**
  * El puesto de un trabajador: lista de los puestos activos del catálogo (con `catalogo.ver`).
- * Quien no puede ver el catálogo (Recursos Humanos) escribe el nombre y el servidor lo liga al catálogo si coincide.
+ * Recursos Humanos, que no ve el catálogo, usa la lista de puestos activos del alta; quien no puede ni eso escribe el nombre y el servidor lo liga si coincide.
  */
 export function SelectorPuesto({ valorId, valorTexto, alCambiar, error, deshabilitado, etiqueta = "Puesto", vacio }: Propiedades) {
   const { puede } = useSesion();
+  // Quien ve el catálogo usa su lista; RH (que da de alta, sin `catalogo.ver`) usa la propia del alta.
   const veCatalogo = puede("catalogo.ver");
+  const veLista = veCatalogo || puede("trabajadores.administrar");
   const puedeAdministrar = puede("catalogo.administrar");
   const id = useId();
   const consulta = useConsulta(
-    (signal) => (veCatalogo ? apiGet<Pagina<Puesto>>("/puestos", { activo: true, tamano: 200 }, signal) : Promise.resolve(null)),
-    veCatalogo ? "activos" : "",
+    (signal) =>
+      veLista
+        ? apiGet<Pagina<Puesto>>(veCatalogo ? "/puestos" : "/trabajadores/puestos", veCatalogo ? { activo: true, tamano: 100 } : { tamano: 100 }, signal)
+        : Promise.resolve(null),
+    veLista ? (veCatalogo ? "activos" : "activos-alta") : "",
   );
 
-  if (!veCatalogo) {
+  if (!veLista) {
     return (
       <Campo
         etiqueta={etiqueta}

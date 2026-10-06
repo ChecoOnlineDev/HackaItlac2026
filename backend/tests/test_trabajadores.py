@@ -31,6 +31,7 @@ from app.modulos.trabajadores.exceptions import TrabajadorConPendientes
 from app.modulos.trabajadores.models import EstadoTrabajador, PeriodoContrato, Trabajador
 from app.modulos.trabajadores.repository import TrabajadorRepository
 from app.modulos.trabajadores.service import TrabajadorService
+from tests.ayudas_dotacion import puesto_de_prueba
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 64
 _contador = itertools.count(1)
@@ -1227,3 +1228,20 @@ def test_T_02_la_ficha_lista_todos_los_periodos(rh: TestClient) -> None:
 
     assert len(ficha["periodos"]) == 2
     assert ficha["periodos"][0]["inicio"] > ficha["periodos"][1]["inicio"]
+
+
+def test_D_01_rh_lista_los_puestos_activos_sin_ver_el_catalogo(
+    rh: TestClient, almacenista: TestClient, session: Session
+) -> None:
+    """RH da de alta pero no tiene `catalogo.ver`: elige el puesto en una lista propia (solo
+    `id` y `nombre`, solo activos); quien no administra trabajadores recibe 403."""
+    activo = puesto_de_prueba(session)
+    inactivo = puesto_de_prueba(session, activo=False)
+    session.commit()
+    assert rh.get("/api/puestos").status_code == 403  # el catálogo sigue sin permiso
+    r = rh.get("/api/trabajadores/puestos", params={"tamano": 100})
+    assert r.status_code == 200, r.text
+    por_id = {p["id"]: p for p in r.json()["elementos"]}
+    assert str(activo.id) in por_id and str(inactivo.id) not in por_id
+    assert set(por_id[str(activo.id)]) == {"id", "nombre"}
+    assert almacenista.get("/api/trabajadores/puestos").status_code == 403

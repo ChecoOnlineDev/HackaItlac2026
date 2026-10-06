@@ -332,6 +332,7 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
         ("GET", f"/api/trabajadores/{UUID_FALSO}/dotacion", None, set()),
     ],
     P.TRABAJADORES_ADMINISTRAR: [
+        ("GET", "/api/trabajadores/puestos", None, set()),
         ("POST", "/api/trabajadores", {}, set()),
         ("POST", f"/api/trabajadores/{UUID_FALSO}/periodos", {}, set()),
         ("DELETE", f"/api/trabajadores/{UUID_FALSO}/baja", None, set()),

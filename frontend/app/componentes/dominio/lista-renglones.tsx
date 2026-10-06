@@ -97,23 +97,28 @@ export function ListaRenglones({
           temporizadores.current.delete(clave);
         }, RESALTADO_MS),
       );
-
-      const agregado = renglones.find((r) => claveDe(r) === clave);
-      // Un código que no existe (renglón rojo) no es algo "agregado": el renglón ya explica el problema.
-      if (anunciarAgregados && agregado?.articulo) {
-        const nombre = agregado.articulo.nombre;
+    }
+    // Un solo aviso por lote (p. ej. al agregar la dotación sugerida) en vez de uno por renglón.
+    if (anunciarAgregados) {
+      const anunciables = nuevos
+        .map((c) => ({ clave: c, renglon: renglones.find((r) => claveDe(r) === c) }))
+        .filter((x) => x.renglon?.articulo);
+      if (anunciables.length > 0) {
+        const quitarNuevos = () => {
+          const { renglones: actualesRenglones, claveDe: clave_de, onQuitar: quitar } = ultima.current;
+          for (const { clave } of anunciables) {
+            const actual = actualesRenglones.find((r) => clave_de(r) === clave);
+            if (actual) quitar(actual);
+          }
+        };
         aviso({
-          titulo: `Se agregó ${nombre}`,
+          titulo:
+            anunciables.length === 1
+              ? `Se agregó ${anunciables[0].renglon!.articulo!.nombre}`
+              : `Se agregaron ${anunciables.length} artículos`,
           tipo: "info",
           duracionMs: 5000,
-          accion: {
-            etiqueta: "Deshacer",
-            alHacerClic: () => {
-              const { renglones: actualesRenglones, claveDe: clave_de, onQuitar: quitar } = ultima.current;
-              const actual = actualesRenglones.find((r) => clave_de(r) === clave);
-              if (actual) quitar(actual);
-            },
-          },
+          accion: { etiqueta: "Deshacer", alHacerClic: quitarNuevos },
         });
       }
     }
