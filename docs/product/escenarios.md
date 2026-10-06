@@ -453,8 +453,8 @@ Marta, almacenista de Midrex, puede usar el mismo filtro, pero solo sobre su alm
 **Qué pasa.**
 
 1. Marta levanta una **solicitud de compra**: como no hay artículo, escribe «Llave métrica 24 mm», pone cantidad 2 y el motivo; queda urgente y con folio `MID-SOL-000001`.
-2. Luis, de Compras, ve en su cola las solicitudes de todos los almacenes, la urgente primero. La toma: pasa a «en compra».
-3. La compra y la marca comprada, con una nota con la fecha de llegada. Marta y el ingeniero Martínez ven el cambio en la solicitud.
+2. Luis, de Compras, ve en **Solicitudes de compra** (con un número de pendientes en el menú) las solicitudes de todos los almacenes, la urgente primero y marcada en rojo. La toma: pasa a «en compra».
+3. La compra y la marca comprada, con una nota con la fecha de llegada. Marta y el ingeniero Martínez ven el cambio al abrir la solicitud, en su línea de tiempo.
 4. Luis registra la entrada en Kepler (vale `KEP-ING-…`, I-01), la ingresa y la liga con ese vale. La herramienta llega a Midrex con un traspaso (X-01).
 5. Si Luis no la puede comprar, la rechaza con una nota («Hay una igual en Contratistas») y Marta la lee; si Marta ya no la necesita, la cancela mientras sigue pendiente.
 
