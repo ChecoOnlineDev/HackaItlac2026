@@ -54,6 +54,16 @@ function Articulo({ m }: { m: MovimientoReporte }) {
   );
 }
 
+function Autorizacion({ m }: { m: MovimientoReporte }) {
+  if (!m.autorizado_por && !m.motivo) return <span className="text-muted-foreground">—</span>;
+  return (
+    <>
+      {m.autorizado_por ? <span className="block">{m.autorizado_por}</span> : null}
+      {m.motivo ? <span className="block text-sm text-muted-foreground">{m.motivo}</span> : null}
+    </>
+  );
+}
+
 export default function ReporteMovimientos() {
   const { valores, pagina, cambiar, cambiarPagina, quitarTodos } = useFiltrosUrl(CLAVES);
   const alcance = useAlcance();
@@ -162,6 +172,7 @@ export default function ReporteMovimientos() {
                   <TableHead scope="col">De</TableHead>
                   <TableHead scope="col">A</TableHead>
                   <TableHead scope="col">Responsable</TableHead>
+                  <TableHead scope="col">Autorizó y motivo</TableHead>
                   <TableHead scope="col">Saldo</TableHead>
                 </TableRow>
               </TableHeader>
@@ -182,6 +193,9 @@ export default function ReporteMovimientos() {
                     <TableCell>{m.origen}</TableCell>
                     <TableCell>{m.destino}</TableCell>
                     <TableCell>{m.responsable}</TableCell>
+                    <TableCell>
+                      <Autorizacion m={m} />
+                    </TableCell>
                     <TableCell>
                       <Saldo m={m} />
                     </TableCell>
@@ -217,6 +231,22 @@ export default function ReporteMovimientos() {
                   <span className="text-muted-foreground">Responsable: </span>
                   {m.responsable}
                 </p>
+                {m.autorizado_por || m.motivo ? (
+                  <p className="text-sm">
+                    {m.autorizado_por ? (
+                      <>
+                        <span className="text-muted-foreground">Autorizó: </span>
+                        {m.autorizado_por}
+                      </>
+                    ) : null}
+                    {m.motivo ? (
+                      <span className="block">
+                        <span className="text-muted-foreground">Motivo: </span>
+                        {m.motivo}
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
                 <div className="flex flex-wrap items-center gap-x-2 text-sm">
                   <span className="text-muted-foreground">Saldo: </span>
                   <Saldo m={m} enLinea />

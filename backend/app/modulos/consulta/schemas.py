@@ -352,6 +352,9 @@ class MovimientoReporteItem(BaseModel):
     destino: str
     responsable: str
     trabajador: str | None
+    # Quién autorizó el vale y por qué (A-04); vacíos si no hubo autorización ni motivo.
+    autorizado_por: str | None = None
+    motivo: str | None = None
     saldo_origen: int | None
     saldo_destino: int | None
 

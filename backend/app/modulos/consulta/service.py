@@ -594,6 +594,8 @@ class ConsultaService:
                 destino=_texto_ubicacion(f, "destino"),
                 responsable=f.responsable,
                 trabajador=f"{f.trabajador} ({f.numero_empleado})" if f.trabajador else None,
+                autorizado_por=f.autorizado_por,
+                motivo=f.motivo,
                 saldo_origen=f.saldo_origen,
                 saldo_destino=f.saldo_destino,
             )
@@ -623,6 +625,8 @@ class ConsultaService:
                 "Destino",
                 "Responsable",
                 "Trabajador",
+                "Autorizado por",
+                "Motivo",
                 "Saldo origen",
                 "Saldo destino",
             ],
@@ -639,6 +643,8 @@ class ConsultaService:
                     e.destino,
                     e.responsable,
                     e.trabajador,
+                    e.autorizado_por,
+                    e.motivo,
                     e.saldo_origen,
                     e.saldo_destino,
                 )
