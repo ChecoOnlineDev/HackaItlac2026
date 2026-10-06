@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cn } from "cn";
 import { BanIcon, PrinterIcon } from "lucide-react";
 
@@ -24,6 +25,13 @@ const NOMBRE_CONDICION: Record<Condicion, string> = {
   DESGASTE: "Desgaste por uso",
   DANADO: "Dañado",
 };
+
+/** La firma guardada; si la imagen no carga, el vale dice "Firmado en pantalla" en vez de mostrar un icono roto. */
+function ImagenDeFirma({ src, alt }: { src: string; alt: string }) {
+  const [fallo, setFallo] = useState(false);
+  if (fallo) return <p className="pb-2 text-sm font-semibold text-neutral-700">Firmado en pantalla</p>;
+  return <img src={src} alt={alt} onError={() => setFallo(true)} className="max-h-full max-w-full object-contain" />;
+}
 
 /** Leyenda que firma el trabajador al recibir (F-02). La pantalla de firma debe mostrar la misma. */
 export const LEYENDA_RESPONSABILIDAD =
@@ -221,7 +229,7 @@ export function ValeImprimible({ vale, botonImprimir = true, acciones, className
             <div className="flex flex-col gap-1">
               <div className="flex h-28 items-end justify-center border-b-2 border-black">
                 {vale.firma?.imagen ? (
-                  <img src={vale.firma.imagen} alt={`Firma de ${vale.trabajador?.nombre ?? "quien recibió"}`} className="max-h-full max-w-full object-contain" />
+                  <ImagenDeFirma src={vale.firma.imagen} alt={`Firma de ${vale.trabajador?.nombre ?? "quien recibió"}`} />
                 ) : vale.firma ? (
                   <p className="pb-2 text-sm font-semibold text-neutral-700">Firmado en pantalla</p>
                 ) : null}

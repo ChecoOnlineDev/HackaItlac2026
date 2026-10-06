@@ -4,8 +4,9 @@ import type { ValeDetalleApi } from "./tipos";
 
 /**
  * Convierte lo que responde `GET /api/vales/{id}` (o `por-token`) a la forma que pinta `ValeImprimible`.
- * El servidor no entrega la imagen de la firma, solo `tiene_firma`: si la pantalla ya la tiene (porque
- * acaba de capturarla), se pasa en `firmaImagen`; si no, el vale dice "Firmado en pantalla".
+ * La imagen de la firma no viaja en el detalle (solo `tiene_firma`): si la pantalla ya la tiene (porque
+ * acaba de capturarla), se pasa en `firmaImagen`; si no, se pide a `GET /api/vales/{id}/firma` (mismo
+ * alcance que el vale, con la sesión) y, mientras no carga o si falla, el vale dice "Firmado en pantalla".
  */
 export function aValeImprimible(api: ValeDetalleApi, firmaImagen?: string | null): ValeDetalle {
   return {
@@ -27,7 +28,11 @@ export function aValeImprimible(api: ValeDetalleApi, firmaImagen?: string | null
     responsable: { nombre: api.responsable.nombre },
     autorizacion: api.valido ? { autorizado_por: { nombre: api.valido.autorizo.nombre }, motivo: api.valido.motivo } : null,
     observacion: api.observacion,
-    firma: firmaImagen ? { imagen: firmaImagen } : api.tiene_firma ? { imagen: null } : null,
+    firma: firmaImagen
+      ? { imagen: firmaImagen }
+      : api.tiene_firma
+        ? { imagen: `/api/vales/${api.id}/firma` }
+        : null,
     vale_origen_folio: api.vale_origen_folio,
     renglones: api.renglones.map((r) => ({
       renglon: r.renglon,
