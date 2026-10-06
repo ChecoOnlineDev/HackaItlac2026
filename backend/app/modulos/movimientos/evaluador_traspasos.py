@@ -115,11 +115,11 @@ def regla_x04_pieza_no_apta(h: HechosRenglonTraspaso) -> Motivo | None:
     estado. Aviso amarillo."""
     if h.pieza is None or h.pieza.estado == "APTO":
         return None
-    estado = ESTADO_PIEZA_TEXTO.get(h.pieza.estado, h.pieza.estado.lower())
+    estado = ESTADO_PIEZA_TEXTO.get(h.pieza.estado, f"está {h.pieza.estado.lower()}")
     return Motivo(
         "X-04",
         Nivel.AMARILLO,
-        f"La pieza está {estado}. Se puede enviar y conserva su estado.",
+        f"La pieza {estado}. Se puede enviar y conserva su estado.",
     )
 
 
