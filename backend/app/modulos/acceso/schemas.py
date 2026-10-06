@@ -1,9 +1,18 @@
 """Contratos de entrada y salida del módulo `acceso`."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
+
+
+def _a_utc(valor: datetime) -> str:
+    return valor.replace(tzinfo=UTC).isoformat().replace("+00:00", "Z")
+
+
+# Las fechas de la base son UTC sin zona; se envían con la `Z` (api-contracts: horas en UTC).
+FechaUtc = Annotated[datetime, PlainSerializer(_a_utc, return_type=str)]
 
 
 class LoginIn(BaseModel):
@@ -37,6 +46,26 @@ class SesionOut(BaseModel):
     rol: RolSesionOut
     almacen: AlmacenSesionOut | None
     permisos: list[str]
+
+
+class DispositivoOut(BaseModel):
+    """Una sesión abierta del usuario en un dispositivo. Sin huellas ni dirección IP."""
+
+    id: uuid.UUID
+    inicio: FechaUtc
+    ultimo_uso: FechaUtc
+    # Hasta cuándo sirve sin volver a usarla (la ventana renovable, sin pasar del tope).
+    vence_en: FechaUtc
+    agente: str | None
+    actual: bool
+
+
+class DispositivosOut(BaseModel):
+    dispositivos: list[DispositivoOut]
+
+
+class CerradasOut(BaseModel):
+    cerradas: int
 
 
 # ------------------------------------------------- usuarios, personal y roles (FEAT-006)

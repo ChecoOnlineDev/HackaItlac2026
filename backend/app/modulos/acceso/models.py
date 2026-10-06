@@ -76,3 +76,45 @@ class Usuario(Base):
     )
 
     rol: Mapped[Rol] = relationship(lazy="joined")
+
+
+class SesionDispositivo(Base):
+    """Un token de renovación emitido a un dispositivo (AC-14 a AC-24).
+
+    Cada inicio de sesión abre una `familia_id`; cada renovación crea una fila nueva de esa
+    familia y deja la anterior revocada (`motivo_revocacion = 'rotada'`, `reemplazada_por`). La
+    fila sin `revocada_en` es la vigente de la familia. Solo se guarda la huella del token
+    (`refresh_hash`), nunca el token ni la dirección IP.
+    """
+
+    __tablename__ = "sesion_dispositivo"
+    __table_args__ = (
+        Index("ix_sesion_dispositivo_usuario_id", "usuario_id"),
+        Index("ix_sesion_dispositivo_familia_id", "familia_id"),
+        Index("ix_sesion_dispositivo_vence_absoluto", "vence_absoluto"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=nuevo_id)
+    usuario_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("usuario.id", ondelete="CASCADE"), nullable=False
+    )
+    # Una por inicio de sesión: identifica al dispositivo a lo largo de sus renovaciones.
+    familia_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    # SHA-256 (hex) del token de renovación.
+    refresh_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    # `usuario.version_sesion` al emitirla: si el usuario ya tiene otra, el token se rechaza.
+    version_sesion: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Cuándo se emitió esta fila y cuándo se inició la sesión (el inicio no cambia al renovar).
+    creado_en: Mapped[datetime] = mapped_column(FechaHora, nullable=False, default=ahora_utc)
+    inicio: Mapped[datetime] = mapped_column(FechaHora, nullable=False)
+    ultimo_uso: Mapped[datetime] = mapped_column(FechaHora, nullable=False)
+    # Ventana deslizante: cada renovación la vuelve a dar completa, sin pasar de `vence_absoluto`.
+    expira_en: Mapped[datetime] = mapped_column(FechaHora, nullable=False)
+    # Tope: inicio + REFRESH_TOPE_DIAS. Pasado este momento hay que entrar de nuevo.
+    vence_absoluto: Mapped[datetime] = mapped_column(FechaHora, nullable=False)
+    revocada_en: Mapped[datetime | None] = mapped_column(FechaHora)
+    motivo_revocacion: Mapped[str | None] = mapped_column(String(30))
+    # Sin llave foránea a propósito: las filas de una familia se borran juntas al purgar.
+    reemplazada_por: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    # Navegador y sistema resumidos ("Chrome en Windows"); sin dirección IP.
+    agente: Mapped[str | None] = mapped_column(String(120))

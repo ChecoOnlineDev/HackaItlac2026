@@ -14,6 +14,7 @@ peticiones, así un cambio de permisos aplica en la siguiente (AC-10). Nunca se 
 del rol.
 """
 
+import uuid
 from collections.abc import Callable
 from typing import Annotated
 
@@ -37,13 +38,23 @@ AccesoServiceDep = Annotated[AccesoService, Depends(get_acceso_service)]
 def usuario_actual(request: Request, service: AccesoServiceDep) -> Usuario:
     """El usuario de la sesión. 401 `NO_AUTENTICADO` si no hay sesión, venció o está inactivo."""
     token = request.cookies.get(get_settings().cookie_nombre)
-    usuario = service.usuario_de_token(token)
-    if usuario is None:
+    encontrado = service.sesion_de_token(token)
+    if encontrado is None:
         raise NoAutenticado()
+    usuario, familia_id = encontrado
+    request.state.familia_id = familia_id  # el dispositivo de esta sesión (`FamiliaActual`)
     return usuario
 
 
 UsuarioActual = Annotated[Usuario, Depends(usuario_actual)]
+
+
+def familia_actual(request: Request, _usuario: UsuarioActual) -> uuid.UUID:
+    """El dispositivo (familia) de la sesión de esta petición; exige sesión como `UsuarioActual`."""
+    return request.state.familia_id
+
+
+FamiliaActual = Annotated[uuid.UUID, Depends(familia_actual)]
 
 
 def requiere_permiso(clave: str) -> Callable[..., Usuario]:

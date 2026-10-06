@@ -87,8 +87,10 @@ RUTAS: list[tuple[str, str, APIRoute]] = [
     (metodo, camino, ruta) for camino, ruta in _rutas_de(APP) for metodo in _metodos(ruta)
 ]
 
-# Públicas por diseño: entrar con usuario y contraseña, y comprobar que la aplicación vive.
-PUBLICAS = {("POST", "/api/sesion"), ("GET", "/api/salud")}
+# Públicas por diseño: entrar con usuario y contraseña, renovar la sesión (la identifica el token
+# de renovación, no el de acceso, que para entonces ya pudo vencer) y comprobar que la aplicación
+# vive.
+PUBLICAS = {("POST", "/api/sesion"), ("POST", "/api/sesion/refresh"), ("GET", "/api/salud")}
 # Rutas del propio framework (documentación interactiva): públicas, sin datos del negocio.
 PUBLICAS_DEL_FRAMEWORK = {
     "/api/docs",
@@ -101,7 +103,16 @@ PUBLICAS_DEL_FRAMEWORK = {
 # permiso fijo en la dependencia.
 SOLO_SESION: dict[tuple[str, str], str] = {
     ("GET", "/api/sesion"): "Devuelve la sesión y los permisos del propio usuario.",
-    ("DELETE", "/api/sesion"): "Cierra la sesión propia.",
+    ("DELETE", "/api/sesion"): "Cierra la sesión propia, solo la de este dispositivo.",
+    (
+        "DELETE",
+        "/api/sesion/todas",
+    ): "Cierra todas las sesiones propias, en todos los dispositivos.",
+    ("DELETE", "/api/sesion/otras"): "Cierra las sesiones propias de los demás dispositivos.",
+    (
+        "GET",
+        "/api/sesion/dispositivos",
+    ): "Lista los dispositivos con sesión abierta del propio usuario.",
     ("GET", "/api/escaneo/{codigo}"): (
         "Identifica un código; el servicio devuelve solo lo que el usuario puede ver "
         "(lo demás llega como DESCONOCIDO)."
@@ -184,6 +195,8 @@ def test_las_publicas_son_solo_las_documentadas(client):
     assert client.get("/api/salud").status_code == 200
     r = client.post("/api/sesion", json={"usuario": "nadie", "contrasena": "x"})
     assert r.status_code == 401  # público, pero rechaza credenciales malas
+    r = client.post("/api/sesion/refresh")
+    assert r.status_code == 401 and r.json()["codigo"] == "SESION_VENCIDA"  # público, sin token
     for ruta in PUBLICAS_DEL_FRAMEWORK:
         assert any(getattr(r, "path", None) == ruta for r in APP.routes), ruta
 

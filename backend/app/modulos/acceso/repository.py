@@ -2,11 +2,12 @@
 
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 
-from sqlalchemy import ColumnElement, delete, exists, func, or_, select
+from sqlalchemy import ColumnElement, delete, exists, func, or_, select, update
 from sqlalchemy.orm import Session
 
-from app.modulos.acceso.models import Rol, RolPermiso, Usuario
+from app.modulos.acceso.models import Rol, RolPermiso, SesionDispositivo, Usuario
 from app.modulos.acceso.permisos import P
 from app.modulos.almacenes.models import Almacen
 
@@ -205,3 +206,106 @@ class RolRepository:
         for clave in claves - actuales:
             self.session.add(RolPermiso(rol_id=rol_id, permiso=clave))
         self.session.flush()
+
+
+class SesionDispositivoRepository:
+    """Los tokens de renovación por dispositivo. Nunca hace commit."""
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, fila: SesionDispositivo) -> SesionDispositivo:
+        self.session.add(fila)
+        self.session.flush()
+        return fila
+
+    def por_huella(self, huella: str, *, bloquear: bool = False) -> SesionDispositivo | None:
+        """La fila de ese token de renovación. Con `bloquear` toma la fila (`FOR UPDATE`): dos
+        renovaciones simultáneas con el mismo token se atienden una por una."""
+        consulta = select(SesionDispositivo).where(SesionDispositivo.refresh_hash == huella)
+        if bloquear:
+            consulta = consulta.with_for_update().execution_options(populate_existing=True)
+        return self.session.scalar(consulta)
+
+    def vigente_de_familia(self, familia_id: uuid.UUID) -> SesionDispositivo | None:
+        """La fila sin revocar de la familia (la que se renovó la última vez), si la hay."""
+        return self.session.scalar(
+            select(SesionDispositivo).where(
+                SesionDispositivo.familia_id == familia_id,
+                SesionDispositivo.revocada_en.is_(None),
+            )
+        )
+
+    def familia_abierta(self, familia_id: uuid.UUID, usuario_id: uuid.UUID) -> bool:
+        """True si la familia es del usuario y no está revocada (se pregunta en cada petición)."""
+        return bool(
+            self.session.scalar(
+                select(
+                    exists().where(
+                        SesionDispositivo.familia_id == familia_id,
+                        SesionDispositivo.usuario_id == usuario_id,
+                        SesionDispositivo.revocada_en.is_(None),
+                    )
+                )
+            )
+        )
+
+    def revocar_familia(self, familia_id: uuid.UUID, motivo: str, ahora: datetime) -> int:
+        """Revoca lo que siga vigente de la familia. Devuelve cuántas filas revocó."""
+        resultado = self.session.execute(
+            update(SesionDispositivo)
+            .where(
+                SesionDispositivo.familia_id == familia_id, SesionDispositivo.revocada_en.is_(None)
+            )
+            .values(revocada_en=ahora, motivo_revocacion=motivo)
+            .execution_options(synchronize_session="fetch")
+        )
+        return resultado.rowcount
+
+    def revocar_de_usuario(
+        self,
+        usuario_id: uuid.UUID,
+        motivo: str,
+        ahora: datetime,
+        *,
+        excepto_familia: uuid.UUID | None = None,
+    ) -> int:
+        """Revoca todas las sesiones vigentes del usuario (menos `excepto_familia`)."""
+        condiciones = [
+            SesionDispositivo.usuario_id == usuario_id,
+            SesionDispositivo.revocada_en.is_(None),
+        ]
+        if excepto_familia is not None:
+            condiciones.append(SesionDispositivo.familia_id != excepto_familia)
+        resultado = self.session.execute(
+            update(SesionDispositivo)
+            .where(*condiciones)
+            .values(revocada_en=ahora, motivo_revocacion=motivo)
+            .execution_options(synchronize_session="fetch")
+        )
+        return resultado.rowcount
+
+    def abiertas_de_usuario(
+        self, usuario_id: uuid.UUID, ahora: datetime
+    ) -> list[SesionDispositivo]:
+        """Una fila por dispositivo con sesión abierta: la vigente de cada familia, sin revocar,
+        dentro de su ventana y de su tope. La más reciente primero."""
+        filas = self.session.scalars(
+            select(SesionDispositivo)
+            .where(
+                SesionDispositivo.usuario_id == usuario_id,
+                SesionDispositivo.revocada_en.is_(None),
+                SesionDispositivo.expira_en > ahora,
+                SesionDispositivo.vence_absoluto > ahora,
+            )
+            .order_by(SesionDispositivo.ultimo_uso.desc(), SesionDispositivo.id)
+        )
+        return list(filas)
+
+    def purgar(self, vencidas_antes_de: datetime) -> int:
+        """Borra las familias cuyo tope absoluto ya pasó hace tiempo (todas sus filas comparten
+        el tope), para que la tabla no crezca sin fin."""
+        resultado = self.session.execute(
+            delete(SesionDispositivo).where(SesionDispositivo.vence_absoluto < vencidas_antes_de)
+        )
+        return resultado.rowcount

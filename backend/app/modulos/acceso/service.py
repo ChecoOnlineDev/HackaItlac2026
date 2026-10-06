@@ -16,13 +16,15 @@ from app.modulos.acceso.permisos import CLAVES, P
 from app.modulos.acceso.repository import RolRepository, UsuarioRepository
 from app.modulos.acceso.schemas import (
     AlmacenSesionOut,
+    DispositivosOut,
     RolSesionOut,
     SesionOut,
     UsuarioSesionOut,
 )
+from app.modulos.acceso.service_sesiones import SesionEmitida, SesionesService
 from app.modulos.almacenes.service import AlmacenService
 from app.modulos.auditoria.service import AuditoriaService
-from app.seguridad import HASH_RELLENO, leer_token, verificar_secreto
+from app.seguridad import HASH_RELLENO, leer_token_acceso, verificar_secreto
 
 
 class AccesoService:
@@ -32,6 +34,7 @@ class AccesoService:
         self.roles = RolRepository(session)
         self.auditoria = AuditoriaService(session)
         self.almacenes = AlmacenService(session)
+        self.sesiones = SesionesService(session)
 
     # ------------------------------------------------------------------ sesión
 
@@ -90,27 +93,57 @@ class AccesoService:
         self.session.commit()
         return usuario
 
-    def usuario_de_token(self, token: str | None) -> Usuario | None:
-        """El usuario activo al que pertenece el token, leído de la base en cada petición."""
+    def iniciar_sesion(
+        self,
+        nombre_usuario: str,
+        contrasena: str,
+        agente: str | None,
+        refresh_previo: str | None = None,
+    ) -> SesionEmitida:
+        """Valida las credenciales y abre la sesión de este dispositivo (AC-14)."""
+        usuario = self.autenticar(nombre_usuario, contrasena)
+        return self.sesiones.abrir(usuario, agente, refresh_previo)
+
+    def renovar_sesion(self, token_refresh: str | None, agente: str | None) -> SesionEmitida:
+        """Cambia el token de renovación por uno de acceso nuevo (AC-15 a AC-18)."""
+        return self.sesiones.renovar(token_refresh, agente)
+
+    def sesion_de_token(self, token: str | None) -> tuple[Usuario, uuid.UUID] | None:
+        """El usuario activo y la familia (dispositivo) a los que pertenece el token de acceso,
+        leídos de la base en cada petición. None si el token no sirve: inválido, vencido, de una
+        versión de sesión que ya cambió o de un dispositivo cuya sesión se cerró (AC-19)."""
         if not token:
             return None
-        leido = leer_token(token)
+        leido = leer_token_acceso(token)
         if leido is None:
             return None
-        usuario_id, version = leido
-        usuario = self.usuarios.get(usuario_id)
-        if usuario is None or not usuario.activo or usuario.version_sesion != version:
+        usuario = self.usuarios.get(leido.usuario_id)
+        if usuario is None or not usuario.activo or usuario.version_sesion != leido.version:
             return None  # un token de una sesión ya cerrada o revocada no sirve
-        return usuario
+        if not self.sesiones.familia_abierta(leido.familia_id, usuario.id):
+            return None
+        return usuario, leido.familia_id
 
-    def cerrar_sesiones(self, usuario: Usuario) -> None:
-        """Cierra TODAS las sesiones del usuario (en todos sus dispositivos): sube su versión de
-        sesión y los tokens emitidos antes dejan de servir. Hace commit."""
-        usuario.version_sesion = Usuario.version_sesion + 1
-        self.auditoria.registrar(
-            usuario_id=usuario.id, accion="sesion.salida", entidad="usuario", entidad_id=usuario.id
-        )
-        self.session.commit()
+    def usuario_de_token(self, token: str | None) -> Usuario | None:
+        """Solo el usuario de `sesion_de_token`."""
+        encontrado = self.sesion_de_token(token)
+        return encontrado[0] if encontrado else None
+
+    def cerrar_sesion(self, usuario: Usuario, familia_id: uuid.UUID) -> None:
+        """Cierra la sesión de ESTE dispositivo (AC-19)."""
+        self.sesiones.cerrar_dispositivo(usuario, familia_id)
+
+    def cerrar_todas_las_sesiones(self, usuario: Usuario) -> None:
+        """Cierra las sesiones de TODOS los dispositivos del usuario (AC-20)."""
+        self.sesiones.cerrar_todas(usuario)
+
+    def cerrar_otras_sesiones(self, usuario: Usuario, familia_id: uuid.UUID) -> int:
+        """Cierra las sesiones de los demás dispositivos y conserva esta (AC-20)."""
+        return self.sesiones.cerrar_otras(usuario, familia_id)
+
+    def dispositivos(self, usuario: Usuario, familia_id: uuid.UUID) -> DispositivosOut:
+        """Las sesiones abiertas del usuario (AC-21)."""
+        return DispositivosOut(dispositivos=self.sesiones.dispositivos(usuario, familia_id))
 
     def construir_sesion(self, usuario: Usuario) -> SesionOut:
         almacen = self.almacenes.obtener(usuario.almacen_id) if usuario.almacen_id else None

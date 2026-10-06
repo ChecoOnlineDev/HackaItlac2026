@@ -4,6 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -39,11 +40,26 @@ class Settings(BaseSettings):
     mysql_password: str = ""
     mysql_root_password: str = ""
 
-    # Sesión
+    # Sesión (AC-14 a AC-24): token de acceso corto + token de renovación opaco por dispositivo.
     clave_sesion: str = "cambia-esta-clave"
-    sesion_horas: int = 12
+    # OBSOLETO: antes fijaba la vida del único token de sesión (12 h). Ya no se usa; la vida de la
+    # sesión sale de ACCESO_MINUTOS, REFRESH_DIAS y REFRESH_TOPE_DIAS. Se acepta para que un `.env`
+    # viejo no falle al arrancar.
+    sesion_horas: int | None = None
+    # Vida del token de acceso, en minutos. Al vencer, la interfaz lo renueva sola.
+    acceso_minutos: int = Field(default=15, ge=1, le=120)
+    # Días que dura el token de renovación sin usarse; cada renovación los vuelve a dar completos.
+    refresh_dias: int = Field(default=7, ge=1, le=30)
+    # Tope absoluto, en días desde que se inició la sesión: pasado el tope hay que entrar de nuevo
+    # aunque se use a diario.
+    refresh_tope_dias: int = Field(default=30, ge=1, le=90)
+    # Segundos tras una renovación en que el token ya rotado todavía se acepta (dos pestañas que
+    # renuevan a la vez, un reintento de red) sin tomarlo por robado.
+    refresh_tolerancia_segundos: int = Field(default=10, ge=0, le=60)
     cookie_segura: bool = False
     cookie_nombre: str = "sesion"
+    # Cookie del token de renovación (solo viaja a /api/sesion).
+    cookie_refresh_nombre: str = "sesion_renovar"
 
     # Bloqueo por intentos fallidos (US-ACC-001)
     intentos_maximos: int = 5
@@ -75,6 +91,14 @@ class Settings(BaseSettings):
 
     # Pruebas automáticas
     test_db_suffix: str = "main"
+
+    @model_validator(mode="after")
+    def _validar_sesion(self) -> Settings:
+        if self.refresh_tope_dias < self.refresh_dias:
+            raise ValueError("REFRESH_TOPE_DIAS no puede ser menor que REFRESH_DIAS.")
+        if self.cookie_refresh_nombre == self.cookie_nombre:
+            raise ValueError("COOKIE_REFRESH_NOMBRE debe ser distinta de COOKIE_NOMBRE.")
+        return self
 
     @property
     def es_produccion(self) -> bool:
