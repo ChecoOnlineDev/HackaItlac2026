@@ -1,10 +1,11 @@
-import { CircleAlertIcon, TimerIcon } from "lucide-react";
+import { CircleAlertIcon, TimerIcon, UserRoundIcon } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
 
 import { esErrorApi, formatearEspera, mensajeDeError } from "~/api/errores";
 import { Boton } from "~/componentes/ui/boton";
 import { Campo } from "~/componentes/ui/campo";
+import { CampoClave } from "~/componentes/ui/campo-clave";
 import { Cargando } from "~/componentes/ui/cargando";
 import { rutaDeRegreso, useSesion } from "~/sesion/sesion";
 
@@ -72,6 +73,7 @@ export default function Entrar() {
       <form onSubmit={enviar} className="flex flex-col gap-5" noValidate>
         <Campo
           etiqueta="Usuario"
+          icono={<UserRoundIcon />}
           name="usuario"
           autoComplete="username"
           autoCapitalize="none"
@@ -83,10 +85,9 @@ export default function Entrar() {
           value={usuario}
           onChange={(e) => setUsuario(e.target.value)}
         />
-        <Campo
+        <CampoClave
           etiqueta="Contraseña"
           name="contrasena"
-          type="password"
           autoComplete="current-password"
           enterKeyHint="go"
           required

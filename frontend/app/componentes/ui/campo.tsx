@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { CircleAlertIcon } from "lucide-react";
-import { useId, type ComponentProps } from "react";
+import { useId, type ComponentProps, type ReactNode } from "react";
 
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
@@ -13,10 +13,14 @@ interface PropiedadesCampo extends ComponentProps<typeof Input> {
   ayuda?: string;
   /** Clases del contenedor (no del campo). */
   claseContenedor?: string;
+  /** Icono pequeño junto a la etiqueta (decorativo). */
+  icono?: ReactNode;
+  /** Control al final del campo, dentro de él (por ejemplo, "Mostrar contraseña"). */
+  alFinal?: ReactNode;
 }
 
 /** Etiqueta + campo de 48 px + error junto al campo. */
-export function Campo({ etiqueta, error, ayuda, claseContenedor, id, className, ...props }: PropiedadesCampo) {
+export function Campo({ etiqueta, error, ayuda, claseContenedor, icono, alFinal, id, className, ...props }: PropiedadesCampo) {
   const idGenerado = useId();
   const idCampo = id ?? idGenerado;
   const idError = `${idCampo}-error`;
@@ -26,15 +30,23 @@ export function Campo({ etiqueta, error, ayuda, claseContenedor, id, className, 
   return (
     <div className={cn("flex flex-col gap-1.5", claseContenedor)}>
       <Label htmlFor={idCampo} className="text-sm font-medium text-foreground">
+        {icono ? (
+          <span aria-hidden="true" className="flex shrink-0 text-muted-foreground [&_svg]:size-4">
+            {icono}
+          </span>
+        ) : null}
         {etiqueta}
       </Label>
-      <Input
-        id={idCampo}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={descripcion}
-        className={cn("h-11 px-3 text-base md:text-base", className)}
-        {...props}
-      />
+      <div className="relative">
+        <Input
+          id={idCampo}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={descripcion}
+          className={cn("h-11 px-3 text-base md:text-base", alFinal && "pr-12", className)}
+          {...props}
+        />
+        {alFinal ? <div className="absolute inset-y-0 right-1 flex items-center">{alFinal}</div> : null}
+      </div>
       {ayuda ? (
         <p id={idAyuda} className="text-sm text-muted-foreground">
           {ayuda}
