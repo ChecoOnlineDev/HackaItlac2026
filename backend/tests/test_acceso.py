@@ -63,7 +63,8 @@ def test_US_ACC_001_login_correcto_devuelve_usuario_rol_almacen_y_permisos(clien
 
 
 def test_US_ACC_001_usuario_con_todos_los_almacenes_no_trae_almacen(client, usuario_por_rol):
-    r = iniciar_sesion_en(client, usuario_por_rol("Supervisor"))
+    # Solo el Administrador tiene `almacenes.todos` (AC-06) y no lleva almacén asignado.
+    r = iniciar_sesion_en(client, usuario_por_rol("Administrador"))
     assert r.json()["almacen"] is None
     assert P.ALMACENES_TODOS in r.json()["permisos"]
 
@@ -275,7 +276,7 @@ TABLA_8_2 = {
     "inventario.entradas": "C",
     "entregas.crear": "AS",
     "devoluciones.crear": "AS",
-    "traspasos.operar": "AS",
+    "traspasos.operar": "S",
     "no_adeudo.emitir": "AS",
     "vales.ver": "ASC",
     "vales.cancelar": "ASC",
@@ -283,11 +284,11 @@ TABLA_8_2 = {
     "autorizaciones.resolver": "S",
     "piezas.inspeccionar": "AS",
     "piezas.ajustar_vigencia": "S",
-    "reportes.existencias": "ASC",
-    "reportes.movimientos": "ASC",
-    "reportes.adeudos": "ASR",
+    "reportes.existencias": "SC",
+    "reportes.movimientos": "SC",
+    "reportes.adeudos": "SR",
     "reportes.consumo": "SC",
-    "almacenes.todos": "SC",
+    "almacenes.todos": "",
     "etiquetas.imprimir": "SCR",
     "almacenes.asignar_personal": "S",
 }  # fmt: skip
@@ -359,7 +360,7 @@ def test_AC_06_un_almacenista_no_opera_otro_almacen(session):
 
 def test_AC_06_con_almacenes_todos_se_indica_el_almacen(session):
     servicio = AccesoService(session)
-    supervisor = _usuario(session, "supervisor")
+    supervisor = _usuario(session, "admin")  # el único con `almacenes.todos`
     assert servicio.puede_operar_todos_los_almacenes(supervisor)
     destino = _usuario(session, "alm_hyl").almacen_id
     assert servicio.resolver_almacen(supervisor, destino) == destino

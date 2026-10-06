@@ -106,8 +106,9 @@ def test_AC_12_el_supervisor_no_toca_usuarios_ni_roles(metodo, ruta, cuerpo, cli
 def test_AC_12_el_administrador_y_el_supervisor_pueden_los_de_personal(
     metodo, ruta, cuerpo, cliente_como, session
 ):
-    objetivo = _usuario(session, "alm_hyl").id
-    for rol in ("Supervisor", "Administrador"):
+    # El Supervisor (de Kepler) alcanza a su personal; el Administrador, a cualquiera.
+    for rol, nombre in (("Supervisor", "almacenista"), ("Administrador", "alm_hyl")):
+        objetivo = _usuario(session, nombre).id
         r = _llamar(cliente_como(rol), metodo, ruta, cuerpo, objetivo)
         assert r.status_code == 200, r.text
     # El administrador puede además todos los de administración.
@@ -137,16 +138,21 @@ def test_AC_12_el_administrador_puede_los_endpoints_de_administracion(cliente_co
     assert _alta(admin, session).status_code == 201
 
 
+# Estas pruebas usan al Administrador (`almacenes.todos`): mover personas entre almacenes es
+# suyo. El Supervisor, limitado a su almacén, se prueba en `tests/test_alcance_roles.py`.
+
 # ------------------------------------------------------------ GET /api/personal
 
 
 def test_AC_12_la_lista_de_personal_solo_trae_a_quienes_operan_un_almacen(cliente_como):
-    r = cliente_como("Supervisor").get("/api/personal", params={"tamano": 200})
+    r = cliente_como("Administrador").get("/api/personal", params={"tamano": 200})
     assert r.status_code == 200
     cuerpo = r.json()
     usuarios = {e["usuario"] for e in cuerpo["elementos"]}
     assert {"almacenista", "alm_con", "alm_mid", "alm_hyl", "alm_lam", "alm_min"} <= usuarios
-    assert not usuarios & {"admin", "supervisor", "compras"}
+    # Quien tiene `almacenes.todos` y RH (que no opera inventario) no son personal de almacén.
+    assert not usuarios & {"admin", "rh"}
+    assert {"supervisor", "sup_hyl", "compras"} <= usuarios
     assert cuerpo["total"] == len(cuerpo["elementos"])
     hyl = next(e for e in cuerpo["elementos"] if e["usuario"] == "alm_hyl")
     assert hyl["almacen"]["clave"] == "HYL"
@@ -155,32 +161,32 @@ def test_AC_12_la_lista_de_personal_solo_trae_a_quienes_operan_un_almacen(client
 
 
 def test_AC_12_el_filtro_por_almacen_y_el_de_sin_almacen(cliente_como, session, crear_usuario):
-    sup = cliente_como("Supervisor")
+    sup = cliente_como("Administrador")
     hyl = str(_almacen(session, "HYL").id)
     r = sup.get("/api/personal", params={"almacen_id": hyl}).json()
-    assert [e["usuario"] for e in r["elementos"]] == ["alm_hyl"]
+    assert [e["usuario"] for e in r["elementos"]] == ["alm_hyl", "sup_hyl"]
 
     sin = crear_usuario({P.ENTREGAS_CREAR})  # opera un almacén y no tiene ninguno asignado
     r = sup.get("/api/personal", params={"sin_almacen": True}).json()
-    # Recursos Humanos tampoco tiene `almacenes.todos` y los datos de prueba no lo asignan.
-    assert {e["usuario"] for e in r["elementos"]} == {"rh", sin.usuario}
+    # Recursos Humanos no opera ningún almacén: no es personal de almacén, aunque no tenga uno.
+    assert {e["usuario"] for e in r["elementos"]} == {sin.usuario}
     assert all(e["almacen"] is None for e in r["elementos"])
 
     r = sup.get("/api/personal", params={"q": "Laminador"}).json()
-    assert [e["usuario"] for e in r["elementos"]] == ["alm_lam"]
+    assert [e["usuario"] for e in r["elementos"]] == ["alm_lam", "sup_lam"]
 
 
 def test_AC_12_un_almacen_puede_tener_varios_usuarios(cliente_como, session, crear_usuario):
     otro = crear_usuario({P.ENTREGAS_CREAR}, almacen="HYL")
-    r = cliente_como("Supervisor").get(
+    r = cliente_como("Administrador").get(
         "/api/personal", params={"almacen_id": str(_almacen(session, "HYL").id)}
     )
-    assert {e["usuario"] for e in r.json()["elementos"]} == {"alm_hyl", otro.usuario}
-    assert r.json()["total"] == 2
+    assert {e["usuario"] for e in r.json()["elementos"]} == {"alm_hyl", "sup_hyl", otro.usuario}
+    assert r.json()["total"] == 3
 
 
 def test_AC_12_no_se_puede_pedir_un_almacen_y_sin_almacen_a_la_vez(cliente_como, session):
-    r = cliente_como("Supervisor").get(
+    r = cliente_como("Administrador").get(
         "/api/personal",
         params={"almacen_id": str(_almacen(session, "HYL").id), "sin_almacen": True},
     )
@@ -189,7 +195,7 @@ def test_AC_12_no_se_puede_pedir_un_almacen_y_sin_almacen_a_la_vez(cliente_como,
 
 
 def test_AC_12_la_lista_de_personal_se_pagina(cliente_como):
-    r = cliente_como("Supervisor").get("/api/personal", params={"tamano": 2, "pagina": 1}).json()
+    r = cliente_como("Administrador").get("/api/personal", params={"tamano": 2, "pagina": 1}).json()
     assert len(r["elementos"]) == 2 and r["total"] >= 6
 
 
@@ -205,7 +211,7 @@ def test_AC_13_el_cambio_de_almacen_aplica_en_la_siguiente_peticion_del_usuario(
     assert entrada.status_code == 200 and entrada.json()["almacen"]["clave"] == "HYL"
 
     destino = _almacen(session, "KEP")
-    r = cliente_como("Supervisor").patch(
+    r = cliente_como("Administrador").patch(
         f"/api/usuarios/{_usuario(session, 'alm_hyl').id}/almacen",
         json={"almacen_id": str(destino.id)},
     )
@@ -228,14 +234,14 @@ def _como_usuario(nombre: str):
 
 def test_AC_13_el_cambio_queda_en_auditoria_con_almacen_anterior_y_nuevo(cliente_como, session):
     objetivo = _usuario(session, "alm_hyl")
-    supervisor = _usuario(session, "supervisor")
+    quien_mueve = _usuario(session, "admin")
     destino = _almacen(session, "LAM")
-    r = cliente_como("Supervisor").patch(
+    r = cliente_como("Administrador").patch(
         f"/api/usuarios/{objetivo.id}/almacen", json={"almacen_id": str(destino.id)}
     )
     assert r.status_code == 200
     (registro,) = _auditoria(session, "usuario.almacen", objetivo.id)
-    assert registro.usuario_id == supervisor.id  # quién
+    assert registro.usuario_id == quien_mueve.id  # quién
     assert registro.creado_en is not None  # cuándo
     assert registro.antes["almacen"]["codigo"] == "HYL"
     assert registro.despues["almacen"]["codigo"] == "LAM"
@@ -244,7 +250,7 @@ def test_AC_13_el_cambio_queda_en_auditoria_con_almacen_anterior_y_nuevo(cliente
 
 def test_AC_12_dejar_a_un_usuario_sin_almacen(cliente_como, session):
     objetivo = _usuario(session, "alm_hyl")
-    r = cliente_como("Supervisor").patch(
+    r = cliente_como("Administrador").patch(
         f"/api/usuarios/{objetivo.id}/almacen", json={"almacen_id": None}
     )
     assert r.status_code == 200
@@ -255,7 +261,7 @@ def test_AC_12_dejar_a_un_usuario_sin_almacen(cliente_como, session):
 
 def test_AC_12_asignar_al_mismo_almacen_no_deja_registro(cliente_como, session):
     objetivo = _usuario(session, "alm_hyl")
-    r = cliente_como("Supervisor").patch(
+    r = cliente_como("Administrador").patch(
         f"/api/usuarios/{objetivo.id}/almacen",
         json={"almacen_id": str(_almacen(session, "HYL").id)},
     )
@@ -265,7 +271,7 @@ def test_AC_12_asignar_al_mismo_almacen_no_deja_registro(cliente_como, session):
 
 def test_AC_12_un_almacen_inexistente_se_rechaza(cliente_como, session):
     objetivo = _usuario(session, "alm_hyl")
-    r = cliente_como("Supervisor").patch(
+    r = cliente_como("Administrador").patch(
         f"/api/usuarios/{objetivo.id}/almacen", json={"almacen_id": str(uuid.uuid4())}
     )
     assert r.status_code == 422
@@ -279,7 +285,7 @@ def test_AC_12_un_almacen_cerrado_se_rechaza(cliente_como, session):
     destino.estado = EstadoAlmacen.CERRADO
     session.commit()
     objetivo = _usuario(session, "alm_hyl")
-    r = cliente_como("Supervisor").patch(
+    r = cliente_como("Administrador").patch(
         f"/api/usuarios/{objetivo.id}/almacen", json={"almacen_id": str(destino.id)}
     )
     assert r.status_code == 422
@@ -288,8 +294,8 @@ def test_AC_12_un_almacen_cerrado_se_rechaza(cliente_como, session):
 
 def test_AC_12_no_se_asigna_almacen_a_quien_puede_operar_todos(cliente_como, session):
     destino = str(_almacen(session, "KEP").id)
-    sup = cliente_como("Supervisor")
-    for nombre in ("compras", "supervisor", "admin"):
+    sup = cliente_como("Administrador")
+    for nombre in ("rh", "admin"):  # RH no opera almacén y el Administrador opera todos
         objetivo = _usuario(session, nombre)
         r = sup.patch(f"/api/usuarios/{objetivo.id}/almacen", json={"almacen_id": destino})
         assert r.status_code == 422, nombre
@@ -302,7 +308,7 @@ def test_AC_12_un_usuario_inactivo_no_se_mueve(cliente_como, session):
     objetivo = _usuario(session, "alm_hyl")
     objetivo.activo = False
     session.commit()
-    r = cliente_como("Supervisor").patch(
+    r = cliente_como("Administrador").patch(
         f"/api/usuarios/{objetivo.id}/almacen",
         json={"almacen_id": str(_almacen(session, "KEP").id)},
     )
@@ -311,7 +317,7 @@ def test_AC_12_un_usuario_inactivo_no_se_mueve(cliente_como, session):
 
 
 def test_AC_12_un_usuario_que_no_existe_responde_404(cliente_como):
-    r = cliente_como("Supervisor").patch(
+    r = cliente_como("Administrador").patch(
         f"/api/usuarios/{uuid.uuid4()}/almacen", json={"almacen_id": None}
     )
     assert r.status_code == 404
@@ -319,7 +325,7 @@ def test_AC_12_un_usuario_que_no_existe_responde_404(cliente_como):
 
 
 def test_AC_12_el_cuerpo_exige_almacen_id_y_no_admite_otros_campos(cliente_como, session):
-    sup = cliente_como("Supervisor")
+    sup = cliente_como("Administrador")
     ruta = f"/api/usuarios/{_usuario(session, 'alm_hyl').id}/almacen"
     assert sup.patch(ruta, json={}).status_code == 422
     r = sup.patch(ruta, json={"almacen_id": None, "rol_id": str(uuid.uuid4())})
@@ -329,7 +335,7 @@ def test_AC_12_el_cuerpo_exige_almacen_id_y_no_admite_otros_campos(cliente_como,
 def test_AC_12_asignar_personal_no_cambia_el_rol_ni_los_permisos(cliente_como, session):
     objetivo = _usuario(session, "alm_hyl")
     rol_antes = objetivo.rol_id
-    cliente_como("Supervisor").patch(
+    cliente_como("Administrador").patch(
         f"/api/usuarios/{objetivo.id}/almacen",
         json={"almacen_id": str(_almacen(session, "KEP").id)},
     )
@@ -428,14 +434,17 @@ def test_RG_07_el_almacenista_lleva_almacen_y_quien_opera_todos_no(cliente_como,
         admin,
         session,
         usuario="otro.sup",
-        rol_id=_rol_id(admin, "Compras"),
+        rol_id=_rol_id(admin, "Administrador"),  # opera todos: no lleva almacén (AC-06)
         almacen_id=str(_almacen(session, "MID").id),
     )
     assert r.status_code == 422 and r.json()["detalles"][0]["campo"] == "almacen_id"
     r = _alta(
-        admin, session, usuario="otro.comp", rol_id=_rol_id(admin, "Compras"), almacen_id=None
+        admin, session, usuario="otro.comp", rol_id=_rol_id(admin, "Administrador"), almacen_id=None
     )
     assert r.status_code == 201 and r.json()["almacen"] is None
+    # Compras ya no opera todos: es de un almacén (Kepler) y sin almacén se rechaza.
+    r = _alta(admin, session, usuario="otro.c2", rol_id=_rol_id(admin, "Compras"), almacen_id=None)
+    assert r.status_code == 422 and r.json()["detalles"][0]["campo"] == "almacen_id"
 
 
 def test_AC_12_alta_con_almacen_inexistente_o_rol_inexistente(cliente_como, session):
@@ -487,9 +496,11 @@ def test_AC_12_editar_nombre_rol_activo_y_almacen(cliente_como, session):
 def test_AC_12_cambiar_el_rol_a_uno_que_opera_todos_quita_el_almacen(cliente_como, session):
     admin = cliente_como("Administrador")
     objetivo = _usuario(session, "alm_hyl")
-    r = admin.patch(f"/api/usuarios/{objetivo.id}", json={"rol_id": _rol_id(admin, "Compras")})
+    r = admin.patch(
+        f"/api/usuarios/{objetivo.id}", json={"rol_id": _rol_id(admin, "Administrador")}
+    )
     assert r.status_code == 200 and r.json()["almacen"] is None
-    assert r.json()["rol"]["nombre"] == "Compras"
+    assert r.json()["rol"]["nombre"] == "Administrador"
     # Y de vuelta a un rol que opera un almacén, hay que indicar cuál.
     de_vuelta = admin.patch(
         f"/api/usuarios/{objetivo.id}", json={"rol_id": _rol_id(admin, "Almacenista")}
@@ -524,7 +535,7 @@ def test_AC_12_editar_un_usuario_que_no_existe_responde_404(cliente_como):
 def test_AC_12_el_filtro_de_usuarios(cliente_como, session):
     admin = cliente_como("Administrador")
     r = admin.get("/api/usuarios", params={"q": "hyl"}).json()
-    assert [e["usuario"] for e in r["elementos"]] == ["alm_hyl"]
+    assert [e["usuario"] for e in r["elementos"]] == ["alm_hyl", "sup_hyl"]
     r = admin.get("/api/usuarios", params={"rol_id": _rol_id(admin, "Administrador")}).json()
     assert [e["usuario"] for e in r["elementos"]] == ["admin"]
     r = admin.get("/api/usuarios", params={"activo": False}).json()

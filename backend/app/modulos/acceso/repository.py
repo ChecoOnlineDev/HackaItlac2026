@@ -20,6 +20,17 @@ def _rol_tiene(clave: str) -> ColumnElement[bool]:
     return exists().where(RolPermiso.rol_id == Usuario.rol_id, RolPermiso.permiso == clave)
 
 
+# Quien tiene alguno de estos permisos trabaja en un almacén (RG-07). RH no: administra personas.
+PERMISOS_DE_ALMACEN = (
+    P.INVENTARIO_VER,
+    P.INVENTARIO_ENTRADAS,
+    P.ENTREGAS_CREAR,
+    P.DEVOLUCIONES_CREAR,
+    P.TRASPASOS_OPERAR,
+    P.AUTORIZACIONES_RESOLVER,
+)
+
+
 @dataclass(frozen=True)
 class FiltrosUsuarios:
     q: str | None = None
@@ -28,7 +39,7 @@ class FiltrosUsuarios:
     sin_almacen: bool = False
     activo: bool | None = None
     # Solo quienes operan un almacén (no tienen `almacenes.todos`).
-    # Y que ven inventario: RH administra personas, no opera ningún almacén (RG-07).
+    # Y que tienen algún permiso de almacén (`PERMISOS_DE_ALMACEN`): RH no opera ninguno (RG-07).
     solo_operativos: bool = False
     # AC-06: alcance de quien asigna sin `almacenes.todos`: los de ese almacén y los libres.
     almacen_o_libres_id: uuid.UUID | None = None
@@ -88,7 +99,7 @@ class UsuarioRepository:
             condiciones.append(Usuario.activo.is_(filtros.activo))
         if filtros.solo_operativos:
             condiciones.append(~_rol_tiene(P.ALMACENES_TODOS))
-            condiciones.append(_rol_tiene(P.INVENTARIO_VER))
+            condiciones.append(or_(*(_rol_tiene(clave) for clave in PERMISOS_DE_ALMACEN)))
         if filtros.almacen_o_libres_id is not None:
             condiciones.append(
                 or_(

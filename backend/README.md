@@ -51,19 +51,19 @@ Documentación interactiva de la API: `http://localhost:21002/api/docs`.
 
 `uv run python -m app.datos_prueba` carga los seis almacenes (KEP, CON, MID, HYL, LAM, MIN), las
 ubicaciones, los cinco roles iniciales con los permisos de la sección 8.2 de las reglas y un
-usuario por rol. **Son datos de prueba, no reales.** Todos usan la contraseña `CLAVE_DATOS_PRUEBA`;
-`admin` y `supervisor` tienen además el PIN `PIN_DATOS_PRUEBA`.
+administrador, un supervisor y un almacenista por almacén, Compras (Kepler) y RH. **Son datos de prueba, no reales.** Todos usan la contraseña `CLAVE_DATOS_PRUEBA`;
+`admin` y los supervisores tienen además el PIN `PIN_DATOS_PRUEBA`.
 
 | Usuario | Rol | Almacén |
 |---|---|---|
-| `admin` | Administrador | todos |
-| `supervisor` | Supervisor | todos |
-| `compras` | Compras | todos |
+| `admin` | Administrador | todos (el único con `almacenes.todos`) |
+| `supervisor`, `sup_con`, `sup_mid`, `sup_hyl`, `sup_lam`, `sup_min` | Supervisor | KEP, CON, MID, HYL, LAM, MIN |
+| `compras` | Compras | KEP |
 | `rh` | Recursos Humanos | ninguno |
 | `almacenista` | Almacenista | KEP |
 | `alm_con`, `alm_mid`, `alm_hyl`, `alm_lam`, `alm_min` | Almacenista | CON, MID, HYL, LAM, MIN |
 
-También carga las existencias iniciales de los artículos por cantidad en Kepler y Contratistas con vales de entrada reales (`movimientos/datos_prueba.py`, usuario `compras`): folios `KEP-ING-000001` y `CON-ING-000001`. Es repetible y no duplica.
+También carga las existencias iniciales de los artículos por cantidad en Kepler y Contratistas con vales de entrada reales (`movimientos/datos_prueba.py`: `compras` carga Kepler y `admin` los demás almacenes): folios `KEP-ING-000001` y `CON-ING-000001`. Es repetible y no duplica.
 
 ### Piezas de prueba (equipo de alturas y herramientas por serie)
 

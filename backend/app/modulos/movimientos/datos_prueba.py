@@ -69,8 +69,11 @@ def id_cliente_de(clave_almacen: str) -> uuid.UUID:
 
 def cargar(session: Session) -> None:
     usuarios = UsuarioRepository(session)
-    responsable = usuarios.get_by_usuario("compras") or usuarios.get_by_usuario("admin")
-    if responsable is None:
+    # Compras es de Kepler (AC-06): carga el inventario de Kepler; el de los demás almacenes lo
+    # carga el Administrador, que sí opera cualquiera.
+    compras = usuarios.get_by_usuario("compras")
+    admin = usuarios.get_by_usuario("admin")
+    if compras is None and admin is None:
         raise RuntimeError("Los datos de `acceso` deben cargarse antes que los de `movimientos`")
     servicio = MovimientoService(session)
 
@@ -86,5 +89,6 @@ def cargar(session: Session) -> None:
             observacion="Carga inicial de datos de prueba",
             renglones=[RenglonIn(codigo=codigo, cantidad=n) for codigo, n in renglones],
         )
+        responsable = (compras if clave == "KEP" else admin) or compras or admin
         servicio.confirmar(responsable, cuerpo, aislar=False, commit=False)
     session.flush()

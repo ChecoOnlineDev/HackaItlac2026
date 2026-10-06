@@ -105,7 +105,8 @@ class InspeccionService:
     def _exigir_alcance(self, pieza: Pieza, usuario: Usuario) -> None:
         """AC-06 (cierra H11): se inspecciona solo lo del almacén propio. Una pieza es del almacén
         donde está; la que tiene un trabajador, del almacén de su última entrega. Con
-        `almacenes.todos` se inspecciona cualquiera. Fuera de alcance: lo mismo que si no existiera."""
+        `almacenes.todos` se inspecciona cualquiera. Fuera de alcance: se responde como si no
+        existiera."""
         if self.acceso.puede_operar_todos_los_almacenes(usuario):
             return
         if usuario.almacen_id is None or usuario.almacen_id not in (

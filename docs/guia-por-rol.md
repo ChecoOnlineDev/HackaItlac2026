@@ -10,16 +10,16 @@ Los códigos entre paréntesis (por ejemplo E-06 o AC-12) son reglas de [reglas-
 
 ## 1. Por qué hay cinco roles y por qué hay que probar con uno de cada uno
 
-El sistema decide qué puede hacer cada persona por sus **permisos**, no por el nombre de su rol (AC-04). Un rol es un conjunto de permisos con nombre, y cada usuario tiene un solo rol (AC-02). El sistema nace con cinco roles (AC-03): el **Administrador**, que tiene todos los permisos, y los cuatro perfiles que pide el PDF del reto: **Almacenista, Supervisor, Compras y Recursos Humanos**.
+El sistema decide qué puede hacer cada persona por sus **permisos**, no por el nombre de su rol (AC-04). Un rol es un conjunto de permisos con nombre, y cada usuario tiene un solo rol (AC-02). El sistema nace con cinco roles (AC-03): el **Administrador**, que tiene todos los permisos, y los cuatro perfiles que pide el PDF del reto: **Almacenista, Supervisor (de almacén), Compras y Recursos Humanos**. No existe un «supervisor general»: esa función la cubre el Administrador.
 
 Hay que tener un usuario de cada uno para probar el flujo completo porque **cada paso lo hace un rol distinto, a propósito**. Ninguna persona puede hacer todo el recorrido sola:
 
 - Solo Recursos Humanos da de alta al trabajador.
 - Solo Compras da de alta inventario y ve costos.
-- Solo el almacén entrega, devuelve y traslada.
-- Solo el Supervisor autoriza una excepción, y nunca puede autorizar la que él mismo capturó (A-05).
+- Solo el almacenista entrega y devuelve; los traspasos entre almacenes los opera el Supervisor.
+- Solo el Supervisor del almacén autoriza una excepción de ese almacén, y nunca puede autorizar la que él mismo capturó (A-05).
 
-Esa separación es el control: quien registra no es quien autoriza, y quien compra no es quien entrega. Además, el traspaso exige **dos almacenistas de dos almacenes distintos** (uno envía y otro recibe, X-10), así que para la prueba completa se usan al menos dos cuentas de almacén.
+Esa separación es el control: quien registra no es quien autoriza, y quien compra no es quien entrega. Además, el traspaso exige **dos supervisores de dos almacenes distintos** (uno envía y otro recibe, X-10), así que para la prueba completa se usan al menos dos cuentas de supervisor (`supervisor` de Kepler y `sup_con` de Contratistas).
 
 ---
 
@@ -29,18 +29,23 @@ Los usuarios de prueba los carga el script de datos de prueba (`backend/app/modu
 
 | Rol | Usuario de prueba | Almacén asignado | PIN | Para qué se usa en la prueba |
 |---|---|---|---|---|
-| Administrador | `admin` | Ninguno; opera todos | Sí | Ver todo el menú; en la práctica, no hay pantallas propias de administración (sección 4) |
-| Supervisor | `supervisor` | Ninguno; opera todos | Sí | Autorizar excedentes, administrar el catálogo, ver reportes de todos los almacenes |
-| Compras | `compras` | Ninguno; ve todos | No | Cargar inventario, catálogo, costos, etiquetas |
+| Administrador | `admin` | Ninguno; opera todos | Sí | Ver todos los almacenes; mover personal entre almacenes (sección 4) |
+| Supervisor Kepler | `supervisor` | Kepler (KEP) | Sí | Autorizar excedentes de Kepler, enviar traspasos, administrar el catálogo, reportes de su almacén |
+| Supervisor Contratistas | `sup_con` | Contratistas (CON) | Sí | Recibir el traspaso desde Kepler; autorizar en Contratistas |
+| Supervisor Midrex | `sup_mid` | Midrex (MID) | Sí | Autorizar en Midrex |
+| Supervisor HYL | `sup_hyl` | HYL | Sí | Autorizar en HYL |
+| Supervisor Laminador | `sup_lam` | Laminador (LAM) | Sí | Autorizar en Laminador |
+| Supervisor Minas | `sup_min` | Minas (MIN) | Sí | Autorizar en Minas |
+| Compras | `compras` | Kepler (KEP) | No | Cargar inventario en Kepler, catálogo, costos, etiquetas |
 | Recursos Humanos | `rh` | Ninguno | No | Alta, reingreso y baja de trabajadores; ver adeudos |
 | Almacenista Kepler | `almacenista` | Kepler (KEP) | No | Entregar, devolver, emitir no adeudo |
-| Almacenista Contratistas | `alm_con` | Contratistas (CON) | No | Recibir el traspaso desde Kepler |
+| Almacenista Contratistas | `alm_con` | Contratistas (CON) | No | Entregar y devolver en Contratistas |
 | Almacenista Midrex | `alm_mid` | Midrex (MID) | No | Operar el almacén de Midrex |
 | Almacenista HYL | `alm_hyl` | HYL | No | Operar el almacén de HYL |
 | Almacenista Laminador | `alm_lam` | Laminador (LAM) | No | Operar el almacén de Laminador |
 | Almacenista Minas | `alm_min` | Minas (MIN) | No | Operar el almacén de Minas |
 
-**Quién opera todos los almacenes y quién solo el suyo.** Cada usuario opera su almacén asignado y ve solo los movimientos de ese almacén, salvo que su rol tenga el permiso `almacenes.todos` (AC-06, RG-07). De inicio lo tienen el **Supervisor, Compras y el Administrador**; ellos eligen el almacén al operar. El **Almacenista** y **Recursos Humanos** no lo tienen: el almacenista opera solo su almacén (y un almacenista opera un solo almacén a la vez), y RH no opera ningún almacén. No existen subconjuntos de almacenes por usuario: se ve el propio o todos.
+**Quién opera todos los almacenes y quién solo el suyo.** Cada usuario opera su almacén asignado y ve solo los movimientos de ese almacén, salvo que su rol tenga el permiso `almacenes.todos` (AC-06, RG-07). De inicio lo tiene **solo el Administrador**, que elige el almacén al operar. Todos los demás roles (Almacenista, Supervisor, Compras y RH) ven y operan únicamente su almacén asignado, o ninguno si no tienen: un almacenista de Midrex no sabe qué hay en Kepler ni en ningún otro almacén, y un supervisor sin almacén asignado no ve nada. Compras está asignado a Kepler; RH no opera ningún almacén (administra personas). Cada almacén tiene su(s) supervisor(es), independientes de los almacenistas. No existen subconjuntos de almacenes por usuario: se ve el propio o todos.
 
 Los almacenes de prueba son: Kepler (central), Contratistas (depende de Kepler) y cuatro de proyecto (Midrex, HYL, Laminador y Minas) que dependen de Contratistas. Un almacén puede tener varios almacenistas (operan las 24 horas), cada uno con su propia cuenta.
 
@@ -54,13 +59,13 @@ Resumen en lenguaje de persona, según la tabla 8.2 de las reglas (entre parént
 |---|:-:|:-:|:-:|:-:|:-:|
 | Entregar y pedir autorización (`entregas.crear`) | Sí | Sí | Sí | No | No |
 | Recibir devoluciones (`devoluciones.crear`) | Sí | Sí | Sí | No | No |
-| Enviar y recibir traspasos (`traspasos.operar`) | Sí | Sí | Sí | No | No |
+| Enviar y recibir traspasos (`traspasos.operar`) | Sí | Sí (su almacén) | No | No | No |
 | Emitir el vale de no adeudo (`no_adeudo.emitir`) | Sí | Sí | Sí | No | No |
 | Autorizar o rechazar excedentes (`autorizaciones.resolver`) | Sí | Sí | No | No | No |
 | Inspeccionar una pieza o marcarla No apta (`piezas.inspeccionar`) | Sí | Sí | Sí | No | No |
 | Ajustar la vigencia de una inspección (`piezas.ajustar_vigencia`) | Sí | Sí | No | No | No |
 | Registrar entradas e importar inventario (`inventario.entradas`) | Sí | No | No | Sí | No |
-| Ver existencias de todos los almacenes (`inventario.ver`) | Sí | Sí | Sí | Sí | No |
+| Ver existencias de su almacén; todos, solo el Administrador (`inventario.ver`) | Sí | Sí | Sí | Sí | No |
 | Ver categorías, artículos y piezas (`catalogo.ver`) | Sí | Sí | Sí | Sí | No |
 | Crear y editar categorías y artículos (`catalogo.administrar`) | Sí | Sí | No | Sí | No |
 | Ver y capturar costos (`catalogo.costos`) | Sí | No | No | Sí | No |
@@ -71,17 +76,29 @@ Resumen en lenguaje de persona, según la tabla 8.2 de las reglas (entre parént
 | Consultar vales (`vales.ver`) | Sí | Sí | Sí | Sí | No |
 | Cancelar los vales propios (`vales.cancelar`) | Sí | Sí | Sí | Sí | No |
 | Cancelar los vales de cualquiera (`vales.cancelar_todos`) | Sí | Sí | No | No | No |
-| Reporte de existencias y de movimientos | Sí | Sí | Sí | Sí | No |
-| Reporte de adeudos | Sí | Sí | Sí | No | Sí |
+| Reporte de existencias y de movimientos | Sí | Sí | No | Sí | No |
+| Reporte de adeudos | Sí | Sí | No | No | Sí |
 | Reporte de consumo | Sí | Sí | No | Sí | No |
-| Operar cualquier almacén (`almacenes.todos`) | Sí | Sí | No | Sí | No |
-| Asignar personal a almacenes (`almacenes.asignar_personal`) | Sí | Sí | No | No | No |
+| Operar cualquier almacén (`almacenes.todos`) | Sí | No | No | No | No |
+| Asignar personal a su almacén o liberarlo (`almacenes.asignar_personal`) | Sí (y entre almacenes) | Sí (solo su almacén) | No | No | No |
 | Imprimir hojas de QR y credenciales (`etiquetas.imprimir`) | Sí | Sí | No | Sí | Sí |
 | Administrar roles, permisos y usuarios (`acceso.administrar`) | Sí | No | No | No | No |
 
 Cuatro cosas **ningún rol** puede hacer, ni el Administrador, porque no son permisos (AC-07): editar o borrar movimientos, autorizarse a sí mismo, autorizar un rojo de seguridad y mostrar costos en un vale.
 
-Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve la ficha básica del trabajador y las existencias.
+Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve la ficha básica del trabajador y las existencias de su almacén. Todo lo que opera o ve un rol que no sea el Administrador se limita a su almacén asignado (AC-06).
+
+**Menú final de cada rol** (se arma por permisos; «Consultar» lo ve cualquiera con sesión):
+
+| Rol | Entradas del menú |
+|---|---|
+| Administrador | Entregar, Devolver, Trasladar, Recibir, Consultar, Mis movimientos de hoy, Autorizaciones, Personal, Trabajadores, Alta de trabajador, Inventario, Entradas, Importar, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Adeudos, Consumo) |
+| Supervisor | Entregar, Devolver, Trasladar, Recibir, Consultar, Mis movimientos de hoy, Autorizaciones, Personal, Trabajadores, Inventario, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Adeudos, Consumo) |
+| Almacenista | Entregar, Devolver, Consultar, Mis movimientos de hoy, Trabajadores, Inventario |
+| Compras | Consultar, Mis movimientos de hoy, Inventario, Entradas, Importar, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Consumo) |
+| Recursos Humanos | Consultar, Trabajadores, Alta de trabajador, Etiquetas, Reportes (Adeudos) |
+
+El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así que no necesita ningún permiso de reportes. Categorías, Artículos y Puestos se muestran por `catalogo.administrar`, no por `catalogo.ver`: el Almacenista conserva `catalogo.ver` para buscar y escanear, y no tiene etiquetas ni credenciales.
 
 ---
 
@@ -89,7 +106,7 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 
 **Perfil.** Es quien configura el sistema y decide qué puede hacer cada rol. Tiene todos los permisos, así que ve todos los menús y puede hacer cualquier operación, pero no es quien opera el día a día.
 
-**Qué ve al entrar.** Todo el menú: Operación (Entregar, Devolver, Trasladar, Recibir), Consulta, Supervisión (Autorizaciones), Personas, Inventario y catálogo, y Reportes. Como no opera un almacén fijo, en las operaciones elige el almacén.
+**Qué ve al entrar.** Todo el menú: Operación (Entregar, Devolver, Trasladar, Recibir), Consulta, Supervisión (Autorizaciones, Personal), Personas, Inventario y catálogo, y Reportes. Es el único rol sin almacén fijo (`almacenes.todos`): ve las autorizaciones y el personal de todos los almacenes, y en las operaciones elige el almacén. Cubre la función de «supervisor general», que no existe como rol.
 
 **Qué existe y qué no (verificado).**
 
@@ -97,7 +114,7 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 |---|---|
 | Todas las pantallas operativas | Sí, por tener todos los permisos |
 | Alta, edición, desactivación de usuarios y restablecer contraseña | Existe en el servidor (`/api/usuarios`), **sin pantalla** |
-| Asignar o mover personal entre almacenes | Sí, en **Personal** (`/personal`) |
+| Asignar o mover personal entre almacenes (de cualquier almacén) | Sí, en **Personal** (`/personal`) |
 | Crear roles y activar o quitar permisos desde pantalla | **Pospuesto** (parte pendiente de FEAT-006). Los cinco roles se cargan con el script de datos de prueba |
 | Tablero general por almacén | Pospuesto |
 
@@ -137,16 +154,17 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 
 ## 5. Almacenista
 
-**Perfil.** Está en el mostrador del almacén (celular o tableta, con cámara o pistola lectora). Necesita entregar, devolver y trasladar en segundos, y saber qué debe cada trabajador, sin capacitación previa. Opera **un solo almacén**, el que tiene asignado. Los almacenes trabajan las 24 horas con varios almacenistas, cada uno con su cuenta.
+**Perfil.** Está en el mostrador del almacén (celular o tableta, con cámara o pistola lectora). Necesita entregar y devolver en segundos, y saber qué debe cada trabajador, sin capacitación previa. Opera **un solo almacén**, el que tiene asignado. Los almacenes trabajan las 24 horas con varios almacenistas, cada uno con su cuenta.
 
-**Qué ve al entrar.** Arriba, el nombre de su almacén y su usuario; abajo, cinco botones grandes: **Entregar, Devolver, Trasladar, Recibir** (con un número cuando hay traspasos en camino) y **Consultar**. Con **Menú** llega a lo demás: Mis movimientos de hoy, Trabajadores, Inventario, Categorías, Artículos y los reportes de existencias, movimientos y adeudos. No ve costos, CURP, NSS, ni entradas de inventario, ni autorizaciones.
+**Qué ve al entrar.** Arriba, el nombre de su almacén y su usuario; abajo, tres botones grandes: **Entregar, Devolver** y **Consultar**. Con **Menú** llega a lo demás: Mis movimientos de hoy, Trabajadores e Inventario (solo el de su almacén). No ve traspasos, reportes, etiquetas, catálogo ni puestos, ni costos, CURP, NSS, entradas de inventario o autorizaciones; tampoco ve nada de otros almacenes.
 
 **Funcionalidades clave.**
 - Entregar por escaneo con semáforo (verde, amarillo, naranja, rojo) y firma del trabajador en pantalla.
 - Pedir autorización al supervisor cuando un renglón sale naranja.
 - Devolver por escaneo, con la condición de regreso.
-- Enviar y recibir traspasos entre almacenes.
-- Inspeccionar piezas y marcarlas como No aptas.
+- Buscar trabajadores (por nombre, apellido, número de empleado o QR) e inventario de su almacén.
+- Inspeccionar piezas de su almacén (o que un trabajador tiene por entrega de su almacén) y marcarlas como No aptas (H11).
+- Los traspasos entre almacenes no son suyos: los opera el Supervisor.
 - Iniciar la baja y emitir el vale de no adeudo.
 - Consultar quién tiene qué; cancelar un vale propio mal capturado.
 
@@ -217,18 +235,19 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 
 **Perfil.** Responsable de la operación en campo. Necesita autorizar excepciones sin ir al almacén y revisar lo irregular cuando tenga tiempo. Usa sobre todo el celular.
 
-**Qué ve al entrar.** Su inicio muestra **Autorizaciones** con un contador de solicitudes por resolver, y los botones de operación de almacén (Entregar, Devolver, Trasladar, Recibir, Consultar). En el menú tiene además Trabajadores, Inventario, Categorías, Artículos, Puestos, Etiquetas y los cuatro reportes (existencias, movimientos, adeudos y consumo). No ve Entradas ni Importar (son de Compras), ni costos, ni CURP y NSS.
+**Qué ve al entrar.** Es el supervisor **de un almacén** y solo ve el suyo. Su inicio muestra **Autorizaciones** con un contador de solicitudes por resolver de su almacén, y los botones de operación (Entregar, Devolver, Trasladar, Recibir, Consultar). En el menú tiene además Personal, Trabajadores, Inventario, Categorías, Artículos, Puestos, Etiquetas y los cuatro reportes (existencias, movimientos, adeudos y consumo), siempre de su almacén. No da de alta trabajadores (es de RH), ni ve Entradas ni Importar (son de Compras), ni costos, ni CURP y NSS.
 
 **Funcionalidades clave.**
-- Autorizar o rechazar excedentes y entregas restringidas, desde su celular o con su PIN en el mostrador.
-- Operar cualquier almacén (elige cuál).
+- Autorizar o rechazar excedentes y entregas restringidas **de su almacén**, desde su celular o con su PIN en el mostrador. Las solicitudes de otro almacén no las ve ni las puede resolver (A-01); si da su PIN en el mostrador de otro almacén, se rechaza.
+- Enviar y recibir traspasos de su almacén (el del origen envía y el del destino recibe).
+- Operar solo su almacén asignado (no elige otro).
 - Administrar el catálogo (categorías, artículos, requisitos, límites, inactivar).
 - Crear puestos y armar su dotación recomendada, en **Puestos**: **Nuevo puesto** → nombre → se abre la dotación → buscar artículos activos y poner la cantidad recomendada (no puede pasar del límite del artículo, D-04) → revisar el resumen de cambios → **Guardar dotación**. Sirve para que, al entregar fuera de lo recomendado, el almacén reciba un aviso sin bloqueo (E-09), y para que la ficha de cada trabajador diga qué le falta (D-02).
 - Ajustar la vigencia de una inspección, con motivo.
-- Cancelar los vales de cualquiera.
-- Asignar y mover personal entre almacenes, en **Personal** (menú, Supervisión).
+- Cancelar los vales de cualquiera de su almacén.
+- En **Personal** (menú, Supervisión) ve a su personal y a quien no tiene almacén: puede traerlo a su almacén o dejarlo libre; mover personas entre almacenes distintos es del Administrador.
 - Imprimir credenciales y hojas de QR.
-- Reportes de todos los almacenes, incluido el de consumo, y rastrear quién tocó un equipo.
+- Reportes de su almacén, incluido el de consumo, y rastrear quién tocó un equipo.
 
 **Flujo principal: autorizar un excedente.**
 1. Un almacenista pide una autorización desde un renglón naranja; la solicitud llega con el motivo.
@@ -386,10 +405,10 @@ Es la prueba que describe el PDF (p. 2) y que el [alcance del MVP](product/mvp-s
 | 2 | `almacenista` (Kepler) | Entrega EPP y una herramienta escaneando credencial y artículos; el trabajador firma | Renglones verdes; vale de entrega con folio `KEP-ENT-...` y QR; baja el inventario y sube el resguardo | E-20, E-28, F-02, RG-06 |
 | 3 | `almacenista` (Kepler) | Intenta entregar un arnés marcado No apto (o sin inspección vigente) | Renglón **rojo**; no se puede entregar ni pedir autorización | E-05, E-06, SM-04, A-06 |
 | 4 | `almacenista` (Kepler) | Intenta una entrega que excede el límite de un artículo y pide autorización con un motivo | Renglón **naranja**; la entrega queda bloqueada hasta que el supervisor responda | E-07, L-04, A-02 |
-| 5 | `supervisor` | Autoriza con su PIN en el celular del almacenista, o desde **Autorizaciones** en su propio celular | La autorización queda ligada a ese vale; el renglón pasa a autorizado; el vale muestra «Validó» | A-01, A-03, A-04 |
+| 5 | `supervisor` (Kepler) | Autoriza con su PIN en el celular del almacenista, o desde **Autorizaciones** en su propio celular | La autorización queda ligada a ese vale; el renglón pasa a autorizado; el vale muestra «Validó» | A-01, A-03, A-04 |
 | 6 | `almacenista` (Kepler) | Termina la entrega con la firma del trabajador | Vale emitido con el excedente autorizado | SM-03, F-02 |
-| 7 | `almacenista` (Kepler) | **Trasladar** a Contratistas (ruta habitual) escaneando los artículos | Vale de traspaso con folio y QR; el material queda En tránsito y sale de Kepler | X-01, X-03, X-06 |
-| 8 | `alm_con` | **Recibir**: abre el traspaso o escanea su QR, marca lo recibido y confirma | Existencias entran a Contratistas; el traspaso queda Recibido; si falta algo, queda «con diferencias» | X-10, X-11, X-13 |
+| 7 | `supervisor` (Kepler) | **Trasladar** a Contratistas (ruta habitual) escaneando los artículos | Vale de traspaso con folio y QR; el material queda En tránsito y sale de Kepler | X-01, X-03, X-06 |
+| 8 | `sup_con` | **Recibir**: abre el traspaso o escanea su QR, marca lo recibido y confirma | Existencias entran a Contratistas; el traspaso queda Recibido; si falta algo, queda «con diferencias» | X-10, X-11, X-13 |
 | 9 | `rh` | Abre la ficha del trabajador y toca **Iniciar baja** (o lo hace el almacenista al pedir su no adeudo) | El trabajador pasa a Baja en proceso y ya no recibe entregas | B-01 |
 | 10 | `almacenista` (Kepler) | Ve los pendientes de todos los almacenes e intenta **Emitir vale de no adeudo** | Lista de pendientes (retornables en resguardo); no lo emite mientras haya algo | B-02, B-03 |
 | 11 | `almacenista` (Kepler) | Recibe las devoluciones por escaneo, con su condición | Baja el resguardo; vales de devolución | V-01, V-04 |
@@ -398,7 +417,7 @@ Es la prueba que describe el PDF (p. 2) y que el [alcance del MVP](product/mvp-s
 
 Para el paso 3 hay que tener un arnés en Kepler con la inspección vencida o marcada No apta; el almacenista puede marcarla desde su ficha (P-03). Para el paso 4 hay que usar un artículo con límite configurado (el supervisor o Compras lo fijan en el catálogo).
 
-**Por qué son estos usuarios.** Cada paso cae en un permiso que solo tiene el rol indicado: dar de alta trabajadores (RH), cargar inventario (Compras), entregar y trasladar (almacén), autorizar (Supervisor, y nunca quien capturó). El traspaso necesita dos almacenistas de almacenes distintos (`almacenista` en Kepler, `alm_con` en Contratistas). Si se prueba todo con `admin`, el recorrido funciona pero **no se demuestra el control de roles**, y la autorización seguiría necesitando a otra persona (A-05).
+**Por qué son estos usuarios.** Cada paso cae en un permiso que solo tiene el rol indicado: dar de alta trabajadores (RH), cargar inventario (Compras), entregar y devolver (almacenista), trasladar (supervisor del almacén) y autorizar (supervisor del almacén donde se pidió, y nunca quien capturó). El traspaso necesita dos supervisores de almacenes distintos (`supervisor` en Kepler, `sup_con` en Contratistas). Si se prueba todo con `admin`, el recorrido funciona pero **no se demuestra el control de roles**, y la autorización seguiría necesitando a otra persona (A-05).
 
 ---
 

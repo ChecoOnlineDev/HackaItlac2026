@@ -2,6 +2,15 @@
 
 Qué trae cada versión. Se escribe a partir del historial del repositorio (`git log`), del [roadmap](../product/roadmap.md) y de los documentos del proyecto; si algo no está construido, no aparece aquí. El formato sigue el orden del roadmap.
 
+## Sin publicar: alcance por almacén y roles mínimos
+
+- Solo el Administrador tiene `almacenes.todos`: Supervisor y Compras ven y operan únicamente su almacén asignado (AC-06, RG-07). Sin almacén asignado y sin `almacenes.todos`, no se ve nada.
+- Autorizaciones por almacén (A-01): la lista, el contador, el detalle y la resolución respetan el almacén de la solicitud; quien da su PIN en el mostrador debe ser del almacén de la solicitud o Administrador.
+- Inspecciones y ajuste de vigencia solo de piezas del almacén propio (cierra H11).
+- Personal: el Supervisor ve a su personal y a quien no tiene almacén, y solo asigna a su almacén o libera; mover entre almacenes es del Administrador. RH no aparece como personal de almacén.
+- El Almacenista queda con lo indispensable: sin `traspasos.operar` (pasa al Supervisor y al Administrador) y sin permisos de reportes. En el menú, Categorías, Artículos y Puestos se muestran por `catalogo.administrar`.
+- Datos de prueba: un supervisor por almacén (`supervisor` Kepler, `sup_con`, `sup_mid`, `sup_hyl`, `sup_lam`, `sup_min`); `compras` asignado a Kepler; la carga inicial de inventario de los demás almacenes la hace el Administrador.
+
 ## Sin publicar: dotación por puesto (FEAT-003, servidor)
 
 - Catálogo de puestos (`/api/puestos`) y dotación recomendada por puesto (`GET` y `PUT /api/puestos/{id}/dotacion`), con la cantidad limitada por el límite del artículo (D-04). Migración `0004_puestos_dotacion` (tablas `puesto` y `dotacion`, `periodo_contrato.puesto_id`).

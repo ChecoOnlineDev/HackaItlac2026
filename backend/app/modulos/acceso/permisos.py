@@ -73,7 +73,9 @@ CATALOGO: tuple[Permiso, ...] = (
     Permiso(P.CATALOGO_VER, "Ver categorías, artículos y piezas", True),
     Permiso(P.CATALOGO_ADMINISTRAR, "Administrar categorías, artículos y requisitos", True),
     Permiso(P.CATALOGO_COSTOS, "Ver y capturar costos", True, es_de_informacion=True),
-    Permiso(P.INVENTARIO_VER, "Ver existencias de su almacén (de todos, con almacenes.todos)", True),
+    Permiso(
+        P.INVENTARIO_VER, "Ver existencias de su almacén (de todos, con almacenes.todos)", True
+    ),
     Permiso(P.INVENTARIO_ENTRADAS, "Entradas e importación", True),
     Permiso(P.ENTREGAS_CREAR, "Entregar y pedir autorización", True),
     Permiso(P.DEVOLUCIONES_CREAR, "Recibir devoluciones", True),
@@ -90,7 +92,11 @@ CATALOGO: tuple[Permiso, ...] = (
     Permiso(P.REPORTES_ADEUDOS, "Reporte de adeudos", True),
     Permiso(P.REPORTES_CONSUMO, "Reporte de consumo", True),
     Permiso(P.ALMACENES_TODOS, "Ver y operar todos los almacenes (solo el Administrador)", True),
-    Permiso(P.ALMACENES_ASIGNAR_PERSONAL, "Asignar personal a su almacén o liberarlo; entre almacenes, solo con almacenes.todos", True),
+    Permiso(
+        P.ALMACENES_ASIGNAR_PERSONAL,
+        "Asignar personal a su almacén o liberarlo; entre almacenes, solo con almacenes.todos",
+        True,
+    ),
     Permiso(P.ETIQUETAS_IMPRIMIR, "Hojas de QR", True),
     Permiso(P.ALMACENES_ADMINISTRAR, "Abrir y cerrar almacenes de proyecto", False, "FEAT-002"),
     Permiso(P.REPORTES_VALOR_INVENTARIO, "Valor del inventario", False, "FEAT-002", True),

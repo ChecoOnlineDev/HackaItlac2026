@@ -1,6 +1,6 @@
 # Guía del almacenista
 
-Para entregar, devolver, trasladar y consultar equipo y material con el celular. Entregable del reto: guía corta para el almacenista. Está escrita con las pantallas tal como están construidas. Donde dice «Captura», se describe lo que se ve en la pantalla.
+Para entregar, devolver y consultar equipo y material con el celular. Entregable del reto: guía corta para el almacenista. Está escrita con las pantallas tal como están construidas. Donde dice «Captura», se describe lo que se ve en la pantalla.
 
 **Lo básico.** Casi todo se hace escaneando: el código de la credencial del trabajador, el de cada pieza y el de cada artículo. Si no se puede escanear, se escribe el código o el nombre en el campo de abajo. Escanear **no mueve nada del inventario**: solo agrega a la lista. El inventario cambia hasta que confirmas el vale.
 
@@ -12,7 +12,7 @@ Para entregar, devolver, trasladar y consultar equipo y material con el celular.
 
 *Captura: el logotipo de IMHOTEP, los campos de usuario y contraseña y un botón grande «Entrar».*
 
-Después de entrar ves tu inicio: arriba, el nombre de tu almacén y tu usuario; abajo, botones grandes **Entregar**, **Devolver**, **Trasladar**, **Recibir** y **Consultar**. **Recibir** muestra un número cuando hay traspasos en camino a tu almacén. Con el botón **Menú** llegas a todo lo demás que te corresponde, como **Mis movimientos de hoy**; la sección en la que estás aparece marcada. Para salir, usa **Salir**.
+Después de entrar ves tu inicio: arriba, el nombre de tu almacén y tu usuario; abajo, botones grandes **Entregar**, **Devolver** y **Consultar**. Solo ves lo de tu almacén. Los traspasos entre almacenes (enviar y recibir) los opera tu supervisor. Con el botón **Menú** llegas a todo lo demás que te corresponde, como **Mis movimientos de hoy**; la sección en la que estás aparece marcada. Para salir, usa **Salir**.
 
 **Instalar la aplicación.** Si tu navegador lo permite, en el **Menú** aparece **Instalar aplicación**: queda como un ícono en tu celular y abre sin la barra del navegador. Instalarla no cambia nada más: sigues necesitando señal para confirmar vales.
 
@@ -78,15 +78,9 @@ Inicio → **Devolver**. *Captura: el escáner y, debajo, «Escanea una pieza o 
 
 **Vale de no adeudo (baja del trabajador).** En la ficha del trabajador, **Emitir vale de no adeudo**. Si todavía debe equipo, la pantalla lo lista («Todavía debe devolver») y no lo emite. Cuando devolvió todo, se emite y el trabajador queda inactivo.
 
-## 6. Trasladar y recibir
+## 6. Traspasos entre almacenes
 
-**Trasladar** (tú envías). Inicio → **Trasladar**. Elige **a qué almacén se envía** (arriba están las rutas habituales), escanea los artículos como en una entrega y toca **Confirmar traspaso**. Sale el folio y un QR. El material queda **en tránsito**: ya no está en tu almacén y todavía no está en el otro. Si consultas una pieza en ese estado, la pantalla dice «En tránsito a» y el nombre del almacén al que va.
-
-**Recibir** (tú recibes). Inicio → **Recibir**. *Captura: «Traspasos en camino»: una tarjeta por cada envío que viene hacia tu almacén.* También puedes escanear el QR del vale de traspaso.
-1. Abre el traspaso. Cada renglón es una fila grande que se marca como **recibido**.
-2. Escanea cada pieza o artículo que llegó (o márcalo con la fila). En artículos por cantidad, ajusta con **+** y **−** cuántos llegaron.
-3. Un código que no es de ese traspaso baja a «Códigos que no son de este traspaso», en rojo.
-4. Lo que no marques se avisa como diferencia: «Lo que no marcaste sigue en camino». Toca **Confirmar recepción** (o **Confirmar recepción con diferencias** si falta algo; lo pendiente se puede recibir después, con otra recepción).
+Enviar y recibir material entre almacenes **no se hace desde tu cuenta**: lo opera el supervisor de cada almacén (el del origen envía y el del destino recibe). Si necesitas mandar o recibir algo, avisa a tu supervisor. Tú sigues entregando, devolviendo y consultando lo de tu almacén.
 
 ## 7. Consultar: quién lo tiene
 
@@ -127,7 +121,6 @@ No se puede cancelar si lo que entregaste ya cambió de lugar (por ejemplo, esa 
 | Entregar | **Entregar** → trabajador → escanear artículos → **Continuar** → firma → **Confirmar entrega** |
 | Pedir permiso a un supervisor | Renglón naranja → **Pedir autorización** |
 | Recibir de vuelta | **Devolver** → escanear → condición → **Confirmar devolución** |
-| Mandar a otro almacén | **Trasladar** → destino → escanear → **Confirmar traspaso** |
-| Recibir un envío | **Recibir** → abrir → escanear → **Confirmar recepción** |
+| Mandar o recibir de otro almacén | Pídeselo a tu supervisor |
 | Saber quién lo tiene | **Consultar** → escanear o buscar |
 | Corregir un error | **Mis movimientos de hoy** → vale → **Cancelar vale** |

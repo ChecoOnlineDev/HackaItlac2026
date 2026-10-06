@@ -28,15 +28,16 @@ Pon `CARGAR_DATOS_PRUEBA=true` en `.env` y vuelve a levantar (`docker compose up
 
 #### Usuarios de prueba
 
-**Son datos de prueba, no reales.** Los diez usuarios usan la misma contraseña: el valor de `CLAVE_DATOS_PRUEBA` de tu `.env` (el equipo la comparte por fuera del repositorio; nunca es una contraseña real). El PIN de autorización de `admin` y `supervisor` es el valor de `PIN_DATOS_PRUEBA` del `.env`. El PIN es distinto de la contraseña y solo sirve para autorizar excepciones en el momento.
+**Son datos de prueba, no reales.** Los quince usuarios usan la misma contraseña: el valor de `CLAVE_DATOS_PRUEBA` de tu `.env` (el equipo la comparte por fuera del repositorio; nunca es una contraseña real). El PIN de autorización de `admin` y de los supervisores es el valor de `PIN_DATOS_PRUEBA` del `.env`. El PIN es distinto de la contraseña y solo sirve para autorizar excepciones en el momento.
 
 | Usuario | Rol | Almacén | Para qué sirve en la demostración |
 |---|---|---|---|
-| `admin` | Administrador | todos | Todos los permisos; PIN de prueba |
-| `supervisor` | Supervisor | todos | Autoriza excepciones (desde su celular o con PIN), ajusta vigencias, administra el catálogo; PIN de prueba |
-| `compras` | Compras | todos | Entradas de inventario, importación, catálogo y costos |
+| `admin` | Administrador | todos (el único) | Todos los permisos; PIN de prueba |
+| `supervisor` | Supervisor | Kepler (KEP) | Autoriza excepciones de Kepler (desde su celular o con PIN), envía traspasos, ajusta vigencias, administra el catálogo; PIN de prueba |
+| `sup_con`, `sup_mid`, `sup_hyl`, `sup_lam`, `sup_min` | Supervisor | CON, MID, HYL, LAM, MIN | Lo mismo, en su almacén (recibe traspasos); PIN de prueba |
+| `compras` | Compras | Kepler (KEP) | Entradas de inventario, importación, catálogo y costos |
 | `rh` | Recursos Humanos | ninguno | Alta de trabajadores, datos personales, adeudos |
-| `almacenista` | Almacenista | Kepler (KEP) | Entregar, devolver, trasladar y recibir |
+| `almacenista` | Almacenista | Kepler (KEP) | Entregar, devolver, consultar e inspeccionar en su almacén |
 | `alm_con` | Almacenista | Contratistas (CON) | Igual, en su almacén |
 | `alm_mid` | Almacenista | Midrex (MID) | Igual, en su almacén |
 | `alm_hyl` | Almacenista | HYL (HYL) | Igual, en su almacén |

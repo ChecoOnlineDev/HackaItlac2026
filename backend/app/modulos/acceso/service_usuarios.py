@@ -16,7 +16,12 @@ from app.core.excepciones import DatosInvalidos, NoEncontrado, SinPermiso
 from app.modulos.acceso.exceptions import UltimoAdministrador, UsuarioExiste, UsuarioNoEncontrado
 from app.modulos.acceso.models import Rol, Usuario
 from app.modulos.acceso.permisos import P
-from app.modulos.acceso.repository import FiltrosUsuarios, RolRepository, UsuarioRepository
+from app.modulos.acceso.repository import (
+    PERMISOS_DE_ALMACEN,
+    FiltrosUsuarios,
+    RolRepository,
+    UsuarioRepository,
+)
 from app.modulos.acceso.schemas import (
     AlmacenSesionOut,
     PersonalOut,
@@ -135,7 +140,7 @@ class UsuarioAdminService:
         if not usuario.activo:
             raise _invalido("usuario_id", "Un usuario inactivo no se puede mover de almacén.")
         permisos_rol = self.roles.permisos(usuario.rol_id)
-        if P.ALMACENES_TODOS in permisos_rol or P.INVENTARIO_VER not in permisos_rol:
+        if P.ALMACENES_TODOS in permisos_rol or not permisos_rol.intersection(PERMISOS_DE_ALMACEN):
             raise _invalido(
                 "usuario_id",
                 "Ese usuario no trabaja en un almacén; no se le asigna uno (AC-12).",

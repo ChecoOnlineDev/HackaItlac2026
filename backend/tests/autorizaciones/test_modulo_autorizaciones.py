@@ -235,7 +235,7 @@ def test_A_01_resolver_con_pin_desde_el_dispositivo_del_almacenista(
     )
     assert r.status_code == 200, r.text
     assert r.json()["estado"] == "APROBADA" and r.json()["medio"] == "PIN"
-    assert r.json()["resuelta_por"]["nombre"] == "Supervisor de prueba"
+    assert r.json()["resuelta_por"]["nombre"] == "Supervisor Kepler"
 
 
 def test_A_01_pin_incorrecto_da_403_y_no_resuelve(cliente_como, pedir, session):
@@ -461,13 +461,13 @@ def test_A_05_sin_permiso_error_de_dominio_es_sin_http():
 def test_AC_06_quien_opera_todos_los_almacenes_indica_el_almacen_al_solicitar(
     cliente_como, trabajador, session
 ):
-    """Un supervisor (con `almacenes.todos`) que captura una entrega pide la autorización
-    indicando el almacén en el que opera; sin indicarlo se le pide (no es un error del usuario)."""
+    """Quien tiene `almacenes.todos` (solo el Administrador) que captura una entrega pide la
+    autorización indicando el almacén en el que opera; sin indicarlo se le pide."""
     from sqlalchemy import select
 
     from app.modulos.almacenes.models import Almacen
 
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
     kep = session.scalar(select(Almacen.id).where(Almacen.clave == "KEP"))
 
     sin_almacen = supervisor.post(RUTA, json=cuerpo(trabajador))
