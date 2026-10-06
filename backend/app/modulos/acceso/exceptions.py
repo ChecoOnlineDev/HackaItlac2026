@@ -9,6 +9,14 @@ class CredencialesIncorrectas(NoAutenticado):
     mensaje_defecto = "Usuario o contraseña incorrectos"
 
 
+class SesionVencida(NoAutenticado):
+    """AC-17: el token de renovación no sirve (no existe, venció, llegó al tope de 30 días, lo
+    revocaron o ya se había usado). Hay que escribir la contraseña de nuevo."""
+
+    codigo = "SESION_VENCIDA"
+    mensaje_defecto = "Tu sesión venció. Entra de nuevo para continuar."
+
+
 class PinIncorrecto(AppError):
     """El PIN no es válido. Se responde 403 (no 401, para no cerrar la sesión en la interfaz)."""
 

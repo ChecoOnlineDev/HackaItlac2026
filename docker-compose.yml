@@ -52,7 +52,11 @@ services:
       # prueba local por http exige COOKIE_SEGURA=false.
       ENTORNO: ${ENTORNO:-desarrollo}
       CLAVE_SESION: ${CLAVE_SESION:?define CLAVE_SESION en .env}
-      SESION_HORAS: ${SESION_HORAS:-12}
+      # Sesión por dispositivo: acceso de 15 minutos y renovación de 7 días, con tope de 30.
+      ACCESO_MINUTOS: ${ACCESO_MINUTOS:-15}
+      REFRESH_DIAS: ${REFRESH_DIAS:-7}
+      REFRESH_TOPE_DIAS: ${REFRESH_TOPE_DIAS:-30}
+      REFRESH_TOLERANCIA_SEGUNDOS: ${REFRESH_TOLERANCIA_SEGUNDOS:-10}
       # true cuando se entra por HTTPS (túnel). false para probar por http://127.0.0.1.
       COOKIE_SEGURA: ${COOKIE_SEGURA:-false}
       # Redes de las que se aceptan las cabeceras X-Forwarded-* (el túnel). Por defecto, las

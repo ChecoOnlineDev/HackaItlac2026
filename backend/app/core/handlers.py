@@ -16,6 +16,7 @@ log = logging.getLogger("imhotep")
 # Códigos de api-contracts.md -> estado HTTP. Un código nuevo se agrega aquí.
 STATUS_POR_CODIGO: dict[str, int] = {
     "NO_AUTENTICADO": 401,
+    "SESION_VENCIDA": 401,
     "SIN_PERMISO": 403,
     "PIN_INCORRECTO": 403,
     "NO_ENCONTRADO": 404,

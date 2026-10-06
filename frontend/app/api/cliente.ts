@@ -5,6 +5,7 @@ import {
   type CuerpoError,
 } from "./errores";
 import { marcarConexion } from "./red";
+import type { Sesion } from "./tipos";
 
 export const BASE_API = "/api";
 
@@ -18,16 +19,63 @@ export interface OpcionesApi {
   /** Parámetros de consulta; los nulos y vacíos se omiten. */
   parametros?: Parametros;
   signal?: AbortSignal;
-  /** No tratar el 401 como sesión vencida (lo usa la pantalla Entrar). */
+  /** No tratar el 401 como sesión vencida (lo usa la pantalla Entrar y el arranque). */
   sinRedirigir?: boolean;
+  /** No intentar renovar la sesión ante un 401 (el inicio de sesión y la propia renovación). */
+  sinRenovar?: boolean;
 }
 
 type ManejadorSesionVencida = () => void;
+type ManejadorSesionRenovada = (sesion: Sesion) => void;
 let alVencerSesion: ManejadorSesionVencida | null = null;
+let alRenovarSesion: ManejadorSesionRenovada | null = null;
 
-/** La sesión (SesionProvider) registra aquí qué hacer cuando la API responde 401. */
+/** La sesión (SesionProvider) registra aquí qué hacer cuando la sesión venció del todo. */
 export function registrarManejadorSesionVencida(fn: ManejadorSesionVencida | null) {
   alVencerSesion = fn;
+}
+
+/** Y aquí qué hacer cuando se renovó sola (llegan los permisos al día). */
+export function registrarManejadorSesionRenovada(fn: ManejadorSesionRenovada | null) {
+  alRenovarSesion = fn;
+}
+
+/** Código con el que el servidor dice que ya no hay forma de renovar: hay que volver a entrar. */
+export const CODIGO_SESION_VENCIDA = "SESION_VENCIDA";
+
+type ResultadoRenovacion = { tipo: "renovada" } | { tipo: "vencida" } | { tipo: "fallo"; error: ErrorApi };
+
+/** La renovación en curso: las peticiones que fallan a la vez comparten UNA sola (single-flight). */
+let renovacionEnCurso: Promise<ResultadoRenovacion> | null = null;
+/** Cuándo terminó la última renovación buena (ms). Una petición que salió antes no vuelve a renovar. */
+let ultimaRenovacionOk = 0;
+
+async function renovarUnaVez(): Promise<ResultadoRenovacion> {
+  try {
+    const sesion = await api<Sesion>("/sesion/refresh", {
+      metodo: "POST",
+      sinRedirigir: true,
+      sinRenovar: true,
+    });
+    ultimaRenovacionOk = Date.now();
+    alRenovarSesion?.(sesion);
+    return { tipo: "renovada" };
+  } catch (causa) {
+    // 401: ya no hay renovación posible. Sin conexión o error del servidor: no se sabe, y no se
+    // cierra la sesión por eso (se vuelve a intentar con la siguiente petición).
+    if (causa instanceof ErrorApi && causa.status === 401) return { tipo: "vencida" };
+    if (causa instanceof ErrorApi) return { tipo: "fallo", error: causa };
+    throw causa;
+  }
+}
+
+function renovarSesion(): Promise<ResultadoRenovacion> {
+  if (!renovacionEnCurso) {
+    renovacionEnCurso = renovarUnaVez().finally(() => {
+      renovacionEnCurso = null;
+    });
+  }
+  return renovacionEnCurso;
 }
 
 export function construirUrl(ruta: string, parametros?: Parametros): string {
@@ -42,8 +90,9 @@ export function construirUrl(ruta: string, parametros?: Parametros): string {
   return texto ? `${url}?${texto}` : url;
 }
 
-async function pedir(ruta: string, opciones: OpcionesApi): Promise<Response> {
+async function pedir(ruta: string, opciones: OpcionesApi, yaRenovo = false): Promise<Response> {
   const { metodo = "GET", cuerpo, parametros, signal } = opciones;
+  const salio = Date.now();
   const encabezados: Record<string, string> = { Accept: "application/json" };
   let body: BodyInit | undefined;
   if (cuerpo instanceof FormData) {
@@ -75,7 +124,21 @@ async function pedir(ruta: string, opciones: OpcionesApi): Promise<Response> {
 
   if (!respuesta.ok) {
     const error = await leerError(respuesta);
-    if (respuesta.status === 401 && !opciones.sinRedirigir) alVencerSesion?.();
+    if (respuesta.status === 401) {
+      // El token de acceso dura poco: ante un 401 se intenta UNA renovación y se repite la
+      // petición. Si tampoco así, la sesión venció y se pide la contraseña.
+      if (!opciones.sinRenovar && !yaRenovo && error.codigo !== CODIGO_SESION_VENCIDA) {
+        if (salio > ultimaRenovacionOk) {
+          const resultado = await renovarSesion();
+          if (resultado.tipo === "fallo") throw resultado.error;
+          if (resultado.tipo === "renovada") return pedir(ruta, opciones, true);
+        } else {
+          // Salió antes de que se renovara la sesión: basta con repetirla con el token nuevo.
+          return pedir(ruta, opciones, true);
+        }
+      }
+      if (!opciones.sinRedirigir) alVencerSesion?.();
+    }
     throw error;
   }
   return respuesta;

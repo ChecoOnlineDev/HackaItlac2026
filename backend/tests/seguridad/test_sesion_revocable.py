@@ -1,11 +1,13 @@
 """Endurecimiento (H5): el token de una sesión cerrada, restablecida o inactiva ya no sirve.
 
-El token (cookie) lleva la versión de sesión del usuario (`ver`); cerrar sesión, restablecer la
-contraseña o el PIN e inactivar al usuario la incrementan, así que un token copiado antes deja de
-dar acceso (antes seguía valiendo las 12 horas de su vigencia).
+El token de acceso (cookie) lleva la versión de sesión del usuario (`ver`) y la familia del
+dispositivo (`fam`). Cerrar sesión revoca la familia de ese dispositivo; cerrar todas, restablecer
+la contraseña o el PIN e inactivar al usuario incrementan la versión. En ambos casos un token
+copiado antes deja de dar acceso de inmediato, sin esperar a que venza (AC-19, AC-20, AC-22).
 """
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.config import get_settings
 from app.modulos.acceso.permisos import P
@@ -52,7 +54,7 @@ def test_US_ACC_001_H5_un_login_nuevo_funciona_despues_de_cerrar_sesion(
     assert _con_token(app, viejo).get("/api/sesion").status_code == 401
 
 
-def test_US_ACC_001_H5_cerrar_sesion_cierra_todas_las_sesiones_del_usuario(
+def test_US_ACC_001_H5_cerrar_sesion_solo_cierra_este_dispositivo_y_cerrar_todas_cierra_todas(
     app, client, usuario_por_rol, iniciar_sesion
 ):
     usuario = usuario_por_rol("Almacenista")
@@ -61,7 +63,10 @@ def test_US_ACC_001_H5_cerrar_sesion_cierra_todas_las_sesiones_del_usuario(
     iniciar_sesion(otro_dispositivo, usuario)
 
     client.delete("/api/sesion")
+    assert client.get("/api/sesion").status_code == 401
+    assert otro_dispositivo.get("/api/sesion").status_code == 200  # AC-19: solo este dispositivo
 
+    assert otro_dispositivo.delete("/api/sesion/todas").status_code == 204  # AC-20
     assert otro_dispositivo.get("/api/sesion").status_code == 401
 
 
@@ -107,10 +112,18 @@ def test_US_ACC_001_H5_el_token_copiado_deja_de_servir_al_inactivar_al_usuario(
 def test_US_ACC_001_H5_un_token_con_otra_version_se_rechaza(
     app, client, usuario_por_rol, iniciar_sesion, session
 ):
-    from app.seguridad import crear_token
+    from app.modulos.acceso.models import SesionDispositivo, Usuario
+    from app.seguridad import crear_token_acceso
 
     assert iniciar_sesion(client, usuario_por_rol("Almacenista")).status_code == 200
-    futuro = crear_token(_id_de(session, "almacenista"), version=99)
+    usuario_id = _id_de(session, "almacenista")
+    familia = session.scalar(
+        select(SesionDispositivo.familia_id).where(SesionDispositivo.usuario_id == usuario_id)
+    )
+    version = session.scalar(select(Usuario.version_sesion).where(Usuario.id == usuario_id))
+    vigente = crear_token_acceso(usuario_id, version, familia)
+    assert _con_token(app, vigente).get("/api/sesion").status_code == 200
+    futuro = crear_token_acceso(usuario_id, 99, familia)
 
     assert _con_token(app, futuro).get("/api/sesion").status_code == 401
 

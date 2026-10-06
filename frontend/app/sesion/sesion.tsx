@@ -4,11 +4,16 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 
-import { api, registrarManejadorSesionVencida } from "~/api/cliente";
+import {
+  api,
+  registrarManejadorSesionRenovada,
+  registrarManejadorSesionVencida,
+} from "~/api/cliente";
 import { esErrorApi } from "~/api/errores";
 import type { Permiso, Sesion } from "~/api/tipos";
 
@@ -17,7 +22,10 @@ type Estado = "cargando" | "autenticada" | "anonima";
 interface ValorSesion {
   /** `cargando` mientras se pregunta al servidor; `anonima` si no hay sesión. */
   estado: Estado;
-  /** Por qué no hay sesión: `salio` si cerró sesión él mismo (no hay ruta a la que volver). */
+  /**
+   * Por qué no hay sesión: `salio` si cerró sesión él mismo (no hay ruta a la que volver);
+   * `vencida` si el servidor ya no pudo renovarla (venció o la cerraron desde otro dispositivo).
+   */
   motivoSinSesion: "inicial" | "salio" | "vencida";
   /** La sesión, o null si no hay. Dentro de una pantalla protegida siempre existe: usa `useSesionActiva`. */
   sesion: Sesion | null;
@@ -26,7 +34,10 @@ interface ValorSesion {
   /** `true` si tiene al menos uno de los permisos. */
   puedeAlguno: (permisos: readonly Permiso[]) => boolean;
   iniciarSesion: (usuario: string, contrasena: string) => Promise<Sesion>;
+  /** Cierra la sesión de ESTE dispositivo. */
   cerrarSesion: () => Promise<void>;
+  /** Cierra las sesiones de todos los dispositivos, también esta. Lanza si el servidor no responde. */
+  cerrarTodas: () => Promise<void>;
   recargar: () => Promise<void>;
 }
 
@@ -51,7 +62,12 @@ export function SesionProvider({ children }: { children: ReactNode }) {
   const [sesion, setSesion] = useState<Sesion | null>(null);
   const [motivoSinSesion, setMotivo] = useState<ValorSesion["motivoSinSesion"]>("inicial");
 
+  // Para que una petición rezagada (un conteo que sigue en vuelo) no marque como «vencida» una
+  // sesión que la persona acaba de cerrar ella misma.
+  const hayRef = useRef(false);
+
   const aplicar = useCallback((nueva: Sesion | null) => {
+    hayRef.current = nueva !== null;
     setSesion(nueva);
     setEstado(nueva ? "autenticada" : "anonima");
   }, []);
@@ -73,9 +89,11 @@ export function SesionProvider({ children }: { children: ReactNode }) {
     void recargar();
   }, [recargar]);
 
-  // Si cualquier llamada responde 401, la sesión venció: la guardia lleva a Entrar.
+  // Si una llamada responde 401 y la renovación automática tampoco funciona, la sesión venció:
+  // la guardia lleva a Entrar (con el mensaje y la ruta a la que volver).
   useEffect(() => {
     registrarManejadorSesionVencida(() => {
+      if (!hayRef.current) return;
       borrarBorradoresLocales();
       setMotivo("vencida");
       aplicar(null);
@@ -83,12 +101,21 @@ export function SesionProvider({ children }: { children: ReactNode }) {
     return () => registrarManejadorSesionVencida(null);
   }, [aplicar]);
 
+  // Cada renovación trae los permisos y el almacén al día; solo se actualiza si algo cambió.
+  useEffect(() => {
+    registrarManejadorSesionRenovada((nueva) => {
+      setSesion((actual) => (actual && JSON.stringify(actual) !== JSON.stringify(nueva) ? nueva : actual));
+    });
+    return () => registrarManejadorSesionRenovada(null);
+  }, []);
+
   const iniciarSesion = useCallback(
     async (usuario: string, contrasena: string) => {
       const nueva = await api<Sesion>("/sesion", {
         metodo: "POST",
         cuerpo: { usuario, contrasena },
         sinRedirigir: true,
+        sinRenovar: true,
       });
       aplicar(nueva);
       return nueva;
@@ -98,10 +125,18 @@ export function SesionProvider({ children }: { children: ReactNode }) {
 
   const cerrarSesion = useCallback(async () => {
     try {
+      // Cierra solo la sesión de ESTE dispositivo; las de los demás siguen abiertas.
       await api("/sesion", { metodo: "DELETE", sinRedirigir: true });
     } catch {
-      // Aunque falle la red, se sale de la interfaz; la cookie vence sola.
+      // Aunque falle la red, se sale de la interfaz; la sesión vence sola.
     }
+    borrarBorradoresLocales();
+    setMotivo("salio");
+    aplicar(null);
+  }, [aplicar]);
+
+  const cerrarTodas = useCallback(async () => {
+    await api("/sesion/todas", { metodo: "DELETE", sinRedirigir: true });
     borrarBorradoresLocales();
     setMotivo("salio");
     aplicar(null);
@@ -117,9 +152,10 @@ export function SesionProvider({ children }: { children: ReactNode }) {
       puedeAlguno: (lista) => lista.some((p) => permisos.has(p)),
       iniciarSesion,
       cerrarSesion,
+      cerrarTodas,
       recargar,
     };
-  }, [estado, motivoSinSesion, sesion, iniciarSesion, cerrarSesion, recargar]);
+  }, [estado, motivoSinSesion, sesion, iniciarSesion, cerrarSesion, cerrarTodas, recargar]);
 
   return <ContextoSesion.Provider value={valor}>{children}</ContextoSesion.Provider>;
 }

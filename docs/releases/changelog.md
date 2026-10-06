@@ -2,6 +2,15 @@
 
 Qué trae cada versión. Se escribe a partir del historial del repositorio (`git log`), del [roadmap](../product/roadmap.md) y de los documentos del proyecto; si algo no está construido, no aparece aquí. El formato sigue el orden del roadmap.
 
+## Sin publicar: sesiones por dispositivo (AC-14 a AC-24)
+
+- **Token de acceso de 15 minutos y token de renovación de 7 días**, cada uno en su cookie `HttpOnly` (`SameSite=Lax`, `Secure` con HTTPS). La interfaz renueva sola el acceso al vencer (una sola renovación aunque fallen varias peticiones a la vez) y reabrir la aplicación a los 3 días no pide la contraseña. Sustituye al token único de 12 horas; `SESION_HORAS` queda obsoleta y se ignora.
+- El token de renovación es opaco, se guarda solo su huella SHA-256 (tabla `sesion_dispositivo`, migración `0005_sesion_dispositivo`) y se **rota** en cada uso. Tolerancia de 10 segundos para carreras entre pestañas; usar uno ya rotado después revoca la sesión de ese dispositivo (`sesion.reutilizacion` en el registro de cambios). La vigencia se renueva con el uso hasta un tope absoluto de 30 días.
+- `POST /api/sesion/refresh` (401 `SESION_VENCIDA` si no sirve), `DELETE /api/sesion` ahora cierra solo ESTE dispositivo, `DELETE /api/sesion/otras`, `DELETE /api/sesion/todas` (sube `version_sesion`) y `GET /api/sesion/dispositivos`. Restablecer contraseña o PIN e inactivar o reactivar siguen cerrando todas las sesiones.
+- Variables nuevas en `.env`: `ACCESO_MINUTOS`, `REFRESH_DIAS`, `REFRESH_TOPE_DIAS`, `REFRESH_TOLERANCIA_SEGUNDOS`. La cookie de acceso ya no dura 12 horas.
+- Entrar muestra «Tu sesión venció» cuando la renovación ya no es posible y regresa a la pantalla donde se estaba.
+- «Salir» ofrece «Ver dispositivos con sesión abierta»: lista las sesiones (navegador y sistema, entrada y último uso) con «Cerrar las demás» y «Cerrar todas, también esta».
+
 ## Sin publicar: visibilidad por almacén (AC-06)
 
 - Solo el Administrador (`almacenes.todos`) ve las piezas y las existencias de todos los almacenes; los demás roles ven únicamente las de su almacén asignado.
