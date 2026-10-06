@@ -45,6 +45,7 @@ Los títulos pueden ocupar dos líneas; nada se corta con "…". Una frase de ay
 - **Celular.** El inicio del almacenista es una cuadrícula de botones grandes: Entregar, Devolver, Trasladar, Recibir y Consultar. Arriba, el nombre del almacén y el usuario. Dentro de un flujo solo hay "Atrás" (uno solo, en la barra de arriba; en los flujos de pasos regresa un paso en vez de salir) y la acción principal, fija en la parte baja.
 - **Tableta.** Igual que el celular, con la lista de renglones y el detalle lado a lado en horizontal.
 - **Computadora.** Menú lateral con las secciones que permite el rol; tablas con filtros arriba; formularios a un ancho máximo de 720 px.
+- **Sección activa del menú.** Tanto el menú lateral como la hoja "Menú" del celular remarcan dónde estás: contorno azul (`ring` del color primario), fondo suave (`bg-accent`), texto en azul marino y semibold, y `aria-current="page"`. Cuenta la subruta (`/trabajadores/<id>` marca "Trabajadores", `/recibir/<id>` marca "Recibir"); si dos opciones coinciden gana la más específica; "Inicio" solo se marca en `/`. En computadora, el cursor encima da el mismo fondo más suave. Al abrir la hoja, la opción activa se desplaza hasta quedar a la vista. La lógica vive en `idActivo` (`sesion/menu.ts`).
 
 ## Patrones reutilizables
 
@@ -152,6 +153,12 @@ Los títulos pueden ocupar dos líneas; nada se corta con "…". Una frase de ay
 - **Artículos:** lista con búsqueda a la vista y filtros por categoría y estado (activos, inactivos) en la hoja "Filtros". Los inactivos aparecen atenuados con su motivo.
 - **Detalle de artículo:** datos generales; sección "Reglas de entrega" con límite y requisitos especiales, cada uno con su interruptor y su motivo; sección "Estado" con Inactivar o Reactivar. Control y retorno aparecen bloqueados con una nota si ya hay movimientos.
 - **Estados:** al guardar, aviso breve "Cambio guardado. Aplica desde la siguiente entrega."
+
+### Personal por almacén (supervisor y administrador)
+
+- Título y una línea de apoyo; búsqueda por nombre o usuario a la vista y filtro "Almacén" (con "Sin almacén") en la hoja "Filtros".
+- Computadora y tableta: tabla con nombre, usuario, rol y almacén actual en una insignia; celular: tarjetas redondeadas. Cada persona lleva un botón "Cambiar almacén".
+- Ese botón abre una hoja con la persona, su almacén actual, una lista desplegable con los almacenes activos y "Sin almacén", y una frase de lo que cambiará. "Guardar" (única acción principal) y "Cancelar". Los rechazos del servidor se muestran junto a la lista. Al guardar, aviso breve y la lista se actualiza sin recargar.
 
 ### Detalle de un vale
 
