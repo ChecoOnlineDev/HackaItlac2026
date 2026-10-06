@@ -27,7 +27,11 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 | 409 | `VALE_CAMBIO` | Al confirmar, la evaluación ya no es la misma. Incluye la evaluación nueva en `detalles`. |
 | 409 | `ALMACEN_CAMBIO` | Al confirmar o evaluar, el usuario ya no está asignado al almacén en el que capturó el vale (`almacen_id` del cuerpo). No se guarda; `detalles` trae `{almacen_captura_id, almacen: {id, clave, nombre} o null}` con el almacén actual del usuario, y el borrador se conserva (AC-13). Lo lanza `AccesoService.exigir_mismo_almacen`. |
 | 409 | `USUARIO_EXISTE` | Al dar de alta, el nombre de usuario ya lo usa otra persona (sin distinguir mayúsculas). |
-| 409 | `ULTIMO_ADMINISTRADOR` | No se inactiva ni se le quita el rol al último usuario activo con `acceso.administrar` (AC-09). |
+| 409 | `ULTIMO_ADMINISTRADOR` | No se inactiva ni se le quita el rol al último usuario activo con `acceso.administrar`, ni se le quita ese permiso a su rol (AC-09). |
+| 409 | `ROL_EXISTE` | Ya hay un rol con ese nombre (sin distinguir mayúsculas). |
+| 409 | `ROL_PROTEGIDO` | El rol Administrador no pierde `acceso.administrar`, no se inactiva ni se elimina; los cinco roles iniciales no se eliminan ni cambian de nombre (AC-09). |
+| 409 | `ROL_EN_USO` | Un rol con usuarios asignados no se inactiva ni se elimina (AC-11). |
+| 409 | `AUTO_BLOQUEO` | Quien administra intenta quitarle `acceso.administrar` a su propio rol o inactivarlo (AC-09). |
 | 409 | `CODIGO_REPETIDO` | El código ya identifica otra cosa. Incluye en `detalles` su `tipo`, su `ref_id` y una `descripcion` de quién es. |
 | 409 | `TRABAJADOR_EXISTE` | Al dar de alta, el número de empleado o la CURP ya existen (T-02). Incluye en `detalles.trabajador` a la persona (`id`, `numero_empleado`, `nombre`, `estado`) y en `detalles.coincide_por` el dato que coincidió, para ofrecer el reingreso. Si coincidió la CURP y quien da de alta no tiene `trabajadores.ver_datos_personales`, solo dice que ya existe (`detalles` solo trae `regla`), sin `coincide_por` ni la persona (AC-05). |
 | 409 | `CON_PENDIENTES` | No se puede emitir el vale de no adeudo. `detalles` trae `{regla: "B-04", pendientes}`: cada pendiente con `articulo`, `codigo`, `numero_serie`, `cantidad`, `entregado_en`, `folio` y almacén (`almacen_clave`, `almacen`); sin costos. |
@@ -68,12 +72,25 @@ Parte de [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md). Nin
 |---|---|---|
 | `GET /api/personal?almacen_id=&sin_almacen=&q=` | `almacenes.asignar_personal` | `{elementos, total}` de los usuarios que operan un almacén (los que no tienen `almacenes.todos`): `{id, nombre, usuario, rol: {id, nombre}, almacen: {id, clave, nombre} o null, activo}`. `sin_almacen=true` trae a quienes no tienen almacén; no se combina con `almacen_id` (422). `q` busca en nombre y usuario. |
 | `PATCH /api/usuarios/{id}/almacen` | `almacenes.asignar_personal` | `{almacen_id}`; `null` deja al usuario sin almacén. Responde el renglón de personal. Solo se asigna a quien opera un almacén (no a quien tiene `almacenes.todos`), el almacén debe existir y estar activo y el usuario no puede estar inactivo; si no, 422. Aplica en la siguiente petición del usuario y queda en el registro de cambios con el almacén anterior y el nuevo (AC-12, AC-13). No toca vales ni movimientos ya hechos. No cambia roles ni permisos. |
-| `GET /api/roles` | `acceso.administrar` | Roles, solo lectura, para selectores: `[{id, nombre, descripcion, activo, protegido}]`. |
 | `GET /api/usuarios?q=&rol_id=&almacen_id=&sin_almacen=&activo=` | `acceso.administrar` | `{elementos, total}`: lo del personal más `tiene_pin` y `creado_en`; sin límite de roles. |
 | `GET /api/usuarios/{id}` | `acceso.administrar` | Un usuario. |
 | `POST /api/usuarios` | `acceso.administrar` | Alta con `{nombre, usuario, contrasena, rol_id, almacen_id, pin}`. `almacen_id` es obligatorio si el rol no tiene `almacenes.todos` y va vacío si lo tiene (RG-07). `pin` (4 a 8 dígitos, distinto de la contraseña) solo si el rol tiene `autorizaciones.resolver`. Responde 201. 409 `USUARIO_EXISTE`. |
 | `PATCH /api/usuarios/{id}` | `acceso.administrar` | Solo `nombre`, `rol_id`, `activo` y `almacen_id`; cualquier otro campo es 422. Cambiar a un rol con `almacenes.todos` quita el almacén; volver a uno que no lo tiene exige indicarlo. 409 `ULTIMO_ADMINISTRADOR` (AC-09). |
 | `POST /api/usuarios/{id}/contrasena` | `acceso.administrar` | `{contrasena, pin}` (`pin` opcional). Restablece la contraseña y, si se manda, el PIN, y reinicia los bloqueos. |
+
+## Roles y permisos
+
+Parte de [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md) (AC-08 a AC-11). Todo pide `acceso.administrar`. Un cambio aplica en la siguiente petición de los usuarios del rol (el rol y sus permisos se leen de la base en cada petición) y queda en el registro de cambios con el valor anterior y el nuevo.
+
+| Método y ruta | Permiso | Qué hace |
+|---|---|---|
+| `GET /api/permisos` | `acceso.administrar` | El catálogo fijo de permisos: `[{clave, descripcion, modulo, es_de_informacion, mvp, llega_con, requiere: [claves]}]`. `modulo` es la parte de la clave antes del punto. `requiere` lista los permisos de ver que ese permiso de acción necesita (la interfaz los activa juntos). `es_de_informacion` marca los datos reservados (costos, CURP y NSS). El catálogo no se edita desde la pantalla (AC-01). |
+| `GET /api/roles` | `acceso.administrar` | `[{id, nombre, descripcion, activo, protegido, inicial, total_usuarios, total_permisos}]`. `inicial` marca los cinco roles con los que nace el sistema; `protegido`, al Administrador. |
+| `GET /api/roles/{id}` | `acceso.administrar` | Lo mismo más `permisos: [claves]`. 404 si no existe. |
+| `POST /api/roles` | `acceso.administrar` | `{nombre, descripcion, permisos: [claves]}` (`permisos` puede ir vacío: un rol sin permisos no ve ningún módulo). Responde 201 con el detalle. 409 `ROL_EXISTE` si el nombre ya se usa; 422 si una clave no existe o falta un permiso de ver que necesita otro. |
+| `PATCH /api/roles/{id}` | `acceso.administrar` | Solo `nombre`, `descripcion` y `activo`; otro campo es 422. Los roles iniciales no cambian de nombre (409 `ROL_PROTEGIDO`). Inactivar: 409 `ROL_PROTEGIDO` si es el Administrador y 409 `ROL_EN_USO` si tiene usuarios asignados (AC-11). 409 `AUTO_BLOQUEO` si inactivaría el rol del propio actor con `acceso.administrar`. |
+| `PUT /api/roles/{id}/permisos` | `acceso.administrar` | `{permisos: [claves]}`: deja al rol exactamente con esa lista (agrega y quita la diferencia). Responde el detalle. 422 si una clave no existe o falta un permiso de ver. Quitar `acceso.administrar`: 409 `ROL_PROTEGIDO` si es el Administrador, 409 `AUTO_BLOQUEO` si es el rol de quien lo hace, 409 `ULTIMO_ADMINISTRADOR` si no quedaría un administrador activo (AC-09). Si el rol recibe `almacenes.todos`, sus usuarios dejan el almacén asignado (RG-07) y cada uno queda en el registro de cambios; si lo pierde, sus usuarios quedan sin almacén hasta que alguien con `almacenes.asignar_personal` se lo asigne. |
+| `DELETE /api/roles/{id}` | `acceso.administrar` | Responde 204. 409 `ROL_PROTEGIDO` si es el Administrador o uno de los cinco iniciales; 409 `ROL_EN_USO` si tiene usuarios, aunque estén inactivos (AC-11). |
 
 ## Escaneo y búsqueda
 
@@ -473,4 +490,3 @@ Todos aceptan `formato=csv` y las listas, `pagina` y `tamano`. Las fechas (`desd
 | FEAT-002 | `POST /api/almacenes`, `POST /api/almacenes/{id}/cierre`, `GET /api/almacenes/{id}/reporte-cierre`, `GET /api/reportes/valor-inventario` | `almacenes.administrar`; `reportes.valor_inventario` |
 | FEAT-003 | **Construido en el servidor** (ver [Puestos y dotación](#puestos-y-dotación)): `GET`, `PUT /api/puestos/{id}/dotacion`, `GET`, `POST`, `PATCH /api/puestos`, `GET /api/trabajadores/{id}/dotacion` | `catalogo.ver`; `catalogo.administrar`; `trabajadores.ver` |
 | FEAT-004 | `PUT /api/almacenes/{id}/minimos`; `POST /api/piezas/{id}/estado` admite mantenimiento y calibración | `inventario.minimos`; `piezas.inspeccionar` |
-| FEAT-006 | `GET /api/permisos`; `POST`, `PATCH /api/roles`; `PUT /api/roles/{id}/permisos` (la matriz de roles; la lista de roles, los usuarios y el personal ya están en [Usuarios y personal](#usuarios-y-personal)) | `acceso.administrar` |

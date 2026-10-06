@@ -104,3 +104,50 @@ class RestablecerContrasenaIn(BaseModel):
 
     contrasena: str = Field(min_length=8, max_length=200)
     pin: str | None = Field(default=None, pattern=r"^\d{4,8}$")
+
+
+# ------------------------------------------------------- roles y permisos (FEAT-006, AC-08 a AC-11)
+
+
+class PermisoOut(BaseModel):
+    clave: str
+    descripcion: str
+    modulo: str
+    es_de_informacion: bool
+    mvp: bool
+    llega_con: str
+    # Permisos de ver que este necesita: activarlo los activa y quitarlos lo quita.
+    requiere: list[str]
+
+
+class RolResumenOut(RolOut):
+    # Roles con los que nació el sistema: no se eliminan ni cambian de nombre.
+    inicial: bool
+    total_usuarios: int
+    total_permisos: int
+
+
+class RolDetalleOut(RolResumenOut):
+    permisos: list[str]
+
+
+class RolCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nombre: str = Field(min_length=1, max_length=80)
+    descripcion: str | None = Field(default=None, max_length=500)
+    permisos: list[str] = Field(default_factory=list, max_length=200)
+
+
+class RolUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nombre: str | None = Field(default=None, min_length=1, max_length=80)
+    descripcion: str | None = Field(default=None, max_length=500)
+    activo: bool | None = None
+
+
+class RolPermisosIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    permisos: list[str] = Field(max_length=200)

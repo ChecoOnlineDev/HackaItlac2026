@@ -89,9 +89,6 @@ class UsuarioAdminService:
         filas, total = self.usuarios.listar(filtros, limit=limit, offset=offset)
         return [self._usuario(u, a) for u, a in filas], total
 
-    def listar_roles(self) -> list[Rol]:
-        return self.roles.listar()
-
     def ver(self, usuario_id: uuid.UUID) -> UsuarioOut:
         usuario = self.obtener(usuario_id)
         return self._usuario(usuario, self._almacen_de(usuario))

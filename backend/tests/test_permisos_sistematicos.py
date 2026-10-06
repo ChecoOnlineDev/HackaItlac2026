@@ -326,6 +326,12 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
     P.ACCESO_ADMINISTRAR: [
         ("GET", "/api/roles", None, set()),
         ("GET", "/api/usuarios", None, set()),
+        ("GET", "/api/permisos", None, set()),
+        ("GET", f"/api/roles/{UUID_FALSO}", None, set()),
+        ("POST", "/api/roles", {}, set()),
+        ("PATCH", f"/api/roles/{UUID_FALSO}", {"descripcion": "x"}, set()),
+        ("PUT", f"/api/roles/{UUID_FALSO}/permisos", {"permisos": []}, set()),
+        ("DELETE", f"/api/roles/{UUID_FALSO}", None, set()),
     ],
     P.TRABAJADORES_VER: [
         ("GET", "/api/trabajadores", None, set()),
