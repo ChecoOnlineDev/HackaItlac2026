@@ -9,7 +9,7 @@ Qué trae cada versión. Se escribe a partir del historial del repositorio (`git
 - `POST /api/sesion/refresh` (401 `SESION_VENCIDA` si no sirve), `DELETE /api/sesion` ahora cierra solo ESTE dispositivo, `DELETE /api/sesion/otras`, `DELETE /api/sesion/todas` (sube `version_sesion`) y `GET /api/sesion/dispositivos`. Restablecer contraseña o PIN e inactivar o reactivar siguen cerrando todas las sesiones.
 - Variables nuevas en `.env`: `ACCESO_MINUTOS`, `REFRESH_DIAS`, `REFRESH_TOPE_DIAS`, `REFRESH_TOLERANCIA_SEGUNDOS`. La cookie de acceso ya no dura 12 horas.
 - Entrar muestra «Tu sesión venció» cuando la renovación ya no es posible y regresa a la pantalla donde se estaba.
-- Pendiente: pantalla «Dispositivos con sesión abierta» (el servidor ya la sirve).
+- «Salir» ofrece «Ver dispositivos con sesión abierta»: lista las sesiones (navegador y sistema, entrada y último uso) con «Cerrar las demás» y «Cerrar todas, también esta».
 
 ## Sin publicar: visibilidad por almacén (AC-06)
 

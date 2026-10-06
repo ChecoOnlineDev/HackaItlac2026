@@ -212,7 +212,7 @@ def test_la_migracion_sube_baja_y_coincide_con_los_modelos():
         tablas = set(inspect(motor).get_table_names())
         esperadas = set(Base.metadata.tables) | {"alembic_version"}
         assert tablas == esperadas
-        assert len(Base.metadata.tables) == 23  # las 21 del modelo de datos y puesto y dotacion
+        assert len(Base.metadata.tables) == 24  # 21 del modelo + puesto, dotacion, sesion_dispositivo
 
         # Los modelos y la migración no difieren (lo que revisa `alembic check`).
         with motor.connect() as conexion:
