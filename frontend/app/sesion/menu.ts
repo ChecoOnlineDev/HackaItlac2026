@@ -9,6 +9,7 @@ import {
   Package,
   Printer,
   Search,
+  UserCog,
   ShieldCheck,
   Truck,
   Undo2,
@@ -42,19 +43,18 @@ export interface ElementoMenu {
   inicio: "flujo" | "siempre" | "gestion";
   /** Cuenta que muestra el botón (traspasos por recibir, solicitudes por autorizar). */
   contador?: "porRecibir" | "porAutorizar";
-  /** Si la ruta empieza por esto se marca como activa en el menú. */
-  prefijoActivo?: string;
 }
 
 export const MENU: readonly ElementoMenu[] = [
   { id: "entregar", titulo: "Entregar", ruta: "/entregar", icono: PackageCheck, permisosAlguno: ["entregas.crear"], grupo: "Operación", inicio: "flujo" },
   { id: "devolver", titulo: "Devolver", ruta: "/devolver", icono: Undo2, permisosAlguno: ["devoluciones.crear"], grupo: "Operación", inicio: "flujo" },
   { id: "trasladar", titulo: "Trasladar", ruta: "/trasladar", icono: Truck, permisosAlguno: ["traspasos.operar"], grupo: "Operación", inicio: "flujo" },
-  { id: "recibir", titulo: "Recibir", ruta: "/recibir", icono: Inbox, permisosAlguno: ["traspasos.operar"], grupo: "Operación", inicio: "flujo", contador: "porRecibir", prefijoActivo: "/recibir" },
+  { id: "recibir", titulo: "Recibir", ruta: "/recibir", icono: Inbox, permisosAlguno: ["traspasos.operar"], grupo: "Operación", inicio: "flujo", contador: "porRecibir" },
   { id: "consultar", titulo: "Consultar", ruta: "/consultar", icono: Search, grupo: "Consulta", inicio: "flujo" },
   { id: "mis-movimientos", titulo: "Mis movimientos de hoy", ruta: "/mis-movimientos", icono: History, permisosAlguno: ["vales.ver"], grupo: "Consulta", inicio: "gestion" },
   { id: "autorizaciones", titulo: "Autorizaciones", ruta: "/autorizaciones", icono: ShieldCheck, permisosAlguno: ["autorizaciones.resolver"], grupo: "Supervisión", inicio: "siempre", contador: "porAutorizar" },
-  { id: "trabajadores", titulo: "Trabajadores", ruta: "/trabajadores", icono: Users, permisosAlguno: ["trabajadores.ver"], grupo: "Personas", inicio: "gestion", prefijoActivo: "/trabajadores" },
+  { id: "personal", titulo: "Personal", ruta: "/personal", icono: UserCog, permisosAlguno: ["almacenes.asignar_personal"], grupo: "Supervisión", inicio: "gestion" },
+  { id: "trabajadores", titulo: "Trabajadores", ruta: "/trabajadores", icono: Users, permisosAlguno: ["trabajadores.ver"], grupo: "Personas", inicio: "gestion" },
   { id: "alta-trabajador", titulo: "Alta de trabajador", ruta: "/trabajadores/nuevo", icono: UserPlus, permisosAlguno: ["trabajadores.administrar"], grupo: "Personas", inicio: "gestion" },
   { id: "inventario", titulo: "Inventario", ruta: "/inventario", icono: Boxes, permisosAlguno: ["inventario.ver"], grupo: "Inventario y catálogo", inicio: "gestion" },
   { id: "entradas", titulo: "Entradas", ruta: "/entradas/nueva", icono: PackagePlus, permisosAlguno: ["inventario.entradas"], grupo: "Inventario y catálogo", inicio: "gestion" },
@@ -72,6 +72,22 @@ const ORDEN_GRUPOS = ["Operación", "Consulta", "Supervisión", "Personas", "Inv
 
 export function menuPermitido(puedeAlguno: (permisos: readonly Permiso[]) => boolean): ElementoMenu[] {
   return MENU.filter((e) => !e.permisosAlguno || puedeAlguno(e.permisosAlguno));
+}
+
+/**
+ * Qué opción del menú corresponde a la ruta actual. Cuenta también la subruta (`/trabajadores/<id>` marca
+ * "Trabajadores"); si varias coinciden gana la más específica (`/trabajadores/nuevo` marca "Alta de trabajador").
+ * "Inicio" (`/`) no está en la lista: se marca solo en `/` exacto.
+ */
+export function idActivo(elementos: readonly ElementoMenu[], pathname: string): string | null {
+  const ruta = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  let mejor: ElementoMenu | null = null;
+  for (const e of elementos) {
+    if (ruta === e.ruta || ruta.startsWith(`${e.ruta}/`)) {
+      if (!mejor || e.ruta.length > mejor.ruta.length) mejor = e;
+    }
+  }
+  return mejor?.id ?? null;
 }
 
 export function agruparMenu(elementos: readonly ElementoMenu[]): { grupo: string; elementos: ElementoMenu[] }[] {

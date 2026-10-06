@@ -1,31 +1,69 @@
-import { Link } from "react-router";
+import { cn } from "cn";
+import { HomeIcon } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { Link, useLocation } from "react-router";
 
 import { Hoja } from "~/componentes/ui/hoja";
-import { agruparMenu, menuPermitido } from "~/sesion/menu";
+import { agruparMenu, idActivo, menuPermitido } from "~/sesion/menu";
 import { useSesion } from "~/sesion/sesion";
 import { InstalarApp } from "./instalar-app";
+
+/** Misma apariencia para toda opción; la activa lleva contorno azul, fondo suave y texto en azul marino. */
+const BASE = "flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors hover:bg-accent/60";
+const ACTIVA = "bg-accent font-semibold text-marino ring-1 ring-primary hover:bg-accent";
 
 /** Menú completo en una hoja (celular y tableta): todas las secciones que permiten los permisos. */
 export function MenuHoja({ abierta, alCambiar }: { abierta: boolean; alCambiar: (abierta: boolean) => void }) {
   const { puedeAlguno } = useSesion();
-  const grupos = agruparMenu(menuPermitido(puedeAlguno));
+  const { pathname } = useLocation();
+  const permitidos = menuPermitido(puedeAlguno);
+  const grupos = agruparMenu(permitidos);
+  const activoId = pathname === "/" ? "inicio" : idActivo(permitidos, pathname);
+  const activa = useRef<HTMLAnchorElement | null>(null);
+
+  // Al abrir, la opción activa queda a la vista aunque la lista sea larga.
+  useEffect(() => {
+    if (!abierta) return;
+    const id = window.setTimeout(() => activa.current?.scrollIntoView({ block: "center" }), 60);
+    return () => window.clearTimeout(id);
+  }, [abierta]);
+
+  const ref = (esActiva: boolean) => (nodo: HTMLAnchorElement | null) => {
+    if (esActiva) activa.current = nodo;
+  };
+
   return (
     <Hoja abierta={abierta} alCambiar={alCambiar} titulo="Menú">
       <nav aria-label="Secciones" className="flex flex-col gap-5">
+        <Link
+          ref={ref(activoId === "inicio")}
+          to="/"
+          onClick={() => alCambiar(false)}
+          aria-current={activoId === "inicio" ? "page" : undefined}
+          className={cn(BASE, activoId === "inicio" && ACTIVA)}
+        >
+          <HomeIcon aria-hidden="true" className="size-4.5 text-primary" />
+          Inicio
+        </Link>
         {grupos.map(({ grupo, elementos }) => (
           <div key={grupo} className="flex flex-col gap-1">
             <h2 className="px-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{grupo}</h2>
-            {elementos.map((e) => (
-              <Link
-                key={e.id}
-                to={e.ruta}
-                onClick={() => alCambiar(false)}
-                className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium hover:bg-accent"
-              >
-                <e.icono aria-hidden="true" className="size-4.5 text-primary" />
-                {e.titulo}
-              </Link>
-            ))}
+            {elementos.map((e) => {
+              const esActiva = e.id === activoId;
+              return (
+                <Link
+                  key={e.id}
+                  ref={ref(esActiva)}
+                  to={e.ruta}
+                  onClick={() => alCambiar(false)}
+                  aria-current={esActiva ? "page" : undefined}
+                  className={cn(BASE, esActiva && ACTIVA)}
+                >
+                  <e.icono aria-hidden="true" className="size-4.5 text-primary" />
+                  {e.titulo}
+                </Link>
+              );
+            })}
           </div>
         ))}
       </nav>

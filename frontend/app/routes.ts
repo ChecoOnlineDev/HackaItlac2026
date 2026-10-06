@@ -37,6 +37,7 @@ export default [
     route("etiquetas", "routes/inventario/etiquetas.tsx"),
     // supervision
     route("autorizaciones", "routes/supervision/autorizaciones.tsx"),
+    route("personal", "routes/supervision/personal.tsx"),
     route("reportes/existencias", "routes/supervision/rep-existencias.tsx"),
     route("reportes/movimientos", "routes/supervision/rep-movimientos.tsx"),
     route("reportes/adeudos", "routes/supervision/rep-adeudos.tsx"),

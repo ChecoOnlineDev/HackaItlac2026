@@ -1,6 +1,6 @@
 import { HomeIcon, LogOutIcon } from "lucide-react";
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
 
 import { Avatar } from "~/componentes/ui/avatar";
 import { Boton } from "~/componentes/ui/boton";
@@ -21,19 +21,23 @@ import {
 } from "~/components/ui/sidebar";
 import { ConfirmarSalida } from "./confirmar-salida";
 import { InstalarApp } from "./instalar-app";
-import { agruparMenu, menuPermitido, type ElementoMenu } from "~/sesion/menu";
+import { agruparMenu, idActivo, menuPermitido, type ElementoMenu } from "~/sesion/menu";
 import { useContadores } from "~/sesion/contadores";
 import { useSesionActiva } from "~/sesion/sesion";
 
-function Elemento({ elemento, contador }: { elemento: ElementoMenu; contador?: number }) {
-  const { pathname } = useLocation();
-  const activo = elemento.prefijoActivo
-    ? pathname.startsWith(elemento.prefijoActivo) && !(elemento.id === "trabajadores" && pathname === "/trabajadores/nuevo")
-    : pathname === elemento.ruta;
+/** Estado de la opción: activa (la sección donde estás) con contorno azul, y un hover más suave. */
+const CLASE_OPCION =
+  "h-auto min-h-10 rounded-xl py-2 text-sm transition-colors hover:bg-accent/60 data-active:bg-accent data-active:font-semibold data-active:text-marino data-active:ring-1 data-active:ring-primary data-active:hover:bg-accent";
+
+function Elemento({ elemento, activo, contador }: { elemento: ElementoMenu; activo: boolean; contador?: number }) {
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton isActive={activo} className="h-auto min-h-10 rounded-xl py-2 text-sm [&>span:last-child]:whitespace-normal" render={<NavLink to={elemento.ruta} end />}>
-        <elemento.icono aria-hidden="true" className="size-4.5" />
+      <SidebarMenuButton
+        isActive={activo}
+        className={`${CLASE_OPCION} [&>span:last-child]:whitespace-normal`}
+        render={<Link to={elemento.ruta} aria-current={activo ? "page" : undefined} />}
+      >
+        <elemento.icono aria-hidden="true" className={activo ? "size-4.5 text-primary" : "size-4.5"} />
         <span>{elemento.titulo}</span>
       </SidebarMenuButton>
       {contador ? <SidebarMenuBadge className="bg-primary text-primary-foreground">{contador}</SidebarMenuBadge> : null}
@@ -46,7 +50,10 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
   const { sesion, puedeAlguno } = useSesionActiva();
   const [confirmandoSalida, setConfirmandoSalida] = useState(false);
   const contadores = useContadores();
-  const grupos = agruparMenu(menuPermitido(puedeAlguno));
+  const permitidos = menuPermitido(puedeAlguno);
+  const grupos = agruparMenu(permitidos);
+  const { pathname } = useLocation();
+  const activoId = idActivo(permitidos, pathname);
 
   return (
     <SidebarProvider>
@@ -63,7 +70,11 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton className="h-auto min-h-10 rounded-xl py-2 text-sm" render={<NavLink to="/" end />}>
+                  <SidebarMenuButton
+                    isActive={pathname === "/"}
+                    className={CLASE_OPCION}
+                    render={<Link to="/" aria-current={pathname === "/" ? "page" : undefined} />}
+                  >
                     <HomeIcon aria-hidden="true" className="size-4.5" />
                     <span>Inicio</span>
                   </SidebarMenuButton>
@@ -80,6 +91,7 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
                     <Elemento
                       key={e.id}
                       elemento={e}
+                      activo={e.id === activoId}
                       contador={e.contador ? contadores[e.contador] : undefined}
                     />
                   ))}
