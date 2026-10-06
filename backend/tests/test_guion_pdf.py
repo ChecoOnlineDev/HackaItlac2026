@@ -72,6 +72,7 @@ class Guion:
     con: TestClient
     mid: TestClient
     hyl: TestClient
+    admin: TestClient
     pin_supervisor: str
     almacen: dict
     trabajador: dict = field(default_factory=dict)
@@ -649,8 +650,10 @@ def paso_5_traspasos_y_recepciones(g: Guion) -> None:
         "total": 0
     }
 
-    # El historial de la pieza muestra su recorrido completo (C-02, X-07).
-    ficha = g.kep.get(f"/api/piezas/{pieza_arnes}").json()
+    # El historial de la pieza muestra su recorrido completo (C-02, X-07), al Administrador: el
+    # almacenista de Kepler ya no la ve porque está en Midrex (AC-06).
+    assert g.kep.get(f"/api/piezas/{pieza_arnes}").status_code == 404
+    ficha = g.admin.get(f"/api/piezas/{pieza_arnes}").json()
     assert "Midrex" in ficha["ubicacion"]["texto"]
     recorrido = [h["folio"] for h in reversed(ficha["historial"]) if h["tipo"] == "MOVIMIENTO"]
     assert recorrido[1:] == [trs1["folio"], rec1["folio"], trs2["folio"], rec2["folio"]]
@@ -879,6 +882,7 @@ def test_guion_del_pdf_de_los_seis_pasos_de_punta_a_punta(
         con=cliente_almacen("CON"),
         mid=cliente_almacen("MID"),
         hyl=cliente_almacen("HYL"),
+        admin=cliente_como("Administrador"),
         pin_supervisor=usuario_por_rol("Supervisor").pin,
         almacen=ids_de_almacen(session),
     )

@@ -238,8 +238,11 @@ class Cargador:
         virtual = UbicacionVirtual(ubicacion.virtual)
         nombre = _NOMBRE_VIRTUAL.get(virtual, "Fuera de los almacenes")
         if virtual == UbicacionVirtual.EN_TRANSITO:
-            destino = self.repository.destino_del_transito(pieza.id, ubicacion.id)
-            if destino is None or not self._es_mi_almacen(destino.id):
+            ruta = self.repository.destino_del_transito(pieza.id, ubicacion.id)
+            if ruta is None:
+                return TITULAR_OCULTO
+            destino, origen_id = ruta
+            if not (self._es_mi_almacen(destino.id) or self._es_mi_almacen(origen_id)):
                 return TITULAR_OCULTO
             nombre = f"En tránsito a {destino.nombre}"
             texto = f"está en tránsito hacia {destino.nombre}"
