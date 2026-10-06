@@ -302,10 +302,21 @@ class SesionDispositivoRepository:
         )
         return list(filas)
 
-    def purgar(self, vencidas_antes_de: datetime) -> int:
+    def purgar(self, vencidas_antes_de: datetime, *, maximo: int = 500) -> int:
         """Borra las familias cuyo tope absoluto ya pasó hace tiempo (todas sus filas comparten
-        el tope), para que la tabla no crezca sin fin."""
+        el tope), para que la tabla no crezca sin fin. Primero lee (sin bloquear) y borra por
+        llave primaria: un `DELETE` por rango bloquearía huecos del índice y haría esperar a los
+        inicios de sesión simultáneos."""
+        ids = list(
+            self.session.scalars(
+                select(SesionDispositivo.id)
+                .where(SesionDispositivo.vence_absoluto < vencidas_antes_de)
+                .limit(maximo)
+            )
+        )
+        if not ids:
+            return 0
         resultado = self.session.execute(
-            delete(SesionDispositivo).where(SesionDispositivo.vence_absoluto < vencidas_antes_de)
+            delete(SesionDispositivo).where(SesionDispositivo.id.in_(ids))
         )
         return resultado.rowcount
