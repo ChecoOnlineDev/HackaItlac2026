@@ -44,11 +44,15 @@ class PeriodoContrato(Base):
     __table_args__ = (
         CheckConstraint("fin >= inicio", name="fin_posterior_a_inicio"),
         Index("ix_periodo_contrato_trabajador_id_fin", "trabajador_id", "fin"),
+        Index("ix_periodo_contrato_puesto_id", "puesto_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=nuevo_id)
     trabajador_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("trabajador.id"), nullable=False)
+    # Texto del puesto tal como se capturó; `puesto_id` lo liga al catálogo y de él sale la
+    # dotación (D-01). Vacío si el nombre no coincide con ningún puesto: sin dotación.
     puesto: Mapped[str | None] = mapped_column(String(100))
+    puesto_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("puesto.id"))
     area_obra: Mapped[str | None] = mapped_column(String(100))
     referencia: Mapped[str | None] = mapped_column(String(100))
     inicio: Mapped[date] = mapped_column(Date, nullable=False)

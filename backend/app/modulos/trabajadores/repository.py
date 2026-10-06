@@ -6,11 +6,12 @@ Las consultas de resguardo y pendientes son de SOLO LECTURA sobre tablas de otro
 
 import uuid
 from collections import defaultdict
+from datetime import datetime
 
 from sqlalchemy import case, exists, func, literal, or_, select
 from sqlalchemy.orm import Session
 
-from app.modulos.almacenes.models import Almacen, Ubicacion
+from app.modulos.almacenes.models import Almacen, Ubicacion, UbicacionVirtual
 from app.modulos.catalogo.models import Articulo, Control, Pieza
 from app.modulos.movimientos.models import Existencia, Movimiento, TipoVale, Vale
 from app.modulos.trabajadores.models import PeriodoContrato, Trabajador
@@ -279,3 +280,45 @@ class TrabajadorRepository:
             else:
                 otras.setdefault(fila.ref, fila)
         return {**otras, **entregas}
+
+    # ------------------------------------------------- dotación (solo lectura, D-02)
+
+    def en_posesion(
+        self, trabajador_id: uuid.UUID, articulo_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, int]:
+        """Lo que el trabajador tiene ahora de cada artículo (su existencia en su ubicación)."""
+        if not articulo_ids:
+            return {}
+        filas = self.session.execute(
+            select(Existencia.articulo_id, Existencia.cantidad)
+            .join(Ubicacion, Ubicacion.id == Existencia.ubicacion_id)
+            .where(
+                Ubicacion.trabajador_id == trabajador_id,
+                Existencia.articulo_id.in_(articulo_ids),
+                Existencia.cantidad > 0,
+            )
+        ).all()
+        return {a: int(c) for a, c in filas}
+
+    def consumido_desde(
+        self, trabajador_id: uuid.UUID, articulo_ids: list[uuid.UUID], desde: datetime
+    ) -> dict[uuid.UUID, int]:
+        """Lo entregado como consumible al trabajador desde `desde` (UTC, inclusivo), sin contar
+        vales cancelados. Mismo criterio que el límite L-03, pero en el periodo de contrato."""
+        if not articulo_ids:
+            return {}
+        filas = self.session.execute(
+            select(Movimiento.articulo_id, func.sum(Movimiento.cantidad))
+            .join(Vale, Vale.id == Movimiento.vale_id)
+            .join(Ubicacion, Ubicacion.id == Movimiento.destino_id)
+            .where(
+                Vale.tipo == TipoVale.ENTREGA,
+                Vale.estado != "CANCELADO",
+                Movimiento.trabajador_id == trabajador_id,
+                Movimiento.articulo_id.in_(articulo_ids),
+                Ubicacion.virtual == UbicacionVirtual.CONSUMIDO,
+                Movimiento.creado_en >= desde,
+            )
+            .group_by(Movimiento.articulo_id)
+        ).all()
+        return {a: int(c) for a, c in filas}

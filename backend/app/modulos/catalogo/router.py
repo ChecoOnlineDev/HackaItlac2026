@@ -1,4 +1,4 @@
-"""Endpoints del módulo `catalogo`: categorías, artículos y etiquetas.
+"""Endpoints del módulo `catalogo`: categorías, artículos, puestos con su dotación y etiquetas.
 
 La ficha de pieza (`GET /piezas/{id}`) y las inspecciones son de otros módulos. Los endpoints que
 devuelven artículos usan `response_model_exclude_unset`: sin `catalogo.costos` el service no pone
@@ -14,7 +14,7 @@ from app.core.paginacion import Pagina, PaginacionDep
 from app.modulos.acceso.dependencies import requiere_permiso
 from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import P
-from app.modulos.catalogo.dependencies import CatalogoServiceDep
+from app.modulos.catalogo.dependencies import CatalogoServiceDep, PuestoServiceDep
 from app.modulos.catalogo.schemas import (
     ArticuloCreate,
     ArticuloFichaOut,
@@ -26,8 +26,14 @@ from app.modulos.catalogo.schemas import (
     CategoriaFilters,
     CategoriaOut,
     CategoriaUpdate,
+    DotacionIn,
+    DotacionOut,
     EtiquetasOut,
     InactivacionIn,
+    PuestoCreate,
+    PuestoFilters,
+    PuestoOut,
+    PuestoUpdate,
     TipoEtiqueta,
 )
 
@@ -171,3 +177,45 @@ def listar_etiquetas(
 ) -> EtiquetasOut:
     """`etiquetas.imprimir` basta para los tres tipos. Lista de `{codigo, texto}` para imprimir."""
     return service.listar_etiquetas(tipo, usuario)
+
+
+# -------------------------------------------------------------------------------- puestos
+
+
+@router.get("/puestos", response_model=Pagina[PuestoOut])
+def listar_puestos(
+    _: Ver,
+    service: PuestoServiceDep,
+    pagina: PaginacionDep,
+    filtros: Annotated[PuestoFilters, Query()],
+) -> Pagina[PuestoOut]:
+    """`catalogo.ver`. Puestos con el total de artículos de su dotación. Filtro: `activo`."""
+    return service.listar(filtros, pagina)
+
+
+@router.post("/puestos", response_model=PuestoOut, status_code=status.HTTP_201_CREATED)
+def crear_puesto(datos: PuestoCreate, usuario: Administrar, service: PuestoServiceDep) -> PuestoOut:
+    """`catalogo.administrar`. Crea un puesto; el nombre no se repite (409)."""
+    return service.crear(datos, usuario)
+
+
+@router.patch("/puestos/{puesto_id}", response_model=PuestoOut)
+def editar_puesto(
+    puesto_id: uuid.UUID, datos: PuestoUpdate, usuario: Administrar, service: PuestoServiceDep
+) -> PuestoOut:
+    """`catalogo.administrar`. Cambia el nombre o activa o inactiva el puesto."""
+    return service.actualizar(puesto_id, datos, usuario)
+
+
+@router.get("/puestos/{puesto_id}/dotacion", response_model=DotacionOut)
+def ver_dotacion(puesto_id: uuid.UUID, _: Ver, service: PuestoServiceDep) -> DotacionOut:
+    """`catalogo.ver`. La dotación recomendada del puesto (D-01) con el límite de cada artículo."""
+    return service.dotacion(puesto_id)
+
+
+@router.put("/puestos/{puesto_id}/dotacion", response_model=DotacionOut)
+def reemplazar_dotacion(
+    puesto_id: uuid.UUID, datos: DotacionIn, usuario: Administrar, service: PuestoServiceDep
+) -> DotacionOut:
+    """`catalogo.administrar`. Reemplaza la dotación; la cantidad no pasa del límite (D-04)."""
+    return service.reemplazar_dotacion(puesto_id, datos, usuario)

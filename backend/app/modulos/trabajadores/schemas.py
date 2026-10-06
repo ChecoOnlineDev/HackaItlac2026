@@ -4,7 +4,9 @@ import uuid
 from datetime import date, datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+
+from app.modulos.catalogo.schemas import ArticuloDotacionOut, PuestoRefOut
 
 
 class Situacion(StrEnum):
@@ -39,13 +41,15 @@ def _vacio_a_none(valor):
 
 
 class TrabajadorCreate(BaseModel):
-    """Alta (T-03). Obligatorios: nombre, número, puesto, área u obra y periodo."""
+    """Alta (T-03). Obligatorios: nombre, número, puesto (`puesto_id` del catálogo o su nombre en
+    `puesto`), área u obra y periodo."""
 
     model_config = ConfigDict(str_strip_whitespace=True)
 
     nombre: str = Field(min_length=1, max_length=150)
     numero_empleado: str = Field(min_length=1, max_length=30)
-    puesto: str = Field(min_length=1, max_length=100)
+    puesto_id: uuid.UUID | None = None
+    puesto: str | None = Field(default=None, min_length=1, max_length=100, validate_default=True)
     area_obra: str = Field(min_length=1, max_length=100)
     inicio: date
     fin: date
@@ -58,6 +62,13 @@ class TrabajadorCreate(BaseModel):
     @classmethod
     def _limpiar(cls, valor):
         return _vacio_a_none(valor)
+
+    @field_validator("puesto")
+    @classmethod
+    def _puesto_obligatorio(cls, valor: str | None, info: ValidationInfo) -> str | None:
+        if valor is None and info.data.get("puesto_id") is None:
+            raise ValueError("Indica el puesto.")
+        return valor
 
     @field_validator("curp")
     @classmethod
@@ -96,6 +107,7 @@ class PeriodoCreate(BaseModel):
     inicio: date
     fin: date
     puesto: str | None = Field(default=None, min_length=1, max_length=100)
+    puesto_id: uuid.UUID | None = None
     area_obra: str | None = Field(default=None, min_length=1, max_length=100)
     referencia: str | None = Field(default=None, max_length=100)
 
@@ -131,6 +143,7 @@ class PeriodoOut(BaseModel):
 
     id: uuid.UUID
     puesto: str | None
+    puesto_id: uuid.UUID | None
     area_obra: str | None
     referencia: str | None
     inicio: date
@@ -181,6 +194,7 @@ class FichaBreveOut(BaseModel):
     estado: str
     estado_texto: str
     puesto: str | None
+    puesto_id: uuid.UUID | None
     area_obra: str | None
     vigencia: VigenciaOut
     tiene_foto: bool
@@ -211,6 +225,7 @@ class TrabajadorListItem(BaseModel):
     estado: str
     estado_texto: str
     puesto: str | None
+    puesto_id: uuid.UUID | None
     area_obra: str | None
     periodo_inicio: date | None
     periodo_fin: date | None
@@ -241,3 +256,20 @@ class BajaOut(BaseModel):
     pendientes: list[PendienteOut]
     puede_emitir_no_adeudo: bool
     reglas: list[str]
+
+
+class RenglonDotacionTrabajadorOut(BaseModel):
+    """`entregada`: retornable, lo que tiene ahora; consumible, lo consumido en su periodo de
+    contrato vigente. `falta` es lo recomendado menos lo entregado, nunca negativo."""
+
+    articulo: ArticuloDotacionOut
+    recomendada: int
+    entregada: int
+    falta: int
+
+
+class DotacionTrabajadorOut(BaseModel):
+    """D-02. Sin puesto o sin dotación: `renglones` vacío."""
+
+    puesto: PuestoRefOut | None
+    renglones: list[RenglonDotacionTrabajadorOut]

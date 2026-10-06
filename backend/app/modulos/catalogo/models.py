@@ -180,3 +180,33 @@ class Codigo(Base):
     tipo: Mapped[str] = mapped_column(String(12), nullable=False)
     # Id de la cosa identificada (trabajador, artículo, pieza o vale); según `tipo`.
     ref_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+
+
+class Puesto(Base):
+    """Puesto de trabajo: su dotación recomendada son los renglones de `dotacion` (D-01)."""
+
+    __tablename__ = "puesto"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=nuevo_id)
+    # Único sin importar mayúsculas ni acentos (la colación de la base ya los ignora).
+    nombre: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    activo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("1")
+    )
+    creado_en: Mapped[datetime] = mapped_column(FechaHora, nullable=False, default=ahora_utc)
+
+
+class Dotacion(Base):
+    """Un artículo con su cantidad recomendada en un puesto (D-01). Nunca pasa del límite (D-04)."""
+
+    __tablename__ = "dotacion"
+    __table_args__ = (
+        UniqueConstraint("puesto_id", "articulo_id"),
+        CheckConstraint("cantidad >= 1", name="cantidad_positiva"),
+        Index("ix_dotacion_articulo_id", "articulo_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=nuevo_id)
+    puesto_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("puesto.id"), nullable=False)
+    articulo_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("articulo.id"), nullable=False)
+    cantidad: Mapped[int] = mapped_column(Integer, nullable=False)
