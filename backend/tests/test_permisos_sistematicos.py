@@ -133,6 +133,13 @@ SOLO_SESION: dict[tuple[str, str], str] = {
         "el servicio lo verifica por clave antes de leer nada."
     ),
     ("POST", "/api/vales"): "Igual que evaluar: el permiso sale del `tipo` del vale.",
+    ("GET", "/api/solicitudes-compra"): (
+        "La ruta acepta `compras.solicitar` o `compras.atender`: el servicio verifica cualquiera "
+        "de los dos (403 si no tiene ninguno) y limita lo que ve a su almacén (SC-03)."
+    ),
+    ("GET", "/api/solicitudes-compra/{solicitud_id}"): (
+        "Igual que la lista: `compras.solicitar` o `compras.atender`, y 404 fuera de su alcance."
+    ),
 }
 
 
@@ -273,6 +280,8 @@ def test_AC_01_los_permisos_del_codigo_coinciden_con_el_contrato_de_api():
         )
     sin_documentar = sorted(set(codigo) - set(contrato) - {("GET", "/api/salud")})
     sin_codigo = sorted(set(contrato) - set(codigo))
+    # La columna dice «Solicitar o atender» en las dos lecturas de solicitudes de compra: el
+    # servicio exige `compras.solicitar` o `compras.atender` (ver tests/solicitudes_compra).
     # La columna dice «Según el tipo» para vales; en el código ese permiso sale del tipo. La
     # resolución de una autorización la documenta con `autorizaciones.resolver`, pero lo exige el
     # servicio sobre quien autoriza (la sesión o el PIN de otro usuario): se comprueba por
@@ -283,6 +292,7 @@ def test_AC_01_los_permisos_del_codigo_coinciden_con_el_contrato_de_api():
         for k in set(contrato) & set(codigo)
         if contrato[k] != codigo[k]
         and not (contrato[k] == "Según el tipo" and codigo[k] == "Sesión")
+        and not (contrato[k] == "Solicitar o atender" and codigo[k] == "Sesión")
         and k not in verificadas_en_el_servicio
     }
     assert sin_documentar == [], f"rutas sin documentar en api-contracts.md: {sin_documentar}"
@@ -322,6 +332,8 @@ ROLES_8_2: dict[str, str] = {
     P.ALMACENES_TODOS: "",
     P.ALMACENES_ASIGNAR_PERSONAL: "S",
     P.ETIQUETAS_IMPRIMIR: "SCR",
+    P.COMPRAS_SOLICITAR: "AS",
+    P.COMPRAS_ATENDER: "C",
 }
 LETRA_DE_ROL = {
     "Almacenista": "A",
@@ -469,6 +481,15 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
         ("GET", "/api/etiquetas?tipo=credenciales", None, set()),
         ("GET", "/api/etiquetas?tipo=estantes", None, set()),
         ("GET", "/api/etiquetas?tipo=piezas", None, set()),
+    ],
+    # Las lecturas de solicitudes de compra aceptan cualquiera de los dos permisos, así que no
+    # pueden ser muestra de uno solo; su permiso se prueba en tests/solicitudes_compra.
+    P.COMPRAS_SOLICITAR: [
+        ("POST", "/api/solicitudes-compra", {}, set()),
+        ("POST", f"/api/solicitudes-compra/{UUID_FALSO}/cancelacion", None, set()),
+    ],
+    P.COMPRAS_ATENDER: [
+        ("POST", f"/api/solicitudes-compra/{UUID_FALSO}/estado", {"estado": "EN_COMPRA"}, set()),
     ],
 }
 # Permisos del catálogo sin endpoint propio que devuelva 403 (se prueban por comportamiento):

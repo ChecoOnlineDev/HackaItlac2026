@@ -86,7 +86,7 @@ La columna "Etapa" indica cuándo entra: **MVP**, **Ola 2** (features posteriore
 | Corrección | Cancelación de un vale con movimientos inversos | MVP |
 | Revisión | Lista de revisión, cierre sin devolución, pérdidas | Futuro |
 | Reportes | Consumo por periodo y EPP entregado por trabajador | Futuro |
-| Compras | Solicitud de compra del supervisor | Futuro |
+| Compras | Solicitud de compra urgente del supervisor o el almacenista | MVP |
 | Tablero | Vista general por almacén para el administrador | Futuro |
 | Operación | Modo sin conexión con sincronización | Futuro |
 

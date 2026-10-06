@@ -21,6 +21,9 @@ REQUIERE: dict[str, tuple[str, ...]] = {
     P.VALES_CANCELAR: (P.VALES_VER,),
     P.VALES_CANCELAR_TODOS: (P.VALES_VER,),
     P.PIEZAS_AJUSTAR_VIGENCIA: (P.PIEZAS_INSPECCIONAR,),
+    # Pedir una compra permite buscar el artículo; atenderla, ver el artículo y el vale de entrada.
+    P.COMPRAS_SOLICITAR: (P.CATALOGO_VER,),
+    P.COMPRAS_ATENDER: (P.CATALOGO_VER, P.VALES_VER),
 }
 
 

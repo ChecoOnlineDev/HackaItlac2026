@@ -11,6 +11,7 @@ from app.modulos.autorizaciones import models as _autorizaciones
 from app.modulos.catalogo import models as _catalogo
 from app.modulos.inspecciones import models as _inspecciones
 from app.modulos.movimientos import models as _movimientos
+from app.modulos.solicitudes_compra import models as _solicitudes_compra
 from app.modulos.trabajadores import models as _trabajadores
 
 MODELOS = (
@@ -22,5 +23,6 @@ MODELOS = (
     _catalogo,
     _inspecciones,
     _movimientos,
+    _solicitudes_compra,
     _trabajadores,
 )

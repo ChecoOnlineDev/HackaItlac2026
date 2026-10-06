@@ -193,4 +193,4 @@ Regla de recorte: si al cierre del martes la Fase 6 no pasó su gate, las featur
 
 ## Trabajo pospuesto
 
-Lo listado como pospuesto en [mvp-scope.md](mvp-scope.md): lista de revisión, cierre sin devolución, pérdidas, reporte de EPP por trabajador, habilitaciones y solicitud de compra. El modo sin conexión está excluido.
+Lo listado como pospuesto en [mvp-scope.md](mvp-scope.md): lista de revisión, cierre sin devolución, pérdidas, reporte de EPP por trabajador, y habilitaciones. La solicitud de compra urgente ya está incluida (reglas SC-01 a SC-11). El modo sin conexión está excluido.

@@ -446,6 +446,22 @@ Marta, almacenista de Midrex, puede usar el mismo filtro, pero solo sobre su alm
 
 **Cobertura.** MVP. Registrar el faltante con una observación llega con FEAT-002.
 
+### ES-29 · Una herramienta de medidas europeas que no tenemos
+
+**Situación.** En el laminador nuevo las medidas son europeas y la planta maneja otras. Marta, almacenista de Midrex, recibe un trabajo que necesita una llave métrica de 24 mm que no está en el catálogo ni en ningún almacén.
+
+**Qué pasa.**
+
+1. Marta levanta una **solicitud de compra**: como no hay artículo, escribe «Llave métrica 24 mm», pone cantidad 2 y el motivo; queda urgente y con folio `MID-SOL-000001`.
+2. Luis, de Compras, ve en su cola las solicitudes de todos los almacenes, la urgente primero. La toma: pasa a «en compra».
+3. La compra y la marca comprada, con una nota con la fecha de llegada. Marta y el ingeniero Martínez ven el cambio en la solicitud.
+4. Luis registra la entrada en Kepler (vale `KEP-ING-…`, I-01), la ingresa y la liga con ese vale. La herramienta llega a Midrex con un traspaso (X-01).
+5. Si Luis no la puede comprar, la rechaza con una nota («Hay una igual en Contratistas») y Marta la lee; si Marta ya no la necesita, la cancela mientras sigue pendiente.
+
+**Reglas e historias.** I-08, SC-01 a SC-11, I-01, X-01.
+
+**Cobertura.** MVP. La compra, el proveedor y el precio quedan fuera: Compras los lleva por su cuenta (no hay órdenes de compra, el alcance las excluye).
+
 ---
 
 ## 6. Huecos que revelan los escenarios
@@ -466,6 +482,7 @@ Marta, almacenista de Midrex, puede usar el mismo filtro, pero solo sobre su alm
 ## 7. Para la demostración y el pitch
 
 - **La prueba del PDF** es la suma de ES-01, ES-04, ES-05, ES-03 y ES-19, en ese orden.
+- **La solicitud de compra urgente** es ES-29: la respuesta del patrocinador al «no tenemos esa herramienta» (min 45).
 - **El reto que planteó el patrocinador** es ES-06: la herramienta sin etiqueta.
 - **Su primera frase en la plática** es ES-13: buscar quién tiene algo.
 - **Sus dolores**, para la parte de preguntas: ES-02 (adeudos que se acumulan), ES-14 (equipo cambiado), ES-21 (quién perdió qué), ES-26 (consumo excesivo) y ES-27 (el vale como prueba).

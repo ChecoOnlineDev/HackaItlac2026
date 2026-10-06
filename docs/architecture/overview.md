@@ -2,7 +2,7 @@
 
 Qué módulos existen, de qué se encarga cada uno y de quién depende. Es la orientación para cualquier tarea que cruce módulos.
 
-Estado: los once módulos del backend están construidos y montados en `main.py`, y la interfaz cubre todas las pantallas del MVP (una ruta por pantalla en `frontend/app/routes.ts`). Quedan por hacer lo de la segunda ola (FEAT-001 a FEAT-004) y la matriz editable de roles (FEAT-006); el trabajo del release está en la [checklist](../releases/mvp-checklist.md).
+Estado: los doce módulos del backend están construidos y montados en `main.py`, y la interfaz cubre todas las pantallas del MVP (una ruta por pantalla en `frontend/app/routes.ts`). Quedan por hacer lo de la segunda ola (FEAT-001 a FEAT-004) y la matriz editable de roles (FEAT-006); el trabajo del release está en la [checklist](../releases/mvp-checklist.md).
 
 ## Estructura del repositorio
 
@@ -63,6 +63,7 @@ Dependencias permitidas: `Router -> Service`, `Service -> Repository`, `Service 
 | `consulta` | Escaneo universal, búsqueda, fichas y reportes. Solo lee. | Todos |
 | `importacion` | Vista previa y carga desde tabla; crea artículos y entradas a través de `catalogo` y `movimientos`. | `catalogo`, `movimientos` |
 | `archivos` | Dueño de `adjunto`. Guarda y lee firmas y fotos del volumen (por `integraciones/archivos.py`), valida el tipo por el contenido y el tamaño, y calcula el `sha256`. Sin endpoints propios: los usan `movimientos` y `trabajadores`. | — |
+| `solicitudes_compra` | Dueño de `solicitud_compra`, su historial `solicitud_compra_evento` y el contador `serie_solicitud_compra`. La solicitud de compra urgente y su seguimiento (SC-01 a SC-11). No es inventario: no escribe vales, movimientos ni existencias; solo lee el vale de ENTRADA para ligarlo. | `acceso`, `catalogo`, `almacenes` |
 | `auditoria` | Dueño de `auditoria`. Ofrece `registrar(...)` a los demás módulos para el registro de cambios (CF-15, AC-10). Nunca guarda secretos. | — |
 
 ## Límites

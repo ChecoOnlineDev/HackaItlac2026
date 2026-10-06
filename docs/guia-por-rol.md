@@ -82,6 +82,8 @@ Resumen en lenguaje de persona, según la tabla 8.2 de las reglas (entre parént
 | Operar cualquier almacén (`almacenes.todos`) | Sí | No | No | No | No |
 | Asignar personal a su almacén o liberarlo (`almacenes.asignar_personal`) | Sí (y entre almacenes) | Sí (solo su almacén) | No | No | No |
 | Imprimir hojas de QR y credenciales (`etiquetas.imprimir`) | Sí | Sí | No | Sí | Sí |
+| Pedir una compra urgente (`compras.solicitar`) | Sí | Sí | Sí | No | No |
+| Atender las solicitudes de compra de todos los almacenes (`compras.atender`) | Sí | No | No | Sí | No |
 | Administrar roles, permisos y usuarios (`acceso.administrar`) | Sí | No | No | No | No |
 
 Cuatro cosas **ningún rol** puede hacer, ni el Administrador, porque no son permisos (AC-07): editar o borrar movimientos, autorizarse a sí mismo, autorizar un rojo de seguridad y mostrar costos en un vale.
@@ -192,6 +194,8 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 *Baja del trabajador.* En la ficha, **Vale de no adeudo**: el trabajador pasa a Baja en proceso, el sistema lista sus pendientes de todos los almacenes, el almacenista recibe las devoluciones y, con todo en cero, emite el vale; el trabajador queda Inactivo (B-01 a B-04, B-08).
 
+*Pedir una compra urgente.* Si falta un equipo o una herramienta para un trabajo y el almacén no la tiene (por ejemplo, una herramienta de medidas europeas), levanta una **solicitud de compra**: elige el artículo del catálogo o, si no existe, lo describe con sus palabras; pone la cantidad y para qué trabajo o área se necesita; queda **urgente** salvo que la marque normal. Sale con un folio como `MID-SOL-000001` y llega a Compras. Ve las solicitudes de su almacén, incluidas las de sus compañeros, para saber si ya se pidió, y su estado: pendiente, en compra, comprada e ingresada (o rechazada, con la nota de Compras). La puede cancelar solo mientras sigue pendiente (SC-01 a SC-07). Al ingresarse, la compra entra al almacén con un vale de entrada y ya se puede entregar.
+
 *Inspeccionar.* En la ficha de la pieza, **Inspeccionar** (Apto o No apto) o **Marcar No apta** con observación (P-01, P-03).
 
 *Cancelar un error.* **Mis movimientos de hoy** → el vale → **Cancelar vale** (o **Cancelar y rehacer**) con motivo (K-01, K-05).
@@ -262,6 +266,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 **Otros flujos frecuentes.**
 - *Catálogo.* Categorías → plantilla de reglas; Artículos → crear con la plantilla de su categoría y ajustar límite, requisitos especiales (inspección vigente, autorización en cada entrega) y su motivo; inactivar con motivo obligatorio o reactivar (CF-01 a CF-13). El costo lo captura solo Compras.
+- *Pedir o cancelar una compra urgente.* Igual que el almacenista (SC-01), con una diferencia: puede **cancelar** cualquier solicitud pendiente de su almacén, no solo las suyas (SC-07). Ve todas las de su almacén y la nota con que Compras rechazó alguna.
 - *Ajustar la vigencia de una inspección.* En la ficha de la pieza, **Ajustar vigencia**, nueva fecha y motivo obligatorio; queda en el historial (P-07).
 - *Rastrear una desaparición.* Reporte de Movimientos filtrado por usuario, artículo, almacén y periodo, más el historial de la pieza (C-11).
 - *Cancelar el vale de otro.* Abre el vale y lo cancela con motivo (K-01).
@@ -300,6 +305,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 **Funcionalidades clave.**
 - Registrar entradas de inventario (almacén, artículos y piezas con su código, marca y serie).
+- Atender las solicitudes de compra urgentes de todos los almacenes: tomar, rechazar, marcar comprada e ingresar, ligando el vale de entrada.
 - Importar inventario desde una tabla de Excel con vista previa.
 - Administrar el catálogo, incluido el **costo** (solo Compras lo ve y captura).
 - Administrar los **puestos** y su dotación recomendada (**Puestos** en el menú): crear, renombrar, inactivar y reactivar un puesto, y definir qué artículos y cuántos se recomiendan. RH los necesita para dar de alta a un trabajador y el almacén para saber qué le falta; Compras conoce el catálogo y puede cuidar que las cantidades respeten los límites (D-04).
@@ -318,6 +324,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 **Otros flujos frecuentes.**
 - *Importación.* Importar → pegar la tabla o subir el archivo → indicar qué columna es cada dato → vista previa (filas válidas, con error y artículos nuevos) → confirmar; se crea un vale de entrada por almacén. Las filas con error no se importan y se listan con su motivo (I-06).
+- *Atender las solicitudes de compra.* Ve la cola de **todos** los almacenes (sin ver su inventario), con las urgentes y las más antiguas primero. En cada solicitud toca **Tomar** (pasa a en compra), **Marcar comprada** y, cuando llega la compra y la registra con **Entradas**, **Ingresar**, que la liga con el vale de entrada; si no procede, **Rechazar** con una nota que explique por qué (SC-04 a SC-06). Cada paso queda en su línea de tiempo (SC-08). Ingresar no sube las existencias: eso lo hace el vale de entrada (SC-11).
 - *Revisar faltantes.* Reportes de Existencias y de Consumo (cuánto se consume por artículo, periodo, almacén y trabajador).
 - *Imprimir credenciales.* Etiquetas → credenciales, completa o solo QR; también desde la ficha del trabajador cuando su rol la puede abrir (ver incongruencia 6 de la sección 11).
 - *Cancelar una entrada propia.* Mis movimientos de hoy → el vale → Cancelar, con motivo (K-04).
@@ -442,7 +449,7 @@ Para no confundir a quien pruebe. Fuente: [mvp-scope.md](product/mvp-scope.md).
 - Tema oscuro, varios idiomas, personalización visual.
 - Ubicación dentro del almacén (estante o pasillo): llega hasta el almacén o el trabajador.
 
-**Pospuesto (sin brief):** lista de revisión del supervisor, cierre sin devolución y equipo perdido, reporte de EPP por trabajador, subconjuntos de almacenes por usuario, habilitaciones del trabajador, solicitud de compra, carta de aceptación en el alta, importación de trabajadores desde Excel, tablero general, entrega de turno entre almacenistas, solicitud de surtido entre almacenes y aviso de falta de cobertura de turnos.
+**Pospuesto (sin brief):** lista de revisión del supervisor, cierre sin devolución y equipo perdido, reporte de EPP por trabajador, subconjuntos de almacenes por usuario, habilitaciones del trabajador, carta de aceptación en el alta, importación de trabajadores desde Excel, tablero general, entrega de turno entre almacenistas, solicitud de surtido entre almacenes y aviso de falta de cobertura de turnos.
 
 **Segunda ola (con brief, aún no construida según el alcance):** vale como prueba (comprobante público por QR, ticket y firma en papel), cierre de almacén de proyecto y valor del inventario, mínimos y estados de pieza. La dotación por puesto (FEAT-003) ya tiene su servidor y las pantallas de administración; los avisos en la entrega son del otro frente de esa función.
 

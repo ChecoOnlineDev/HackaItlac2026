@@ -19,6 +19,7 @@ from app.modulos.autorizaciones import datos_prueba as autorizaciones
 from app.modulos.catalogo import datos_prueba as catalogo
 from app.modulos.inspecciones import datos_prueba as inspecciones
 from app.modulos.movimientos import datos_prueba as movimientos
+from app.modulos.solicitudes_compra import datos_prueba as solicitudes_compra
 from app.modulos.trabajadores import datos_prueba as trabajadores
 
 log = logging.getLogger("imhotep")
@@ -32,6 +33,7 @@ PASOS = (
     ("movimientos", movimientos.cargar),
     ("inspecciones", inspecciones.cargar),
     ("autorizaciones", autorizaciones.cargar),
+    ("solicitudes_compra", solicitudes_compra.cargar),
     # Depende de catálogo, movimientos e inspecciones a la vez: va al final.
     ("piezas", piezas.cargar),
 )

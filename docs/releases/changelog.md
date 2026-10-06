@@ -14,6 +14,14 @@ Qué trae cada versión. Se escribe a partir del historial del repositorio (`git
 
 - `GET /api/seguimiento/piezas` (`reportes.existencias`, sin permiso nuevo): todas las piezas con dónde está o quién la tiene, su estado e inspección, desde cuándo y con qué vale, más un resumen de conteos (total, en almacén, en resguardo, en tránsito, no aptas). Filtros por texto (artículo, serie, código o trabajador), artículo, almacén, estado y lugar; CSV con `formato=csv`. El alcance es el de la ficha de la pieza (AC-06): el Administrador ve todas; el Supervisor y los demás, las de su almacén, las que tienen trabajadores y el tránsito desde o hacia su almacén. Una sola consulta, sin una por pieza.
 - Pantalla `/seguimiento` ("Seguimiento de piezas"), en el menú Supervisión y en el inicio, y el enlace "Ver todas sus piezas" en la ficha de un artículo por pieza. Sin migración.
+## Sin publicar: solicitud de compra urgente (I-08, SC-01 a SC-11, servidor)
+
+- Nuevo módulo `solicitudes_compra`: el supervisor o el almacenista levanta una solicitud de compra urgente (artículo del catálogo o texto libre, cantidad, motivo y urgencia); Compras ve las de todos los almacenes, la toma, la compra y la ingresa, ligándola con su vale de entrada; pendiente, en compra, comprada, ingresada, rechazada o cancelada.
+- `POST /api/solicitudes-compra`, `GET /api/solicitudes-compra` (con `solo_contar`), `GET /api/solicitudes-compra/{id}`, `POST /api/solicitudes-compra/{id}/estado` y `POST /api/solicitudes-compra/{id}/cancelacion`. Folio `CLAVE-SOL-000001` por almacén; idempotencia con `id_cliente`; historial de eventos que solo se inserta; el servidor calcula las acciones permitidas.
+- Permisos nuevos `compras.solicitar` (Almacenista, Supervisor y Administrador) y `compras.atender` (Compras y Administrador). Dos lecturas piden uno de los dos permisos: pasan a ser de las rutas que lo verifican en el servicio (ocho en total).
+- Migración `0006_solicitudes_compra` (`solicitud_compra`, `solicitud_compra_evento`, `serie_solicitud_compra`). El módulo no escribe inventario.
+- Datos de prueba: tres solicitudes (Midrex pendiente, Kepler en compra y Kepler ingresada). En una base ya creada, hay que volver a correr `python -m app.datos_prueba` (o activar los permisos nuevos en `/roles`) para que los roles reciban los permisos.
+- Alcance: la solicitud de compra pasa de pospuesta a incluida. Pendiente: las pantallas.
 
 ## Sin publicar: visibilidad por almacén (AC-06)
 

@@ -29,6 +29,7 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.VALES_VER,
             P.VALES_CANCELAR,
             P.PIEZAS_INSPECCIONAR,
+            P.COMPRAS_SOLICITAR,
         }
     ),
     "Supervisor": frozenset(
@@ -54,6 +55,7 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.REPORTES_CONSUMO,
             P.ALMACENES_ASIGNAR_PERSONAL,
             P.ETIQUETAS_IMPRIMIR,
+            P.COMPRAS_SOLICITAR,
         }
     ),
     "Compras": frozenset(
@@ -69,6 +71,7 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.REPORTES_MOVIMIENTOS,
             P.REPORTES_CONSUMO,
             P.ETIQUETAS_IMPRIMIR,
+            P.COMPRAS_ATENDER,
         }
     ),
     "Recursos Humanos": frozenset(
@@ -85,9 +88,9 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
 
 DESCRIPCIONES = {
     "Administrador": "Todos los permisos.",
-    "Almacenista": "Opera su almacén: entregas, devoluciones y traspasos.",
+    "Almacenista": "Opera su almacén: entregas, devoluciones y solicitudes de compra.",
     "Supervisor": "Supervisa su almacén: autoriza excepciones, traspasos, personal y catálogo.",
-    "Compras": "Carga inventario y ve costos.",
+    "Compras": "Carga inventario, ve costos y atiende las solicitudes de compra.",
     "Recursos Humanos": "Administra trabajadores y ve datos personales.",
 }
 
