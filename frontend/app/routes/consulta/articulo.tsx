@@ -98,9 +98,9 @@ export default function FichaArticulo() {
         ) : null}
       </div>
 
-      <Seccion titulo="Dónde hay">
+      <Seccion titulo={puede("almacenes.todos") ? "Dónde hay" : "Lo que hay en tu almacén"}>
         {articulo.existencias.length === 0 ? (
-          <EstadoVacio icono={WarehouseIcon} titulo="No hay existencias" descripcion="Este artículo no está en ningún almacén." />
+          <EstadoVacio icono={WarehouseIcon} titulo="No hay existencias" descripcion={puede("almacenes.todos") ? "Este artículo no está en ningún almacén." : "Este artículo no está en tu almacén."} />
         ) : (
           <>
             <Table>

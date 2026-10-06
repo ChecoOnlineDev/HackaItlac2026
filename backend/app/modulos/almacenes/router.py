@@ -6,9 +6,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 
 from app.core.paginacion import PaginacionDep
-from app.modulos.acceso.dependencies import requiere_permiso
+from app.db import SesionDep
+from app.modulos.acceso.dependencies import UsuarioActual, requiere_permiso
 from app.modulos.acceso.permisos import P
+from app.modulos.acceso.service import AccesoService
 from app.modulos.almacenes.dependencies import AlmacenServiceDep
+from app.modulos.almacenes.exceptions import AlmacenNoEncontrado
 from app.modulos.almacenes.schemas import AlmacenFilters, AlmacenOut, ExistenciasOut
 
 router = APIRouter(prefix="/almacenes", tags=["almacenes"])
@@ -29,9 +32,15 @@ def listar_almacenes(service: AlmacenServiceDep) -> list[AlmacenOut]:
 )
 def existencias_del_almacen(
     almacen_id: uuid.UUID,
+    usuario: UsuarioActual,
+    session: SesionDep,
     service: AlmacenServiceDep,
     pagina: PaginacionDep,
     filtros: Annotated[AlmacenFilters, Query()],
 ) -> ExistenciasOut:
-    """`inventario.ver`. Existencias y disponibles por artículo (sin costos)."""
+    """`inventario.ver`. Existencias y disponibles por artículo (sin costos). AC-06: sin
+    `almacenes.todos`, solo las del almacén asignado; otro almacén responde 404, igual que uno
+    que no existe."""
+    if not AccesoService(session).en_alcance(usuario, almacen_id):
+        raise AlmacenNoEncontrado()
     return service.existencias(almacen_id, filtros, pagina)

@@ -70,8 +70,26 @@ def test_RG_07_la_lista_de_almacenes_trae_la_red(cliente_como):
 
 def test_AC_01_existencias_pide_inventario_ver(cliente_con, session):
     ruta = f"/api/almacenes/{_almacen(session, 'KEP').id}/existencias"
-    assert cliente_con({P.INVENTARIO_VER}).get(ruta).status_code == 200
+    assert cliente_con({P.INVENTARIO_VER, P.ALMACENES_TODOS}).get(ruta).status_code == 200
     assert cliente_con({P.CATALOGO_ADMINISTRAR}).get(ruta).status_code == 403
+
+
+def test_AC_06_las_existencias_de_otro_almacen_responden_404_sin_almacenes_todos(
+    cliente_con, cliente_como, session
+):
+    # El almacenista de Kepler ve las de Kepler; las de Contratistas responden como si no
+    # existieran. Sin almacén asignado ni `almacenes.todos`, ninguno. El Administrador, todos.
+    kep, con = _almacen(session, "KEP").id, _almacen(session, "CON").id
+    almacenista = cliente_como("Almacenista")
+    assert almacenista.get(f"/api/almacenes/{kep}/existencias").status_code == 200
+    ajeno = almacenista.get(f"/api/almacenes/{con}/existencias")
+    inexistente = almacenista.get(f"/api/almacenes/{uuid.uuid4()}/existencias")
+    assert ajeno.status_code == inexistente.status_code == 404
+    assert ajeno.json() == inexistente.json()
+    sin_almacen = cliente_con({P.INVENTARIO_VER})
+    assert sin_almacen.get(f"/api/almacenes/{kep}/existencias").status_code == 404
+    administrador = cliente_como("Administrador")
+    assert administrador.get(f"/api/almacenes/{con}/existencias").status_code == 200
 
 
 def test_RG_08_existencias_de_un_almacen_inexistente_responde_404(cliente_como):
@@ -113,7 +131,10 @@ def test_I_05_existencias_y_disponibles_por_articulo(cliente_como, session):
     # Sin costos (RG-12).
     assert "costo_unitario" not in filas["FLEXOM"]
 
-    con = cliente.get(f"/api/almacenes/{_almacen(session, 'CON').id}/existencias")
+    # Lo de Contratistas lo ve el Administrador (AC-06); no el almacenista de Kepler.
+    ruta_con = f"/api/almacenes/{_almacen(session, 'CON').id}/existencias"
+    assert cliente.get(ruta_con).status_code == 404
+    con = cliente_como("Administrador").get(ruta_con)
     assert [e["codigo"] for e in con.json()["elementos"]] == ["FLEXOM"]
 
 

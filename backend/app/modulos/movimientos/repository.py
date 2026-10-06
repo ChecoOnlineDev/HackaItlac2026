@@ -222,18 +222,21 @@ class MovimientoRepository:
                 salida[ub.id] = (ub, ub.virtual or "", None)
         return salida
 
-    def destino_del_transito(self, pieza_id: uuid.UUID, transito_id: uuid.UUID) -> str | None:
-        """El nombre del almacén al que va una pieza en tránsito: el destino del traspaso que la
-        llevó a la ubicación EN_TRANSITO (su último movimiento hacia allá)."""
-        return self.session.scalar(
-            select(Almacen.nombre)
+    def destino_del_transito(
+        self, pieza_id: uuid.UUID, transito_id: uuid.UUID
+    ) -> tuple[Almacen, uuid.UUID] | None:
+        """El almacén al que va una pieza en tránsito y el que la envió: el destino y el origen
+        del traspaso que la llevó a la ubicación EN_TRANSITO (su último movimiento hacia allá)."""
+        fila = self.session.execute(
+            select(Almacen, Vale.almacen_id)
             .select_from(Movimiento)
             .join(Vale, Vale.id == Movimiento.vale_id)
             .join(Almacen, Almacen.id == Vale.destino_almacen_id)
             .where(Movimiento.pieza_id == pieza_id, Movimiento.destino_id == transito_id)
             .order_by(Movimiento.creado_en.desc())
             .limit(1)
-        )
+        ).first()
+        return (fila[0], fila[1]) if fila else None
 
     def periodo(self, periodo_id: uuid.UUID) -> PeriodoContrato | None:
         return self.session.get(PeriodoContrato, periodo_id)

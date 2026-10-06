@@ -61,9 +61,12 @@ def buscar(
 
 
 @router.get("/piezas/{pieza_id}", response_model=PiezaFichaOut)
-def ficha_pieza(pieza_id: uuid.UUID, _: VerPieza, service: ConsultaServiceDep) -> PiezaFichaOut:
-    """`catalogo.ver`. Estado, inspección, ubicación e historial de la pieza (C-02)."""
-    return service.ficha_pieza(pieza_id)
+def ficha_pieza(
+    pieza_id: uuid.UUID, usuario: VerPieza, service: ConsultaServiceDep
+) -> PiezaFichaOut:
+    """`catalogo.ver`. Estado, inspección, ubicación e historial de la pieza (C-02). Sin
+    `almacenes.todos`, una pieza fuera del alcance del usuario responde 404 (AC-06)."""
+    return service.ficha_pieza(pieza_id, usuario)
 
 
 @router.get("/reportes/existencias", response_model=PaginaReporte[ExistenciaReporteItem])

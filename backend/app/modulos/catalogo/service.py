@@ -324,10 +324,13 @@ class CatalogoService:
         )
 
     def ficha_articulo(self, articulo_id: uuid.UUID, usuario: Usuario) -> ArticuloFichaOut:
-        """C-03: reglas, existencias por almacén y quién lo tiene."""
+        """C-03: reglas, existencias por almacén y quién lo tiene. AC-06: sin `almacenes.todos`,
+        las existencias son solo las del almacén del usuario; `en_posesion` es el resguardo de los
+        trabajadores y se ve completo (el trabajador es una ubicación, no un almacén)."""
         articulo = self.obtener_articulo(articulo_id)
         categoria = self.obtener_categoria(articulo.categoria_id)
         datos = self._salida_articulo(articulo, categoria.nombre, self._ver_costos(usuario))
+        ve_todos = self.acceso.puede_operar_todos_los_almacenes(usuario)
         return ArticuloFichaOut(
             **datos,
             tiene_movimientos=self.articulos.tiene_movimientos(articulo.id),
@@ -340,6 +343,7 @@ class CatalogoService:
                     disponible=disponible,
                 )
                 for a, cantidad, disponible in self.almacenes.existencias_de_articulo(articulo.id)
+                if ve_todos or a.id == usuario.almacen_id
             ],
             en_posesion=[
                 PoseedorOut(

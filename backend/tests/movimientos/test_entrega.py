@@ -182,31 +182,72 @@ def test_E_17_la_evaluacion_trae_la_ficha_del_trabajador_con_su_resguardo(
 # ---------------------------------------------------------------- ubicación y existencias
 
 
-def test_E_03_una_pieza_en_otro_almacen_es_rojo_y_dice_donde_esta(
-    almacenista, compras, session, trabajador
-):
-    articulo, pieza = pieza_en_kep(compras, session, vigente_hasta=hoy_mx() + timedelta(days=30))
+def _pieza_en_otro_almacen(compras, session, clave="CON"):
     from app.modulos.almacenes.service import AlmacenService
 
-    pieza.ubicacion_id = AlmacenService(session).ubicacion_de_almacen(almacen(session, "CON").id).id
+    _, pieza = pieza_en_kep(compras, session, vigente_hasta=hoy_mx() + timedelta(days=30))
+    pieza.ubicacion_id = AlmacenService(session).ubicacion_de_almacen(almacen(session, clave).id).id
     session.flush()
-    ev = evaluar(almacenista, trabajador, [renglon(pieza.codigo)])
+    return pieza
+
+
+def test_E_03_una_pieza_en_otro_almacen_es_rojo_y_dice_donde_esta_al_administrador(
+    cliente_como, compras, session, trabajador
+):
+    # AC-06: dónde está una pieza ajena al almacén solo lo ve quien tiene `almacenes.todos`.
+    pieza = _pieza_en_otro_almacen(compras, session)
+    admin = cliente_como("Administrador")
+    ev = evaluar(
+        admin, trabajador, [renglon(pieza.codigo)], almacen_id=str(almacen(session, "KEP").id)
+    )
     r = ev["renglones"][0]
     assert r["nivel"] == "ROJO" and "E-03" in motivos(ev)
     assert r["titular"]["tipo"] == "ALMACEN" and "CON" in r["titular"]["descripcion"]
+    assert "CON" in r["motivos"][0]["mensaje"]
 
 
-def test_E_03_una_pieza_en_resguardo_de_otro_trabajador_dice_quien_la_tiene(
+def test_E_03_una_pieza_en_otro_almacen_es_rojo_sin_decir_donde_esta_al_almacenista(
     almacenista, compras, session, trabajador
 ):
-    articulo, pieza = pieza_en_kep(compras, session, vigente_hasta=hoy_mx() + timedelta(days=30))
+    # AC-06: el almacenista sigue viendo el rojo, pero no se entera de qué hay en otro almacén.
+    pieza = _pieza_en_otro_almacen(compras, session)
+    ev = evaluar(almacenista, trabajador, [renglon(pieza.codigo)])
+    r = ev["renglones"][0]
+    assert r["nivel"] == "ROJO" and "E-03" in motivos(ev)
+    assert r["motivos"][0]["mensaje"] == (
+        "Esta pieza no está registrada en tu almacén. No se puede entregar."
+    )
+    assert r["titular"]["tipo"] is None and r["titular"]["id"] is None
+    assert "CON" not in str(r["titular"]) and "Contratistas" not in str(ev)
+
+
+def test_E_03_una_pieza_en_resguardo_de_otro_trabajador_dice_quien_la_tiene_al_administrador(
+    cliente_como, almacenista, compras, session, trabajador
+):
+    _, pieza = pieza_en_kep(compras, session, vigente_hasta=hoy_mx() + timedelta(days=30))
+    otro = crear_trabajador(session)
+    r = almacenista.post(VALES, json=cuerpo_entrega(otro, [renglon(pieza.codigo)]))
+    assert r.status_code == 201, r.text
+    admin = cliente_como("Administrador")
+    ev = evaluar(
+        admin, trabajador, [renglon(pieza.codigo)], almacen_id=str(almacen(session, "KEP").id)
+    )
+    titular = ev["renglones"][0]["titular"]
+    assert "E-03" in motivos(ev)
+    assert titular["tipo"] == "TRABAJADOR" and titular["numero_empleado"] == otro.numero_empleado
+
+
+def test_E_03_una_pieza_en_resguardo_de_otro_trabajador_no_dice_quien_la_tiene_al_almacenista(
+    almacenista, compras, session, trabajador
+):
+    _, pieza = pieza_en_kep(compras, session, vigente_hasta=hoy_mx() + timedelta(days=30))
     otro = crear_trabajador(session)
     r = almacenista.post(VALES, json=cuerpo_entrega(otro, [renglon(pieza.codigo)]))
     assert r.status_code == 201, r.text
     ev = evaluar(almacenista, trabajador, [renglon(pieza.codigo)])
-    titular = ev["renglones"][0]["titular"]
     assert "E-03" in motivos(ev)
-    assert titular["tipo"] == "TRABAJADOR" and titular["numero_empleado"] == otro.numero_empleado
+    assert ev["renglones"][0]["titular"]["tipo"] is None
+    assert otro.numero_empleado not in str(ev) and otro.nombre not in str(ev)
 
 
 def test_E_03_una_pieza_que_nunca_entro_a_un_almacen_es_rojo(almacenista, session, trabajador):
@@ -216,7 +257,7 @@ def test_E_03_una_pieza_que_nunca_entro_a_un_almacen_es_rojo(almacenista, sessio
     pieza = crear_pieza(session, articulo)
     ev = evaluar(almacenista, trabajador, [renglon(pieza.codigo)])
     assert "E-03" in motivos(ev)
-    assert "ningún almacén" in ev["renglones"][0]["motivos"][0]["mensaje"]
+    assert "tu almacén" in ev["renglones"][0]["motivos"][0]["mensaje"]
 
 
 def test_E_04_una_cantidad_mayor_a_la_existencia_es_rojo(almacenista, compras, session, trabajador):

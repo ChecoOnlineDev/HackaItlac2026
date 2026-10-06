@@ -27,7 +27,7 @@ from tests.movimientos.test_invariantes import revisar_folios, revisar_invariant
 
 
 def test_paso_5_del_guion_kepler_a_contratistas_y_de_contratistas_a_midrex(
-    almacenista, cliente_almacen, compras, session
+    almacenista, cliente_almacen, cliente_como, compras, session
 ):
     kep, con, mid = almacenista, cliente_almacen("CON"), cliente_almacen("MID")
     guantes = crear_articulo(session, retornable=False)
@@ -75,8 +75,15 @@ def test_paso_5_del_guion_kepler_a_contratistas_y_de_contratistas_a_midrex(
     assert cuadro() == (12, 3, 5, 0)
     assert ubicacion_de_pieza(session, arnes.codigo) == "MID"
 
-    # 4. El historial de la pieza muestra su recorrido completo.
-    ficha = con.get(f"/api/piezas/{arnes.id}").json()
+    # 4. El historial de la pieza muestra su recorrido completo, al Administrador. La pieza ya está
+    # en Midrex: Contratistas deja de verla (AC-06) y Midrex ve solo el traspaso que le llegó.
+    assert con.get(f"/api/piezas/{arnes.id}").status_code == 404
+    de_midrex = mid.get(f"/api/piezas/{arnes.id}").json()["historial"]
+    assert {h["folio"] for h in de_midrex if h["tipo"] == "MOVIMIENTO"} == {
+        t2["folio"],
+        r2["folio"],
+    }
+    ficha = cliente_como("Administrador").get(f"/api/piezas/{arnes.id}").json()
     movimientos = [h for h in reversed(ficha["historial"]) if h["tipo"] == "MOVIMIENTO"]
     recorrido = [(h["tipo_vale"], h["origen"], h["destino"], h["folio"]) for h in movimientos]
     assert [r[0] for r in recorrido] == [

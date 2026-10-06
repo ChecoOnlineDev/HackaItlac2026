@@ -286,7 +286,7 @@ Pasos: escanear credencial, confirmar la foto, escanear artículos, resolver nar
 |---|---|---|---|
 | E-01 | El código no existe en el catálogo. | Rojo | Propuesta |
 | E-02 | El trabajador no es vigente: está Inactivo, en Baja en proceso o fuera de su periodo de contrato. Mensaje: "ya no forma parte de la plantilla". | Rojo (todo el vale) | PDF función 7; plática min 18 |
-| E-03 | La pieza no está en este almacén según el sistema: la tiene otro trabajador, está en otro almacén o en tránsito. Se muestra dónde está y un atajo para corregir. | Rojo | Propuesta |
+| E-03 | La pieza no está en este almacén según el sistema: la tiene otro trabajador, está en otro almacén o en tránsito. El renglón queda en rojo. Quien tiene `almacenes.todos` (el Administrador) ve dónde está; los demás ven solo «Esta pieza no está registrada en tu almacén. No se puede entregar.», sin el almacén ni el trabajador que la tiene (AC-06). Una pieza en tránsito desde o hacia el almacén del usuario sí se explica (se envió o se recibe por el traspaso). | Rojo | Propuesta |
 | E-04 | La cantidad supera la existencia disponible del almacén. | Rojo | PDF p.8 paso 4 |
 | E-05 | La pieza está No apta, En mantenimiento, En calibración o en Baja. | Rojo | PDF p.2; plática min 46–47 |
 | E-06 | La pieza requiere inspección y no tiene una vigente. | Rojo | PDF p.2, p.8 |
@@ -418,11 +418,11 @@ El trabajador devuelve en la planta la herramienta y el equipo de alturas, y en 
 | ID | Regla | Origen |
 |---|---|---|
 | C-01 | Credencial o número: muestra al trabajador, su vigencia y lo que tiene en resguardo. | PDF función 5; plática min 10 |
-| C-02 | Pieza: muestra estado, inspección, quién la tiene e historial completo. | PDF p.9 paso 7 |
-| C-03 | Artículo: muestra existencias por almacén, separando disponibles de no disponibles, y qué trabajadores lo tienen. | PDF función 5; plática min 0 y 38 |
+| C-02 | Pieza: muestra estado, inspección, quién la tiene e historial. Sin `almacenes.todos`, solo se ve una pieza que está en el almacén del usuario, que tiene un trabajador (su resguardo) o que va en tránsito desde o hacia su almacén; cualquier otra llega como desconocida al escanear y responde 404 en su ficha, igual que una que no existe. En el historial, de otros almacenes solo se ve lo que pasó con un trabajador, sin nombrar el almacén ni el vale (AC-06). | PDF p.9 paso 7 |
+| C-03 | Artículo: muestra existencias por almacén, separando disponibles de no disponibles, y qué trabajadores lo tienen. Sin `almacenes.todos`, las existencias son solo las del almacén del usuario (el escaneo trae `existencia_total` de su almacén); lo que tienen los trabajadores se ve completo, porque el trabajador no es un almacén (AC-06). | PDF función 5; plática min 0 y 38 |
 | C-04 | Vale: muestra su detalle y si está íntegro. | PDF p.8 paso 6 |
 | C-05 | Reportes de existencias, movimientos y adeudos, con filtros por almacén, fecha y trabajador. El de movimientos filtra además por artículo, tipo y usuario. El de adeudos es una consulta de personas: lo ven completo quien tiene `almacenes.todos` o `trabajadores.administrar` (RH); el resto, solo lo entregado por su almacén, y sin almacén nada. | PDF función 8; idea del equipo |
-| C-06 | Búsqueda por texto: nombre de artículo, número de serie, nombre o número de trabajador. | Plática min 38 |
+| C-06 | Búsqueda por texto: nombre de artículo, número de serie, nombre o número de trabajador. Los artículos son catálogo y se ven siempre; las piezas se limitan igual que en C-02 (AC-06). | Plática min 38 |
 | C-07 | EPP entregado a un trabajador, con fechas y vales. Sirve como prueba ante la Comisión Mixta de Seguridad. | Plática min 31 |
 | C-08 | Reporte de consumo: por artículo consumible y periodo, el total consumido, con el desglose por trabajador, de mayor a menor. Suma las entregas de consumibles (E-21) y resta las cancelaciones (K-02). Filtros: periodo, almacén, categoría, artículo y trabajador. Se descarga en CSV y no muestra costos (RG-12). Requiere `reportes.consumo`. | Plática min 35–36 |
 | C-09 | Valor del inventario por almacén. Solo Compras. | Plática min 39 |

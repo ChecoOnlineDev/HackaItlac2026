@@ -203,17 +203,17 @@ Si nadie responde en quince minutos, la solicitud vence; Marta quita ese rengló
 
 ### ES-13 · "¿Quién tiene el detector?"
 
-**Situación.** Una cuadrilla va a entrar a un espacio confinado y no hay detector de gases en el contenedor. El ingeniero Martínez necesita saber dónde están.
+**Situación.** Una cuadrilla va a entrar a un espacio confinado y no hay detector de gases en el contenedor de Midrex. Marta, la almacenista, necesita saber dónde están.
 
 **Qué pasa.**
 
 1. Escribe "detector" en la búsqueda.
-2. Ve cada detector con su número de serie: dos en Kepler, uno apartado como No apto, y uno en resguardo de Pedro desde el martes.
-3. Le pide a Pedro que lo devuelva, o pide un traspaso desde Kepler.
+2. Ve solo lo de su almacén y lo que tienen los trabajadores: ninguno en Midrex y uno en resguardo de Pedro desde el martes. No ve qué hay en Kepler ni en otros almacenes (AC-06).
+3. Le pide a Pedro que lo devuelva, o pide por teléfono a Kepler que le envíen uno por traspaso. Quien tiene `almacenes.todos` (el Administrador) sí ve los detectores de todos los almacenes.
 
 Si Pedro se lo prestó a Juan sin pasar por el almacén, el sistema sigue diciendo Pedro: él lo sacó y él responde. Si Juan lo devuelve, se abona a Pedro.
 
-**Reglas e historias.** C-03, C-06, V-01; US-CON-001, US-DEV-001.
+**Reglas e historias.** C-03, C-06, V-01, AC-06; US-CON-001, US-DEV-001.
 
 **Cobertura.** MVP. Distinguir "en calibración" de "No apto" llega con FEAT-004.
 

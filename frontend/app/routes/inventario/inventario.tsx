@@ -57,7 +57,9 @@ export default function Inventario() {
     setPagina(1);
   }, [q]);
 
-  const lista = almacenes.datos ?? [];
+  // Solo quien tiene `almacenes.todos` ve el inventario de varios almacenes; los demás, solo el suyo.
+  const operaTodos = puede("almacenes.todos");
+  const lista = (almacenes.datos ?? []).filter((a) => operaTodos || a.id === sesion?.almacen?.id);
   // Por omisión, el almacén de quien entra; si opera todos, el último que operó; si no, el primero.
   const recordado = lista.find((a) => a.id === leerAlmacenRecordado())?.id;
   const almacenPorOmision = sesion?.almacen?.id ?? recordado ?? lista[0]?.id ?? "";
@@ -91,7 +93,7 @@ export default function Inventario() {
   } else if ((almacenes.cargando && !almacenes.datos) || (existencias.cargando && !existencias.datos)) {
     contenido = <Esqueleto tipo="tabla" cantidad={6} />;
   } else if (lista.length === 0) {
-    contenido = <EstadoVacio icono={Boxes} titulo="No hay almacenes" descripcion="Todavía no se ha dado de alta ningún almacén." />;
+    contenido = <EstadoVacio icono={Boxes} titulo="No hay almacenes" descripcion={operaTodos ? "Todavía no se ha dado de alta ningún almacén." : "Todavía no tienes un almacén asignado."} />;
   } else if (filas.length === 0) {
     contenido = hayFiltros ? (
       <EstadoVacio

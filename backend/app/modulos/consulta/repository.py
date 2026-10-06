@@ -9,7 +9,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import Select, and_, case, func, or_, select
+from sqlalchemy import Select, and_, case, false, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from app.modulos.acceso.models import Usuario
@@ -113,13 +113,60 @@ class ConsultaRepository:
         ).first()
         return (fila[0], fila[1]) if fila else None
 
-    def existencia_total_en_almacenes(self, articulo_id: uuid.UUID) -> int:
-        total = self.session.scalar(
+    def existencia_total_en_almacenes(
+        self, articulo_id: uuid.UUID, almacen_id: uuid.UUID | None = None
+    ) -> int:
+        """Lo que hay de un artículo en los almacenes; con `almacen_id`, solo en ese (AC-06)."""
+        consulta = (
             select(func.coalesce(func.sum(Existencia.cantidad), 0))
             .join(Ubicacion, Ubicacion.id == Existencia.ubicacion_id)
             .where(Existencia.articulo_id == articulo_id, Ubicacion.tipo == TipoUbicacion.ALMACEN)
         )
-        return int(total or 0)
+        if almacen_id is not None:
+            consulta = consulta.where(Ubicacion.almacen_id == almacen_id)
+        return int(self.session.scalar(consulta) or 0)
+
+    @staticmethod
+    def _pieza_visible(u, almacen_id: uuid.UUID | None, ver_trabajadores: bool):
+        """AC-06: condición SQL de las piezas que un usuario sin `almacenes.todos` puede ver, para
+        la ubicación `u` de la pieza: están en su almacén, las tiene un trabajador (su resguardo,
+        con `trabajadores.ver`) o están fuera de un almacén (en tránsito, de baja...) por un vale
+        que sale de su almacén o va hacia él."""
+        if almacen_id is None:
+            return false()
+        origen = aliased(Movimiento, name="mv_vis")
+        vale = aliased(Vale, name="va_vis")
+        por_vale = (
+            select(origen.id)
+            .join(vale, vale.id == origen.vale_id)
+            .where(
+                origen.pieza_id == Pieza.id,
+                origen.destino_id == Pieza.ubicacion_id,
+                or_(vale.almacen_id == almacen_id, vale.destino_almacen_id == almacen_id),
+            )
+            .correlate(Pieza)
+            .exists()
+        )
+        condiciones = [
+            and_(u.tipo == TipoUbicacion.ALMACEN, u.almacen_id == almacen_id),
+            and_(u.tipo == TipoUbicacion.VIRTUAL, por_vale),
+        ]
+        if ver_trabajadores:
+            condiciones.append(u.tipo == TipoUbicacion.TRABAJADOR)
+        return or_(*condiciones)
+
+    def pieza_visible(
+        self, pieza_id: uuid.UUID, almacen_id: uuid.UUID | None, ver_trabajadores: bool
+    ) -> bool:
+        """¿La pieza está dentro del alcance de quien no tiene `almacenes.todos`?"""
+        u = aliased(Ubicacion, name="u_vis")
+        consulta = (
+            select(Pieza.id)
+            .select_from(Pieza)
+            .join(u, u.id == Pieza.ubicacion_id)
+            .where(Pieza.id == pieza_id, self._pieza_visible(u, almacen_id, ver_trabajadores))
+        )
+        return self.session.scalar(consulta) is not None
 
     def vale_resumen(self, vale_id: uuid.UUID):
         """`(Vale, clave del almacén, nombre del trabajador, nombre del responsable)`."""
@@ -185,7 +232,16 @@ class ConsultaRepository:
         ).all()
         return list(filas), total
 
-    def buscar_piezas(self, q: str, offset: int, limit: int) -> tuple[list, int]:
+    def buscar_piezas(
+        self,
+        q: str,
+        offset: int,
+        limit: int,
+        *,
+        todos: bool = True,
+        almacen_id: uuid.UUID | None = None,
+        ver_trabajadores: bool = False,
+    ) -> tuple[list, int]:
         """Por número de serie, por código de la pieza y por nombre de su artículo ("detector"
         lista los detectores y quién tiene cada uno)."""
         patron = _patron(q)
@@ -209,6 +265,8 @@ class ConsultaRepository:
             .join(Articulo, Articulo.id == Pieza.articulo_id)
         )
         consulta = lugar.unir(consulta, Pieza.ubicacion_id, externa=True).where(condicion)
+        if not todos:  # AC-06
+            consulta = consulta.where(self._pieza_visible(lugar.u, almacen_id, ver_trabajadores))
         total = _contar(self.session, consulta)
         filas = self.session.execute(
             consulta.order_by(Articulo.nombre, Pieza.numero_serie, Pieza.codigo)
@@ -258,6 +316,8 @@ class ConsultaRepository:
                 Vale.folio,
                 Vale.tipo,
                 Vale.estado.label("vale_estado"),
+                Vale.almacen_id.label("vale_almacen_id"),
+                Vale.destino_almacen_id.label("vale_destino_almacen_id"),
                 Usuario.nombre.label("responsable"),
                 *origen.columnas(),
                 *destino.columnas(),
