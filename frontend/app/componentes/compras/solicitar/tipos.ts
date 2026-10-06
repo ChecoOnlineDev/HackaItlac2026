@@ -74,5 +74,6 @@ export interface ArticuloElegido {
 
 /** "1 unidad" o "2 unidades", para el resumen. */
 export function textoCantidad(cantidad: number): string {
-  return `${cantidad} ${cantidad === 1 ? "unidad" : "unidades"}`;
+  // Espacio sin corte: "2 unidades" no se parte en dos renglones.
+  return `${cantidad}\u00A0${cantidad === 1 ? "unidad" : "unidades"}`;
 }

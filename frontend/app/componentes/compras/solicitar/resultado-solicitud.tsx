@@ -1,4 +1,5 @@
 import { CircleCheckIcon, ListChecksIcon, PlusIcon } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Link } from "react-router";
 
 import { Boton } from "~/componentes/ui/boton";
@@ -13,10 +14,21 @@ interface Propiedades {
 
 /** La solicitud ya quedó registrada: folio en grande, resumen y a dónde ir. */
 export function ResultadoSolicitud({ solicitud, alPedirOtra }: Propiedades) {
+  const titulo = useRef<HTMLHeadingElement>(null);
+  // La pantalla anterior era larga: se lleva la vista y el foco al aviso para que se lea desde arriba.
+  useEffect(() => {
+    titulo.current?.focus();
+  }, []);
+
   return (
     <div className="flex flex-col gap-6">
       <section aria-labelledby="solicitud-enviada" className="flex flex-col items-center gap-4 rounded-2xl border border-semaforo-verde p-6 text-center">
-        <h2 id="solicitud-enviada" className="flex items-center gap-2 text-lg font-semibold text-marino">
+        <h2
+          id="solicitud-enviada"
+          ref={titulo}
+          tabIndex={-1}
+          className="flex scroll-mt-20 items-center gap-2 text-lg font-semibold text-marino outline-none"
+        >
           <CircleCheckIcon aria-hidden="true" className="size-7 text-semaforo-verde" strokeWidth={3} />
           Solicitud enviada
         </h2>

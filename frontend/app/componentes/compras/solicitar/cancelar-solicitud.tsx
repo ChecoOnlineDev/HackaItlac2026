@@ -1,3 +1,4 @@
+import { MessageSquareTextIcon } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 
 import {
@@ -27,6 +28,8 @@ interface Propiedades {
 /** Confirmación para cancelar una solicitud pendiente (SC-07), con una nota opcional. Cancelar no se deshace. */
 export function CancelarSolicitud({ solicitud, cargando = false, error, alCerrar, alConfirmar }: Propiedades) {
   const [nota, setNota] = useState("");
+  // La nota es opcional: queda escondida hasta que se pide, para que en el celular no se abra el teclado sola.
+  const [conNota, setConNota] = useState(false);
   // Se recuerda la última para que el título no se vacíe mientras la ventana se cierra.
   const [mostrada, setMostrada] = useState<SolicitudCompra | null>(solicitud);
   const id = useId();
@@ -35,6 +38,7 @@ export function CancelarSolicitud({ solicitud, cargando = false, error, alCerrar
   useEffect(() => {
     if (solicitud) {
       setNota("");
+      setConNota(false);
       setMostrada(solicitud);
     }
   }, [solicitud]);
@@ -50,19 +54,29 @@ export function CancelarSolicitud({ solicitud, cargando = false, error, alCerrar
             Compras ya no la verá como pendiente. Si la cancelas por error, tendrás que pedirla otra vez.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={id} className="text-sm font-medium text-foreground">
-            Nota (opcional)
-          </Label>
-          <Textarea
-            id={id}
-            value={nota}
-            maxLength={500}
-            placeholder="Por ejemplo: ya llegó la herramienta"
-            disabled={cargando}
-            onChange={(e) => setNota(e.target.value)}
-          />
-        </div>
+        {conNota ? (
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={id} className="text-sm font-medium text-foreground">
+              Nota (opcional)
+            </Label>
+            <Textarea
+              id={id}
+              autoFocus
+              value={nota}
+              maxLength={500}
+              placeholder="Por ejemplo: ya llegó la herramienta"
+              disabled={cargando}
+              onChange={(e) => setNota(e.target.value)}
+            />
+          </div>
+        ) : (
+          <div>
+            <Boton variante="texto" disabled={cargando} onClick={() => setConNota(true)}>
+              <MessageSquareTextIcon aria-hidden="true" />
+              Agregar una nota
+            </Boton>
+          </div>
+        )}
         {error ? (
           <p role="alert" className="text-sm font-semibold text-destructive">
             {error}
