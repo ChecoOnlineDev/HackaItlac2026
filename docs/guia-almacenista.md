@@ -12,7 +12,7 @@ Para entregar, devolver y consultar equipo y material con el celular. Entregable
 
 *Captura: el logotipo de IMHOTEP, los campos de usuario y contraseña y un botón grande «Entrar».*
 
-Después de entrar ves tu inicio: arriba, el nombre de tu almacén y tu usuario; abajo, botones grandes **Entregar**, **Devolver** y **Consultar**. Solo ves lo de tu almacén. Los traspasos entre almacenes (enviar y recibir) los opera tu supervisor. Con el botón **Menú** llegas a todo lo demás que te corresponde, como **Mis movimientos de hoy**; la sección en la que estás aparece marcada. Para salir, usa **Salir**.
+Después de entrar ves tu inicio: arriba, el nombre de tu almacén y tu usuario; abajo, botones grandes **Entregar**, **Devolver** y **Consultar**. Solo ves lo de tu almacén. Los traspasos entre almacenes (enviar y recibir) los opera tu supervisor. Con el botón **Menú** llegas a todo lo demás que te corresponde, como **Mis movimientos de hoy** y **Pedir compra urgente**; la sección en la que estás aparece marcada. Para salir, usa **Salir**.
 
 **Instalar la aplicación.** Si tu navegador lo permite, en el **Menú** aparece **Instalar aplicación**: queda como un ícono en tu celular y abre sin la barra del navegador. Instalarla no cambia nada más: sigues necesitando señal para confirmar vales.
 
@@ -102,7 +102,24 @@ Si capturaste mal un vale ya emitido, no se borra: se **cancela**, y todo regres
 
 No se puede cancelar si lo que entregaste ya cambió de lugar (por ejemplo, esa pieza ya se entregó a otro): la pantalla explica por qué y no cambia nada. Un vale de recepción, de no adeudo o ya cancelado tampoco se cancela. Solo cancelas los vales que tú hiciste; el supervisor puede cancelar los de todos.
 
-## 9. Si se va la red o algo falla
+## 9. Pedir una compra urgente
+
+Si falta una herramienta o un equipo para un trabajo y tu almacén no lo tiene (por ejemplo, una llave de medida europea), no lo resuelvas por fuera: avisa a Compras desde el celular. Es una **solicitud**: no mueve el inventario ni genera un vale; Compras la ve, la compra y la ingresa al almacén con una entrada.
+
+1. Abre el **Menú** → **Pedir compra urgente**. Arriba dice para qué almacén se pide (el tuyo).
+2. **¿Qué hace falta?** Busca el artículo por nombre o por código y tócalo. Si no está en el catálogo, toca **No está en el catálogo** y descríbelo con tus palabras: «Llave métrica 24 mm». Con **Cambiar** eliges otro.
+3. **¿Cuántas se necesitan?** Usa **+** y **−**, o toca el número para teclearlo.
+4. **¿Para qué trabajo?** Toca una respuesta rápida («Mantenimiento programado», «Reparación urgente», «Falta de existencia») o **Otro** y escríbelo en **Motivo**. Es obligatorio: Compras necesita saber para qué es.
+5. **¿Qué tan urgente es?** Viene marcada **Urgente**; cámbiala a **Normal** si puede esperar unos días.
+6. Revisa **Tu solicitud** y toca **Enviar solicitud**. El botón se activa cuando ya contestaste lo obligatorio, y abajo dice qué falta.
+
+*Captura: «Solicitud enviada», el folio en grande (por ejemplo `MID-SOL-000001`), «Pendiente» y los botones «Ver mis solicitudes» y «Pedir otra».*
+
+- **Si tocas dos veces o se va la señal,** no se duplica: la solicitud se guarda con un identificador propio y, al reintentar, es la misma. Sin red, lo que escribiste se conserva en el celular; cuando vuelva la señal toca **Enviar solicitud** otra vez.
+- **Ver cómo va.** Menú → **Compras urgentes**: las solicitudes de tu almacén, incluidas las de tus compañeros (así sabes si ya se pidió). Cada una dice su estado: **Pendiente** (Compras aún no la toma), **En compra**, **Comprada** e **Ingresada al almacén** (ya llegó y se puede entregar); o **Rechazada**, y entonces ahí mismo lees la nota de Compras con la razón. Busca por folio, artículo o motivo, o filtra por estado o urgencia.
+- **Cancelar.** Solo mientras sigue **Pendiente**: toca **Cancelar** en esa solicitud, confirma con **Sí, cancelarla** y, si quieres, deja una nota. Cancelas las que tú pediste; tu supervisor puede cancelar cualquiera de tu almacén. Si Compras ya la tomó, no se cancela: pídele a Compras que la rechace.
+
+## 10. Si se va la red o algo falla
 
 - **El sistema está ocupado.** Si al confirmar dice que el sistema está ocupado, espera unos segundos y toca **Reintentar**; el vale no se guarda dos veces.
 - **La foto o el archivo pesa demasiado.** Toma la foto otra vez o elige una más ligera.
@@ -124,3 +141,5 @@ No se puede cancelar si lo que entregaste ya cambió de lugar (por ejemplo, esa 
 | Mandar o recibir de otro almacén | Pídeselo a tu supervisor |
 | Saber quién lo tiene | **Consultar** → escanear o buscar |
 | Corregir un error | **Mis movimientos de hoy** → vale → **Cancelar vale** |
+| Pedir a Compras una herramienta que falta | **Menú** → **Pedir compra urgente** → qué, cuántas, para qué → **Enviar solicitud** |
+| Ver cómo va una solicitud | **Menú** → **Compras urgentes** |

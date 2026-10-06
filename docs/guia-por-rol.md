@@ -94,9 +94,9 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 
 | Rol | Entradas del menú |
 |---|---|
-| Administrador | Entregar, Devolver, Trasladar, Recibir, Consultar, Mis movimientos de hoy, Solicitudes de compra, Autorizaciones, Personal, Trabajadores, Alta de trabajador, Inventario, Entradas, Importar, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Adeudos, Consumo) |
-| Supervisor | Entregar, Devolver, Trasladar, Recibir, Consultar, Mis movimientos de hoy, Autorizaciones, Personal, Trabajadores, Inventario, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Adeudos, Consumo) |
-| Almacenista | Entregar, Devolver, Consultar, Mis movimientos de hoy, Trabajadores, Inventario |
+| Administrador | Entregar, Devolver, Trasladar, Recibir, Consultar, Mis movimientos de hoy, Pedir compra urgente, Compras urgentes, Solicitudes de compra, Autorizaciones, Personal, Trabajadores, Alta de trabajador, Inventario, Entradas, Importar, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Adeudos, Consumo) |
+| Supervisor | Entregar, Devolver, Trasladar, Recibir, Pedir compra urgente, Compras urgentes, Consultar, Mis movimientos de hoy, Autorizaciones, Personal, Trabajadores, Inventario, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Adeudos, Consumo) |
+| Almacenista | Entregar, Devolver, Pedir compra urgente, Compras urgentes, Consultar, Mis movimientos de hoy, Trabajadores, Inventario |
 | Compras | Consultar, Mis movimientos de hoy, Solicitudes de compra, Inventario, Entradas, Importar, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Consumo) |
 | Recursos Humanos | Consultar, Trabajadores, Alta de trabajador, Etiquetas, Reportes (Adeudos) |
 
@@ -108,7 +108,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 **Perfil.** Es quien configura el sistema y decide qué puede hacer cada rol. Tiene todos los permisos, así que ve todos los menús y puede hacer cualquier operación, pero no es quien opera el día a día.
 
-**Qué ve al entrar.** Todo el menú: Operación (Entregar, Devolver, Trasladar, Recibir), Consulta, Supervisión (Autorizaciones, Personal), Personas, Inventario y catálogo, y Reportes. Es el único rol sin almacén fijo (`almacenes.todos`): ve las autorizaciones y el personal de todos los almacenes, y en las operaciones elige el almacén. Cubre la función de «supervisor general», que no existe como rol.
+**Qué ve al entrar.** Todo el menú: Operación (Entregar, Devolver, Trasladar, Recibir, Pedir compra urgente y Compras urgentes, que para él se llama «Solicitudes de compra» y trae las de todos los almacenes), Consulta, Supervisión (Autorizaciones, Personal), Personas, Inventario y catálogo, y Reportes. Es el único rol sin almacén fijo (`almacenes.todos`): ve las autorizaciones y el personal de todos los almacenes, y en las operaciones elige el almacén. Cubre la función de «supervisor general», que no existe como rol.
 
 **Qué existe y qué no (verificado).**
 
@@ -161,7 +161,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 **Perfil.** Está en el mostrador del almacén (celular o tableta, con cámara o pistola lectora). Necesita entregar y devolver en segundos, y saber qué debe cada trabajador, sin capacitación previa. Opera **un solo almacén**, el que tiene asignado. Los almacenes trabajan las 24 horas con varios almacenistas, cada uno con su cuenta.
 
-**Qué ve al entrar.** Arriba, el nombre de su almacén y su usuario; abajo, tres botones grandes: **Entregar, Devolver** y **Consultar**. Con **Menú** llega a lo demás: Mis movimientos de hoy, Trabajadores e Inventario (solo el de su almacén). No ve traspasos, reportes, etiquetas, catálogo ni puestos, ni costos, CURP, NSS, entradas de inventario o autorizaciones; tampoco ve nada de otros almacenes.
+**Qué ve al entrar.** Arriba, el nombre de su almacén y su usuario; abajo, tres botones grandes: **Entregar, Devolver** y **Consultar**. Con **Menú** llega a lo demás: Pedir compra urgente, Compras urgentes (las solicitudes de su almacén), Mis movimientos de hoy, Trabajadores e Inventario (solo el de su almacén). Pedir una compra no ocupa un botón del inicio. No ve traspasos, reportes, etiquetas, catálogo ni puestos, ni costos, CURP, NSS, entradas de inventario o autorizaciones; tampoco ve nada de otros almacenes.
 
 **Funcionalidades clave.**
 - Entregar por escaneo con semáforo (verde, amarillo, naranja, rojo) y firma del trabajador en pantalla.
@@ -195,7 +195,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 *Baja del trabajador.* En la ficha, **Vale de no adeudo**: el trabajador pasa a Baja en proceso, el sistema lista sus pendientes de todos los almacenes, el almacenista recibe las devoluciones y, con todo en cero, emite el vale; el trabajador queda Inactivo (B-01 a B-04, B-08).
 
-*Pedir una compra urgente.* Si falta un equipo o una herramienta para un trabajo y el almacén no la tiene (por ejemplo, una herramienta de medidas europeas), levanta una **solicitud de compra**: elige el artículo del catálogo o, si no existe, lo describe con sus palabras; pone la cantidad y para qué trabajo o área se necesita; queda **urgente** salvo que la marque normal. Sale con un folio como `MID-SOL-000001` y llega a Compras. Ve las solicitudes de su almacén, incluidas las de sus compañeros, para saber si ya se pidió, y su estado: pendiente, en compra, comprada e ingresada (o rechazada, con la nota de Compras). La puede cancelar solo mientras sigue pendiente (SC-01 a SC-07). Al ingresarse, la compra entra al almacén con un vale de entrada y ya se puede entregar.
+*Pedir una compra urgente.* Si falta un equipo o una herramienta para un trabajo y el almacén no la tiene (por ejemplo, una herramienta de medidas europeas), levanta una **solicitud de compra**: elige el artículo del catálogo o, si no existe, lo describe con sus palabras; pone la cantidad y para qué trabajo o área se necesita; queda **urgente** salvo que la marque normal. Abre **Menú → Pedir compra urgente** (`/compras/nueva`), contesta en cuatro pasos cortos —qué hace falta, cuántas, para qué trabajo (con respuestas rápidas) y qué tan urgente— y toca **Enviar solicitud**; un doble toque no la duplica. Sale con un folio como `MID-SOL-000001` y llega a Compras. En **Menú → Compras urgentes** (`/compras/mias`) ve las solicitudes de su almacén, incluidas las de sus compañeros, para saber si ya se pidió, y su estado: pendiente, en compra, comprada e ingresada (o rechazada, con la nota de Compras). La puede cancelar solo mientras sigue pendiente, con el botón **Cancelar** de esa solicitud y una nota opcional (SC-01 a SC-07). Al ingresarse, la compra entra al almacén con un vale de entrada y ya se puede entregar.
 
 *Inspeccionar.* En la ficha de la pieza, **Inspeccionar** (Apto o No apto) o **Marcar No apta** con observación (P-01, P-03).
 
@@ -242,7 +242,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 **Perfil.** Responsable de la operación en campo. Necesita autorizar excepciones sin ir al almacén y revisar lo irregular cuando tenga tiempo. Usa sobre todo el celular.
 
-**Qué ve al entrar.** Es el supervisor **de un almacén** y solo ve el suyo. Su inicio muestra **Autorizaciones** con un contador de solicitudes por resolver de su almacén, y los botones de operación (Entregar, Devolver, Trasladar, Recibir, Consultar). En el menú tiene además Personal, Trabajadores, Inventario, Categorías, Artículos, Puestos, Etiquetas y los cuatro reportes (existencias, movimientos, adeudos y consumo), siempre de su almacén. No da de alta trabajadores (es de RH), ni ve Entradas ni Importar (son de Compras), ni costos, ni CURP y NSS.
+**Qué ve al entrar.** Es el supervisor **de un almacén** y solo ve el suyo. Su inicio muestra **Autorizaciones** con un contador de solicitudes por resolver de su almacén, y los botones de operación (Entregar, Devolver, Trasladar, Recibir, Consultar). En el menú tiene además Pedir compra urgente, Compras urgentes, Personal, Trabajadores, Inventario, Categorías, Artículos, Puestos, Etiquetas y los cuatro reportes (existencias, movimientos, adeudos y consumo), siempre de su almacén. No da de alta trabajadores (es de RH), ni ve Entradas ni Importar (son de Compras), ni costos, ni CURP y NSS.
 
 **Funcionalidades clave.**
 - Autorizar o rechazar excedentes y entregas restringidas **de su almacén**, desde su celular o con su PIN en el mostrador. Las solicitudes de otro almacén no las ve ni las puede resolver (A-01); si da su PIN en el mostrador de otro almacén, se rechaza.
@@ -267,7 +267,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 **Otros flujos frecuentes.**
 - *Catálogo.* Categorías → plantilla de reglas; Artículos → crear con la plantilla de su categoría y ajustar límite, requisitos especiales (inspección vigente, autorización en cada entrega) y su motivo; inactivar con motivo obligatorio o reactivar (CF-01 a CF-13). El costo lo captura solo Compras.
-- *Pedir o cancelar una compra urgente.* Igual que el almacenista (SC-01), con una diferencia: puede **cancelar** cualquier solicitud pendiente de su almacén, no solo las suyas (SC-07). Ve todas las de su almacén y la nota con que Compras rechazó alguna.
+- *Pedir o cancelar una compra urgente.* Igual que el almacenista (SC-01; **Menú → Pedir compra urgente** y **Compras urgentes**), con una diferencia: puede **cancelar** cualquier solicitud pendiente de su almacén, no solo las suyas (SC-07). Ve todas las de su almacén y la nota con que Compras rechazó alguna.
 - *Ajustar la vigencia de una inspección.* En la ficha de la pieza, **Ajustar vigencia**, nueva fecha y motivo obligatorio; queda en el historial (P-07).
 - *Rastrear una desaparición.* Reporte de Movimientos filtrado por usuario, artículo, almacén y periodo, más el historial de la pieza (C-11).
 - *Cancelar el vale de otro.* Abre el vale y lo cancela con motivo (K-01).

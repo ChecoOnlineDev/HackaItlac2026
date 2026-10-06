@@ -25,6 +25,9 @@ export default [
     route("v/:token", "routes/consulta/vale-qr.tsx"),
     route("mis-movimientos", "routes/consulta/mis-movimientos.tsx"),
     route("seguimiento", "routes/consulta/seguimiento.tsx"),
+    // compras: quien pide una compra urgente
+    route("compras/nueva", "routes/compras/nueva.tsx"),
+    route("compras/mias", "routes/compras/mias.tsx"),
     // compras
     route("compras", "routes/compras/index.tsx"),
     route("compras/:id", "routes/compras/detalle.tsx"),
