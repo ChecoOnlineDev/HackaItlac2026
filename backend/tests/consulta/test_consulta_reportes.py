@@ -2,6 +2,11 @@
 
 Reglas: C-05, C-08, C-11, RG-12, AC-06 y las de la sección 8 (permisos por endpoint). Cada
 reporte se prueba en JSON y en CSV con los mismos filtros.
+
+Alcance (AC-06): solo el Administrador tiene `almacenes.todos` y ve todos los almacenes; el
+Supervisor (de Kepler en los datos de prueba) y Compras ven solo el suyo. El Almacenista no tiene
+reportes. Los nombres «almacenista» de las pruebas de alcance son del rol que ve solo su almacén:
+hoy lo prueba el Supervisor de Kepler.
 """
 
 import csv
@@ -91,8 +96,10 @@ def test_AC_04_un_reporte_sin_sesion_responde_401(client, ruta):
 @pytest.mark.parametrize(
     ("rol", "esperado"),
     [
-        ("Almacenista", {EXISTENCIAS: 200, MOVIMIENTOS: 200, ADEUDOS: 200, CONSUMO: 403}),
+        # El Almacenista no tiene reportes (tabla 8.2): su inventario sale de `inventario.ver`.
+        ("Almacenista", {EXISTENCIAS: 403, MOVIMIENTOS: 403, ADEUDOS: 403, CONSUMO: 403}),
         ("Supervisor", {EXISTENCIAS: 200, MOVIMIENTOS: 200, ADEUDOS: 200, CONSUMO: 200}),
+        ("Administrador", {EXISTENCIAS: 200, MOVIMIENTOS: 200, ADEUDOS: 200, CONSUMO: 200}),
         ("Compras", {EXISTENCIAS: 200, MOVIMIENTOS: 200, ADEUDOS: 403, CONSUMO: 200}),
         ("Recursos Humanos", {EXISTENCIAS: 403, MOVIMIENTOS: 403, ADEUDOS: 200, CONSUMO: 403}),
     ],
@@ -127,7 +134,7 @@ def test_C_05_existencias_por_almacen_y_articulo_separan_disponible_de_no_dispon
 ):
     guante, arnes = _escenario_existencias(datos)
 
-    cuerpo = pedir(cliente_como("Supervisor"), EXISTENCIAS)
+    cuerpo = pedir(cliente_como("Administrador"), EXISTENCIAS)
 
     por_almacen = {e["almacen_clave"]: e for e in _por_articulo(cuerpo, guante)}
     assert por_almacen["KEP"]["cantidad"] == 12 and por_almacen["KEP"]["disponible"] == 12
@@ -140,7 +147,7 @@ def test_C_05_existencias_por_almacen_y_articulo_separan_disponible_de_no_dispon
 
 def test_C_05_existencias_se_filtran_por_almacen_y_por_categoria(cliente_como, datos):
     guante, arnes = _escenario_existencias(datos)
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
     kep = datos.almacen("KEP")
 
     solo_kep = pedir(supervisor, EXISTENCIAS, almacen_id=kep.id)
@@ -153,7 +160,7 @@ def test_C_05_existencias_se_filtran_por_almacen_y_por_categoria(cliente_como, d
 def test_C_11_el_almacenista_solo_ve_las_existencias_de_su_almacen(cliente_como, datos):
     guante, *_ = _escenario_existencias(datos)
 
-    cuerpo = pedir(cliente_como("Almacenista"), EXISTENCIAS)
+    cuerpo = pedir(cliente_como("Supervisor"), EXISTENCIAS)
 
     assert {e["almacen_clave"] for e in cuerpo["elementos"]} == {"KEP"}
     assert cuerpo["total"] == len(cuerpo["elementos"])
@@ -163,7 +170,7 @@ def test_C_11_un_almacenista_que_pide_otro_almacen_no_ve_nada_de_el(cliente_como
     _escenario_existencias(datos)
     con = datos.almacen("CON")
 
-    cuerpo = pedir(cliente_como("Almacenista"), EXISTENCIAS, almacen_id=con.id)
+    cuerpo = pedir(cliente_como("Supervisor"), EXISTENCIAS, almacen_id=con.id)
 
     assert cuerpo["elementos"] == [] and cuerpo["total"] == 0
     assert cuerpo["sin_registros"] is True
@@ -172,9 +179,12 @@ def test_C_11_un_almacenista_que_pide_otro_almacen_no_ve_nada_de_el(cliente_como
 def test_C_11_con_almacenes_todos_se_ven_todos_los_almacenes(cliente_como, datos):
     guante, *_ = _escenario_existencias(datos)
 
-    cuerpo = pedir(cliente_como("Compras"), EXISTENCIAS)
+    cuerpo = pedir(cliente_como("Administrador"), EXISTENCIAS)  # el único con `almacenes.todos`
 
     assert {e["almacen_clave"] for e in _por_articulo(cuerpo, guante)} == {"KEP", "CON"}
+    # Compras es de Kepler: no ve Contratistas (AC-06).
+    propio = pedir(cliente_como("Compras"), EXISTENCIAS)
+    assert {e["almacen_clave"] for e in _por_articulo(propio, guante)} == {"KEP"}
 
 
 def test_C_11_sin_almacen_asignado_ni_almacenes_todos_no_ve_nada(cliente_con, datos):
@@ -189,7 +199,7 @@ def test_C_05_existencias_en_csv_tiene_el_mismo_conteo_y_encabezados_en_espanol(
     cliente_como, datos
 ):
     _escenario_existencias(datos)
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
 
     cuerpo = pedir(supervisor, EXISTENCIAS, tamano=200)
     respuesta = pedir_csv(supervisor, EXISTENCIAS)
@@ -206,7 +216,7 @@ def test_C_05_existencias_en_csv_tiene_el_mismo_conteo_y_encabezados_en_espanol(
 
 def test_C_05_existencias_se_paginan_con_elementos_y_total(cliente_como, datos):
     _escenario_existencias(datos)
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
 
     pagina = pedir(supervisor, EXISTENCIAS, pagina=1, tamano=2)
 
@@ -250,7 +260,7 @@ def _folios(cuerpo) -> set[str]:
 def test_C_05_el_reporte_de_movimientos_trae_las_columnas_del_contrato(cliente_como, datos):
     juan, _, guante, _, ent_juan, *_ = _escenario_movimientos(datos)
 
-    cuerpo = pedir(cliente_como("Supervisor"), MOVIMIENTOS, articulo_id=guante.id)
+    cuerpo = pedir(cliente_como("Administrador"), MOVIMIENTOS, articulo_id=guante.id)
 
     assert cuerpo["total"] == 1
     fila = cuerpo["elementos"][0]
@@ -291,7 +301,7 @@ def test_A_04_el_reporte_de_movimientos_dice_quien_autorizo_y_el_motivo(cliente_
     """ES-26: el detalle del reporte muestra la autorización con su motivo, en JSON y en CSV."""
     _, ana, _, casco, ent_juan, ent_ana, _ = _escenario_movimientos(datos)
     _autorizar(datos, ent_ana, "Cuadrilla de paro de planta")
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
 
     cuerpo = pedir(supervisor, MOVIMIENTOS)
     por_folio = {f["folio"]: f for f in cuerpo["elementos"]}
@@ -310,7 +320,7 @@ def test_A_04_el_reporte_de_movimientos_dice_quien_autorizo_y_el_motivo(cliente_
 
 def test_C_05_los_filtros_de_movimientos_se_combinan(cliente_como, datos):
     juan, ana, guante, casco, ent_juan, ent_ana, ent_con = _escenario_movimientos(datos)
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
     kep, con = datos.almacen("KEP"), datos.almacen("CON")
 
     assert _folios(pedir(supervisor, MOVIMIENTOS, trabajador_id=juan.id, articulo_id=casco.id)) == {
@@ -331,7 +341,7 @@ def test_C_05_los_filtros_de_movimientos_se_combinan(cliente_como, datos):
 
 
 def test_C_05_el_filtro_de_tipo_rechaza_un_valor_desconocido(cliente_como):
-    respuesta = cliente_como("Supervisor").get(MOVIMIENTOS, params={"tipo": "INVENTADO"})
+    respuesta = cliente_como("Administrador").get(MOVIMIENTOS, params={"tipo": "INVENTADO"})
 
     assert respuesta.status_code == 422
     assert respuesta.json()["codigo"] == "DATOS_INVALIDOS"
@@ -341,7 +351,7 @@ def test_C_11_el_filtro_por_usuario_muestra_quien_toco_el_equipo_y_cuando(client
     juan, _, guante, casco, *_ = _escenario_movimientos(datos)
     almacenista = datos.usuario("almacenista")
     alm_con = datos.usuario("alm_con")
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
 
     del_almacenista = pedir(
         supervisor, MOVIMIENTOS, usuario_id=almacenista.id, articulo_id=casco.id
@@ -377,7 +387,7 @@ def test_C_11_el_rastro_de_un_equipo_por_articulo_almacen_y_periodo_lista_sus_va
     )
 
     cuerpo = pedir(
-        cliente_como("Supervisor"),
+        cliente_como("Administrador"),
         MOVIMIENTOS,
         articulo_id=detector.id,
         almacen_id=datos.almacen("KEP").id,
@@ -393,7 +403,7 @@ def test_C_11_el_rastro_de_un_equipo_por_articulo_almacen_y_periodo_lista_sus_va
 def test_C_11_el_almacenista_ve_solo_los_movimientos_de_su_almacen(cliente_como, datos):
     _, _, _, casco, ent_juan, ent_ana, ent_con = _escenario_movimientos(datos)
 
-    cuerpo = pedir(cliente_como("Almacenista"), MOVIMIENTOS, articulo_id=casco.id)
+    cuerpo = pedir(cliente_como("Supervisor"), MOVIMIENTOS, articulo_id=casco.id)
 
     assert _folios(cuerpo) == {ent_ana.folio}  # la entrega de CON no aparece
     assert ent_con.folio not in _folios(cuerpo)
@@ -405,7 +415,7 @@ def test_C_11_el_almacenista_que_filtra_por_un_usuario_de_otro_almacen_no_ve_nad
     _, _, _, casco, *_ = _escenario_movimientos(datos)
     alm_con = datos.usuario("alm_con")
 
-    cuerpo = pedir(cliente_como("Almacenista"), MOVIMIENTOS, usuario_id=alm_con.id)
+    cuerpo = pedir(cliente_como("Supervisor"), MOVIMIENTOS, usuario_id=alm_con.id)
 
     assert cuerpo["elementos"] == [] and cuerpo["total"] == 0
     assert cuerpo["sin_registros"] is True
@@ -419,7 +429,7 @@ def test_C_11_el_almacenista_filtra_por_usuario_dentro_de_su_almacen_como_dato_i
     almacenista = datos.usuario("almacenista")
 
     cuerpo = pedir(
-        cliente_como("Almacenista"), MOVIMIENTOS, usuario_id=almacenista.id, articulo_id=casco.id
+        cliente_como("Supervisor"), MOVIMIENTOS, usuario_id=almacenista.id, articulo_id=casco.id
     )
 
     assert _folios(cuerpo) == {ent_ana.folio}
@@ -428,7 +438,7 @@ def test_C_11_el_almacenista_filtra_por_usuario_dentro_de_su_almacen_como_dato_i
 def test_C_11_el_almacenista_que_pide_otro_almacen_no_ve_nada(cliente_como, datos):
     _escenario_movimientos(datos)
 
-    cuerpo = pedir(cliente_como("Almacenista"), MOVIMIENTOS, almacen_id=datos.almacen("CON").id)
+    cuerpo = pedir(cliente_como("Supervisor"), MOVIMIENTOS, almacen_id=datos.almacen("CON").id)
 
     assert cuerpo["total"] == 0
 
@@ -436,17 +446,20 @@ def test_C_11_el_almacenista_que_pide_otro_almacen_no_ve_nada(cliente_como, dato
 def test_C_11_con_almacenes_todos_se_ven_todos_los_almacenes_y_usuarios(cliente_como, datos):
     _, _, _, casco, _, ent_ana, ent_con = _escenario_movimientos(datos)
 
+    # Solo el Administrador tiene `almacenes.todos`; Compras y el Supervisor ven solo su almacén.
+    todos = pedir(cliente_como("Administrador"), MOVIMIENTOS, articulo_id=casco.id)
+    assert _folios(todos) == {ent_ana.folio, ent_con.folio}
     for rol in ("Supervisor", "Compras"):
         cuerpo = pedir(cliente_como(rol), MOVIMIENTOS, articulo_id=casco.id)
-        assert _folios(cuerpo) == {ent_ana.folio, ent_con.folio}, rol
+        assert _folios(cuerpo) == {ent_ana.folio}, rol
 
 
 def test_C_11_el_csv_de_movimientos_respeta_el_mismo_alcance(cliente_como, datos):
     _, _, _, casco, _, ent_ana, ent_con = _escenario_movimientos(datos)
 
-    como_almacenista = filas_csv(pedir_csv(cliente_como("Almacenista"), MOVIMIENTOS))
+    como_almacenista = filas_csv(pedir_csv(cliente_como("Supervisor"), MOVIMIENTOS))
     como_supervisor = filas_csv(
-        pedir_csv(cliente_como("Supervisor"), MOVIMIENTOS, articulo_id=casco.id)
+        pedir_csv(cliente_como("Administrador"), MOVIMIENTOS, articulo_id=casco.id)
     )
 
     folios_almacenista = {fila[1] for fila in como_almacenista[1:]}
@@ -457,7 +470,7 @@ def test_C_11_el_csv_de_movimientos_respeta_el_mismo_alcance(cliente_como, datos
 def test_C_05_un_rango_de_fechas_invertido_se_rechaza_en_todos_los_reportes(
     cliente_como,
 ):
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
 
     for ruta in (MOVIMIENTOS, CONSUMO):
         for formato in ("json", "csv"):
@@ -469,7 +482,7 @@ def test_C_05_un_rango_de_fechas_invertido_se_rechaza_en_todos_los_reportes(
 
 
 def test_C_05_un_rango_de_un_solo_dia_es_valido(cliente_como):
-    respuesta = cliente_como("Supervisor").get(
+    respuesta = cliente_como("Administrador").get(
         MOVIMIENTOS, params={"desde": "2026-10-05", "hasta": "2026-10-05"}
     )
 
@@ -486,7 +499,7 @@ def test_C_05_el_dia_termina_a_las_23_59_59_hora_de_mexico_no_en_utc(cliente_com
     tarde = datos.entrega(juan, guante, creado_en=local_a_utc(2026, 10, 5, 23, 30))
     ultimo_segundo = datos.entrega(juan, guante, creado_en=local_a_utc(2026, 10, 5, 23, 59, 59))
     despues_del_dia = datos.entrega(juan, guante, creado_en=local_a_utc(2026, 10, 6, 0, 0, 1))
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
 
     del_dia = pedir(
         supervisor, MOVIMIENTOS, articulo_id=guante.id, desde="2026-10-05", hasta="2026-10-05"
@@ -501,7 +514,7 @@ def test_C_05_el_dia_termina_a_las_23_59_59_hora_de_mexico_no_en_utc(cliente_com
 
 def test_C_05_una_fecha_sin_la_otra_acota_solo_un_lado(cliente_como, datos):
     _, _, guante, casco, ent_juan, ent_ana, ent_con = _escenario_movimientos(datos)
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
 
     desde = pedir(supervisor, MOVIMIENTOS, articulo_id=casco.id, desde="2026-09-22")
     hasta = pedir(supervisor, MOVIMIENTOS, articulo_id=casco.id, hasta="2026-09-22")
@@ -516,7 +529,7 @@ def test_C_05_los_movimientos_se_paginan_con_elementos_y_total(cliente_como, dat
     datos.existencia(datos.ub_almacen("KEP"), guante, 100)
     for i in range(5):
         datos.entrega(juan, guante, creado_en=local_a_utc(2026, 9, 1 + i, 12))
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
 
     primera = pedir(supervisor, MOVIMIENTOS, articulo_id=guante.id, pagina=1, tamano=2)
     ultima = pedir(supervisor, MOVIMIENTOS, articulo_id=guante.id, pagina=3, tamano=2)
@@ -531,7 +544,7 @@ def test_C_05_los_movimientos_se_paginan_con_elementos_y_total(cliente_como, dat
 def test_C_05_sin_registros_lo_indica_para_mostrar_el_aviso(cliente_como, datos):
     articulo = datos.articulo("Artículo sin movimientos")
 
-    cuerpo = pedir(cliente_como("Supervisor"), MOVIMIENTOS, articulo_id=articulo.id)
+    cuerpo = pedir(cliente_como("Administrador"), MOVIMIENTOS, articulo_id=articulo.id)
 
     assert cuerpo == {
         "elementos": [],
@@ -547,7 +560,7 @@ def test_C_05_el_csv_de_movimientos_tiene_el_mismo_conteo_que_el_json(cliente_co
     datos.existencia(datos.ub_almacen("KEP"), guante, 100)
     for i in range(7):
         datos.entrega(juan, guante, creado_en=local_a_utc(2026, 9, 1 + i, 12))
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
     filtros = {"articulo_id": guante.id, "desde": "2026-09-02", "hasta": "2026-09-06"}
 
     cuerpo = pedir(supervisor, MOVIMIENTOS, **filtros)
@@ -569,7 +582,7 @@ def test_C_05_el_csv_muestra_la_hora_local_de_mexico(cliente_como, datos):
     datos.existencia(datos.ub_almacen("KEP"), guante, 5)
     datos.entrega(juan, guante, creado_en=local_a_utc(2026, 10, 5, 23, 30))
 
-    filas = filas_csv(pedir_csv(cliente_como("Supervisor"), MOVIMIENTOS, articulo_id=guante.id))
+    filas = filas_csv(pedir_csv(cliente_como("Administrador"), MOVIMIENTOS, articulo_id=guante.id))
 
     assert filas[1][0] == "05/10/2026 23:30:00"
 
@@ -580,7 +593,7 @@ def test_C_05_el_csv_conserva_los_acentos_para_excel(cliente_como, datos):
     datos.existencia(datos.ub_almacen("KEP"), articulo, 5)
     datos.entrega(juan, articulo)
 
-    respuesta = pedir_csv(cliente_como("Supervisor"), MOVIMIENTOS, articulo_id=articulo.id)
+    respuesta = pedir_csv(cliente_como("Administrador"), MOVIMIENTOS, articulo_id=articulo.id)
 
     assert respuesta.content.startswith(b"\xef\xbb\xbf")  # BOM de utf-8-sig
     assert "charset=utf-8" in respuesta.headers["content-type"]
@@ -597,7 +610,9 @@ def test_C_05_el_csv_neutraliza_la_inyeccion_de_formulas(cliente_como, datos, pe
     datos.existencia(datos.ub_almacen("KEP"), articulo, 5)
     datos.entrega(juan, articulo)
 
-    filas = filas_csv(pedir_csv(cliente_como("Supervisor"), MOVIMIENTOS, articulo_id=articulo.id))
+    filas = filas_csv(
+        pedir_csv(cliente_como("Administrador"), MOVIMIENTOS, articulo_id=articulo.id)
+    )
 
     nombre = filas[1][4]
     assert nombre == "'" + peligroso
@@ -612,7 +627,7 @@ def test_C_05_la_inyeccion_de_formulas_tambien_se_neutraliza_en_nombres_de_traba
     datos.existencia(datos.ub_almacen("KEP"), guante, 5)
     datos.entrega(atacante, guante)
 
-    filas = filas_csv(pedir_csv(cliente_como("Supervisor"), ADEUDOS))
+    filas = filas_csv(pedir_csv(cliente_como("Administrador"), ADEUDOS))
 
     assert not any(c.startswith("=") for fila in filas for c in fila)
 
@@ -674,7 +689,7 @@ def test_C_05_adeudos_dice_que_tiene_cada_trabajador_desde_cuando_y_de_que_almac
 ):
     vigente, vencido, en_baja, sin_nada, pieza = _escenario_adeudos(datos)
 
-    cuerpo = pedir(cliente_como("Supervisor"), ADEUDOS, tamano=200)
+    cuerpo = pedir(cliente_como("Administrador"), ADEUDOS, tamano=200)
 
     del_vigente = {e["articulo"]: e for e in _de(cuerpo, vigente)}
     assert set(del_vigente) == {"Taladro adeudos", "Marro adeudos"}  # sin el consumible
@@ -694,7 +709,7 @@ def test_C_05_solo_no_vigentes_deja_a_quienes_ya_no_forman_parte_de_la_plantilla
     cliente_como, datos
 ):
     vigente, vencido, en_baja, *_ = _escenario_adeudos(datos)
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
 
     todos = pedir(supervisor, ADEUDOS, tamano=200)
     no_vigentes = pedir(supervisor, ADEUDOS, solo_no_vigentes="true", tamano=200)
@@ -712,7 +727,7 @@ def test_C_05_solo_no_vigentes_deja_a_quienes_ya_no_forman_parte_de_la_plantilla
 def test_C_11_el_almacenista_solo_ve_los_adeudos_que_entrego_su_almacen(cliente_como, datos):
     vigente, vencido, en_baja, *_ = _escenario_adeudos(datos)
 
-    cuerpo = pedir(cliente_como("Almacenista"), ADEUDOS, tamano=200)
+    cuerpo = pedir(cliente_como("Supervisor"), ADEUDOS, tamano=200)
 
     assert _de(cuerpo, vigente) and _de(cuerpo, en_baja)
     assert _de(cuerpo, vencido) == []  # su marro salió de CON
@@ -729,7 +744,7 @@ def test_C_11_rh_sin_almacen_ve_los_adeudos_de_todos(cliente_como, datos):
 
 def test_C_05_adeudos_en_csv_respeta_los_filtros_y_tiene_el_mismo_conteo(cliente_como, datos):
     vigente, vencido, en_baja, *_ = _escenario_adeudos(datos)
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
 
     cuerpo = pedir(supervisor, ADEUDOS, solo_no_vigentes="true", tamano=200)
     filas = filas_csv(pedir_csv(supervisor, ADEUDOS, solo_no_vigentes="true"))
@@ -744,7 +759,7 @@ def test_C_05_adeudos_en_csv_respeta_los_filtros_y_tiene_el_mismo_conteo(cliente
 
 def test_C_05_adeudos_sin_registros_lo_indica(cliente_como, datos):
     # Nada se entregó desde MIN.
-    cuerpo = pedir(cliente_como("Supervisor"), ADEUDOS, almacen_id=datos.almacen("MIN").id)
+    cuerpo = pedir(cliente_como("Administrador"), ADEUDOS, almacen_id=datos.almacen("MIN").id)
 
     assert cuerpo["sin_registros"] is True
     assert cuerpo["mensaje"] == "No hay registros con esos filtros."
@@ -755,7 +770,7 @@ def test_RG_12_el_reporte_de_adeudos_no_muestra_costos(cliente_como, datos):
     articulo = datos.articulo("Adeudo costoso", costo="2718.28")
     datos.existencia(datos.ub_almacen("KEP"), articulo, 5)
     datos.entrega(juan, articulo)
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
 
     assert "2718.28" not in supervisor.get(ADEUDOS).text
     assert "2718.28" not in pedir_csv(supervisor, ADEUDOS).content.decode("utf-8")
@@ -787,7 +802,7 @@ def test_C_08_el_consumo_suma_las_entregas_de_consumibles_por_trabajador_de_mayo
 ):
     juan, ana, guante, *_ = _escenario_consumo(datos)
 
-    cuerpo = pedir(cliente_como("Supervisor"), CONSUMO, articulo_id=guante.id)
+    cuerpo = pedir(cliente_como("Administrador"), CONSUMO, articulo_id=guante.id)
 
     assert cuerpo["total"] == 1
     (item,) = cuerpo["elementos"]
@@ -804,7 +819,7 @@ def test_C_08_el_consumo_suma_las_entregas_de_consumibles_por_trabajador_de_mayo
 def test_C_08_un_vale_cancelado_no_cuenta_el_total_resta_la_cancelacion(cliente_como, datos):
     """Guion de US-REP-002: diez guantes a uno, cinco a otro, se cancela un vale."""
     juan, ana, guante, diez, cinco = _escenario_consumo(datos)
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
     assert _total(pedir(supervisor, CONSUMO, articulo_id=guante.id), guante) == 15
 
     datos.cancelar(cinco, creado_en=local_a_utc(2026, 9, 12, 9))
@@ -819,7 +834,7 @@ def test_C_08_un_trabajador_sin_consumo_en_el_periodo_no_aparece(cliente_como, d
     juan, ana, guante, diez, cinco = _escenario_consumo(datos)
     datos.cancelar(diez, creado_en=local_a_utc(2026, 9, 12, 9))
 
-    cuerpo = pedir(cliente_como("Supervisor"), CONSUMO, articulo_id=guante.id)
+    cuerpo = pedir(cliente_como("Administrador"), CONSUMO, articulo_id=guante.id)
 
     (item,) = cuerpo["elementos"]
     assert [t["trabajador"] for t in item["trabajadores"]] == ["Ana Soto"]
@@ -831,7 +846,7 @@ def test_C_08_si_se_cancela_todo_el_articulo_deja_de_aparecer(cliente_como, dato
     datos.cancelar(diez, creado_en=local_a_utc(2026, 9, 12, 9))
     datos.cancelar(cinco, creado_en=local_a_utc(2026, 9, 12, 10))
 
-    cuerpo = pedir(cliente_como("Supervisor"), CONSUMO, articulo_id=guante.id)
+    cuerpo = pedir(cliente_como("Administrador"), CONSUMO, articulo_id=guante.id)
 
     assert cuerpo["elementos"] == [] and cuerpo["sin_registros"] is True
 
@@ -842,7 +857,7 @@ def test_C_08_una_cancelacion_posterior_al_periodo_tambien_descuenta_el_vale_can
     """El vale cancelado no cuenta en ningún periodo: la cancelación se fecha con su vale."""
     juan, ana, guante, diez, cinco = _escenario_consumo(datos)
     datos.cancelar(diez, creado_en=local_a_utc(2026, 10, 20, 9))  # fuera de septiembre
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
 
     septiembre = pedir(
         supervisor, CONSUMO, articulo_id=guante.id, desde="2026-09-01", hasta="2026-09-30"
@@ -861,7 +876,7 @@ def test_C_08_los_retornables_no_son_consumo(cliente_como, datos):
     datos.existencia(datos.ub_almacen("KEP"), retornable, 5)
     datos.entrega(juan, retornable, cantidad=2)
 
-    cuerpo = pedir(cliente_como("Supervisor"), CONSUMO, articulo_id=retornable.id)
+    cuerpo = pedir(cliente_como("Administrador"), CONSUMO, articulo_id=retornable.id)
 
     assert cuerpo["elementos"] == []
 
@@ -874,7 +889,7 @@ def test_C_08_los_filtros_de_periodo_almacen_categoria_articulo_y_trabajador(cli
         juan, tapon, cantidad=7, almacen="CON", responsable="alm_con",
         creado_en=local_a_utc(2026, 9, 11, 9),
     )  # fmt: skip
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
 
     por_periodo = pedir(supervisor, CONSUMO, articulo_id=guante.id, desde="2026-09-11",
                         hasta="2026-09-30")  # fmt: skip
@@ -922,7 +937,7 @@ def test_C_08_el_consumo_se_pagina_con_elementos_y_total(cliente_como, datos):
         articulo = datos.articulo(f"Consumible paginado {i}", retornable=False)
         datos.existencia(datos.ub_almacen("KEP"), articulo, 10)
         datos.entrega(juan, articulo, cantidad=i + 1, creado_en=local_a_utc(2026, 9, 14, 9))
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
 
     primera = pedir(supervisor, CONSUMO, desde="2026-09-14", hasta="2026-09-14", pagina=1,
                     tamano=2)  # fmt: skip
@@ -941,7 +956,7 @@ def test_C_08_el_csv_de_consumo_respeta_los_filtros_y_neutraliza_formulas(client
     datos.existencia(datos.ub_almacen("KEP"), guante, 50)
     datos.entrega(juan, guante, cantidad=10, creado_en=local_a_utc(2026, 9, 10, 9))
     datos.entrega(ana, guante, cantidad=5, creado_en=local_a_utc(2026, 9, 11, 9))
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")
 
     respuesta = pedir_csv(supervisor, CONSUMO, articulo_id=guante.id)
     filas = filas_csv(respuesta)
@@ -987,7 +1002,7 @@ def test_C_08_un_consumo_atribuido_al_vale_sin_trabajador_en_el_renglon_usa_el_d
         cantidad=2,
     )  # fmt: skip
 
-    (item,) = pedir(cliente_como("Supervisor"), CONSUMO, articulo_id=guante.id)["elementos"]
+    (item,) = pedir(cliente_como("Administrador"), CONSUMO, articulo_id=guante.id)["elementos"]
 
     assert item["trabajadores"][0]["trabajador"] == "Juan Pérez"
 
@@ -999,8 +1014,8 @@ def test_C_11_las_opciones_de_usuario_son_quienes_hicieron_vales_dentro_del_alca
     datos.vale(TipoVale.ENTRADA, "KEP", responsable="compras")
     datos.vale(TipoVale.ENTRADA, "CON", responsable="alm_con")
 
-    almacenista = cliente_como("Almacenista").get("/api/reportes/usuarios")
-    supervisor = cliente_como("Supervisor").get("/api/reportes/usuarios")
+    almacenista = cliente_como("Supervisor").get("/api/reportes/usuarios")
+    supervisor = cliente_como("Administrador").get("/api/reportes/usuarios")
 
     assert almacenista.status_code == 200 and supervisor.status_code == 200
     de_almacenista = {u["usuario"] for u in almacenista.json()["elementos"]}

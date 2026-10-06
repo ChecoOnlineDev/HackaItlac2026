@@ -36,12 +36,22 @@ def _articulo(session, codigo: str, dias: int | None = DIAS, requiere: bool = Tr
     return CatalogoService(session).crear_articulo(datos, actor_id=None)
 
 
+def _en_almacen(session, pieza: Pieza, clave: str) -> Pieza:
+    """Deja la pieza en el almacén `clave` (las pruebas no pasan por una entrada)."""
+    almacenes = AlmacenService(session)
+    pieza.ubicacion_id = almacenes.ubicacion_de_almacen(almacenes.obtener_por_clave(clave).id).id
+    return pieza
+
+
 @pytest.fixture
 def pieza(session) -> Pieza:
     articulo = _articulo(session, f"ART-INS-{uuid.uuid4().hex[:8]}")
     pieza = CatalogoService(session).registrar_pieza(
         articulo.id, f"PZA-INS-{uuid.uuid4().hex[:8]}", f"S-{uuid.uuid4().hex[:8]}"
     )
+    # AC-06 (H11): se inspecciona lo del almacén propio, así que la pieza de prueba está en
+    # Kepler, el almacén del Almacenista y del Supervisor de los datos de prueba.
+    _en_almacen(session, pieza, "KEP")
     session.commit()
     return pieza
 
@@ -92,7 +102,9 @@ def test_P_01_la_inspeccion_que_vence_hoy_sigue_vigente_y_la_de_ayer_no(session,
     servicio = InspeccionService(session)
     catalogo = CatalogoService(session)
     uno = catalogo.registrar_pieza(articulo.id, "PZA-INS-1D-A")
+    _en_almacen(session, uno, "KEP")
     dos = catalogo.registrar_pieza(articulo.id, "PZA-INS-1D-B")
+    _en_almacen(session, dos, "KEP")
     usuario = _usuario(session, "almacenista")
     servicio.registrar_inicial(
         uno.id,
@@ -162,7 +174,9 @@ def test_P_01_una_pieza_que_esta_con_un_trabajador_tambien_se_inspecciona(
     session.commit()
     ubicacion = pieza.ubicacion_id
 
-    r = _inspeccionar(cliente_como("Almacenista"), pieza, "NO_APTO", observacion="Costura floja")
+    # Sin una entrega que lo ligue a un almacén, solo quien alcanza todos (Administrador) la ve;
+    # el alcance por almacén de la que sí tiene entrega se prueba en test_alcance_inspecciones.py.
+    r = _inspeccionar(cliente_como("Administrador"), pieza, "NO_APTO", observacion="Costura floja")
     assert r.status_code == 201, r.text
     session.refresh(pieza)
     assert pieza.estado == EstadoPieza.NO_APTO
@@ -172,6 +186,7 @@ def test_P_01_una_pieza_que_esta_con_un_trabajador_tambien_se_inspecciona(
 def test_P_01_sin_vigencia_en_el_articulo_no_hay_vencimiento(cliente_como, session):
     articulo = _articulo(session, "ART-INS-SIN", dias=None, requiere=False)
     pieza = CatalogoService(session).registrar_pieza(articulo.id, "PZA-INS-SIN")
+    _en_almacen(session, pieza, "KEP")
     r = _inspeccionar(cliente_como("Almacenista"), pieza)
     assert r.status_code == 201 and r.json()["vigente_hasta"] is None
 
@@ -181,6 +196,7 @@ def test_CF_06_una_pieza_de_articulo_que_no_requiere_inspeccion_tambien_se_inspe
 ):
     articulo = _articulo(session, "ART-INS-NOREQ", dias=10, requiere=False)
     pieza = CatalogoService(session).registrar_pieza(articulo.id, "PZA-INS-NOREQ")
+    _en_almacen(session, pieza, "KEP")
     r = _inspeccionar(cliente_como("Almacenista"), pieza)
     assert r.status_code == 201
     assert r.json()["vigente_hasta"] == (hoy_mx() + timedelta(days=10)).isoformat()
@@ -311,6 +327,7 @@ def test_P_07_alargar_hasta_el_tope_se_permite_y_pasarse_se_rechaza(cliente_como
 def test_P_07_el_tope_cuenta_desde_la_fecha_de_la_inspeccion_no_desde_hoy(cliente_como, session):
     articulo = _articulo(session, "ART-INS-TOPE", dias=10)
     pieza = CatalogoService(session).registrar_pieza(articulo.id, "PZA-INS-TOPE")
+    _en_almacen(session, pieza, "KEP")
     usuario = _usuario(session, "almacenista")
     hace_5 = hoy_mx() - timedelta(days=5)
     InspeccionService(session).registrar_inicial(
@@ -426,7 +443,7 @@ def test_P_01_permisos_de_inspeccionar_y_marcar_no_apta(cliente_como, crear_usua
     from tests.conftest import iniciar_sesion_en
 
     sin = crear_usuario({P.CATALOGO_VER})
-    con = crear_usuario({P.PIEZAS_INSPECCIONAR})
+    con = crear_usuario({P.PIEZAS_INSPECCIONAR}, almacen="KEP")  # la pieza está en Kepler
     cuerpo_estado = {"estado": "NO_APTO", "observacion": "Daño"}
     with TestClient(app) as c:
         iniciar_sesion_en(c, sin)

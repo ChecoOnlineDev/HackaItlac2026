@@ -4,6 +4,9 @@ Decisiones:
 - Cualquier pieza puede inspeccionarse, también las de artículos que no requieren inspección
   (CF-06 solo decide qué se exige antes de entregar, P-02) y las que están con un trabajador.
   Una pieza dada de baja no cambia (`PiezaEnBaja`).
+- Alcance (AC-06, H11): sin `almacenes.todos` solo se inspeccionan y ajustan piezas del almacén
+  propio. Una pieza es del almacén donde está; la que tiene un trabajador, del almacén de su
+  última entrega; la que va en tránsito, de origen y destino. Fuera de alcance: 404.
 - La vigencia de una inspección Apta es hoy más `vigencia_inspeccion_dias` del artículo; sin días
   en el artículo no hay vencimiento. Una inspección No apta no toca `inspeccion_vigente_hasta`.
 - Una inspección vence al terminar su fecha: una que vence hoy todavía vale (E-06).
@@ -26,7 +29,9 @@ from app.core.errores_bd import ERRNO_CHECK, violacion
 from app.core.excepciones import DatosInvalidos
 from app.core.tiempo import hoy_mx
 from app.modulos.acceso.models import Usuario
+from app.modulos.acceso.service import AccesoService
 from app.modulos.auditoria.service import AuditoriaService
+from app.modulos.catalogo.exceptions import PiezaNoEncontrada
 from app.modulos.catalogo.models import Articulo, EstadoPieza, Pieza
 from app.modulos.catalogo.service import CatalogoService
 from app.modulos.inspecciones.exceptions import (
@@ -73,6 +78,7 @@ class InspeccionService:
         self.repository = InspeccionRepository(session)
         self.catalogo = CatalogoService(session)
         self.auditoria = AuditoriaService(session)
+        self.acceso = AccesoService(session)
 
     # ------------------------------------------------------------- transacción
 
@@ -96,12 +102,26 @@ class InspeccionService:
 
     # ----------------------------------------------------------------- ayudas
 
-    def _pieza_para_cambiar(self, pieza_id: uuid.UUID) -> Pieza:
-        """La pieza bloqueada para modificarla; 404 si no existe, 409 si está en baja."""
+    def _exigir_alcance(self, pieza: Pieza, usuario: Usuario) -> None:
+        """AC-06 (cierra H11): se inspecciona solo lo del almacén propio. Una pieza es del almacén
+        donde está; la que tiene un trabajador, del almacén de su última entrega. Con
+        `almacenes.todos` se inspecciona cualquiera. Fuera de alcance: se responde como si no
+        existiera."""
+        if self.acceso.puede_operar_todos_los_almacenes(usuario):
+            return
+        if usuario.almacen_id is None or usuario.almacen_id not in (
+            self.repository.almacenes_de_pieza(pieza)
+        ):
+            raise PiezaNoEncontrada()
+
+    def _pieza_para_cambiar(self, pieza_id: uuid.UUID, usuario: Usuario) -> Pieza:
+        """La pieza bloqueada para modificarla; 404 si no existe o es de otro almacén, 409 si
+        está en baja."""
         self.catalogo.obtener_pieza(pieza_id)
         self.repository.bloquear_pieza(pieza_id)
         pieza = self.catalogo.obtener_pieza(pieza_id)
         self.session.refresh(pieza)
+        self._exigir_alcance(pieza, usuario)
         if pieza.estado == EstadoPieza.BAJA:
             raise PiezaEnBaja()
         return pieza
@@ -251,7 +271,7 @@ class InspeccionService:
     ) -> InspeccionOut:
         """P-01: Apto deja la pieza APTO y vigente; No apto la deja NO_APTO (P-03)."""
         with self._transaccion():
-            pieza = self._pieza_para_cambiar(pieza_id)
+            pieza = self._pieza_para_cambiar(pieza_id, usuario)
             puntos = datos.puntos.model_dump(exclude_none=True) if datos.puntos else None
             inspeccion = self._aplicar_inspeccion(
                 pieza,
@@ -279,7 +299,7 @@ class InspeccionService:
     ) -> EstadoCambiadoOut:
         """P-03: cualquiera con `piezas.inspeccionar` marca No apta con observación."""
         with self._transaccion():
-            pieza = self._pieza_para_cambiar(pieza_id)
+            pieza = self._pieza_para_cambiar(pieza_id, usuario)
             observacion = _observacion_obligatoria(datos.observacion, "P-03")
             if pieza.estado == EstadoPieza.NO_APTO:
                 raise EstadoSinCambio()
@@ -313,7 +333,7 @@ class InspeccionService:
     ) -> AjusteVigenciaOut:
         """P-07: cambia solo la fecha hasta la que vale la inspección vigente de la pieza."""
         with self._transaccion():
-            pieza = self._pieza_para_cambiar(pieza_id)
+            pieza = self._pieza_para_cambiar(pieza_id, usuario)
             if pieza.estado == EstadoPieza.NO_APTO:
                 raise AjusteNoPermitido(
                     "La pieza está No apta: solo una inspección la regresa a Apta.",

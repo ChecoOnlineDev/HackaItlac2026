@@ -318,7 +318,7 @@ def test_K_01_el_supervisor_cancela_los_vales_de_cualquiera(
     r = cancelar(supervisor, vale["id"], motivo="Revisión del supervisor")
     assert r.status_code == 201, r.text
     assert existencia(session, "KEP", guantes) == 5
-    assert detalle(supervisor, r.json()["id"])["responsable"]["nombre"] == "Supervisor de prueba"
+    assert detalle(supervisor, r.json()["id"])["responsable"]["nombre"] == "Supervisor Kepler"
 
 
 def test_K_01_sin_el_permiso_de_cancelar_es_403(

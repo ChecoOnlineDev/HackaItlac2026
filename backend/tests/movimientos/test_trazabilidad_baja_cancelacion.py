@@ -69,7 +69,7 @@ def test_US_BAJ_001_RG_12_la_lista_de_pendientes_de_la_baja_no_trae_costos(
 
 
 def test_US_CAN_001_tras_cancelar_ambos_vales_salen_en_el_reporte_y_en_el_historial_de_la_pieza(
-    almacenista, supervisor, compras, session, trabajador
+    almacenista, supervisor, cliente_como, compras, session, trabajador
 ):
     _, pieza = pieza_en_kep(compras, session, vigente_hasta=hoy_mx() + timedelta(days=60))
     guantes = crear_articulo(session, retornable=False)
@@ -86,7 +86,9 @@ def test_US_CAN_001_tras_cancelar_ambos_vales_salen_en_el_reporte_y_en_el_histor
     assert anulacion["folio"] != entrega["folio"] and anulacion["folio"].startswith("KEP-CAN-")
 
     # El reporte de movimientos trae los dos vales: el original y su cancelación.
-    for cliente in (almacenista, supervisor):  # Kepler y quien ve todos los almacenes
+    # El Almacenista no tiene reportes: los ve el supervisor de Kepler y quien ve todos los
+    # almacenes (el Administrador).
+    for cliente in (supervisor, cliente_como("Administrador")):
         reporte = cliente.get(
             "/api/reportes/movimientos", params={"trabajador_id": str(trabajador.id)}
         )

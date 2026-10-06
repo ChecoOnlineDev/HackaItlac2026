@@ -25,7 +25,7 @@ Es la prueba que describe el PDF (p.2), más el caso de alturas:
 
 Corresponde a la prioridad P0 de las [reglas de negocio](reglas-de-negocio.md).
 
-- **Acceso.** Usuario y contraseña. Cinco roles iniciales: Administrador y los cuatro que pide el PDF (almacenista, supervisor, Compras y RH). El servidor verifica permisos por clave y el menú muestra solo lo que el rol permite.
+- **Acceso.** Usuario y contraseña. Cinco roles iniciales: Administrador y los cuatro que pide el PDF (almacenista, supervisor de almacén, Compras y RH). Solo el Administrador ve todos los almacenes; los demás roles ven y operan únicamente su almacén asignado, y cada almacén tiene su supervisor (AC-06). No existe un «supervisor general». El servidor verifica permisos por clave y el menú muestra solo lo que el rol permite.
 - **Catálogo configurable.** Categorías con plantilla de reglas; artículos por pieza o por cantidad, retornables o consumibles; requisitos de inspección y de autorización por artículo; inactivar y reactivar con motivo; registro de cambios.
 - **Etiquetas.** Hoja imprimible de QR para credenciales, piezas y estantes.
 - **Trabajadores.** Alta, reingreso y vigencia por periodo de contrato; foto opcional tomada en el alta.
@@ -75,7 +75,8 @@ Probable en fases posteriores; hoy no tiene brief.
 - Lista de revisión para el supervisor.
 - Cierre sin devolución y equipo dado por perdido.
 - Reporte de EPP entregado por trabajador.
-- Que un usuario vea un subconjunto de almacenes; hoy ve el suyo o todos.
+- Que un usuario vea un subconjunto de almacenes; hoy ve el suyo o, si es Administrador, todos.
+- Un rol de «supervisor general»: lo cubre el Administrador.
 - Habilitaciones del trabajador, como la capacitación de alturas.
 - Solicitud de compra.
 - Carta de aceptación como requisito del alta.

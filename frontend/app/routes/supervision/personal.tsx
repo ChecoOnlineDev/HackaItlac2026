@@ -18,6 +18,7 @@ import { HojaFiltros } from "~/componentes/ui/hoja-filtros";
 import { Insignia } from "~/componentes/ui/insignia";
 import { ListaDesplegable } from "~/componentes/ui/lista-desplegable";
 import { Label } from "~/components/ui/label";
+import { useSesionActiva } from "~/sesion/sesion";
 
 export const handle: ManejadorRuta = { permiso: "almacenes.asignar_personal" };
 
@@ -33,6 +34,7 @@ function AlmacenActual({ persona }: { persona: PersonaAlmacen }) {
 }
 
 export default function PersonalPorAlmacen() {
+  const { sesion, puede } = useSesionActiva();
   const [texto, setTexto] = useState("");
   const q = useRetraso(texto.trim());
   const [almacen, setAlmacen] = useState("");
@@ -56,7 +58,10 @@ export default function PersonalPorAlmacen() {
     `${q}|${almacen}|${pagina}`,
   );
 
-  const activos = (almacenes.datos ?? []).filter((a) => a.estado === "ACTIVO");
+  // Solo quien tiene `almacenes.todos` mueve personas entre almacenes; los demás supervisores solo
+  // traen gente a su almacén o la dejan libre, así que su lista de destinos es su propio almacén.
+  const veTodos = puede("almacenes.todos");
+  const activos = (almacenes.datos ?? []).filter((a) => a.estado === "ACTIVO" && (veTodos || a.id === sesion.almacen?.id));
   const personas = lista.datos?.elementos ?? [];
   const hayFiltros = q !== "" || almacen !== "";
 
@@ -143,7 +148,7 @@ export default function PersonalPorAlmacen() {
   }
 
   return (
-    <Pantalla titulo="Personal" descripcion="Elige en qué almacén trabaja cada persona.">
+    <Pantalla titulo="Personal" descripcion={veTodos ? "Elige en qué almacén trabaja cada persona." : "Trae a tu almacén a quien no tiene uno, o déjalo libre."}>
       <div className="flex items-center gap-2">
         <CampoBusqueda
           etiqueta="Buscar por nombre o usuario"

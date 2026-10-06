@@ -44,6 +44,13 @@ from tests.movimientos.test_entrega import pieza_en_kep
 from tests.movimientos.test_invariantes import revisar_folios, revisar_invariantes
 
 
+@pytest.fixture
+def almacenista(cliente_como):
+    """El que opera los traspasos de Kepler: su supervisor (`traspasos.operar` es del Supervisor,
+    tabla 8.2; el almacenista no los opera). Se llama `almacenista` por las pruebas ya escritas."""
+    return cliente_como("Supervisor")
+
+
 def vigencia():
     return hoy_mx() + timedelta(days=60)
 
@@ -241,10 +248,13 @@ def test_X_02_cada_almacen_solo_envia_lo_suyo(almacenista, cliente_almacen, comp
     [("KEP", "CON"), ("CON", "KEP"), ("CON", "MID"), ("MID", "CON"), ("CON", "HYL")],
 )
 def test_X_03_las_rutas_habituales_no_llevan_aviso(
-    cliente_almacen, compras, session, origen, destino
+    cliente_almacen, cliente_como, session, origen, destino
 ):
     guantes = crear_articulo(session, retornable=False)
-    abastecer(compras, guantes, 3, almacen_id=str(almacen_id(session, origen)))
+    # Compras es de Kepler: los demás almacenes los abastece el Administrador.
+    abastecer(
+        cliente_como("Administrador"), guantes, 3, almacen_id=str(almacen_id(session, origen))
+    )
     ev = evaluar_traspaso(cliente_almacen(origen), session, destino, [renglon(guantes.codigo)])
     assert ev["nivel"] == "VERDE" and ev["puede_confirmar"] is True
     assert [(m["regla"], m["nivel"]) for m in ev["motivos"]] == [("X-03", "VERDE")]
@@ -253,10 +263,13 @@ def test_X_03_las_rutas_habituales_no_llevan_aviso(
 
 @pytest.mark.parametrize(("origen", "destino"), [("KEP", "MID"), ("MID", "HYL"), ("HYL", "KEP")])
 def test_X_03_otra_ruta_se_permite_con_aviso_amarillo(
-    cliente_almacen, compras, session, origen, destino
+    cliente_almacen, cliente_como, session, origen, destino
 ):
     guantes = crear_articulo(session, retornable=False)
-    abastecer(compras, guantes, 3, almacen_id=str(almacen_id(session, origen)))
+    # Compras es de Kepler: los demás almacenes los abastece el Administrador.
+    abastecer(
+        cliente_como("Administrador"), guantes, 3, almacen_id=str(almacen_id(session, origen))
+    )
     cliente = cliente_almacen(origen)
     ev = evaluar_traspaso(cliente, session, destino, [renglon(guantes.codigo)])
     assert ev["nivel"] == "AMARILLO" and ev["puede_confirmar"] is True
@@ -335,7 +348,7 @@ def test_F_09_el_traspaso_se_firma_con_la_sesion_de_quien_envia(almacenista, com
     traspaso = enviar(almacenista, session, "CON", [renglon(guantes.codigo)])  # sin `firma`
     d = almacenista.get(f"/api/vales/{traspaso['id']}").json()
     assert d["firma_modo"] == "SESION" and d["tiene_firma"] is False
-    assert d["responsable"]["nombre"] == "Almacenista Kepler"
+    assert d["responsable"]["nombre"] == "Supervisor Kepler"
 
 
 # --------------------------------------------------------------------- cuerpo y alcance
@@ -374,12 +387,14 @@ def test_un_traspaso_pide_el_permiso_traspasos_operar(cliente_como, compras, ses
     guantes = crear_articulo(session, retornable=False)
     abastecer(compras, guantes, 5)
     cuerpo = cuerpo_traspaso(session, "CON", [renglon(guantes.codigo)])
-    for rol in ("Recursos Humanos", "Compras"):  # ninguno tiene `traspasos.operar`
+    # Ninguno tiene `traspasos.operar` (tabla 8.2: es del Supervisor; el almacenista no).
+    for rol in ("Recursos Humanos", "Compras", "Almacenista"):
         c = cliente_como(rol)
         assert c.post("/api/vales/evaluar", json=cuerpo).status_code == 403, rol
         assert c.post(VALES, json=cuerpo).status_code == 403, rol
-    assert cliente_como("Almacenista").post("/api/vales/evaluar", json=cuerpo).status_code == 200
-    assert cliente_como("Supervisor").post("/api/vales/evaluar", json=cuerpo).status_code == 422
+    assert cliente_como("Supervisor").post("/api/vales/evaluar", json=cuerpo).status_code == 200
+    # Quien tiene `almacenes.todos` (Administrador) debe indicar el almacén de origen.
+    assert cliente_como("Administrador").post("/api/vales/evaluar", json=cuerpo).status_code == 422
 
 
 def test_quien_opera_todos_los_almacenes_indica_el_almacen_de_origen(
@@ -387,7 +402,7 @@ def test_quien_opera_todos_los_almacenes_indica_el_almacen_de_origen(
 ):
     guantes = crear_articulo(session, retornable=False)
     abastecer(compras, guantes, 5)
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")  # el único con `almacenes.todos`
     cuerpo = cuerpo_traspaso(
         session, "CON", [renglon(guantes.codigo, 2)], almacen_id=str(almacen_id(session, "KEP"))
     )

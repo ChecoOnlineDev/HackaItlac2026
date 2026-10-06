@@ -25,14 +25,10 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.INVENTARIO_VER,
             P.ENTREGAS_CREAR,
             P.DEVOLUCIONES_CREAR,
-            P.TRASPASOS_OPERAR,
             P.NO_ADEUDO_EMITIR,
             P.VALES_VER,
             P.VALES_CANCELAR,
             P.PIEZAS_INSPECCIONAR,
-            P.REPORTES_EXISTENCIAS,
-            P.REPORTES_MOVIMIENTOS,
-            P.REPORTES_ADEUDOS,
         }
     ),
     "Supervisor": frozenset(
@@ -56,7 +52,6 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.REPORTES_MOVIMIENTOS,
             P.REPORTES_ADEUDOS,
             P.REPORTES_CONSUMO,
-            P.ALMACENES_TODOS,
             P.ALMACENES_ASIGNAR_PERSONAL,
             P.ETIQUETAS_IMPRIMIR,
         }
@@ -73,7 +68,6 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.REPORTES_EXISTENCIAS,
             P.REPORTES_MOVIMIENTOS,
             P.REPORTES_CONSUMO,
-            P.ALMACENES_TODOS,
             P.ETIQUETAS_IMPRIMIR,
         }
     ),
@@ -92,17 +86,23 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
 DESCRIPCIONES = {
     "Administrador": "Todos los permisos.",
     "Almacenista": "Opera su almacén: entregas, devoluciones y traspasos.",
-    "Supervisor": "Autoriza excepciones y administra el catálogo.",
+    "Supervisor": "Supervisa su almacén: autoriza excepciones, traspasos, personal y catálogo.",
     "Compras": "Carga inventario y ve costos.",
     "Recursos Humanos": "Administra trabajadores y ve datos personales.",
 }
 
-# (usuario, nombre, rol, clave del almacén asignado, tiene PIN). Los roles con `almacenes.todos`
-# no llevan almacén asignado. Un almacenista por almacén de prueba.
+# (usuario, nombre, rol, clave del almacén asignado, tiene PIN). Solo el Administrador tiene
+# `almacenes.todos` y no lleva almacén; RH no opera almacén. Cada almacén de prueba tiene su
+# supervisor y su almacenista; Compras es de Kepler (ahí se carga el inventario).
 USUARIOS_PRUEBA = (
     ("admin", "Administrador de prueba", "Administrador", None, True),
-    ("supervisor", "Supervisor de prueba", "Supervisor", None, True),
-    ("compras", "Compras de prueba", "Compras", None, False),
+    ("supervisor", "Supervisor Kepler", "Supervisor", "KEP", True),
+    ("sup_con", "Supervisor Contratistas", "Supervisor", "CON", True),
+    ("sup_mid", "Supervisor Midrex", "Supervisor", "MID", True),
+    ("sup_hyl", "Supervisor HYL", "Supervisor", "HYL", True),
+    ("sup_lam", "Supervisor Laminador", "Supervisor", "LAM", True),
+    ("sup_min", "Supervisor Minas", "Supervisor", "MIN", True),
+    ("compras", "Compras de prueba", "Compras", "KEP", False),
     ("rh", "Recursos Humanos de prueba", "Recursos Humanos", None, False),
     ("almacenista", "Almacenista Kepler", "Almacenista", "KEP", False),
     ("alm_con", "Almacenista Contratistas", "Almacenista", "CON", False),

@@ -45,12 +45,20 @@ def test_I_01_la_entrada_registra_saldos_y_proveedor_no_lleva_existencia(compras
     assert all(m.saldo_origen is None for m in movs)  # PROVEEDOR no lleva existencia
 
 
-def test_I_01_las_compras_entran_por_kepler_y_la_carga_inicial_puede_ir_a_otro_almacen(
-    compras, session
+def test_I_01_las_compras_entran_por_kepler_y_solo_el_administrador_carga_otro_almacen(
+    compras, cliente_como, session
 ):
+    # Compras es de Kepler (AC-06): no puede cargar otro almacén; el Administrador sí.
     articulo = crear_articulo(session)
     contratistas = almacen(session, "CON")
-    r = compras.post(
+    rechazo = compras.post(
+        VALES,
+        json=cuerpo_entrada(
+            [{"codigo": articulo.codigo, "cantidad": 3}], almacen_id=str(contratistas.id)
+        ),
+    )
+    assert rechazo.status_code == 409 and rechazo.json()["codigo"] == "ALMACEN_CAMBIO"
+    r = cliente_como("Administrador").post(
         VALES,
         json=cuerpo_entrada(
             [{"codigo": articulo.codigo, "cantidad": 3}], almacen_id=str(contratistas.id)
@@ -350,9 +358,9 @@ def test_I_01_la_entrada_sin_renglones_se_rechaza(compras):
     assert r.status_code == 422
 
 
-def test_I_01_la_entrada_a_un_almacen_inexistente_da_404(compras, session):
+def test_I_01_la_entrada_a_un_almacen_inexistente_da_404(cliente_como, session):
     articulo = crear_articulo(session)
     cuerpo = cuerpo_entrada(
         [{"codigo": articulo.codigo, "cantidad": 1}], almacen_id=str(uuid.uuid4())
     )
-    assert compras.post(VALES, json=cuerpo).status_code == 404
+    assert cliente_como("Administrador").post(VALES, json=cuerpo).status_code == 404

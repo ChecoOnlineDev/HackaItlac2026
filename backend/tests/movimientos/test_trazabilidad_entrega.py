@@ -198,7 +198,7 @@ def test_F_04_el_supervisor_firma_solo_cuando_autoriza_y_no_valida_cada_vale(
     )
     assert r.status_code == 201, r.text
     autorizada = almacenista.get(f"{VALES}/{r.json()['id']}").json()
-    assert autorizada["valido"]["autorizo"]["nombre"] == "Supervisor de prueba"
+    assert autorizada["valido"]["autorizo"]["nombre"] == "Supervisor Kepler"
     assert autorizada["valido"]["solicito"]["nombre"] == "Almacenista Kepler"
     assert autorizada["valido"]["motivo"] == "Cubre a un compañero"
     # Quien firma el vale (F-03) sigue siendo el almacenista: el supervisor no lo captura.

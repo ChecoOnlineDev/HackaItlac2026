@@ -63,7 +63,7 @@ Aplican a todas las operaciones.
 | RG-04 | El saldo de un artículo en un almacén nunca es negativo. | Propuesta |
 | RG-05 | Una pieza está en una sola ubicación a la vez y su cantidad siempre es 1. | PDF p.2 |
 | RG-06 | El folio es consecutivo por tipo de vale y almacén (ejemplo: `KEP-ENT-000123`). No se reutiliza, ni siquiera al cancelar. | PDF p.8; plática min 52 |
-| RG-07 | Cada usuario opera sobre su almacén asignado y no lo elige en cada operación, salvo que su rol le permita operar todos (AC-06). Un almacén puede tener varios almacenistas: operan las 24 horas y una sola persona no los cubre. Cada almacenista usa su propia cuenta y su propio dispositivo, y cada operación queda ligada a quien la hizo. El MVP no avisa cuando a un almacén le falta cobertura. | Plática min 33 |
+| RG-07 | Cada usuario opera sobre su almacén asignado y no lo elige en cada operación; solo quien tiene `almacenes.todos` (de inicio, el Administrador) elige almacén (AC-06). Quien no tiene almacén asignado y no tiene `almacenes.todos` no ve ni opera nada de ningún almacén. Cada almacén tiene su(s) supervisor(es), independientes de los almacenistas. Un almacén puede tener varios almacenistas: operan las 24 horas y una sola persona no los cubre. Cada almacenista usa su propia cuenta y su propio dispositivo, y cada operación queda ligada a quien la hizo. El MVP no avisa cuando a un almacén le falta cobertura. | Plática min 33 |
 | RG-08 | Todo se valida dos veces: al escanear (semáforo inmediato) y al confirmar (el servidor revalida). Si algo cambió entre ambos momentos, el vale no se guarda y se indica el renglón que falló. | Propuesta |
 | RG-09 | Un vale se guarda completo o no se guarda. | Propuesta |
 | RG-10 | Los códigos se aceptan tal como vienen, en QR o barras. Un código identifica una sola cosa: trabajador, pieza, artículo o vale. | PDF p.2; plática min 57 |
@@ -143,7 +143,7 @@ La dotación es lo recomendado (amarillo) y el límite es el máximo (naranja). 
 
 | ID | Regla | Origen |
 |---|---|---|
-| A-01 | Autoriza cualquier usuario con el permiso de autorizar; de inicio, los supervisores. Lo hace desde su propio celular, donde ve la solicitud y responde, o con su PIN en el dispositivo del almacenista si está presente. | PDF función 6; plática min 42 |
+| A-01 | Autoriza cualquier usuario con el permiso de autorizar; de inicio, los supervisores de almacén y el Administrador. Una solicitud es del almacén en que se pidió: solo la ven y la resuelven quienes tienen ese almacén asignado (y el Administrador); un supervisor de otro almacén o sin almacén no la ve (AC-06). Lo hace desde su propio celular, donde ve la solicitud y responde, o con su PIN en el dispositivo del almacenista si está presente; en ese caso, el supervisor que da su usuario y PIN también debe ser del almacén de la solicitud (o Administrador). | PDF función 6; plática min 42 |
 | A-02 | La autorización exige un motivo. | Plática min 36 |
 | A-03 | Vale para los renglones señalados de ese vale y se usa una sola vez. No cambia el límite del artículo. | Propuesta |
 | A-04 | Se registra quién la pidió, quién autorizó, cuándo, el motivo y el excedente. En el vale aparece como "Validó". | PDF p.3: firma "Validó" |
@@ -342,7 +342,7 @@ Caso "me devolvió una que no es": con código único por pieza, el escaneo lo d
 
 | ID | Regla | Nivel | Origen |
 |---|---|---|---|
-| X-01 | El traspaso tiene dos pasos: salida y recepción. Entre ambos la existencia está En tránsito y no cuenta para ningún almacén. | — | PDF p.6 |
+| X-01 | El traspaso tiene dos pasos: salida y recepción. Los opera el Supervisor del almacén (`traspasos.operar`): el del origen envía y el del destino recibe; el Almacenista no. Entre ambos la existencia está En tránsito y no cuenta para ningún almacén. | — | PDF p.6 |
 | X-02 | Solo sale lo que está en el almacén de origen. | Rojo si no | PDF función 4 |
 | X-03 | El destino es otro almacén. Rutas habituales: Kepler con Contratistas, y Contratistas con las áreas, en ambos sentidos. Otra ruta se permite con aviso. | Amarillo | PDF p.6; plática min 30 |
 | X-04 | Una pieza No apta puede trasladarse (para reparación o baja). Conserva su estado. | Amarillo | Propuesta |
@@ -477,16 +477,16 @@ El sistema decide qué puede hacer y qué puede ver cada usuario por **permisos*
 |---|---|---|
 | AC-01 | Cada acción y cada grupo de datos reservados tiene un permiso con clave `modulo.accion`. El catálogo de permisos es fijo: lo define el sistema. | Idea del equipo |
 | AC-02 | Un rol es un conjunto de permisos con nombre. Cada usuario tiene un solo rol. | Idea del equipo |
-| AC-03 | El sistema nace con cinco roles: Administrador, con todos los permisos, y los cuatro que pide el PDF: Almacenista, Supervisor, Compras y Recursos Humanos. | PDF función 1 |
+| AC-03 | El sistema nace con cinco roles: Administrador, con todos los permisos, y los cuatro que pide el PDF: Almacenista, Supervisor (de almacén), Compras y Recursos Humanos. No existe un «supervisor general»: el Administrador cubre esa función. | PDF función 1 |
 | AC-04 | El servidor verifica el permiso, nunca el nombre del rol. La interfaz muestra solo lo que el rol permite, pero no es el control. | Propuesta |
 | AC-05 | Hay permisos de acción (qué puede hacer) y de información (qué datos puede ver). Sin el permiso de información, el dato no se envía. | Plática min 28 |
-| AC-06 | Cada usuario opera su almacén asignado y ve solo los movimientos de ese almacén, salvo que su rol tenga `almacenes.todos`. No hay subconjuntos de almacenes por usuario: ve el suyo o todos. | Plática min 33 |
+| AC-06 | El alcance de cada usuario sale de su almacén asignado: opera y ve solo lo de ese almacén (existencias, piezas, movimientos, vales, autorizaciones, inspecciones y personal), salvo que su rol tenga `almacenes.todos`, que de inicio es solo el Administrador. Sin almacén asignado y sin `almacenes.todos`, el usuario no ve nada de ningún almacén. No hay subconjuntos de almacenes por usuario: ve el suyo o todos. De un traspaso, el origen y el destino ven lo que les toca. Una pieza es del almacén donde está; la que tiene un trabajador, del almacén de su última entrega (inspecciones, H11). | Plática min 33; decisión del usuario |
 | AC-07 | Hay cuatro cosas que ningún rol puede hacer, porque no son permisos: editar o borrar movimientos, autorizarse a sí mismo, autorizar un rojo de seguridad y mostrar costos en un vale. | Propuesta |
 | AC-08 | El administrador crea roles, activa o quita permisos y administra a los usuarios desde la pantalla. | Idea del equipo |
 | AC-09 | Siempre existe al menos un usuario activo con `acceso.administrar`, y el rol Administrador no puede perderlo. | Propuesta |
 | AC-10 | Un cambio de permisos aplica en la siguiente petición y queda en el registro de cambios. | Propuesta |
 | AC-11 | Un rol con usuarios asignados no se inactiva ni se elimina hasta reasignarlos. | Propuesta |
-| AC-12 | Asignar a un usuario a un almacén, o moverlo de uno a otro, requiere el permiso `almacenes.asignar_personal`, que de inicio tiene el Supervisor. Con él se asigna solo a quienes operan un almacén (los que no tienen `almacenes.todos`), sin acceso a roles, permisos ni altas de usuarios. Un usuario tiene un solo almacén; un almacén puede tener varios usuarios (RG-07). | Decisión del equipo |
+| AC-12 | Asignar a un usuario a un almacén, o moverlo de uno a otro, requiere el permiso `almacenes.asignar_personal`, que de inicio tiene el Supervisor. Con él se asigna solo a quienes trabajan en un almacén (sin `almacenes.todos` y con algún permiso de almacén; RH no), sin acceso a roles, permisos ni altas de usuarios. Un supervisor de almacén solo ve al personal de su almacén y a quien no tiene almacén, y solo puede traerlo a su almacén o dejarlo sin almacén; mover personas entre almacenes distintos es de quien tiene `almacenes.todos`. Un usuario tiene un solo almacén; un almacén puede tener varios usuarios (RG-07). | Decisión del equipo |
 | AC-13 | Un cambio de almacén aplica en la siguiente petición y queda en el registro de cambios, con el almacén anterior y el nuevo. Los vales y movimientos ya hechos conservan el almacén en el que se hicieron (RG-03). Un vale a medio capturar en el almacén anterior se rechaza al confirmar y su borrador se conserva. | Decisión del equipo |
 
 AC-01 a AC-07 son parte del MVP. AC-08 a AC-13 son de [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md) y ya están construidas, con sus pantallas (`/usuarios`, `/roles`). Los roles y usuarios iniciales siguen cargándose con el script de datos de prueba.
@@ -502,7 +502,7 @@ Cómo se cumplen AC-08 a AC-11 en el servidor (`acceso/service_roles.py`):
 
 ### 8.2 Permisos y roles iniciales
 
-A es Almacenista, S Supervisor, C Compras y R Recursos Humanos. El Administrador tiene todos.
+A es Almacenista, S Supervisor (de almacén), C Compras y R Recursos Humanos. El Administrador tiene todos. Todo permiso de operación vale solo dentro del almacén asignado (AC-06); Compras está asignado a Kepler y RH no tiene almacén porque no opera inventario.
 
 | Módulo | Permiso | Qué permite | Roles iniciales |
 |---|---|---|---|
@@ -514,27 +514,31 @@ A es Almacenista, S Supervisor, C Compras y R Recursos Humanos. El Administrador
 | Catálogo | `catalogo.ver` | Categorías, artículos y piezas | A, S, C |
 | | `catalogo.administrar` | Categorías, artículos, requisitos, límites e inactivar | S, C |
 | | `catalogo.costos` | Ver y capturar costos | C |
-| Inventario | `inventario.ver` | Existencias de todos los almacenes | A, S, C |
+| Inventario | `inventario.ver` | Existencias del almacén asignado (de todos, con `almacenes.todos`) | A, S, C |
 | | `inventario.entradas` | Entradas e importación | C |
 | Operación | `entregas.crear` | Entregar y pedir autorización | A, S |
 | | `devoluciones.crear` | Recibir devoluciones | A, S |
-| | `traspasos.operar` | Enviar y recibir traspasos | A, S |
+| | `traspasos.operar` | Enviar y recibir traspasos entre almacenes (el almacenista no los opera) | S |
 | | `no_adeudo.emitir` | Emitir el vale de no adeudo | A, S |
 | | `vales.ver` | Consultar vales | A, S, C |
 | | `vales.cancelar` | Cancelar los vales propios | A, S, C |
-| | `vales.cancelar_todos` | Cancelar los de cualquiera | S |
-| Autorizaciones | `autorizaciones.resolver` | Autorizar o rechazar excedentes y entregas restringidas | S |
+| | `vales.cancelar_todos` | Cancelar los de cualquiera de su almacén | S |
+| Autorizaciones | `autorizaciones.resolver` | Autorizar o rechazar excedentes y entregas restringidas de su almacén | S |
 | Piezas | `piezas.inspeccionar` | Inspeccionar y marcar No apta | A, S |
-| | `piezas.ajustar_vigencia` | Ajustar la fecha de vigencia de una inspección (P-07) | S |
-| Reportes | `reportes.existencias` | Reporte de existencias | A, S, C |
-| | `reportes.movimientos` | Reporte de movimientos, con su filtro por usuario | A, S, C |
-| | `reportes.adeudos` | Reporte de adeudos | A, S, R |
+| | `piezas.ajustar_vigencia` | Ajustar la fecha de vigencia de una inspección (P-07) de piezas de su almacén | S |
+| Reportes | `reportes.existencias` | Reporte de existencias | S, C |
+| | `reportes.movimientos` | Reporte de movimientos, con su filtro por usuario | S, C |
+| | `reportes.adeudos` | Reporte de adeudos | S, R |
 | | `reportes.consumo` | Reporte de consumo | S, C |
-| Almacenes | `almacenes.todos` | Operar cualquier almacén y ver los movimientos de todos | S, C |
-| | `almacenes.asignar_personal` | Asignar y mover personal entre almacenes, sin tocar roles ni permisos (AC-12) | S |
+| Almacenes | `almacenes.todos` | Operar cualquier almacén y ver los movimientos de todos | Solo Administrador |
+| | `almacenes.asignar_personal` | Asignar personal a su almacén o liberarlo, sin tocar roles ni permisos (AC-12); entre almacenes, solo con `almacenes.todos` | S |
 | Etiquetas | `etiquetas.imprimir` | Hojas de QR | S, C, R |
 
-Un permiso de acción incluye el de ver su módulo: quien puede entregar ve la ficha básica del trabajador y las existencias.
+Un permiso de acción incluye el de ver su módulo: quien puede entregar ve la ficha básica del trabajador y las existencias de su almacén.
+
+El Almacenista conserva lo indispensable: entregar, devolver (lo que un trabajador regresa), consultar (trabajadores por nombre, número de empleado o QR, e inventario solo de su almacén), sus movimientos de hoy, ver las existencias de su almacén (`inventario.ver`, por eso no necesita ningún permiso de reportes), inspeccionar piezas, cancelar sus vales y la baja con no adeudo. Los traspasos entre almacenes (enviar y recibir) son del Supervisor del almacén y del Administrador (X-01). No tiene reportes, etiquetas, catálogo ni puestos.
+
+Usuarios iniciales por almacén: cada almacén (Kepler, Contratistas, Midrex, HYL, Laminador y Minas) tiene su Supervisor y su Almacenista; Compras queda asignado a Kepler, donde carga el inventario; el Administrador y RH no llevan almacén. El Supervisor no da de alta trabajadores: eso es de RH (`trabajadores.administrar`).
 
 ### 8.3 Permisos que agregan las features
 

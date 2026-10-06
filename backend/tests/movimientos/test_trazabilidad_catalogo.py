@@ -286,13 +286,13 @@ def test_US_TRB_002_L_02_si_el_trabajador_devuelve_el_casco_viejo_recibe_otro_si
 
 
 def test_ES_24_un_modelo_descontinuado_no_se_entrega_ni_recibe_entradas_se_devuelve_y_se_traslada(
-    almacenista, compras, supervisor, cliente_almacen, session, trabajador
+    almacenista, compras, supervisor, cliente_almacen, cliente_como, session, trabajador
 ):
-    con = cliente_almacen("CON")
+    con = cliente_almacen("CON")  # su supervisor: los traspasos son del supervisor de cada almacén
     modelo = crear_articulo(session, retornable=True, nombre="Minipulidor modelo viejo")
     abastecer(compras, modelo, 10)
     entregar(almacenista, trabajador, modelo, 2)  # 2 con el trabajador, 8 en Kepler
-    contenedor = tr.enviar(almacenista, session, "CON", [tr.renglon(modelo.codigo, 3)])
+    contenedor = tr.enviar(supervisor, session, "CON", [tr.renglon(modelo.codigo, 3)])
     tr.recibir(con, contenedor, [tr.renglon(modelo.codigo, 3)])  # 3 en el contenedor
     assert (existencia(session, "KEP", modelo), existencia(session, "CON", modelo)) == (5, 3)
 
@@ -323,11 +323,13 @@ def test_ES_24_un_modelo_descontinuado_no_se_entrega_ni_recibe_entradas_se_devue
     assert existencia(session, "KEP", modelo) == 7
     # ... y lo que queda en el contenedor se traslada a Kepler.
     regreso = tr.enviar(con, session, "KEP", [tr.renglon(modelo.codigo, 3)])
-    tr.recibir(almacenista, regreso, [tr.renglon(modelo.codigo, 3)])
+    tr.recibir(supervisor, regreso, [tr.renglon(modelo.codigo, 3)])
     assert (existencia(session, "KEP", modelo), existencia(session, "CON", modelo)) == (10, 0)
 
     # 4. Su historial sigue completo y la ficha lo marca como inactivo.
-    r = supervisor.get("/api/reportes/movimientos", params={"articulo_id": str(modelo.id)})
+    r = cliente_como("Administrador").get(
+        "/api/reportes/movimientos", params={"articulo_id": str(modelo.id)}
+    )
     assert r.status_code == 200
     tipos = {m["tipo"] for m in r.json()["elementos"]}
     assert tipos == {"ENTRADA", "ENTREGA", "TRASPASO", "RECEPCION", "DEVOLUCION"}

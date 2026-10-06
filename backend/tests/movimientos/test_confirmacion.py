@@ -159,14 +159,15 @@ def test_RG_06_los_folios_son_consecutivos_por_almacen_y_tipo(
 
 
 def test_RG_06_cada_almacen_y_cada_tipo_lleva_su_propio_consecutivo(
-    compras, almacenista, session, trabajador
+    compras, almacenista, cliente_como, session, trabajador
 ):
     articulo = crear_articulo(session)
     con = str(almacen(session, "CON").id)
     kep_ing = serie(session, "KEP", "ENTRADA")
     con_ing = serie(session, "CON", "ENTRADA")
     r1 = abastecer(compras, articulo, 1)
-    r2 = abastecer(compras, articulo, 1, almacen_id=con)
+    # Compras es de Kepler; la carga de Contratistas la hace el Administrador (AC-06).
+    r2 = abastecer(cliente_como("Administrador"), articulo, 1, almacen_id=con)
     r3 = abastecer(compras, articulo, 1)
     assert r1["folio"] == f"KEP-ING-{kep_ing + 1:06d}"
     assert r3["folio"] == f"KEP-ING-{kep_ing + 2:06d}"

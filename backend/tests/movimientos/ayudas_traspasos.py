@@ -1,7 +1,9 @@
 """Ayudas de las pruebas de traspasos (TRASPASO y RECEPCION).
 
-`cliente_almacen("CON")` da un cliente con la sesión del almacenista de ese almacén (los datos de
-prueba traen uno por almacén: `almacenista` en KEP, `alm_con`, `alm_mid`, `alm_hyl`...). Se
+`cliente_almacen("CON")` da un cliente con la sesión del SUPERVISOR de ese almacén (los datos de
+prueba traen uno por almacén: `supervisor` en KEP, `sup_con`, `sup_mid`, `sup_hyl`...). Desde que
+el almacenista no opera traspasos (`traspasos.operar` es del Supervisor, tabla 8.2), enviar y
+recibir es del supervisor del almacén. Se
 importa en cada archivo de pruebas de traspasos (no está en `conftest.py` para no tocarlo).
 """
 
@@ -25,12 +27,12 @@ EVALUAR = "/api/vales/evaluar"
 POR_RECIBIR = "/api/traspasos/por-recibir"
 
 USUARIO_DE_ALMACEN = {
-    "KEP": "almacenista",
-    "CON": "alm_con",
-    "MID": "alm_mid",
-    "HYL": "alm_hyl",
-    "LAM": "alm_lam",
-    "MIN": "alm_min",
+    "KEP": "supervisor",
+    "CON": "sup_con",
+    "MID": "sup_mid",
+    "HYL": "sup_hyl",
+    "LAM": "sup_lam",
+    "MIN": "sup_min",
 }
 
 
@@ -43,6 +45,35 @@ def cliente_almacen(app) -> Iterator[Callable[[str], TestClient]]:
     def _cliente(clave: str) -> TestClient:
         c = TestClient(app)
         usuario = UsuarioPrueba(USUARIO_DE_ALMACEN[clave], ajustes.clave_datos_prueba)
+        assert iniciar_sesion_en(c, usuario).status_code == 200
+        clientes.append(c)
+        return c
+
+    yield _cliente
+    for c in clientes:
+        c.close()
+
+
+USUARIO_ALMACENISTA = {
+    "KEP": "almacenista",
+    "CON": "alm_con",
+    "MID": "alm_mid",
+    "HYL": "alm_hyl",
+    "LAM": "alm_lam",
+    "MIN": "alm_min",
+}
+
+
+@pytest.fixture
+def cliente_almacenista(app) -> Iterator[Callable[[str], TestClient]]:
+    """`cliente_almacenista("CON")`: TestClient con la sesión del ALMACENISTA de ese almacén
+    (entrega y devuelve; no opera traspasos)."""
+    ajustes = get_settings()
+    clientes: list[TestClient] = []
+
+    def _cliente(clave: str) -> TestClient:
+        c = TestClient(app)
+        usuario = UsuarioPrueba(USUARIO_ALMACENISTA[clave], ajustes.clave_datos_prueba)
         assert iniciar_sesion_en(c, usuario).status_code == 200
         clientes.append(c)
         return c

@@ -187,7 +187,7 @@ def test_E_09_con_observacion_del_vale_tambien_se_confirma(
 
 
 def test_E_09_el_reporte_de_movimientos_muestra_la_observacion(
-    almacenista, compras, session, trabajador
+    almacenista, supervisor, compras, session, trabajador
 ):
     lentes = crear_articulo(session, retornable=False)
     otro = crear_articulo(session, retornable=False)
@@ -195,7 +195,8 @@ def test_E_09_el_reporte_de_movimientos_muestra_la_observacion(
     dotacion_de_prueba(session, trabajador, {lentes: 1})
     r = confirmar(almacenista, trabajador, [renglon(otro.codigo, observacion="Se mojaron")])
     assert r.status_code == 201, r.text
-    reporte = almacenista.get(
+    # El almacenista no tiene reportes (tabla 8.2): lo consulta el supervisor de su almacén.
+    reporte = supervisor.get(
         "/api/reportes/movimientos", params={"articulo_id": str(otro.id), "tipo": "ENTREGA"}
     )
     assert reporte.status_code == 200, reporte.text

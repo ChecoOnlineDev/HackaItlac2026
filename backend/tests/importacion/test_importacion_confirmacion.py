@@ -123,6 +123,18 @@ def test_AC_06_sin_almacenes_todos_solo_carga_a_su_almacen(cliente_con, session)
     assert articulo(session, ok) is not None and articulo(session, ajena) is None
 
 
+def test_AC_06_compras_es_de_kepler_y_no_carga_otros_almacenes(compras_de_kepler, session):
+    # Decisión de producto: solo el Administrador tiene `almacenes.todos`; Compras carga Kepler.
+    ok, ajena = unico("OK"), unico("AJ")
+    salida = importar(
+        compras_de_kepler,
+        [fila(ok, cantidad=2, almacen="KEP"), fila(ajena, cantidad=2, almacen="CON")],
+    )
+    assert salida["resumen"]["filas_importadas"] == 1
+    assert salida["filas_error"][0]["motivos"][0]["codigo"] == "ALMACEN_AJENO"
+    assert articulo(session, ok) is not None and articulo(session, ajena) is None
+
+
 # ------------------------------------------------------------------------------ I-06
 
 

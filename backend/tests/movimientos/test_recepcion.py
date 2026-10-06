@@ -4,6 +4,7 @@
 import uuid
 from datetime import timedelta
 
+import pytest
 from sqlalchemy import select
 
 from app.core.tiempo import hoy_mx
@@ -39,6 +40,13 @@ from tests.movimientos.ayudas_traspasos import (
 )
 from tests.movimientos.test_entrega import pieza_en_kep
 from tests.movimientos.test_invariantes import revisar_folios, revisar_invariantes
+
+
+@pytest.fixture
+def almacenista(cliente_como):
+    """El que opera los traspasos de Kepler: su supervisor (`traspasos.operar` es del Supervisor,
+    tabla 8.2; el almacenista no los opera). Se llama `almacenista` por las pruebas ya escritas."""
+    return cliente_como("Supervisor")
 
 
 def vigencia():
@@ -84,7 +92,7 @@ def test_X_08_la_recepcion_total_mete_todo_al_destino_y_el_traspaso_queda_recibi
     assert ubicacion_de_pieza(session, p2.codigo) == "CON"
     # X-08: quien recibe es el responsable de lo recibido; F-09: firma con su sesión.
     d = con.get(f"/api/vales/{recepcion['id']}").json()
-    assert d["tipo"] == "RECEPCION" and d["responsable"]["nombre"] == "Almacenista Contratistas"
+    assert d["tipo"] == "RECEPCION" and d["responsable"]["nombre"] == "Supervisor Contratistas"
     assert d["firma_modo"] == "SESION" and d["tiene_firma"] is False
     assert d["vale_origen_id"] == traspaso["id"] and d["vale_origen_folio"] == traspaso["folio"]
     assert d["almacen"]["clave"] == "CON"
@@ -298,7 +306,7 @@ def test_X_10_quien_opera_todos_los_almacenes_recibe_indicando_el_destino(
     almacenista, cliente_como, compras, session
 ):
     traspaso, guantes, _ = traspaso_mixto(almacenista, compras, session)
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")  # el único con `almacenes.todos`
     en_kep = cuerpo_recepcion(
         traspaso["id"], [renglon(guantes.codigo, 6)], almacen_id=str(almacen_id(session, "KEP"))
     )
@@ -444,7 +452,7 @@ def test_una_recepcion_pide_el_permiso_traspasos_operar(
 ):
     traspaso, guantes, _ = traspaso_mixto(almacenista, compras, session)
     cuerpo = cuerpo_recepcion(traspaso["id"], [renglon(guantes.codigo)])
-    for rol in ("Recursos Humanos", "Compras"):
+    for rol in ("Recursos Humanos", "Compras", "Almacenista"):  # el almacenista no opera traspasos
         c = cliente_como(rol)
         assert c.post("/api/vales/evaluar", json=cuerpo).status_code == 403, rol
         assert c.post(VALES, json=cuerpo).status_code == 403, rol
@@ -573,7 +581,7 @@ def test_por_recibir_cada_almacen_solo_ve_los_que_vienen_hacia_el_suyo(
     assert t["folio"] == a_con["folio"] and t["token"] == a_con["token"]
     assert t["estado"] == "EN_TRANSITO" and t["pendiente_total"] == 2
     assert t["origen"]["clave"] == "KEP" and t["destino"]["clave"] == "CON"
-    assert t["envio"]["nombre"] == "Almacenista Kepler"
+    assert t["envio"]["nombre"] == "Supervisor Kepler"
     assert t["renglones"][0]["codigo"] == guantes.codigo and t["recepciones"] == []
     assert almacenista.get(POR_RECIBIR).json() == {"total": 0, "elementos": []}
 
@@ -607,7 +615,7 @@ def test_por_recibir_quien_opera_todos_filtra_por_almacen_y_sin_filtro_ve_todos(
     abastecer(compras, guantes, 20)
     enviar(almacenista, session, "CON", [renglon(guantes.codigo)])
     enviar(almacenista, session, "MID", [renglon(guantes.codigo)])
-    supervisor = cliente_como("Supervisor")
+    supervisor = cliente_como("Administrador")  # el único con `almacenes.todos`
     assert supervisor.get(POR_RECIBIR).json()["total"] >= 2
     solo_con = supervisor.get(POR_RECIBIR, params={"almacen_id": str(almacen_id(session, "CON"))})
     assert {t["destino"]["clave"] for t in solo_con.json()["elementos"]} == {"CON"}

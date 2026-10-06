@@ -12,11 +12,16 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.core.errores_bd import ERRNO_UNICO, violacion
-from app.core.excepciones import DatosInvalidos
+from app.core.excepciones import DatosInvalidos, NoEncontrado, SinPermiso
 from app.modulos.acceso.exceptions import UltimoAdministrador, UsuarioExiste, UsuarioNoEncontrado
 from app.modulos.acceso.models import Rol, Usuario
 from app.modulos.acceso.permisos import P
-from app.modulos.acceso.repository import FiltrosUsuarios, RolRepository, UsuarioRepository
+from app.modulos.acceso.repository import (
+    PERMISOS_DE_ALMACEN,
+    FiltrosUsuarios,
+    RolRepository,
+    UsuarioRepository,
+)
 from app.modulos.acceso.schemas import (
     AlmacenSesionOut,
     PersonalOut,
@@ -60,6 +65,7 @@ class UsuarioAdminService:
 
     def listar_personal(
         self,
+        actor: Usuario,
         *,
         almacen_id: uuid.UUID | None,
         sin_almacen: bool,
@@ -67,12 +73,26 @@ class UsuarioAdminService:
         limit: int,
         offset: int,
     ) -> tuple[list[PersonalOut], int]:
-        """Usuarios que operan un almacén (sin `almacenes.todos`), con filtros (AC-12)."""
+        """Usuarios que operan un almacén (sin `almacenes.todos`), con filtros (AC-12).
+
+        AC-06: sin `almacenes.todos`, quien asigna ve solo al personal de su almacén y a quienes
+        no tienen almacén (para traerlos); nunca al de otro almacén.
+        """
         if almacen_id is not None and sin_almacen:
             raise _invalido("sin_almacen", "Elige un almacén o «sin almacén», no los dos.")
+        propio = None
+        if not self._ve_todos(actor):
+            propio = actor.almacen_id
+            if almacen_id is not None and almacen_id != propio:
+                return [], 0
         filas, total = self.usuarios.listar(
             FiltrosUsuarios(
-                q=q, almacen_id=almacen_id, sin_almacen=sin_almacen, solo_operativos=True
+                q=q,
+                almacen_id=almacen_id,
+                sin_almacen=sin_almacen,
+                solo_operativos=True,
+                almacen_o_libres_id=propio,
+                solo_libres=not self._ve_todos(actor) and propio is None,
             ),
             limit=limit,
             offset=offset,
@@ -104,12 +124,23 @@ class UsuarioAdminService:
         Los vales y movimientos ya hechos no se tocan (RG-03).
         """
         usuario = self.obtener(usuario_id)
+        if not self._ve_todos(actor):
+            # AC-06: un supervisor solo trae a su almacén a quien no tiene uno, o libera a quien
+            # está en el suyo. Mover entre almacenes distintos es del Administrador.
+            propio = actor.almacen_id
+            if propio is None:
+                raise SinPermiso("No tienes un almacén asignado.")
+            if usuario.almacen_id not in (None, propio):
+                raise NoEncontrado("No se encontró al usuario.")
+            if almacen_id is not None and almacen_id != propio:
+                raise SinPermiso("Solo puedes asignar personal a tu almacén.")
         if not usuario.activo:
             raise _invalido("usuario_id", "Un usuario inactivo no se puede mover de almacén.")
-        if not self._opera_almacen(usuario.rol_id):
+        permisos_rol = self.roles.permisos(usuario.rol_id)
+        if P.ALMACENES_TODOS in permisos_rol or not permisos_rol.intersection(PERMISOS_DE_ALMACEN):
             raise _invalido(
                 "usuario_id",
-                "Ese usuario puede operar todos los almacenes; no se le asigna uno (AC-12).",
+                "Ese usuario no trabaja en un almacén; no se le asigna uno (AC-12).",
             )
         anterior = self._almacen_de(usuario)
         nuevo = self._almacen_destino(almacen_id) if almacen_id is not None else None
@@ -255,6 +286,9 @@ class UsuarioAdminService:
         sigue = activo and rol.activo and P.ACCESO_ADMINISTRAR in self.roles.permisos(rol.id)
         if not sigue and not (administradores - {usuario.id}):
             raise UltimoAdministrador()
+
+    def _ve_todos(self, usuario: Usuario) -> bool:
+        return P.ALMACENES_TODOS in self.roles.permisos(usuario.rol_id)
 
     def _opera_almacen(self, rol_id: uuid.UUID) -> bool:
         """Opera un almacén quien no tiene `almacenes.todos` (RG-07)."""

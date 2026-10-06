@@ -129,7 +129,7 @@ def test_A_04_el_vale_muestra_quien_pidio_quien_valido_cuando_y_por_que_medio(
         ),
     )
     valido = almacenista.get(f"{VALES}/{r.json()['id']}").json()["valido"]
-    assert valido["autorizo"]["nombre"] == "Supervisor de prueba"
+    assert valido["autorizo"]["nombre"] == "Supervisor Kepler"
     assert valido["solicito"]["nombre"] == "Almacenista Kepler"
     assert valido["medio"] == "REMOTA" and valido["motivo"] == "Cubre a un compañero"
     assert valido["resuelta_en"].endswith("Z") and valido["autorizacion_id"] == autorizacion_id

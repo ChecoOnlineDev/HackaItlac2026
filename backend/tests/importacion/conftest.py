@@ -1,6 +1,9 @@
 """Fixtures de las pruebas de `importacion`.
 
-- `compras`: sesión de Compras (`inventario.entradas`, `catalogo.costos`, `almacenes.todos`).
+- `compras`: sesión de quien importa a cualquier almacén: el Administrador (`inventario.entradas`,
+  `catalogo.costos`, `almacenes.todos`). Compras es de Kepler y ya no carga otros almacenes (AC-06);
+  esa regla se prueba con `cliente_con` y con `compras_de_kepler`.
+- `compras_de_kepler`: sesión de Compras (almacén asignado: Kepler).
 - `almacenista`: sesión del almacenista de Kepler (sin `inventario.entradas`).
 - `cliente_con`: sesión de un rol nuevo con exactamente esos permisos y ese almacén.
 """
@@ -15,6 +18,11 @@ from tests.conftest import iniciar_sesion_en
 
 @pytest.fixture
 def compras(cliente_como) -> TestClient:
+    return cliente_como("Administrador")
+
+
+@pytest.fixture
+def compras_de_kepler(cliente_como) -> TestClient:
     return cliente_como("Compras")
 
 

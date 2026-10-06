@@ -41,7 +41,7 @@ QuienAsignaPersonal = Annotated[Usuario, Depends(requiere_permiso(P.ALMACENES_AS
 
 @router.get("/personal", response_model=Pagina[PersonalOut])
 def listar_personal(
-    _: QuienAsignaPersonal,
+    actor: QuienAsignaPersonal,
     service: ServiceDep,
     pagina: PaginacionDep,
     almacen_id: uuid.UUID | None = None,
@@ -49,8 +49,9 @@ def listar_personal(
     q: str | None = None,
 ) -> Pagina[PersonalOut]:
     """`almacenes.asignar_personal`. Quienes operan un almacén; filtros por almacén, sin almacén y
-    texto."""
+    texto. Sin `almacenes.todos`, solo el personal de su almacén y quienes no tienen uno."""
     elementos, total = service.listar_personal(
+        actor,
         almacen_id=almacen_id,
         sin_almacen=sin_almacen,
         q=q,

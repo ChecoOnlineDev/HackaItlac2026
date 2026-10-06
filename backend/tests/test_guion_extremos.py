@@ -39,7 +39,10 @@ from tests.ayudas_guion import (
 from tests.conftest import iniciar_sesion_en
 from tests.invariantes import verificar_invariantes
 from tests.movimientos.ayudas import PNG_B64
-from tests.movimientos.ayudas_traspasos import cliente_almacen  # noqa: F401  (fixture)
+from tests.movimientos.ayudas_traspasos import (  # noqa: F401  (fixtures)
+    cliente_almacen,
+    cliente_almacenista,
+)
 
 VALES = "/api/vales"
 AUT = "/api/autorizaciones"
@@ -51,18 +54,26 @@ def _archivos_tmp(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def mundo(cliente_como, cliente_almacen, session):  # noqa: F811
-    """Los clientes de cada rol y almacén, y los ids de los almacenes."""
+def mundo(cliente_como, cliente_almacen, cliente_almacenista, session):  # noqa: F811
+    """Los clientes de cada rol y almacén, y los ids de los almacenes.
+
+    `kep`, `con`, `mid` y `hyl` son los ALMACENISTAS (entregan y devuelven); `sup_kep`, `sup_con`,
+    `sup_mid` y `sup_hyl` los supervisores de cada almacén, que son quienes operan traspasos.
+    """
     return SimpleNamespace(
         session=session,
         rh=cliente_como("Recursos Humanos"),
         sup=cliente_como("Supervisor"),
         compras=cliente_como("Compras"),
         admin=cliente_como("Administrador"),
-        kep=cliente_almacen("KEP"),
-        con=cliente_almacen("CON"),
-        mid=cliente_almacen("MID"),
-        hyl=cliente_almacen("HYL"),
+        kep=cliente_almacenista("KEP"),
+        con=cliente_almacenista("CON"),
+        mid=cliente_almacenista("MID"),
+        hyl=cliente_almacenista("HYL"),
+        sup_kep=cliente_almacen("KEP"),
+        sup_con=cliente_almacen("CON"),
+        sup_mid=cliente_almacen("MID"),
+        sup_hyl=cliente_almacen("HYL"),
         almacen=ids_de_almacen(session),
     )
 
@@ -137,7 +148,7 @@ def test_ES_05_el_cuarto_par_de_guantes_de_la_semana_pide_autorizacion_y_vence_a
     vale = entregar(m.kep, juan["id"], cuerpo["renglones"], autorizacion_id=aut)
     # 4. El vale guarda quién autorizó y por qué (A-04); el excedente es solo el renglón naranja.
     detalle = m.kep.get(f"{VALES}/{vale['id']}").json()
-    assert detalle["valido"]["autorizo"]["nombre"] == "Supervisor de prueba"
+    assert detalle["valido"]["autorizo"]["nombre"] == "Supervisor Kepler"
     assert detalle["valido"]["motivo"] == "Se le llenaron de grasa"
     assert [r["nivel"] for r in detalle["renglones"]] == ["NARANJA", "VERDE"]
     assert cantidad_en(m.kep, kep_id, "GUANTE-CAR") == 120 - 4
@@ -377,12 +388,13 @@ def test_ES_12_dos_almacenistas_del_mismo_almacen_con_su_propia_cuenta(mundo, ap
         folios = {f["folio"] for f in r.json()["elementos"]}
         assert vale["folio"] in folios and otro["folio"] not in folios
     # El filtro «quién lo hizo» ofrece a los dos de Kepler; el de Midrex ve solo a los suyos.
-    kepler = {u["usuario"] for u in noche.get("/api/reportes/usuarios").json()["elementos"]}
+    # (el almacenista no tiene reportes: lo consultan los supervisores de cada almacén)
+    kepler = {u["usuario"] for u in m.sup_kep.get("/api/reportes/usuarios").json()["elementos"]}
     assert {"almacenista", raul.usuario} <= kepler and "alm_mid" not in kepler
     # Nadie ha hecho vales en Midrex: su almacenista no ve a los de Kepler (AC-06).
-    midrex = {u["usuario"] for u in m.mid.get("/api/reportes/usuarios").json()["elementos"]}
+    midrex = {u["usuario"] for u in m.sup_mid.get("/api/reportes/usuarios").json()["elementos"]}
     assert midrex == set()
-    todos = {u["usuario"] for u in m.sup.get("/api/reportes/usuarios").json()["elementos"]}
+    todos = {u["usuario"] for u in m.admin.get("/api/reportes/usuarios").json()["elementos"]}
     assert {"almacenista", raul.usuario} <= todos
     noche.close()
     verificar_invariantes(m.session)
@@ -532,7 +544,7 @@ def test_ES_19_baja_en_kepler_con_un_arnes_pendiente_en_midrex(mundo):
     m = mundo
     # El arnés llega a Midrex (traspaso con ruta inusual: aviso, no bloqueo; X-03).
     trs = confirmar(
-        m.kep,
+        m.sup_kep,  # los traspasos los opera el supervisor de cada almacén
         {
             "tipo": "TRASPASO",
             "destino_almacen_id": str(m.almacen["MID"]),
@@ -540,7 +552,7 @@ def test_ES_19_baja_en_kepler_con_un_arnes_pendiente_en_midrex(mundo):
         },
     )
     confirmar(
-        m.mid,
+        m.sup_mid,
         {"tipo": "RECEPCION", "vale_origen_id": trs["id"], "renglones": [{"codigo": "ALT-004"}]},
     )
     juan = alta_trabajador(m.rh, nombre="Juan")
@@ -654,7 +666,7 @@ def test_ES_28_rastreo_por_usuario_en_la_bitacora_y_alcance_del_almacen(mundo):
     m = mundo
     # El detector llega a Midrex (Kepler -> Midrex) y alguien de Midrex lo entrega.
     trs = confirmar(
-        m.kep,
+        m.sup_kep,  # los traspasos los opera el supervisor de cada almacén
         {
             "tipo": "TRASPASO",
             "destino_almacen_id": str(m.almacen["MID"]),
@@ -662,7 +674,7 @@ def test_ES_28_rastreo_por_usuario_en_la_bitacora_y_alcance_del_almacen(mundo):
         },
     )
     rec = confirmar(
-        m.mid,
+        m.sup_mid,
         {
             "tipo": "RECEPCION",
             "vale_origen_id": trs["id"],
@@ -674,20 +686,20 @@ def test_ES_28_rastreo_por_usuario_en_la_bitacora_y_alcance_del_almacen(mundo):
     mid_user = m.mid.get("/api/sesion").json()["usuario"]
     articulo = m.mid.get("/api/busqueda", params={"q": "HER-004"}).json()["piezas"]["elementos"][0]
 
-    # El supervisor (almacenes.todos) filtra por el artículo y el almacén: cada vale que movió el
-    # detector, con su responsable (C-11).
-    r = m.sup.get(
+    # Quien ve todos los almacenes (el Administrador) filtra por el artículo: cada vale que movió
+    # el detector, con su responsable (C-11).
+    r = m.admin.get(
         "/api/reportes/movimientos", params={"articulo_id": articulo["articulo_id"], "tamano": 100}
     )
     de_la_pieza = [f for f in r.json()["elementos"] if f["pieza"] == "HER-004"]
     assert [f["folio"] for f in de_la_pieza][:3] == [entrega["folio"], rec["folio"], trs["folio"]]
     assert [f["responsable"] for f in de_la_pieza][:3] == [
         "Almacenista Midrex",
-        "Almacenista Midrex",
-        "Almacenista Kepler",
+        "Supervisor Midrex",
+        "Supervisor Kepler",
     ]
     # En la ficha de la pieza está su historial completo.
-    ficha = m.sup.get(f"/api/piezas/{articulo['id']}").json()
+    ficha = m.admin.get(f"/api/piezas/{articulo['id']}").json()
     assert "Luis" in ficha["ubicacion"]["texto"]
     assert [h["folio"] for h in ficha["historial"] if h["tipo"] == "MOVIMIENTO"][:3] == [
         entrega["folio"],
@@ -696,17 +708,19 @@ def test_ES_28_rastreo_por_usuario_en_la_bitacora_y_alcance_del_almacen(mundo):
     ]
     # Filtra por usuario: qué más hizo cada persona (el almacenista de Midrex: la recepción y la
     # entrega, nada de Kepler).
-    r = m.sup.get("/api/reportes/movimientos", params={"usuario_id": mid_user["id"], "tamano": 100})
+    r = m.admin.get(
+        "/api/reportes/movimientos", params={"usuario_id": mid_user["id"], "tamano": 100}
+    )
     folios = {f["folio"] for f in r.json()["elementos"]}
     assert entrega["folio"] in folios and trs["folio"] not in folios
     assert {f["responsable"] for f in r.json()["elementos"]} == {"Almacenista Midrex"}
-    # Marta (almacén de Midrex) usa el mismo filtro, pero solo sobre su almacén (AC-06).
-    propios = m.mid.get("/api/reportes/movimientos", params={"usuario_id": mid_user["id"]})
+    # El supervisor de Midrex usa el mismo filtro, pero solo sobre su almacén (AC-06).
+    propios = m.sup_mid.get("/api/reportes/movimientos", params={"usuario_id": mid_user["id"]})
     assert entrega["folio"] in {f["folio"] for f in propios.json()["elementos"]}
     kep_user = m.kep.get("/api/sesion").json()["usuario"]
-    ajeno = m.mid.get("/api/reportes/movimientos", params={"usuario_id": kep_user["id"]})
+    ajeno = m.sup_mid.get("/api/reportes/movimientos", params={"usuario_id": kep_user["id"]})
     assert ajeno.status_code == 200 and ajeno.json()["elementos"] == []
-    otro_almacen = m.mid.get(
+    otro_almacen = m.sup_mid.get(
         "/api/reportes/movimientos", params={"almacen_id": str(m.almacen["KEP"])}
     )
     assert otro_almacen.json()["elementos"] == []

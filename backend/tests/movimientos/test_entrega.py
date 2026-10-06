@@ -699,8 +699,9 @@ def test_AC_13_almacen_cambio_trae_el_detalle_del_contrato_al_evaluar_y_al_confi
 
 
 def test_AC_06_quien_opera_todos_los_almacenes_indica_cual(
-    supervisor, compras, session, trabajador
+    cliente_como, compras, session, trabajador
 ):
+    supervisor = cliente_como("Administrador")  # el único con `almacenes.todos`
     guantes = crear_articulo(session)
     abastecer(compras, guantes, 5)
     cuerpo = cuerpo_entrega(trabajador, [renglon(guantes.codigo)])
