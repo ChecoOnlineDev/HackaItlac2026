@@ -304,7 +304,10 @@ def test_E_06_una_inspeccion_que_vence_hoy_todavia_es_vigente(
         compras, session, requiere_inspeccion=True, vigente_hasta=hoy_mx() + timedelta(days=dias)
     )
     ev = evaluar(almacenista, trabajador, [renglon(pieza.codigo)])
-    assert ev["renglones"][0]["nivel"] == "VERDE" and ev["puede_confirmar"] is True
+    # Vigente: no es E-06 y se puede confirmar. Si vence en 7 días o menos, avisa (E-11, amarillo).
+    por_vencer = dias <= 7
+    assert ev["renglones"][0]["nivel"] == ("AMARILLO" if por_vencer else "VERDE")
+    assert "E-06" not in motivos(ev) and ev["puede_confirmar"] is True
 
 
 def test_E_06_solo_aplica_si_el_articulo_requiere_inspeccion(

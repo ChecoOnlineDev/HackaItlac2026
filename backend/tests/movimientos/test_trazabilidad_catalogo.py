@@ -157,7 +157,9 @@ def test_US_ENT_002_P_07_un_ajuste_de_vigencia_cambia_la_siguiente_evaluacion_de
         json={"vigente_hasta": (hoy_mx() + timedelta(days=5)).isoformat(), "motivo": "Revisada"},
     )
     assert otra.status_code == 201, otra.text
-    assert evaluar(almacenista, trabajador, [renglon(pieza.codigo)])["nivel"] == "VERDE"
+    # Vence en 5 días: ya no es rojo, solo el aviso E-11 (amarillo).
+    ev = evaluar(almacenista, trabajador, [renglon(pieza.codigo)])
+    assert ev["nivel"] == "AMARILLO" and ev["renglones"][0]["motivos"][0]["regla"] == "E-11"
 
 
 # ------------------------------------------------------------------------------- US-CAT-002
