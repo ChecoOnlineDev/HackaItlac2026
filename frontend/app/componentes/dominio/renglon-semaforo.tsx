@@ -77,13 +77,13 @@ export interface PropiedadesRenglonSemaforo {
   className?: string;
 }
 
-function Motivo({ motivo }: { motivo: MotivoRegla }) {
+function Motivo({ motivo, textos }: { motivo: MotivoRegla; textos?: PropiedadesRenglonSemaforo["textos"] }) {
   const Icono = ICONO_NIVEL[motivo.nivel];
   return (
     <li className="flex items-start gap-2 text-sm leading-snug">
       <Icono aria-hidden="true" strokeWidth={3} className={cn("mt-1 size-4 shrink-0", COLOR_TEXTO_ICONO[motivo.nivel])} />
       <span className="min-w-0 flex-1">
-        <span className="sr-only">{TEXTO_NIVEL[motivo.nivel]}: </span>
+        <span className="sr-only">{textos?.[motivo.nivel] ?? TEXTO_NIVEL[motivo.nivel]}: </span>
         {motivo.mensaje}
         {motivo.regla ? <span className="ml-1.5 text-xs font-medium whitespace-nowrap text-muted-foreground">({motivo.regla})</span> : null}
       </span>
@@ -170,7 +170,7 @@ export function RenglonSemaforo({
         {renglon.motivos.length > 0 ? (
           <ul className="flex flex-col gap-1">
             {renglon.motivos.map((m, i) => (
-              <Motivo key={`${m.regla}-${i}`} motivo={m} />
+              <Motivo key={`${m.regla}-${i}`} motivo={m} textos={textos} />
             ))}
           </ul>
         ) : null}
