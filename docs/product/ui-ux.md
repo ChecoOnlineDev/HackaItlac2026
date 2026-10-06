@@ -138,8 +138,8 @@ Los títulos pueden ocupar dos líneas; nada se corta con "…", salvo el nombre
 ### Trabajadores (RH)
 
 - **Lista:** búsqueda por nombre o número; columnas: nombre, puesto, vigencia y situación (Sin pendientes, Con pendientes, No adeudo emitido).
-- **Alta:** formulario corto en un solo paso; el número de empleado se valida al salir del campo y ofrece el reingreso si ya existe. Incluye la foto, opcional: se toma con la cámara o se sube una imagen.
-- **Ficha:** datos, periodos anteriores, pendientes y acciones: Reingresar, Iniciar baja, Cancelar baja.
+- **Alta:** el puesto se elige de una lista de puestos activos (si no hay, un aviso con el enlace a Puestos o la indicación de pedirlo a Compras o al supervisor); formulario corto en un solo paso; el número de empleado se valida al salir del campo y ofrece el reingreso si ya existe. Incluye la foto, opcional: se toma con la cámara o se sube una imagen.
+- **Ficha:** datos, periodos anteriores, pendientes y acciones: Reingresar, Iniciar baja, Cancelar baja. Incluye "Dotación del puesto": por artículo, una barra sencilla con "entregado de recomendado" y una insignia "Falta N" o "Completo" (siempre con texto, no solo color).
 
 ### Inventario, entradas e importación (Compras)
 
@@ -153,6 +153,8 @@ Los títulos pueden ocupar dos líneas; nada se corta con "…", salvo el nombre
 - **Artículos:** lista con búsqueda a la vista y filtros por categoría y estado (activos, inactivos) en la hoja "Filtros". Los inactivos aparecen atenuados con su motivo.
 - **Detalle de artículo:** datos generales; sección "Reglas de entrega" con límite y requisitos especiales, cada uno con su interruptor y su motivo; sección "Estado" con Inactivar o Reactivar. Control y retorno aparecen bloqueados con una nota si ya hay movimientos.
 - **Estados:** al guardar, aviso breve "Cambio guardado. Aplica desde la siguiente entrega."
+- **Puestos (`/puestos`):** misma estructura que Artículos: búsqueda a la vista y filtro de estado en "Filtros"; tabla en tableta y computadora, tarjetas en celular, con nombre, cuántos artículos tiene su dotación ("Sin dotación" si ninguno) e insignia Activo o Inactivo. Acciones pequeñas: Dotación, Renombrar, Inactivar o Reactivar (con confirmación). Crear un puesto abre enseguida su dotación.
+- **Editor de dotación:** una `Hoja` (inferior en celular, lateral en computadora). Cada renglón es una tarjeta con artículo (nombre y código), "Cantidad recomendada" y, de apoyo, el límite del artículo ("Límite: 3 cada 7 días"); "Quitar" en el renglón. Abajo, un buscador de artículos activos. El pie dice en una frase qué cambia ("Se agregan 2 artículos y se quita 1") antes de "Guardar dotación". Los errores del servidor (D-01, D-04) salen junto al renglón. Sin renglones se explica: "Sin dotación no se generan avisos al entregar".
 
 ### Personal por almacén (supervisor y administrador)
 

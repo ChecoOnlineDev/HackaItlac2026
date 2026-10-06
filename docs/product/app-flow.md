@@ -59,7 +59,7 @@ Guardar -> con `etiquetas.imprimir` y credencial ligada: imprimir o descargar la
 
 ## Flujo 3: Catálogo (Compras o supervisor)
 
-- **Entrada:** Catálogo -> Categorías | Artículos.
+- **Entrada:** Catálogo -> Categorías | Artículos | Puestos.
 - **Pasos:**
 
 ```
@@ -68,7 +68,13 @@ Artículo  -> crear: elegir categoría -> el formulario toma la plantilla -> aju
           -> editar: límite, requisitos especiales y su motivo (CF-06, CF-07)
           -> inactivar: motivo obligatorio (CF-10) | reactivar (CF-13)
           -> eliminar: solo si no tiene movimientos (CF-12)
+Puesto    -> crear: nombre -> se abre su dotación | renombrar | inactivar y reactivar
+Dotación  -> agregar artículos activos y cantidad recomendada -> resumen de cambios -> guardar (reemplaza la lista; D-01, D-04)
 ```
+
+- **Puestos (`/puestos`):** lista con búsqueda y filtro Activos, Inactivos o Todos. Quien tiene `catalogo.ver` la ve y abre la dotación; crear, renombrar, inactivar y editar la dotación piden `catalogo.administrar`. Un puesto inactivo conserva su dotación pero no se ofrece en el alta de trabajadores. Un puesto sin dotación no genera avisos al entregar.
+- **Alta y reingreso de trabajadores:** el campo "Puesto" es una lista de los puestos activos y manda `puesto_id`. Si no hay puestos, el formulario avisa: con `catalogo.administrar` ofrece el enlace a Puestos ("Primero crea un puesto"); sin él pide a Compras o al supervisor que lo creen. Quien no tiene `catalogo.ver` (Recursos Humanos en los datos iniciales) no puede listar el catálogo: ve el campo de texto de antes y el servidor liga el nombre al puesto si coincide.
+- **Ficha del trabajador:** el bloque "Dotación del puesto" muestra cada artículo recomendado con lo entregado, lo recomendado y lo que falta (D-02).
 
 - **Decisiones:** si el artículo ya tiene movimientos, control y retorno aparecen bloqueados con la explicación (CF-05).
 - **Éxito:** la siguiente entrega respeta el cambio (CF-08); el cambio queda registrado (CF-15).
@@ -318,6 +324,7 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 | `/inventario` | Existencias | Compras, supervisor, almacenista |
 | `/entradas/nueva`, `/importar` | Entrada e importación | Compras |
 | `/catalogo/categorias`, `/catalogo/articulos` | Catálogo | Compras, supervisor |
+| `/puestos` | Puestos y su dotación recomendada | Compras, supervisor (`catalogo.ver`; editar, `catalogo.administrar`) |
 | `/etiquetas` | Hojas de QR | Compras, RH |
 | `/reportes/existencias`, `/reportes/movimientos`, `/reportes/adeudos`, `/reportes/consumo` | Reportes | Según la sección 8.2 de las reglas |
 | `/v/:token` | Vale abierto desde su QR | Con sesión en el MVP |

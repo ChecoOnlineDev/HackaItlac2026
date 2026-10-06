@@ -217,12 +217,13 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 
 **Perfil.** Responsable de la operación en campo. Necesita autorizar excepciones sin ir al almacén y revisar lo irregular cuando tenga tiempo. Usa sobre todo el celular.
 
-**Qué ve al entrar.** Su inicio muestra **Autorizaciones** con un contador de solicitudes por resolver, y los botones de operación de almacén (Entregar, Devolver, Trasladar, Recibir, Consultar). En el menú tiene además Trabajadores, Inventario, Categorías, Artículos, Etiquetas y los cuatro reportes (existencias, movimientos, adeudos y consumo). No ve Entradas ni Importar (son de Compras), ni costos, ni CURP y NSS.
+**Qué ve al entrar.** Su inicio muestra **Autorizaciones** con un contador de solicitudes por resolver, y los botones de operación de almacén (Entregar, Devolver, Trasladar, Recibir, Consultar). En el menú tiene además Trabajadores, Inventario, Categorías, Artículos, Puestos, Etiquetas y los cuatro reportes (existencias, movimientos, adeudos y consumo). No ve Entradas ni Importar (son de Compras), ni costos, ni CURP y NSS.
 
 **Funcionalidades clave.**
 - Autorizar o rechazar excedentes y entregas restringidas, desde su celular o con su PIN en el mostrador.
 - Operar cualquier almacén (elige cuál).
 - Administrar el catálogo (categorías, artículos, requisitos, límites, inactivar).
+- Crear puestos y armar su dotación recomendada, en **Puestos**: **Nuevo puesto** → nombre → se abre la dotación → buscar artículos activos y poner la cantidad recomendada (no puede pasar del límite del artículo, D-04) → revisar el resumen de cambios → **Guardar dotación**. Sirve para que, al entregar fuera de lo recomendado, el almacén reciba un aviso sin bloqueo (E-09), y para que la ficha de cada trabajador diga qué le falta (D-02).
 - Ajustar la vigencia de una inspección, con motivo.
 - Cancelar los vales de cualquiera.
 - Asignar y mover personal entre almacenes, en **Personal** (menú, Supervisión).
@@ -273,12 +274,13 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 
 **Perfil.** Responsable de abastecer, mantener el catálogo y saber cuánto vale lo que hay. Trabaja en computadora y no opera el mostrador.
 
-**Qué ve al entrar.** Como no opera un almacén, su inicio muestra directamente: Mis movimientos de hoy, Inventario, Entradas, Importar, Categorías, Artículos, Etiquetas y los reportes de Existencias, Movimientos y Consumo, además de Consultar. No ve Entregar, Devolver, Trasladar ni Recibir, ni Trabajadores, ni Adeudos, ni Autorizaciones.
+**Qué ve al entrar.** Como no opera un almacén, su inicio muestra directamente: Mis movimientos de hoy, Inventario, Entradas, Importar, Categorías, Artículos, Puestos, Etiquetas y los reportes de Existencias, Movimientos y Consumo, además de Consultar. No ve Entregar, Devolver, Trasladar ni Recibir, ni Trabajadores, ni Adeudos, ni Autorizaciones.
 
 **Funcionalidades clave.**
 - Registrar entradas de inventario (almacén, artículos y piezas con su código, marca y serie).
 - Importar inventario desde una tabla de Excel con vista previa.
 - Administrar el catálogo, incluido el **costo** (solo Compras lo ve y captura).
+- Administrar los **puestos** y su dotación recomendada (**Puestos** en el menú): crear, renombrar, inactivar y reactivar un puesto, y definir qué artículos y cuántos se recomiendan. RH los necesita para dar de alta a un trabajador y el almacén para saber qué le falta; Compras conoce el catálogo y puede cuidar que las cantidades respeten los límites (D-04).
 - Ver existencias de todos los almacenes.
 - Imprimir hojas de QR de piezas, estantes y credenciales.
 - Reportes de existencias, movimientos y consumo.
@@ -328,7 +330,7 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 **Qué ve al entrar.** Como no opera un almacén, su inicio muestra: Trabajadores, Alta de trabajador, Etiquetas, Reporte de Adeudos y Consultar. No ve existencias, catálogo ni vales.
 
 **Funcionalidades clave.**
-- Alta y reingreso de trabajadores con su periodo de contrato.
+- Alta y reingreso de trabajadores con su periodo de contrato. El puesto se elige de la lista de puestos activos; si aún no existe, Compras o el supervisor lo crean en **Puestos**. En los datos iniciales RH no tiene permiso de catálogo, así que ve el puesto como campo de texto y el servidor lo liga al puesto si el nombre coincide; para que el trabajador tenga dotación, el nombre debe ser el de un puesto creado.
 - Ligar la credencial de la planta, o generar un QR propio.
 - Foto opcional tomada con la cámara.
 - Ver CURP y NSS (solo RH).
@@ -421,7 +423,7 @@ Para no confundir a quien pruebe. Fuente: [mvp-scope.md](product/mvp-scope.md).
 
 **Pospuesto (sin brief):** lista de revisión del supervisor, cierre sin devolución y equipo perdido, reporte de EPP por trabajador, subconjuntos de almacenes por usuario, habilitaciones del trabajador, solicitud de compra, carta de aceptación en el alta, importación de trabajadores desde Excel, tablero general, entrega de turno entre almacenistas, solicitud de surtido entre almacenes y aviso de falta de cobertura de turnos.
 
-**Segunda ola (con brief, aún no construida según el alcance):** vale como prueba (comprobante público por QR, ticket y firma en papel), cierre de almacén de proyecto y valor del inventario, dotación por puesto, mínimos y estados de pieza.
+**Segunda ola (con brief, aún no construida según el alcance):** vale como prueba (comprobante público por QR, ticket y firma en papel), cierre de almacén de proyecto y valor del inventario, mínimos y estados de pieza. La dotación por puesto (FEAT-003) ya tiene su servidor y las pantallas de administración; los avisos en la entrega son del otro frente de esa función.
 
 ---
 
