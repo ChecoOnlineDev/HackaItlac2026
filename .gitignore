@@ -41,6 +41,14 @@ pnpm-debug.log*
 *.log
 *.tmp
 *.swp
+*.bak
+*.orig
+*.rej
+tmp/
+temp/
+scratch/
+.claude/settings.local.json
+.playwright-mcp/
 
 # --- Archivos subidos (volumen local) ---
 backend/almacenamiento/
