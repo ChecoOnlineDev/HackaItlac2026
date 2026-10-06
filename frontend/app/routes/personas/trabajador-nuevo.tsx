@@ -7,6 +7,7 @@ import { esErrorApi, mensajeDeError } from "~/api/errores";
 import type { Pagina } from "~/api/tipos";
 import { VistaCredencial } from "~/componentes/dominio/credencial";
 import { SelectorFoto } from "~/componentes/personas/foto";
+import { cuerpoDePuesto, SelectorPuesto } from "~/componentes/puestos/selector-puesto";
 import { fechaCorta, hoyMx } from "~/componentes/personas/formato";
 import { InsigniaSituacion, InsigniaVigencia } from "~/componentes/personas/insignias";
 import { ListaPendientes } from "~/componentes/personas/pendientes";
@@ -45,6 +46,8 @@ export default function AltaTrabajador() {
 
   const [numero, setNumero] = useState("");
   const [nombre, setNombre] = useState("");
+  // Puesto: `puestoId` del catálogo y su nombre (`puesto`). Sin permiso para ver el catálogo, solo el texto.
+  const [puestoId, setPuestoId] = useState("");
   const [puesto, setPuesto] = useState("");
   const [area, setArea] = useState("");
   const [inicio, setInicio] = useState(hoyMx());
@@ -77,6 +80,7 @@ export default function AltaTrabajador() {
   // Datos del reingreso.
   const [reInicio, setReInicio] = useState(hoyMx());
   const [reFin, setReFin] = useState("");
+  const [rePuestoId, setRePuestoId] = useState("");
   const [rePuesto, setRePuesto] = useState("");
   const [reArea, setReArea] = useState("");
 
@@ -94,7 +98,8 @@ export default function AltaTrabajador() {
   async function cargarExistente(id: string) {
     const ficha = await apiGet<Ficha>(`/trabajadores/${id}`);
     setExistente(ficha);
-    setRePuesto(ficha.puesto ?? "");
+    setRePuestoId("");
+    setRePuesto("");
     setReArea(ficha.area_obra ?? "");
     setReInicio(hoyMx());
     setReFin("");
@@ -133,7 +138,7 @@ export default function AltaTrabajador() {
     const e: Errores = {};
     if (!numero.trim()) e.numero_empleado = "Escribe el número de empleado.";
     if (!nombre.trim()) e.nombre = "Escribe el nombre completo.";
-    if (!puesto.trim()) e.puesto = "Escribe el puesto.";
+    if (!puestoId && !puesto.trim()) e.puesto = "Elige el puesto.";
     if (!area.trim()) e.area_obra = "Escribe el área o la obra.";
     if (!inicio) e.inicio = "Elige la fecha de inicio.";
     if (!fin) e.fin = "Elige la fecha de fin.";
@@ -165,7 +170,7 @@ export default function AltaTrabajador() {
           const ficha = await apiPost<Ficha>("/trabajadores", {
             nombre: nombre.trim(),
             numero_empleado: numero.trim(),
-            puesto: puesto.trim(),
+            ...cuerpoDePuesto(puestoId, puesto),
             area_obra: area.trim(),
             inicio,
             fin,
@@ -185,7 +190,7 @@ export default function AltaTrabajador() {
             return;
           }
           const { campo, mensaje } = errorDeCampo(causa, {});
-          if (campo) setErrores({ [campo]: mensaje });
+          if (campo) setErrores({ [campo === "puesto_id" ? "puesto" : campo]: mensaje });
           else setErrorGeneral(mensaje);
           return;
         }
@@ -245,7 +250,7 @@ export default function AltaTrabajador() {
       await apiPost<Ficha>(`/trabajadores/${existente.id}/periodos`, {
         inicio: reInicio,
         fin: reFin,
-        puesto: rePuesto.trim() || undefined,
+        ...cuerpoDePuesto(rePuestoId, rePuesto),
         area_obra: reArea.trim() || undefined,
       });
       aviso({ titulo: `Se reingresó a ${existente.nombre}`, tipo: "exito" });
@@ -253,6 +258,7 @@ export default function AltaTrabajador() {
     } catch (causa) {
       const { campo, mensaje } = errorDeCampo(causa, {});
       if (campo === "fin") setErrores({ re_fin: mensaje });
+      else if (campo === "puesto_id") setErrores({ re_puesto: mensaje });
       else setErrorGeneral(mensaje);
     } finally {
       setGuardando(false);
@@ -322,7 +328,17 @@ export default function AltaTrabajador() {
             <div className="grid gap-4 sm:grid-cols-2">
               <CampoFecha etiqueta="Inicio del nuevo periodo" value={reInicio} alCambiar={(v) => setReInicio(v)} error={errores.re_inicio} />
               <CampoFecha etiqueta="Fin del nuevo periodo" value={reFin} alCambiar={(v) => setReFin(v)} error={errores.re_fin} />
-              <Campo etiqueta="Puesto" value={rePuesto} onChange={(e) => setRePuesto(e.target.value)} />
+              <SelectorPuesto
+                valorId={rePuestoId}
+                valorTexto={rePuesto}
+                alCambiar={(id, texto) => {
+                  setRePuestoId(id);
+                  setRePuesto(texto);
+                }}
+                vacio={existente.puesto ? `Conservar el puesto actual (${existente.puesto})` : "Sin cambiar el puesto"}
+                error={errores.re_puesto}
+                deshabilitado={guardando}
+              />
               <Campo etiqueta="Área u obra" value={reArea} onChange={(e) => setReArea(e.target.value)} />
             </div>
             {errorGeneral ? (
@@ -347,7 +363,17 @@ export default function AltaTrabajador() {
             <Seccion titulo="Datos del trabajador">
               <Campo etiqueta="Nombre completo" value={nombre} onChange={(e) => { setNombre(e.target.value); limpiar("nombre"); }} error={errores.nombre} disabled={yaRegistrado || guardando} autoComplete="off" />
               <div className="grid gap-4 sm:grid-cols-2">
-                <Campo etiqueta="Puesto" value={puesto} onChange={(e) => { setPuesto(e.target.value); limpiar("puesto"); }} error={errores.puesto} disabled={yaRegistrado || guardando} />
+                <SelectorPuesto
+                  valorId={puestoId}
+                  valorTexto={puesto}
+                  alCambiar={(id, texto) => {
+                    setPuestoId(id);
+                    setPuesto(texto);
+                    limpiar("puesto");
+                  }}
+                  error={errores.puesto}
+                  deshabilitado={yaRegistrado || guardando}
+                />
                 <Campo etiqueta="Área u obra" value={area} onChange={(e) => { setArea(e.target.value); limpiar("area_obra"); }} error={errores.area_obra} disabled={yaRegistrado || guardando} />
                 <CampoFecha etiqueta="Inicio del contrato" value={inicio} alCambiar={(v) => { setInicio(v); limpiar("inicio"); limpiar("fin"); }} error={errores.inicio} disabled={yaRegistrado || guardando} />
                 <CampoFecha etiqueta="Fin del contrato" value={fin} alCambiar={(v) => { setFin(v); limpiar("fin"); }} error={errores.fin ?? (fin && inicio && fin < inicio ? "La fecha de fin no puede ser anterior a la de inicio." : undefined)} disabled={yaRegistrado || guardando} />

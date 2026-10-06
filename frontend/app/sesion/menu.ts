@@ -1,4 +1,5 @@
 import {
+  BriefcaseBusiness,
   Boxes,
   ClipboardList,
   FolderTree,
@@ -61,6 +62,7 @@ export const MENU: readonly ElementoMenu[] = [
   { id: "importar", titulo: "Importar", ruta: "/importar", icono: Upload, permisosAlguno: ["inventario.entradas"], grupo: "Inventario y catálogo", inicio: "gestion" },
   { id: "categorias", titulo: "Categorías", ruta: "/catalogo/categorias", icono: FolderTree, permisosAlguno: ["catalogo.ver"], grupo: "Inventario y catálogo", inicio: "gestion" },
   { id: "articulos", titulo: "Artículos", ruta: "/catalogo/articulos", icono: Package, permisosAlguno: ["catalogo.ver"], grupo: "Inventario y catálogo", inicio: "gestion" },
+  { id: "puestos", titulo: "Puestos", ruta: "/puestos", icono: BriefcaseBusiness, permisosAlguno: ["catalogo.ver"], grupo: "Inventario y catálogo", inicio: "gestion" },
   { id: "etiquetas", titulo: "Etiquetas", ruta: "/etiquetas", icono: Printer, permisosAlguno: ["etiquetas.imprimir"], grupo: "Inventario y catálogo", inicio: "gestion" },
   { id: "rep-existencias", titulo: "Existencias", ruta: "/reportes/existencias", icono: ClipboardList, permisosAlguno: ["reportes.existencias"], grupo: "Reportes", inicio: "gestion" },
   { id: "rep-movimientos", titulo: "Movimientos", ruta: "/reportes/movimientos", icono: FileBarChart, permisosAlguno: ["reportes.movimientos"], grupo: "Reportes", inicio: "gestion" },

@@ -34,6 +34,7 @@ export default [
     route("importar", "routes/inventario/importar.tsx"),
     route("catalogo/categorias", "routes/inventario/categorias.tsx"),
     route("catalogo/articulos", "routes/inventario/articulos.tsx"),
+    route("puestos", "routes/inventario/puestos.tsx"),
     route("etiquetas", "routes/inventario/etiquetas.tsx"),
     // supervision
     route("autorizaciones", "routes/supervision/autorizaciones.tsx"),

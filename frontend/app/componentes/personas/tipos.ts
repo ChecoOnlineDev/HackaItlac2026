@@ -58,6 +58,8 @@ export interface Ficha {
   estado: string;
   estado_texto: string;
   puesto: string | null;
+  /** Puesto del catálogo; vacío si el periodo se capturó con un puesto que no está en él. */
+  puesto_id?: string | null;
   area_obra: string | null;
   vigencia: Vigencia;
   tiene_foto: boolean;
