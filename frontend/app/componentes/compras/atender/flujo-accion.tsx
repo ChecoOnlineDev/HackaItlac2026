@@ -52,7 +52,10 @@ function repartirError(causa: unknown): ErroresFlujo {
     if (actual && pedido) {
       return {
         ...SIN_ERRORES,
-        general: `Alguien más ya cambió esta solicitud: ahora está ${actual.toLowerCase()} y no puede pasar a ${pedido.toLowerCase()}. Actualiza para ver cómo quedó.`,
+        general:
+          actual === pedido
+            ? `Alguien más ya hizo este cambio: la solicitud ya está ${actual.toLowerCase()}. Ya actualizamos lo que ves.`
+            : `Alguien más ya cambió esta solicitud: ahora está ${actual.toLowerCase()} y no puede pasar a ${pedido.toLowerCase()}. Ya actualizamos lo que ves.`,
       };
     }
   }
