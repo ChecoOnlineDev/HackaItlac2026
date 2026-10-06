@@ -31,6 +31,8 @@ export const PERMISOS = [
   "almacenes.asignar_personal",
   "almacenes.administrar",
   "etiquetas.imprimir",
+  "compras.solicitar",
+  "compras.atender",
 ] as const;
 
 export type Permiso = (typeof PERMISOS)[number];

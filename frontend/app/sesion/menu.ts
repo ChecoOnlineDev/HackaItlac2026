@@ -13,6 +13,7 @@ import {
   Package,
   Printer,
   Search,
+  ShoppingCart,
   UserCog,
   ShieldCheck,
   Truck,
@@ -46,7 +47,7 @@ export interface ElementoMenu {
    */
   inicio: "flujo" | "siempre" | "gestion";
   /** Cuenta que muestra el botón (traspasos por recibir, solicitudes por autorizar). */
-  contador?: "porRecibir" | "porAutorizar";
+  contador?: "porRecibir" | "porAutorizar" | "porComprar";
 }
 
 export const MENU: readonly ElementoMenu[] = [
@@ -56,6 +57,7 @@ export const MENU: readonly ElementoMenu[] = [
   { id: "recibir", titulo: "Recibir", ruta: "/recibir", icono: Inbox, permisosAlguno: ["traspasos.operar"], grupo: "Operación", inicio: "flujo", contador: "porRecibir" },
   { id: "consultar", titulo: "Consultar", ruta: "/consultar", icono: Search, grupo: "Consulta", inicio: "flujo" },
   { id: "mis-movimientos", titulo: "Mis movimientos de hoy", ruta: "/mis-movimientos", icono: History, permisosAlguno: ["vales.ver"], grupo: "Consulta", inicio: "gestion" },
+  { id: "solicitudes-compra", titulo: "Solicitudes de compra", ruta: "/compras", icono: ShoppingCart, permisosAlguno: ["compras.atender"], grupo: "Inventario y catálogo", inicio: "gestion", contador: "porComprar" },
   { id: "autorizaciones", titulo: "Autorizaciones", ruta: "/autorizaciones", icono: ShieldCheck, permisosAlguno: ["autorizaciones.resolver"], grupo: "Supervisión", inicio: "siempre", contador: "porAutorizar" },
   { id: "seguimiento", titulo: "Seguimiento de piezas", ruta: "/seguimiento", icono: MapPinned, permisosAlguno: ["reportes.existencias"], grupo: "Supervisión", inicio: "siempre" },
   { id: "personal", titulo: "Personal", ruta: "/personal", icono: UserCog, permisosAlguno: ["almacenes.asignar_personal"], grupo: "Supervisión", inicio: "gestion" },
