@@ -1027,6 +1027,42 @@ def test_T_05_las_etiquetas_de_credenciales_son_los_codigos_de_los_trabajadores(
     assert por_codigo["CRED-ETQ-1"]["texto"] == "Ana Ruiz · ETQ-001"
 
 
+def test_T_05_la_credencial_toma_el_puesto_del_periodo_vigente_hoy(session):
+    from datetime import timedelta
+
+    from app.core.tiempo import hoy_mx
+    from app.modulos.catalogo.repository import EtiquetaRepository
+    from app.modulos.trabajadores.models import PeriodoContrato
+
+    _trabajador_con_credencial(session, "ETQ-P1", "Pedro Vigente", "CRED-ETQ-P1")
+    trabajador = session.scalar(select(Trabajador).where(Trabajador.numero_empleado == "ETQ-P1"))
+    usuario = session.scalar(select(Usuario))
+    hoy = hoy_mx()
+    session.add_all(
+        [
+            # El vigente hoy, aunque empezó antes.
+            PeriodoContrato(
+                trabajador_id=trabajador.id,
+                puesto="Puesto vigente",
+                inicio=hoy - timedelta(days=60),
+                fin=hoy + timedelta(days=30),
+                creado_por=usuario.id,
+            ),
+            # Uno que empieza más tarde (futuro): no es el vigente.
+            PeriodoContrato(
+                trabajador_id=trabajador.id,
+                puesto="Puesto futuro",
+                inicio=hoy + timedelta(days=60),
+                fin=hoy + timedelta(days=120),
+                creado_por=usuario.id,
+            ),
+        ]
+    )
+    session.flush()
+    por_codigo = {c[0]: c for c in EtiquetaRepository(session).credenciales()}
+    assert por_codigo["CRED-ETQ-P1"][3] == "Puesto vigente"
+
+
 def test_AC_01_etiquetas_exigen_etiquetas_imprimir_y_ningun_otro_permiso(cliente_con, session):
     _trabajador_con_credencial(session, "ETQ-002", "Luis Soto", "CRED-ETQ-2")
     ruta = "/api/etiquetas"
@@ -1079,17 +1115,17 @@ def test_T_05_la_credencial_trae_nombre_puesto_y_numero_sin_curp_ni_nss(cliente_
             "numero_empleado": "ETQ-005",
             "puesto": "Soldadora",
             "area_obra": "Taller",
-            "inicio": "2026-01-01",
-            "fin": "2026-12-31",
+            "inicio": "2020-01-01",
+            "fin": "2020-12-31",
             "curp": "RIXE800101MDFSLL09",
             "nss": "10987654321",
         },
     )
     assert alta.status_code == 201, alta.text
-    # El puesto sale del periodo de contrato vigente (el más reciente).
+    # El puesto sale del periodo de contrato vigente hoy.
     reingreso = rh.post(
         f"/api/trabajadores/{alta.json()['id']}/periodos",
-        json={"puesto": "Supervisora de taller", "inicio": "2027-01-01", "fin": "2027-12-31"},
+        json={"puesto": "Supervisora de taller", "inicio": "2021-01-01", "fin": "2099-12-31"},
     )
     assert reingreso.status_code == 201, reingreso.text
     rh.post(f"/api/trabajadores/{alta.json()['id']}/codigos", json={"codigo": "CRED-ETQ-5"})
