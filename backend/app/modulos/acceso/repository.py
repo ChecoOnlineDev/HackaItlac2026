@@ -28,7 +28,12 @@ class FiltrosUsuarios:
     sin_almacen: bool = False
     activo: bool | None = None
     # Solo quienes operan un almacén (no tienen `almacenes.todos`).
+    # Y que ven inventario: RH administra personas, no opera ningún almacén (RG-07).
     solo_operativos: bool = False
+    # AC-06: alcance de quien asigna sin `almacenes.todos`: los de ese almacén y los libres.
+    almacen_o_libres_id: uuid.UUID | None = None
+    # Lo mismo para quien no tiene almacén: solo los libres.
+    solo_libres: bool = False
 
 
 class UsuarioRepository:
@@ -83,6 +88,16 @@ class UsuarioRepository:
             condiciones.append(Usuario.activo.is_(filtros.activo))
         if filtros.solo_operativos:
             condiciones.append(~_rol_tiene(P.ALMACENES_TODOS))
+            condiciones.append(_rol_tiene(P.INVENTARIO_VER))
+        if filtros.almacen_o_libres_id is not None:
+            condiciones.append(
+                or_(
+                    Usuario.almacen_id == filtros.almacen_o_libres_id,
+                    Usuario.almacen_id.is_(None),
+                )
+            )
+        if filtros.solo_libres:
+            condiciones.append(Usuario.almacen_id.is_(None))
 
         total = self.session.scalar(select(func.count()).select_from(Usuario).where(*condiciones))
         filas = self.session.execute(
