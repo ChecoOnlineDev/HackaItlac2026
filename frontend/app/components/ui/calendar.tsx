@@ -10,6 +10,25 @@ import {
 import { Button, buttonVariants } from "~/components/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
 
+const nombreDia = (fecha: Date) =>
+  fecha.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+
+/** Textos de lectores de pantalla en español (la biblioteca los trae en inglés). */
+const etiquetasEs = {
+  labelNav: () => "Navegación del calendario",
+  labelPrevious: () => "Ir al mes anterior",
+  labelNext: () => "Ir al mes siguiente",
+  labelMonthDropdown: () => "Mes",
+  labelYearDropdown: () => "Año",
+  labelWeekday: (fecha: Date) => fecha.toLocaleDateString("es-MX", { weekday: "long" }),
+  labelGrid: (fecha: Date) => fecha.toLocaleDateString("es-MX", { month: "long", year: "numeric" }),
+  labelGridcell: (fecha: Date) => nombreDia(fecha),
+  labelDayButton: (fecha: Date, modificadores: { today?: boolean; selected?: boolean }) =>
+    `${modificadores.today ? "Hoy, " : ""}${nombreDia(fecha)}${modificadores.selected ? ", elegido" : ""}`,
+  labelWeekNumber: (numero: number) => `Semana ${numero}`,
+  labelWeekNumberHeader: () => "Número de semana",
+}
+
 function Calendar({
   className,
   classNames,
@@ -19,6 +38,7 @@ function Calendar({
   locale,
   formatters,
   components,
+  labels,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
@@ -36,6 +56,7 @@ function Calendar({
       )}
       captionLayout={captionLayout}
       locale={locale}
+      labels={{ ...etiquetasEs, ...labels }}
       formatters={{
         formatMonthDropdown: (date) =>
           date.toLocaleString(locale?.code, { month: "short" }),

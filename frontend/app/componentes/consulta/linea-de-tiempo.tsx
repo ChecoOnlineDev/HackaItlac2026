@@ -38,7 +38,7 @@ function Detalle({ hecho, puedeVerVales }: { hecho: HechoHistorial; puedeVerVale
             <p className="text-sm text-muted-foreground">
               Vale{" "}
               {puedeVerVales && hecho.vale_id ? (
-                <Link to={`/vales/${hecho.vale_id}`} className="font-semibold text-primary underline underline-offset-2">
+                <Link to={`/vales/${hecho.vale_id}`} className="inline-flex min-h-10 items-center font-semibold text-primary underline underline-offset-2">
                   {hecho.folio}
                 </Link>
               ) : (

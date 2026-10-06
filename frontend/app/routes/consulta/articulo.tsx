@@ -148,7 +148,7 @@ export default function FichaArticulo() {
               <li key={t.trabajador_id} className="flex items-center justify-between gap-3 px-4 py-3">
                 <div className="flex min-w-0 flex-col">
                   {puede("trabajadores.ver") ? (
-                    <Link to={`/trabajadores/${t.trabajador_id}`} className="min-h-6 text-base font-semibold text-primary underline underline-offset-2">
+                    <Link to={`/trabajadores/${t.trabajador_id}`} className="inline-flex min-h-10 items-center text-base font-semibold text-primary underline underline-offset-2">
                       {t.nombre}
                     </Link>
                   ) : (

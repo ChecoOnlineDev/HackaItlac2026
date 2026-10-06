@@ -45,11 +45,9 @@ export function HojaFiltros<T extends Record<string, string>>({
         <ListFilterIcon aria-hidden="true" />
         Filtros
         {activos > 0 ? (
-          <span
-            aria-label={`${activos} ${activos === 1 ? "activo" : "activos"}`}
-            className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground tabular-nums"
-          >
+          <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground tabular-nums">
             {activos}
+            <span className="sr-only">{activos === 1 ? " filtro activo" : " filtros activos"}</span>
           </span>
         ) : null}
       </Boton>

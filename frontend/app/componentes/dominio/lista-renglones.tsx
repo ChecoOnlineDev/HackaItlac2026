@@ -98,9 +98,10 @@ export function ListaRenglones({
         }, RESALTADO_MS),
       );
 
-      if (anunciarAgregados) {
-        const agregado = renglones.find((r) => claveDe(r) === clave);
-        const nombre = agregado?.articulo?.nombre ?? agregado?.codigo ?? "el renglón";
+      const agregado = renglones.find((r) => claveDe(r) === clave);
+      // Un código que no existe (renglón rojo) no es algo "agregado": el renglón ya explica el problema.
+      if (anunciarAgregados && agregado?.articulo) {
+        const nombre = agregado.articulo.nombre;
         aviso({
           titulo: `Se agregó ${nombre}`,
           tipo: "info",

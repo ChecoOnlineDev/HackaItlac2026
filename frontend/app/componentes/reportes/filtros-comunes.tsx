@@ -1,7 +1,6 @@
 import { Seleccion } from "~/componentes/catalogo/campos";
 import { RangoDeFechas, textoDeRango, type RangoFechas } from "~/componentes/dominio/rango-de-fechas";
 import { hoyMexico } from "~/componentes/dominio/fechas";
-import { Label } from "~/components/ui/label";
 import { useSesion } from "~/sesion/sesion";
 import type { OpcionLista } from "./listas";
 import type { FiltroActivo } from "./tipos";
@@ -25,7 +24,10 @@ export function NotaAlcance({ almacen }: { almacen: { nombre: string; clave: str
 export function FiltroPeriodo({ desde, hasta, alCambiar }: { desde: string; hasta: string; alCambiar: (rango: RangoFechas) => void }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <Label className="text-sm font-medium text-foreground">Periodo</Label>
+      {/* El botón del rango ya se llama "Periodo" (aria-label): el rótulo visible no necesita control propio. */}
+      <span aria-hidden="true" className="text-sm leading-snug font-medium text-foreground">
+        Periodo
+      </span>
       <RangoDeFechas
         etiqueta="Periodo"
         valor={{ desde: desde || null, hasta: hasta || null }}

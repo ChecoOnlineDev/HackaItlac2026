@@ -62,7 +62,19 @@ export function TarjetaCredencial({ datos, className }: { datos: DatosCredencial
       {/* Datos */}
       <p
         className="absolute m-0 overflow-hidden font-bold wrap-break-word"
-        style={{ left: mm(5), top: mm(17.1), width: mm(46.5), height: mm(interlinea * lineas), fontSize: mm(tamano), lineHeight: mm(interlinea), color: "#111827" }}
+        // Hasta `lineas` renglones; si aun así no cabe termina en "…", igual que la imagen PNG.
+        style={{
+          left: mm(5),
+          top: mm(17.1),
+          width: mm(46.5),
+          maxHeight: mm(interlinea * lineas),
+          fontSize: mm(tamano),
+          lineHeight: mm(interlinea),
+          color: "#111827",
+          display: "-webkit-box",
+          WebkitBoxOrient: "vertical",
+          WebkitLineClamp: lineas,
+        }}
       >
         {datos.nombre}
       </p>

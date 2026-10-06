@@ -26,7 +26,7 @@ export function ListaPendientes({ pendientes }: { pendientes: Pendiente[] }) {
             <dt className="text-muted-foreground">Vale</dt>
             <dd>
               {p.vale_id && p.folio ? (
-                <Link to={`/vales/${p.vale_id}`} className="font-semibold text-primary underline underline-offset-2">
+                <Link to={`/vales/${p.vale_id}`} className="inline-flex min-h-10 items-center font-semibold text-primary underline underline-offset-2">
                   {p.folio}
                 </Link>
               ) : (

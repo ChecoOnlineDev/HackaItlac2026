@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { IdCardIcon, PackageIcon, PrinterIcon, SearchIcon, TagIcon, type LucideIcon } from "lucide-react";
+import { IdCardIcon, PackageIcon, PrinterIcon, TagIcon, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Checkbox } from "~/components/ui/checkbox";
@@ -11,10 +11,10 @@ import { HojaEtiquetas, ETIQUETAS_POR_HOJA } from "~/componentes/dominio/hoja-et
 import type { EtiquetaElemento } from "~/componentes/dominio/tipos";
 import { AccionPrincipal, Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
 import { Boton } from "~/componentes/ui/boton";
+import { CampoBusqueda } from "~/componentes/ui/campo-busqueda";
 import { Cargando } from "~/componentes/ui/cargando";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { EstadoVacio } from "~/componentes/ui/estado-vacio";
-import { Input } from "~/components/ui/input";
 
 export const handle: ManejadorRuta = { permiso: "etiquetas.imprimir" };
 
@@ -141,17 +141,12 @@ export default function Etiquetas() {
         ) : (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
             <section aria-label="Elementos" className="flex min-w-0 flex-col gap-3">
-              <div className="relative">
-                <SearchIcon aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="search"
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  placeholder="Buscar por nombre o código"
-                  aria-label="Buscar por nombre o código"
-                  className="h-12 rounded-lg pl-10 text-base md:text-base"
-                />
-              </div>
+              <CampoBusqueda
+                etiqueta="Buscar por nombre o código"
+                value={busqueda}
+                alCambiar={setBusqueda}
+                placeholder="Buscar por nombre o código"
+              />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-base" aria-live="polite">
                   <span className="font-semibold">{seleccionadas.length}</span> de {elementos.length} elegidas
