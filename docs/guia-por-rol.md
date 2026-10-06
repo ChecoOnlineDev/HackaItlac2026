@@ -94,10 +94,10 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 
 | Rol | Entradas del menú |
 |---|---|
-| Administrador | Entregar, Devolver, Trasladar, Recibir, Consultar, Mis movimientos de hoy, Autorizaciones, Personal, Trabajadores, Alta de trabajador, Inventario, Entradas, Importar, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Adeudos, Consumo) |
+| Administrador | Entregar, Devolver, Trasladar, Recibir, Consultar, Mis movimientos de hoy, Solicitudes de compra, Autorizaciones, Personal, Trabajadores, Alta de trabajador, Inventario, Entradas, Importar, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Adeudos, Consumo) |
 | Supervisor | Entregar, Devolver, Trasladar, Recibir, Consultar, Mis movimientos de hoy, Autorizaciones, Personal, Trabajadores, Inventario, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Adeudos, Consumo) |
 | Almacenista | Entregar, Devolver, Consultar, Mis movimientos de hoy, Trabajadores, Inventario |
-| Compras | Consultar, Mis movimientos de hoy, Inventario, Entradas, Importar, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Consumo) |
+| Compras | Consultar, Mis movimientos de hoy, Solicitudes de compra, Inventario, Entradas, Importar, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Consumo) |
 | Recursos Humanos | Consultar, Trabajadores, Alta de trabajador, Etiquetas, Reportes (Adeudos) |
 
 El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así que no necesita ningún permiso de reportes. Categorías, Artículos y Puestos se muestran por `catalogo.administrar`, no por `catalogo.ver`: el Almacenista conserva `catalogo.ver` para buscar y escanear, y no tiene etiquetas ni credenciales.
@@ -126,6 +126,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 - Asignar personal a almacenes (también lo puede hacer el Supervisor).
 - Hacer cualquier operación del sistema cuando hace falta (por ejemplo, ajustar la vigencia de una inspección).
 - Seguir cada pieza: en **Seguimiento de piezas** (menú, Supervisión) busca "minipulidor" y ve todas sus piezas, cada una con "En resguardo de…", "En Kepler", "En tránsito a…" o "No apta", desde cuándo y con qué vale; al tocar una pieza abre su ficha con la inspección y el historial completo. Puede filtrar por almacén, estado y lugar, y descargar el CSV.
+- Atender las solicitudes de compra de todos los almacenes, igual que Compras (**Solicitudes de compra**, `/compras`), y pedir una por su cuenta, eligiendo el almacén. En el menú aparecen dos entradas distintas: **Solicitudes de compra** (la cola de todos los almacenes, con su contador de pendientes) y **Compras urgentes** (las de su almacén, para pedir una nueva). Cancela cualquier solicitud pendiente (SC-07).
 - Garantizar que siempre exista al menos un administrador activo (AC-09).
 
 **Flujo principal (puesta en marcha de un equipo nuevo).**
@@ -301,11 +302,11 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 **Perfil.** Responsable de abastecer, mantener el catálogo y saber cuánto vale lo que hay. Trabaja en computadora y no opera el mostrador.
 
-**Qué ve al entrar.** Como no opera un almacén, su inicio muestra directamente: Mis movimientos de hoy, Inventario, Entradas, Importar, Categorías, Artículos, Puestos, Etiquetas y los reportes de Existencias, Movimientos y Consumo, además de Consultar. No ve Entregar, Devolver, Trasladar ni Recibir, ni Trabajadores, ni Adeudos, ni Autorizaciones.
+**Qué ve al entrar.** Como no opera un almacén, su inicio muestra directamente: Mis movimientos de hoy, Solicitudes de compra (con el número de pendientes), Inventario, Entradas, Importar, Categorías, Artículos, Puestos, Etiquetas y los reportes de Existencias, Movimientos y Consumo, además de Consultar. No ve Entregar, Devolver, Trasladar ni Recibir, ni Trabajadores, ni Adeudos, ni Autorizaciones.
 
 **Funcionalidades clave.**
 - Registrar entradas de inventario (almacén, artículos y piezas con su código, marca y serie).
-- Atender las solicitudes de compra urgentes de todos los almacenes: tomar, rechazar, marcar comprada e ingresar, ligando el vale de entrada.
+- Atender las solicitudes de compra urgentes de todos los almacenes desde **Solicitudes de compra** (`/compras`): tomar, rechazar, marcar comprada e ingresar, ligando el vale de entrada.
 - Importar inventario desde una tabla de Excel con vista previa.
 - Administrar el catálogo, incluido el **costo** (solo Compras lo ve y captura).
 - Administrar los **puestos** y su dotación recomendada (**Puestos** en el menú): crear, renombrar, inactivar y reactivar un puesto, y definir qué artículos y cuántos se recomiendan. RH los necesita para dar de alta a un trabajador y el almacén para saber qué le falta; Compras conoce el catálogo y puede cuidar que las cantidades respeten los límites (D-04).
@@ -324,7 +325,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 **Otros flujos frecuentes.**
 - *Importación.* Importar → pegar la tabla o subir el archivo → indicar qué columna es cada dato → vista previa (filas válidas, con error y artículos nuevos) → confirmar; se crea un vale de entrada por almacén. Las filas con error no se importan y se listan con su motivo (I-06).
-- *Atender las solicitudes de compra.* Ve la cola de **todos** los almacenes (sin ver su inventario), con las urgentes y las más antiguas primero. En cada solicitud toca **Tomar** (pasa a en compra), **Marcar comprada** y, cuando llega la compra y la registra con **Entradas**, **Ingresar**, que la liga con el vale de entrada; si no procede, **Rechazar** con una nota que explique por qué (SC-04 a SC-06). Cada paso queda en su línea de tiempo (SC-08). Ingresar no sube las existencias: eso lo hace el vale de entrada (SC-11).
+- *Atender las solicitudes de compra.* Entra a **Solicitudes de compra** (en su inicio y en el menú, con el número de pendientes). Arriba ve tres tarjetas con lo que espera (Pendientes, En compra y Compradas por ingresar); tocar una filtra la lista, y puede buscar por folio, artículo o motivo y filtrar por estado, urgencia, almacén y periodo. Ve la cola de **todos** los almacenes (sin ver su inventario), con las urgentes y las más antiguas primero; las urgentes pendientes salen con una franja roja. En cada renglón toca el botón que le ofrece el sistema: **Tomar** (pasa a en compra; pide una confirmación), **Comprada** y, cuando llega la compra y la registra con **Entradas**, **Ingresar**. Al tocar una solicitud abre su detalle, con todos los datos, la **línea de tiempo** (quién hizo cada cosa, cuándo y con qué nota) y los botones: **Rechazar** (pide una nota que explique por qué; la lee quien pidió), **Marcar como comprada** (nota opcional: proveedor o día de llegada) e **Ingresar al almacén**, que permite ligar el vale de entrada con el que metió lo comprado (lo elige de sus últimas entradas o escribe el folio; es opcional). Si otra persona ya cambió la solicitud, el sistema se lo dice en la misma ventana y actualiza el detalle (SC-04 a SC-06). Cada paso queda en la línea de tiempo (SC-08). Ingresar no sube las existencias: eso lo hace el vale de entrada (SC-11).
 - *Revisar faltantes.* Reportes de Existencias y de Consumo (cuánto se consume por artículo, periodo, almacén y trabajador).
 - *Imprimir credenciales.* Etiquetas → credenciales, completa o solo QR; también desde la ficha del trabajador cuando su rol la puede abrir (ver incongruencia 6 de la sección 11).
 - *Cancelar una entrada propia.* Mis movimientos de hoy → el vale → Cancelar, con motivo (K-04).

@@ -8,6 +8,8 @@ export interface Contadores {
   porRecibir?: number;
   /** Solicitudes de autorización pendientes. */
   porAutorizar?: number;
+  /** Solicitudes de compra pendientes (todas las de los almacenes). */
+  porComprar?: number;
 }
 
 function contar(datos: unknown): number | undefined {
@@ -57,11 +59,12 @@ function useCargarContadores(): Contadores {
   const [contadores, setContadores] = useState<Contadores>({});
   const verTraspasos = puede("traspasos.operar");
   const verAutorizaciones = puede("autorizaciones.resolver");
+  const verCompras = puede("compras.atender");
 
   useEffect(() => {
     const control = new AbortController();
     const cargar = async () => {
-      const [porRecibir, porAutorizar] = await Promise.all([
+      const [porRecibir, porAutorizar, porComprar] = await Promise.all([
         verTraspasos
           ? contarCompartido("por-recibir", () => apiGet("/traspasos/por-recibir", { solo_contar: true }))
           : undefined,
@@ -69,26 +72,30 @@ function useCargarContadores(): Contadores {
           ? // El servidor responde `{total}`; con una sola fila de muestra basta para contar.
             contarCompartido("autorizaciones", () => apiGet("/autorizaciones", { estado: "PENDIENTE", tamano: 1 }))
           : undefined,
+        verCompras
+          ? // `solo_contar` responde `{total}` sin traer las filas.
+            contarCompartido("compras-pendientes", () => apiGet("/solicitudes-compra", { estado: "PENDIENTE", solo_contar: true }))
+          : undefined,
       ]);
-      if (!control.signal.aborted) setContadores({ porRecibir, porAutorizar });
+      if (!control.signal.aborted) setContadores({ porRecibir, porAutorizar, porComprar });
     };
     void cargar();
     const alRefrescar = () => void cargar();
     window.addEventListener(EVENTO_CONTADORES, alRefrescar);
-    // Quien resuelve autorizaciones ve el número subir casi al instante; los demás, cada 30 s.
+    // Quien resuelve autorizaciones ve el número subir casi al instante; Compras, cada 10 s; los demás, cada 30 s.
     // Con la pestaña oculta no se pregunta.
     const intervalo = window.setInterval(
       () => {
         if (document.visibilityState === "visible") void cargar();
       },
-      verAutorizaciones ? 5_000 : 30_000,
+      verAutorizaciones ? 5_000 : verCompras ? 10_000 : 30_000,
     );
     return () => {
       control.abort();
       window.removeEventListener(EVENTO_CONTADORES, alRefrescar);
       window.clearInterval(intervalo);
     };
-  }, [verTraspasos, verAutorizaciones]);
+  }, [verTraspasos, verAutorizaciones, verCompras]);
 
   return contadores;
 }

@@ -8,7 +8,7 @@ Son los cinco roles iniciales. Lo que puede cada uno sale de sus permisos (secci
 
 - **Almacenista**: opera su almacén asignado.
 - **Supervisor**: autoriza y administra el catálogo; también puede operar un almacén, eligiéndolo.
-- **Compras**: inventario, entradas, importación, catálogo y reportes.
+- **Compras**: inventario, entradas, importación, catálogo, reportes y la cola de solicitudes de compra urgente de todos los almacenes.
 - **RH**: trabajadores y bajas.
 - **Administrador**: tiene todos los permisos, así que ve todos los menús. Tiene además sus pantallas de administración: Personal por almacén (`/personal`), Usuarios (`/usuarios`) y Roles y permisos (`/roles`, `/roles/:id`; [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md)). Solo aparecen con `acceso.administrar`.
 
@@ -18,7 +18,7 @@ Son los cinco roles iniciales. Lo que puede cada uno sale de sus permisos (secci
 Entrar
   -> Almacenista   -> Inicio de almacén: Entregar | Devolver | Trasladar | Recibir (n) | Consultar
   -> Supervisor    -> Autorizaciones (n) | Personal | Operar un almacén | Catálogo | Reportes
-  -> Compras       -> Inventario | Entradas | Importar | Catálogo | Etiquetas | Reportes
+  -> Compras       -> Solicitudes de compra (n) | Inventario | Entradas | Importar | Catálogo | Etiquetas | Reportes
   -> RH            -> Trabajadores | Alta | Bajas
   -> Administrador -> todos los menús anteriores | Administración: Usuarios | Roles y permisos
 ```
@@ -308,6 +308,19 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 - **Efecto:** aplica en cuanto la persona vuelve a usar el sistema; no toca vales ni movimientos ya hechos.
 - **Vacío:** "No hay personal con ese filtro". Sin el permiso, "Tu rol no puede hacer esto".
 
+## Flujo 20: Atender las solicitudes de compra (Compras)
+
+La solicitud de compra urgente (reglas SC-01 a SC-11). Quien pide la levanta desde su almacén; este flujo es el de Compras, que ve la de **todos** los almacenes sin ver su inventario (SC-03).
+
+- **Entrada:** Menú -> Solicitudes de compra (`/compras`, permiso `compras.atender`). En el inicio de Compras es un botón con el número de pendientes, y el menú lleva el mismo número; se actualiza solo cada pocos segundos y al actuar sobre una solicitud.
+- **La cola:** arriba, tres tarjetas táctiles (Pendientes, En compra y Compradas por ingresar) con su conteo; tocar una filtra la lista y tocarla otra vez quita el filtro. La tarjeta de pendientes dice cuántas son urgentes. Debajo, la búsqueda (folio, artículo, descripción o motivo) siempre a la vista y "Filtros" (estado, urgencia, almacén y periodo, con su contador y sus chips). La lista llega ya ordenada por el servidor: primero lo pendiente, luego lo que está en compra, lo comprado y al final lo cerrado; en cada grupo, las urgentes primero y las más antiguas primero. En computadora y tableta es una tabla (folio, qué se pidió, cantidad, almacén, urgencia y estado, solicitante, fecha y acción); en celular, tarjetas. Una urgente pendiente se distingue por su franja y fondo rojos suaves y su insignia roja.
+- **Acción rápida:** en cada renglón, el botón de la acción principal que el servidor ofrece (Tomar, Comprada o Ingresar), con su confirmación. Nada se deduce del rol: los botones salen de `acciones` de la respuesta.
+- **El detalle (`/compras/:id`):** folio con sus insignias de estado y urgencia, qué se pidió (con el enlace al artículo del catálogo, si lo hay), cantidad, para qué se necesita, almacén, quién la pidió, fechas en hora de México, la nota de Compras (en una rechazada, "Por qué se rechazó") y el vale de entrada ligado, con enlace a `/vales/:id`. Abajo, la **línea de tiempo**: cada cambio de estado, del más antiguo al más reciente, con quién, cuándo y su nota (SC-08). Las acciones van en un pie fijo en celular y tableta, y al final del contenido en computadora; una es la principal (azul) y las demás, secundarias.
+- **Las acciones (SC-04):** Tomar (confirmación breve; pasa a En compra). Rechazar abre una hoja con la nota obligatoria y respuestas rápidas (SC-05). Marcar como comprada abre una hoja con una nota opcional (proveedor, día de llegada). Ingresar al almacén abre una hoja donde se liga, si se quiere, el vale de ENTRADA con el que se metió lo comprado: se elige de las últimas entradas o se escribe su folio (SC-06); la hoja avisa que ingresar no suma existencias por sí solo, porque suben con el vale que se registra en Entradas (SC-11). Tras cada acción aparece un aviso breve y la pantalla se actualiza sin salir.
+- **Quien pide:** abre la misma pantalla `/compras/:id` desde su lista y no ve las acciones de Compras; si está pendiente y es quien la pidió, el supervisor de su almacén o el administrador, ve **Cancelar solicitud** (hoja con nota opcional, SC-07). Una solicitud de otro almacén responde "No encontramos esta solicitud".
+- **Errores:** los del servidor se escriben dentro de la misma ventana, junto a lo que falló: un vale que no sirve (422, SC-06) bajo la lista de vales; una solicitud que otra persona ya cambió (409, SC-04) como aviso en la ventana y el detalle se recarga.
+- **Vacío y error:** "No hay solicitudes de compra" (con filtros, "No hay solicitudes con ese filtro" y "Quitar filtros"); si no carga, mensaje y Reintentar. Sin el permiso, "Tu rol no puede hacer esto".
+
 ## Estados transversales
 
 | Estado | Comportamiento |
@@ -344,6 +357,8 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 | `/catalogo/categorias`, `/catalogo/articulos` | Catálogo | Compras, supervisor |
 | `/puestos` | Puestos y su dotación recomendada | Compras, supervisor (`catalogo.ver`; editar, `catalogo.administrar`) |
 | `/etiquetas` | Hojas de QR | Compras, RH |
+| `/compras` | Solicitudes de compra: la cola de todos los almacenes, con resumen, búsqueda, filtros y acciones rápidas (SC-03, SC-04) | Compras, administrador (`compras.atender`) |
+| `/compras/:id` | Detalle de una solicitud de compra, con su línea de tiempo y las acciones que el servidor ofrece (SC-04 a SC-08) | Compras y administrador; también quien la pidió y su supervisor (`compras.solicitar`), solo las de su almacén |
 | `/reportes/existencias`, `/reportes/movimientos`, `/reportes/adeudos`, `/reportes/consumo` | Reportes | Según la sección 8.2 de las reglas |
 | `/v/:token` | Vale abierto desde su QR | Con sesión en el MVP |
 
