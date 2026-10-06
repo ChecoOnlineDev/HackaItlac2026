@@ -61,6 +61,9 @@ def test_I_01_un_vale_de_entrada_por_almacen_con_folios_consecutivos_y_existenci
         "filas_importadas": 3,
         "filas_con_error": 0,
         "articulos_creados": 3,
+        "existentes": 0,
+        "unidos": 0,
+        "excluidas": 0,
         "vales": 2,
         "piezas": 0,
         "unidades": 21,
@@ -112,7 +115,7 @@ def test_I_01_un_almacen_con_mas_de_500_renglones_se_parte_en_varios_vales(compr
 
 
 def test_AC_06_sin_almacenes_todos_solo_carga_a_su_almacen(cliente_con, session):
-    kepler = cliente_con({P.INVENTARIO_ENTRADAS}, almacen="KEP")
+    kepler = cliente_con({P.INVENTARIO_ENTRADAS, P.CATALOGO_ADMINISTRAR}, almacen="KEP")
     ok, ajena = unico("OK"), unico("AJ")
     salida = importar(
         kepler,
@@ -156,7 +159,8 @@ def test_I_06_las_filas_con_error_no_se_importan_y_las_buenas_si(compras, sessio
 def test_I_06_sin_ninguna_fila_valida_no_se_guarda_nada(compras, session):
     antes = conteos(session)
     r = compras.post(
-        IMPORTACION, json=confirmacion([fila(unico("A"), cantidad="x"), fila("", cantidad=1)])
+        IMPORTACION,
+        json=confirmacion([fila(unico("A"), cantidad="x"), fila("", nombre="", cantidad=1)]),
     )
     assert r.status_code == 422 and r.json()["codigo"] == "DATOS_INVALIDOS"
     assert len(r.json()["detalles"]["filas_error"]) == 2
@@ -291,7 +295,7 @@ def test_RG_09_un_lote_nuevo_con_las_mismas_filas_rechaza_lo_que_ya_se_importo(c
     ]
     importar(compras, filas)
     articulos_antes = conteos(session)["articulos"]
-    segunda = importar(compras, filas)
+    segunda = importar(compras, filas, confirmar_repetido=True)  # el mismo archivo: I-12
     # Ningún artículo se duplica; la pieza que ya existe se avisa como error de su fila.
     assert segunda["resumen"]["articulos_creados"] == 0
     assert conteos(session)["articulos"] == articulos_antes
@@ -413,7 +417,7 @@ def test_RG_12_con_catalogo_costos_el_costo_queda_en_el_articulo_nuevo(compras, 
 def test_RG_12_sin_catalogo_costos_el_costo_se_ignora_y_el_articulo_entra_sin_costo(
     cliente_con, session
 ):
-    sin_costos = cliente_con({P.INVENTARIO_ENTRADAS, P.ALMACENES_TODOS})
+    sin_costos = cliente_con({P.INVENTARIO_ENTRADAS, P.ALMACENES_TODOS, P.CATALOGO_ADMINISTRAR})
     codigo = unico("SINCOS")
     salida = importar(sin_costos, [fila(codigo, cantidad=2, costo="999")])
     assert salida["resumen"]["filas_importadas"] == 1

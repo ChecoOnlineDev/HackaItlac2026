@@ -5,6 +5,16 @@
 export const CAMPOS = ["codigo", "nombre", "marca", "categoria", "cantidad", "almacen", "serie", "costo", "codigo_pieza"] as const;
 export type CampoImportacion = (typeof CAMPOS)[number];
 
+/** Los dos modos de la importación (regla I-10): `ALTA` crea y suma; `REPOSICION` solo suma a lo que ya existe. */
+export type ModoImportacion = "ALTA" | "REPOSICION";
+
+/** Los datos que se leen en la reposición: el resto de las columnas se ignora (I-10). */
+export const CAMPOS_REPOSICION: readonly CampoImportacion[] = ["codigo", "cantidad", "almacen", "serie", "codigo_pieza"];
+
+export function camposDelModo(modo: ModoImportacion): readonly CampoImportacion[] {
+  return modo === "REPOSICION" ? CAMPOS_REPOSICION : CAMPOS;
+}
+
 /** Índice (desde 0) de la columna de cada dato; `null` si no viene. */
 export type Columnas = Record<CampoImportacion, number | null>;
 
@@ -25,15 +35,28 @@ export interface AlmacenRef {
   nombre: string;
 }
 
+/** Estado de una fila en la vista previa. `ERROR` solo viene en `filas_error`. */
+export type EstadoFila = "NUEVO" | "EXISTENTE" | "UNIDO" | "ERROR";
+
 export interface FilaValida {
   fila: number;
+  estado: EstadoFila;
   codigo: string;
+  /** El código lo asigna el servidor al confirmar; el que se ve es provisional. */
+  codigo_generado?: boolean;
   nombre: string;
   marca: string | null;
   categoria: CategoriaRef | null;
+  /** Solo en el alta, en artículos nuevos sin categoría en el archivo. Es una sugerencia: no se aplica sola (I-14). */
+  categoria_sugerida?: CategoriaRef | null;
+  motivo_sugerencia?: string | null;
   control: string;
   articulo_nuevo: boolean;
   cantidad: number;
+  saldo_antes: number;
+  saldo_despues: number;
+  /** Las demás filas que se sumaron en esta (estado `UNIDO`). */
+  unida_de?: number[];
   almacen: AlmacenRef;
   codigo_pieza: string | null;
   numero_serie: string | null;
@@ -43,6 +66,7 @@ export interface FilaValida {
 
 export interface FilaError {
   fila: number;
+  estado?: EstadoFila;
   datos: Record<string, string>;
   motivos: Motivo[];
 }
@@ -57,6 +81,13 @@ export interface ArticuloNuevo {
   costo?: string | null;
 }
 
+/** Una fila que no es un artículo (dice SERVICIO): no se importa y no cuenta como error. */
+export interface FilaExcluida {
+  fila: number;
+  nombre: string;
+  motivo: string;
+}
+
 export interface CategoriaDesconocida {
   nombre: string;
   filas: number[];
@@ -68,17 +99,26 @@ export interface ResumenVistaPrevia {
   con_error: number;
   vacias: number;
   articulos_nuevos: number;
+  existentes: number;
+  unidos: number;
+  excluidas: number;
+  /** Filas de artículo nuevo que esperan que se elija su categoría. */
+  por_revisar: number;
   piezas: number;
   unidades: number;
   almacenes: number;
 }
 
 export interface VistaPreviaApi {
+  modo: ModoImportacion;
   columnas: Columnas;
   avisos: string[];
+  /** La importación anterior con el mismo archivo (I-12); es un aviso, no un error. */
+  archivo_repetido: { fecha: string } | null;
   resumen: ResumenVistaPrevia;
   filas_validas: FilaValida[];
   filas_error: FilaError[];
+  filas_excluidas: FilaExcluida[];
   articulos_nuevos: ArticuloNuevo[];
   categorias_desconocidas: CategoriaDesconocida[];
 }
@@ -103,12 +143,16 @@ export interface ValeImportado {
 }
 
 export interface ImportacionApi {
+  modo: ModoImportacion;
   id_lote: string;
   repetida: boolean;
   resumen: {
     filas_importadas: number;
     filas_con_error: number;
     articulos_creados: number;
+    existentes: number;
+    unidos: number;
+    excluidas: number;
     vales: number;
     piezas: number;
     unidades: number;
@@ -136,5 +180,7 @@ export interface Tabla {
 export interface OpcionesImportacion {
   categoriaPorDefectoId: string | null;
   mapaCategorias: Record<string, string>;
+  /** `{número de fila: categoria_id}`: solo lo que la persona eligió o aceptó viendo la fila. */
+  categoriaPorFila: Record<string, string>;
   almacenPorDefecto: string | null;
 }

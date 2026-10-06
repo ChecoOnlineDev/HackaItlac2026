@@ -66,7 +66,7 @@ Aplican a todas las operaciones.
 | RG-07 | Cada usuario opera sobre su almacén asignado y no lo elige en cada operación; solo quien tiene `almacenes.todos` (de inicio, el Administrador) elige almacén (AC-06). Quien no tiene almacén asignado y no tiene `almacenes.todos` no ve ni opera nada de ningún almacén. Cada almacén tiene su(s) supervisor(es), independientes de los almacenistas. Un almacén puede tener varios almacenistas: operan las 24 horas y una sola persona no los cubre. Cada almacenista usa su propia cuenta y su propio dispositivo, y cada operación queda ligada a quien la hizo. El MVP no avisa cuando a un almacén le falta cobertura. | Plática min 33 |
 | RG-08 | Todo se valida dos veces: al escanear (semáforo inmediato) y al confirmar (el servidor revalida). Si algo cambió entre ambos momentos, el vale no se guarda y se indica el renglón que falló. | Propuesta |
 | RG-09 | Un vale se guarda completo o no se guarda. | Propuesta |
-| RG-10 | Los códigos se aceptan tal como vienen, en QR o barras. Un código identifica una sola cosa: trabajador, pieza, artículo o vale. | PDF p.2; plática min 57 |
+| RG-10 | Los códigos se aceptan tal como vienen, en QR o barras. Un código identifica una sola cosa: trabajador, pieza, artículo o vale. En la importación, un código de pieza o una serie repetidos se rechazan; en cambio, las filas del mismo artículo por cantidad en el mismo almacén no son un código repetido: se consolidan (I-06). | PDF p.2; plática min 57 |
 | RG-11 | La fecha y hora válidas son las del servidor. | Propuesta |
 | RG-12 | El costo de un artículo lo ve solo quien tiene el permiso de costos; de inicio, Compras. En vales, tickets y comprobantes no aparece nunca, lo vea quien lo vea. | Plática min 38 |
 | RG-13 | La CURP y el NSS del trabajador los ve solo quien tiene el permiso de datos personales; de inicio, RH. El almacenista ve nombre, número, puesto, área, vigencia y foto. El sistema no guarda sueldos. De inicio, RH no ve el inventario. | Plática min 28 |
@@ -211,6 +211,7 @@ Un requisito especial es una condición extra para entregar un artículo. Sirve 
 | Aviso de inspección por vencer | General | 7 días antes |
 | Mínimo de existencias | Artículo y almacén | Sin mínimo |
 | Dotación recomendada | Puesto | Vacía |
+| Tope de cantidad por fila en la importación (I-11) | General | 100 000 |
 | Vigencia de una solicitud de autorización | General | 15 minutos |
 | Intentos fallidos de PIN antes de bloquear | General | 5 intentos, bloqueo de 5 minutos |
 | Formas de firma permitidas | General | En pantalla y en papel |
@@ -271,12 +272,28 @@ Sustento (referencia, no asesoría legal; la empresa debe validarlo con su aboga
 | I-01 | Las existencias nacen solo con una entrada: de Proveedor a un almacén. Las compras entran por Kepler; la carga inicial puede ir a cualquier almacén. | Plática min 5 y 32 |
 | I-02 | Cada pieza entra con su código único, marca y número de serie del fabricante. Un código repetido se rechaza. | PDF p.2; plática min 37 |
 | I-03 | Una pieza que requiere inspección entra con su inspección inicial (fecha y resultado). Sin ella queda pendiente y no se puede entregar. | PDF p.2 |
-| I-04 | El costo unitario se captura en el catálogo, al crear o editar el artículo, y en la importación de inventario (solo en artículos nuevos), siempre con el permiso `catalogo.costos`. La entrada de inventario no recibe costos: el vale nunca lleva costos (RG-12, F-12). Sirve para valuar el inventario y solo lo ve quien tiene `catalogo.costos`; de inicio, Compras. | PDF p.10; plática min 38–39; decisión del equipo |
+| I-04 | El costo unitario se captura en el catálogo, al crear o editar el artículo, y en la importación de inventario (solo en artículos nuevos), siempre con el permiso `catalogo.costos`. La reposición (I-10) nunca cambia el costo de un artículo. La entrada de inventario no recibe costos: el vale nunca lleva costos (RG-12, F-12). Sirve para valuar el inventario y solo lo ve quien tiene `catalogo.costos`; de inicio, Compras. | PDF p.10; plática min 38–39; decisión del equipo |
 | I-05 | Cada artículo puede tener un mínimo por almacén. Se compara contra lo disponible: no cuenta lo No apto, en mantenimiento ni en calibración. Al bajar del mínimo se marca en rojo en la pantalla de Compras. | Plática min 47 y 50 |
-| I-06 | El inventario inicial se carga pegando o subiendo una tabla de Excel, con vista previa antes de guardar. | Plática min 34 |
+| I-06 | El inventario se carga pegando o subiendo una tabla de Excel, con vista previa antes de guardar. Hay dos modos (I-10): **alta**, que crea los artículos nuevos y suma a los que ya existen, y **reposición**, que solo suma a los que ya existen. Las filas del mismo artículo por cantidad y almacén se consolidan en una (se suman y se avisa «Unido: filas 2, 5, 9»); un código de pieza o una serie repetidos siguen siendo error. Una fila cuya descripción dice SERVICIO no es un artículo: se excluye con aviso. | Plática min 34; decisión del usuario |
 | I-07 | Todo artículo por cantidad tiene un QR de producto que se imprime como etiqueta de estante. | Plática min 20–21 |
 | I-08 | Si falta una herramienta, el supervisor o el almacenista levanta una solicitud de compra urgente; Compras la atiende y registra la entrada. Construida: ver la sección 7.13 (SC-01 a SC-11). | Plática min 45; decisión del usuario |
 | I-09 | No se registran entradas de un artículo inactivo (CF-10). | Idea del equipo |
+| I-10 | La importación tiene dos modos, `ALTA` (por omisión) y `REPOSICION`. **Alta:** carga inicial; crea los artículos nuevos y suma a los que ya existen. **Reposición:** solo suma a artículos que ya existen y nunca crea; un código que no existe es un error de esa fila (`ARTICULO_NO_EXISTE`, «Ese artículo no existe: dalo de alta primero»). En reposición las columnas nombre, marca, categoría y costo se ignoran con un aviso y el costo del artículo no cambia (I-04). Los dos exigen `inventario.entradas`; el alta, cuando va a crear artículos, exige además `catalogo.administrar` (sección 8.2). | Decisión del usuario |
+| I-11 | Cada fila trae como máximo 100 000 unidades; más se rechaza como error de esa fila (`CANTIDAD_EXCESIVA`). El tope es un ajuste general (sección 5.4) y protege contra un cero de más al capturar. | Decisión del usuario |
+| I-12 | Si el mismo archivo ya se importó, el sistema avisa; no es un error. El aviso sale en la vista previa y la confirmación pide `confirmar_repetido: true` para continuar. «El mismo archivo» es la misma huella: el `sha256` del modo, las filas ya normalizadas (sin vacías, sin espacios de más y en un orden fijo) y el almacén por defecto. La huella queda en `despues.huella` del registro de auditoría `importacion.confirmar`; no hay tabla nueva. Es distinta de la repetición por `id_lote`, que reintenta una misma confirmación sin crear nada. | Decisión del usuario |
+| I-13 | La cantidad es un entero. Un decimal como `0.25` se rechaza con un mensaje que pide usar una unidad entera menor («250 gramos» en lugar de «0.25 kilos»); **nunca se redondea**. Una coma decimal ambigua como `0,25` o `1,5` también se rechaza: la coma solo vale como separador de miles, en grupos de tres dígitos (`1,250` es 1250). Un valor entero escrito como `12.0` se acepta como 12. Código de motivo: `CANTIDAD_NO_ENTERA`. | Decisión del usuario |
+| I-14 | Sugerencia de categoría. Para un artículo nuevo cuyo archivo no trae categoría, el servidor **sugiere** una según las palabras de la descripción (diccionario en [FEAT-007](../features/FEAT-007-importacion-reposicion-y-categoria-sugerida.md)). Es solo una sugerencia: la vista previa la muestra por fila con su motivo y se puede cambiar; nada se aplica sin que el usuario la vea. Lo que no coincide con ninguna regla queda «por revisar» y esa fila no entra hasta elegir una categoría. Si el archivo trae la columna de categoría, esa manda. Solo aplica en el modo alta. | Decisión del usuario |
+
+Cómo se aplican I-06 y I-10 a I-14 en el servidor (la forma exacta está en [api-contracts.md](../architecture/api-contracts.md#importación)):
+
+- **Un solo camino.** La vista previa y la confirmación aplican la misma revisión a cada fila; las filas buenas entran sin esperar a las malas, y todo lo que entra va en una sola transacción (RG-09).
+- **Consolidación (I-06).** Filas con el mismo artículo y el mismo almacén, en un artículo por cantidad, se suman en una sola y se avisa «Unido: filas 2, 5, 9». Una fila sin código se une con otra del mismo nombre y marca, comparados sin acentos, sin mayúsculas y sin espacios de más. En un artículo por pieza cada fila es una pieza y no se une con nada.
+- **Código generado.** Si una fila de un artículo nuevo no trae código, el servidor lo genera: `PREFIJO-NNNN`, consecutivo por categoría, asignado dentro de la transacción de la confirmación (en la vista previa solo se muestra como provisional). Prefijos: EPB (EPP básico), EPD (EPP de dotación), ALT (Equipo de alturas), HMA (Herramienta manual), HEL (Herramienta eléctrica), EAV (Equipo de alto valor) y CON (Consumibles de trabajo). Una categoría creada por la empresa no tiene prefijo: en ella el código se pide en el archivo.
+- **Artículo que ya existe.** Solo recibe la entrada. Si el nombre, la marca o la categoría del archivo no coinciden con los del artículo, se avisa en esa fila y no se actualiza nada.
+- **Servicio.** Una fila cuya descripción tiene la palabra SERVICIO se excluye con un aviso y no cuenta como error.
+- **Permisos.** Con `inventario.entradas` se importa en cualquiera de los dos modos. Una fila de alta que crearía un artículo, sin `catalogo.administrar`, es un error de esa fila (`SIN_PERMISO_CREAR`); las filas de artículos que ya existen sí entran. Hasta ahora el alta no pedía `catalogo.administrar`: es un cambio de política. Compras ya tiene los dos permisos y no cambia nada para ella.
+- **Concurrencia.** Dos importaciones al mismo tiempo con los mismos códigos nunca duplican un artículo ni una pieza ni descuadran las existencias: una gana, y la otra suma al artículo que ya existe o recibe el conflicto del servidor sin guardar nada.
+- **Descarga de errores.** El archivo de filas con error neutraliza toda celda que empiece con `=`, `+`, `-`, `@`, tabulador o retorno de carro, anteponiéndole un apóstrofo, para que Excel no la ejecute como fórmula.
 
 ### 7.3 Entrega (almacenista)
 
@@ -463,6 +480,7 @@ Dónde está resuelto cada caso que se sale de lo habitual.
 | Un rol necesita ver o hacer algo más | El administrador le activa el permiso; aplica en la siguiente consulta. | AC-08 a AC-11 | P1 |
 | Hay que mover a un almacenista de almacén | Un supervisor con `almacenes.asignar_personal` lo reasigna; aplica en la siguiente petición y el historial no cambia. | AC-12, AC-13 | P1 |
 | En mantenimiento o calibración | No se entrega ni cuenta como disponible. | P-06, E-05 | P1 |
+| Llega material de un artículo que ya está en el catálogo | Se importa en modo reposición: solo suma, nunca crea; un código que no existe es error. | I-10, I-11, I-13 | P1 |
 | Falta una herramienta que el almacén no tiene (por ejemplo, de medidas europeas) | El supervisor o el almacenista levanta una solicitud de compra urgente; Compras la toma, la compra y la ingresa con un vale de entrada. | I-08, SC-01 a SC-11 | P1 |
 | Quedó instalado en planta | Se cierra sin devolución y sin pendiente. | V-09 | P2 |
 | Pérdida o robo | Sigue como pendiente hasta que un supervisor lo dé por perdido. | V-13, P-05 | P2 |
@@ -545,10 +563,10 @@ A es Almacenista, S Supervisor (de almacén), C Compras y R Recursos Humanos. El
 | | `trabajadores.administrar` | Alta, reingreso, credencial y cancelar una baja | R |
 | | `trabajadores.iniciar_baja` | Iniciar la baja | A, S, R |
 | Catálogo | `catalogo.ver` | Categorías, artículos y piezas | A, S, C |
-| | `catalogo.administrar` | Categorías, artículos, requisitos, límites e inactivar | S, C |
+| | `catalogo.administrar` | Categorías, artículos, requisitos, límites e inactivar; también dar de alta artículos nuevos al importar (I-10) | S, C |
 | | `catalogo.costos` | Ver y capturar costos | C |
 | Inventario | `inventario.ver` | Existencias del almacén asignado (de todos, con `almacenes.todos`) | A, S, C |
-| | `inventario.entradas` | Entradas e importación | C |
+| | `inventario.entradas` | Entradas e importación, en alta y en reposición (I-10) | C |
 | Operación | `entregas.crear` | Entregar y pedir autorización | A, S |
 | | `devoluciones.crear` | Recibir devoluciones | A, S |
 | | `traspasos.operar` | Enviar y recibir traspasos entre almacenes (el almacenista no los opera) | S |
@@ -600,6 +618,7 @@ Usuarios iniciales por almacén: cada almacén (Kepler, Contratistas, Midrex, HY
 | P0 | Catálogo configurable | CF-01, CF-02, CF-05 a CF-13, CF-15, E-19, E-26, I-09 |
 | P0 | Registrar y reingresar a un trabajador | T-01 a T-03, T-05 a T-08, E-12 |
 | P0 | Cargar inventario | I-01 a I-04, I-06, I-07 |
+| P1 | Importación por modos, vista previa en tabla y categoría sugerida | I-10 a I-14 |
 | P0 | Surtir EPP y una herramienta por escaneo | E-01 a E-06, E-15 a E-18, E-20 a E-22, E-24, E-25, E-27, E-28, F-02 (en pantalla), F-03, F-05, F-07 (con sesión), F-12 |
 | P0 | Intentar una entrega que exceda el límite | L-01 a L-05, E-07, A-01 a A-07, F-04 |
 | P0 | Traspaso entre almacenes | X-01 a X-04, X-06 a X-13, F-09 |
@@ -632,6 +651,7 @@ Los supuestos con los que se escribieron estas reglas, y qué pasa si resultan d
 
 ## 11. Historial
 
+- **Sin publicar (6 oct 2026).** Importación por modos (I-10 a I-14): alta y reposición, tope de cantidad por fila, aviso de archivo ya importado, cantidades solo enteras y categoría sugerida por la descripción. Se consolidan las filas del mismo artículo por cantidad y almacén (I-06, RG-10). Cambio de política: el alta que crea artículos exige además `catalogo.administrar` (sección 8.2). Parámetro nuevo en 5.4.
 - **Sin publicar (6 oct 2026).** Sesiones por dispositivo: token de acceso de 15 minutos y token de renovación de 7 días, renovado con el uso hasta un tope de 30 días, con rotación y detección de reutilización (AC-14 a AC-24). Salir cierra solo ese dispositivo; cambiar la contraseña o el PIN, inactivar o reactivar cierra todas. Sustituye al token único de 12 horas.
 - **Versión 8 (6 oct 2026).** Solicitud de compra urgente (I-08, sección 7.13, SC-01 a SC-11): el supervisor o el almacenista la levanta, Compras la ve de todos los almacenes, la toma, la compra y la ingresa ligándola con su vale de entrada. Permisos nuevos `compras.solicitar` (A, S) y `compras.atender` (C) en la sección 8.2. Pasa de pospuesta a incluida.
 - **Versión 7 (5 oct 2026).** Dotación por puesto construida en el servidor (FEAT-003): D-04 (la dotación no pasa del límite), el criterio de lo entregado en D-02 y los avisos E-09, E-10 y E-11. Sin permisos nuevos: puestos y dotación usan `catalogo.ver` y `catalogo.administrar`.

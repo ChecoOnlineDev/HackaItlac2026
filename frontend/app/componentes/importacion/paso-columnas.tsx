@@ -4,10 +4,11 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { AccionPrincipal } from "~/componentes/pantalla";
 import { Boton } from "~/componentes/ui/boton";
 import { CampoSelect } from "./campo-select";
-import { AYUDA_CAMPO, ETIQUETA_CAMPO, nombreDeColumna } from "./tabla";
-import { CAMPOS, type CampoImportacion, type Columnas, type Tabla } from "./tipos";
+import { ayudaDeCampo, ETIQUETA_CAMPO, nombreDeColumna } from "./tabla";
+import { CAMPOS, camposDelModo, type CampoImportacion, type Columnas, type ModoImportacion, type Tabla } from "./tipos";
 
 interface PropiedadesPasoColumnas {
+  modo: ModoImportacion;
   tabla: Tabla;
   columnas: Columnas;
   alCambiar: (columnas: Columnas) => void;
@@ -20,13 +21,14 @@ interface PropiedadesPasoColumnas {
  * Paso 2: decir qué trae cada columna. Ya viene propuesto por los encabezados; se puede cambiar. Debajo, las
  * primeras filas para comprobar que cada columna es lo que se cree.
  */
-export function PasoColumnas({ tabla, columnas, alCambiar, puedeCostos, alContinuar }: PropiedadesPasoColumnas) {
+export function PasoColumnas({ modo, tabla, columnas, alCambiar, puedeCostos, alContinuar }: PropiedadesPasoColumnas) {
   const ancho = Math.max(tabla.encabezados?.length ?? 0, ...tabla.filas.map((f) => f.length));
   const opciones = Array.from({ length: ancho }, (_, i) => ({
     valor: String(i),
     texto: `${nombreDeColumna(tabla.encabezados, i)}${tabla.filas[0]?.[i] ? ` — ej.: ${tabla.filas[0][i].slice(0, 24)}` : ""}`,
   }));
-  const campos = CAMPOS.filter((c) => c !== "costo" || puedeCostos);
+  const delModo = camposDelModo(modo);
+  const campos = CAMPOS.filter((c) => delModo.includes(c) && (c !== "costo" || puedeCostos));
   const fijar = (campo: CampoImportacion, valor: string) => {
     const indice = valor === "" ? null : Number(valor);
     const siguiente = { ...columnas, [campo]: indice };
@@ -34,8 +36,9 @@ export function PasoColumnas({ tabla, columnas, alCambiar, puedeCostos, alContin
     if (indice !== null) for (const otro of CAMPOS) if (otro !== campo && siguiente[otro] === indice) siguiente[otro] = null;
     alCambiar(siguiente);
   };
-  const sinCodigo = columnas.codigo === null;
-  const dueno = (indice: number) => CAMPOS.find((c) => columnas[c] === indice && (c !== "costo" || puedeCostos));
+  // Solo se pide lo mínimo para poder revisar; si falta algo más, el servidor lo dice fila por fila.
+  const sinCodigo = modo === "REPOSICION" ? columnas.codigo === null : columnas.codigo === null && columnas.nombre === null;
+  const dueno = (indice: number) => campos.find((c) => columnas[c] === indice);
   const muestra = tabla.filas.slice(0, 5);
 
   return (
@@ -46,6 +49,7 @@ export function PasoColumnas({ tabla, columnas, alCambiar, puedeCostos, alContin
         </h2>
         <p className="flex items-start gap-2 text-sm text-muted-foreground">
           <InfoIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-marino" />
+          {modo === "REPOSICION" ? "En reposición solo se leen el código, la cantidad y el almacén. Lo demás que traiga el archivo se ignora. " : ""}
           {tabla.encabezados
             ? "Propusimos las columnas según sus encabezados. Revísalas y corrige las que no sean."
             : "La tabla no trae encabezados: elige qué columna es cada dato."}
@@ -57,14 +61,14 @@ export function PasoColumnas({ tabla, columnas, alCambiar, puedeCostos, alContin
               etiqueta={
                 <>
                   {ETIQUETA_CAMPO[campo]}
-                  {campo === "codigo" ? <span className="font-semibold text-destructive"> (obligatorio)</span> : null}
+                  {campo === "codigo" && modo === "REPOSICION" ? <span className="font-semibold text-destructive"> (obligatorio)</span> : null}
                 </>
               }
-              ayuda={AYUDA_CAMPO[campo]}
+              ayuda={ayudaDeCampo(campo, modo)}
               valor={columnas[campo] === null ? "" : String(columnas[campo])}
               alCambiar={(v) => fijar(campo, v)}
               opciones={opciones}
-              vacio={campo === "codigo" ? "Elige una columna" : "No viene en la tabla"}
+              vacio={campo === "codigo" && modo === "REPOSICION" ? "Elige una columna" : "No viene en la tabla"}
             />
           ))}
         </div>
@@ -113,7 +117,7 @@ export function PasoColumnas({ tabla, columnas, alCambiar, puedeCostos, alContin
         </p>
       </section>
 
-      <AccionPrincipal nota={sinCodigo ? "Elige qué columna trae el código del artículo." : null}>
+      <AccionPrincipal nota={sinCodigo ? (modo === "REPOSICION" ? "Elige qué columna trae el código del artículo." : "Elige la columna del código o la del nombre del artículo.") : null}>
         <Boton variante="principal" disabled={sinCodigo} onClick={alContinuar}>
           Revisar la importación
         </Boton>

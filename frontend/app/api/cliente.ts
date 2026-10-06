@@ -196,17 +196,15 @@ export const apiPatch = <T>(ruta: string, cuerpo?: unknown) =>
 export const apiDelete = <T>(ruta: string) => api<T>(ruta, { metodo: "DELETE" });
 
 /**
- * Descarga un CSV (o cualquier archivo) que entrega la API.
- * Ejemplo: `await descargarCsv("/reportes/existencias", { almacen_id }, "existencias.csv")`.
+ * Descarga un archivo que entrega la API (un CSV, una plantilla de Excel…).
+ * Ejemplo: `await descargarArchivo("/importacion/plantilla", { modo: "ALTA" }, "plantilla.xlsx")`.
  */
-export async function descargarCsv(
+export async function descargarArchivo(
   ruta: string,
   parametros?: Parametros,
-  nombreSugerido = "reporte.csv",
+  nombreSugerido = "archivo",
 ): Promise<void> {
-  const respuesta = await pedir(ruta, {
-    parametros: { ...parametros, formato: "csv" },
-  });
+  const respuesta = await pedir(ruta, { parametros });
   const blob = await respuesta.blob();
   const disposicion = respuesta.headers.get("Content-Disposition") ?? "";
   const coincide = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposicion);
@@ -219,4 +217,12 @@ export async function descargarCsv(
   enlace.click();
   enlace.remove();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Descarga un CSV que entrega la API.
+ * Ejemplo: `await descargarCsv("/reportes/existencias", { almacen_id }, "existencias.csv")`.
+ */
+export function descargarCsv(ruta: string, parametros?: Parametros, nombreSugerido = "reporte.csv"): Promise<void> {
+  return descargarArchivo(ruta, { ...parametros, formato: "csv" }, nombreSugerido);
 }

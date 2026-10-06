@@ -9,9 +9,10 @@ import { mensajeDeError } from "~/api/errores";
 import { AccionPrincipal } from "~/componentes/pantalla";
 import { Boton } from "~/componentes/ui/boton";
 import { MAX_BYTES_ARCHIVO, armarTabla, leerTextoPegado, nombreDeColumna, pareceEncabezado } from "./tabla";
-import type { ArchivoApi, Columnas, Tabla } from "./tipos";
+import type { ArchivoApi, Columnas, ModoImportacion, Tabla } from "./tipos";
 
 interface PropiedadesPasoPegar {
+  modo: ModoImportacion;
   /** Lo que ya se había pegado (al volver de un paso posterior). */
   textoInicial: string;
   alCambiarTexto: (texto: string) => void;
@@ -25,7 +26,7 @@ interface PropiedadesPasoPegar {
  * Paso 1: pegar la tabla copiada de Excel (texto con tabuladores, que se lee aquí mismo) o subir un
  * `.xlsx` (que lee el servidor). Hasta confirmar no se guarda nada.
  */
-export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, alSubirArchivo }: PropiedadesPasoPegar) {
+export function PasoPegar({ modo, textoInicial, alCambiarTexto, alContinuarConTexto, alSubirArchivo }: PropiedadesPasoPegar) {
   const idTexto = useId();
   const idArchivo = useId();
   const [texto, setTexto] = useState(textoInicial);
@@ -66,6 +67,7 @@ export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, a
     try {
       const cuerpo = new FormData();
       cuerpo.append("archivo", archivo);
+      cuerpo.append("modo", modo);
       const r = await api<ArchivoApi>("/importacion/archivo", { metodo: "POST", cuerpo });
       alSubirArchivo(
         { origen: "archivo", archivo: archivo.name, encabezados: r.encabezados, filas: r.filas, primeraFila: r.primera_fila },
@@ -96,7 +98,7 @@ export function PasoPegar({ textoInicial, alCambiarTexto, alContinuarConTexto, a
           value={texto}
           rows={8}
           spellCheck={false}
-          placeholder={"Código\tNombre\tMarca\tCategoría\tCantidad\tAlmacén"}
+          placeholder={modo === "REPOSICION" ? "Código\tCantidad\tAlmacén" : "Código\tNombre\tMarca\tCategoría\tCantidad\tAlmacén"}
           aria-invalid={lectura && !lectura.ok ? true : undefined}
           aria-describedby={`${idTexto}-estado`}
           onChange={(e) => {

@@ -39,6 +39,9 @@ export function ResultadoImportacion({ resultado, filasError, alDescargarErrores
         <dl className="grid grid-cols-2 gap-3 md:grid-cols-3">
           <Dato etiqueta="Filas importadas" valor={resumen.filas_importadas} />
           {resultado.repetida ? null : <Dato etiqueta="Artículos nuevos" valor={resumen.articulos_creados} />}
+          {resultado.repetida || resumen.existentes === undefined ? null : <Dato etiqueta="Artículos que ya existían (sumados)" valor={resumen.existentes} />}
+          {resultado.repetida || !resumen.unidos ? null : <Dato etiqueta="Filas unidas" valor={resumen.unidos} />}
+          {resultado.repetida || !resumen.excluidas ? null : <Dato etiqueta="Filas excluidas" valor={resumen.excluidas} />}
           <Dato etiqueta="Vales de entrada" valor={resumen.vales} />
           <Dato etiqueta="Piezas" valor={resumen.piezas} />
           <Dato etiqueta="Unidades" valor={resumen.unidades} />

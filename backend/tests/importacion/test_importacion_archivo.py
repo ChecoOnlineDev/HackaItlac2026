@@ -114,8 +114,11 @@ def test_I_06_encabezados_en_otro_orden_con_otros_nombres_y_filas_arriba(compras
     assert cuerpo["primera_fila"] == 4  # dos filas vacías, encabezado en la 3, datos desde la 4
     assert cuerpo["columnas"]["almacen"] == 0 and cuerpo["columnas"]["codigo"] == 3
     vp = cuerpo["vista_previa"]
-    assert vp["filas_error"][0]["motivos"][0]["codigo"] == "CATEGORIA_DESCONOCIDA"
-    assert vp["filas_error"][0]["fila"] == cuerpo["primera_fila"]
+    # Sin categoría en el archivo: «Pinzas» trae una sugerencia (I-14) que no se aplica sola.
+    fila_vista = vp["filas_validas"][0]
+    assert fila_vista["fila"] == cuerpo["primera_fila"]
+    assert fila_vista["categoria"] is None
+    assert fila_vista["categoria_sugerida"]["nombre"] == MANUAL
 
 
 def test_I_06_celdas_numericas_y_filas_vacias_en_medio(compras):
@@ -288,7 +291,7 @@ def test_I_06_el_archivo_exige_inventario_entradas(cliente_con):
 
 
 def test_RG_12_sin_catalogo_costos_el_costo_del_archivo_no_vuelve_en_la_respuesta(cliente_con):
-    sin_costos = cliente_con({P.INVENTARIO_ENTRADAS, P.ALMACENES_TODOS})
+    sin_costos = cliente_con({P.INVENTARIO_ENTRADAS, P.ALMACENES_TODOS, P.CATALOGO_ADMINISTRAR})
     r = subir(sin_costos, libro([[unico("C"), "Cosa", "m", MANUAL, 1, "KEP", None, 777.77, None]]))
     assert r.status_code == 200, r.text
     vp = r.json()["vista_previa"]

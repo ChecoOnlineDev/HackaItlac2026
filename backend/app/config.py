@@ -79,6 +79,10 @@ class Settings(BaseSettings):
     limite_cuerpo_foto_trabajador: int = 3 * 1024 * 1024
     limite_cuerpo_importacion: int = 6 * 1024 * 1024
 
+    # Tope de unidades por fila en la importación de inventario (I-11): más se rechaza como error
+    # de esa fila (`CANTIDAD_EXCESIVA`). Protege contra un cero de más al capturar.
+    importacion_cantidad_maxima: int = Field(default=100_000, ge=1, le=1_000_000)
+
     # Interfaz construida (frontend/build/client). En la imagen vive en /app/interfaz; si la
     # carpeta no existe (desarrollo, pruebas) el servidor solo ofrece la API.
     interfaz_dir: Path = Path("/app/interfaz")

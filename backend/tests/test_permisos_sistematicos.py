@@ -850,7 +850,9 @@ def test_RG_12_la_importacion_ignora_el_costo_sin_permiso_y_lo_oculta(
     previa = cliente_como("Compras").post("/api/importacion/vista-previa", json=cuerpo)
     assert previa.status_code == 200 and "85.50" in previa.text
     # Sin costos: el almacén de la sesión, un aviso, y el costo no vuelve en NINGUNA respuesta.
-    sin = _cliente_de(app, crear_usuario({P.INVENTARIO_ENTRADAS}, almacen="KEP"))
+    sin = _cliente_de(
+        app, crear_usuario({P.INVENTARIO_ENTRADAS, P.CATALOGO_ADMINISTRAR}, almacen="KEP")
+    )
     previa = sin.post("/api/importacion/vista-previa", json=cuerpo)
     assert previa.status_code == 200, previa.text
     assert "85.50" not in previa.text

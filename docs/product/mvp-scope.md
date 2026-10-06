@@ -29,7 +29,7 @@ Corresponde a la prioridad P0 de las [reglas de negocio](reglas-de-negocio.md).
 - **Catálogo configurable.** Categorías con plantilla de reglas; artículos por pieza o por cantidad, retornables o consumibles; requisitos de inspección y de autorización por artículo; inactivar y reactivar con motivo; registro de cambios.
 - **Etiquetas.** Hoja imprimible de QR para credenciales, piezas y estantes.
 - **Trabajadores.** Alta, reingreso y vigencia por periodo de contrato; foto opcional tomada en el alta.
-- **Inventario.** Entrada manual, importación desde una tabla de Excel y existencias por almacén.
+- **Inventario.** Entrada manual, importación desde una tabla de Excel (alta y reposición, I-10) y existencias por almacén.
 - **Entrega.** Escaneo con cámara, pistola o teclado; semáforo; firma en pantalla; vale con folio y QR.
 - **Límite y autorización.** Límite por artículo, en posesión o por periodo; autorización del supervisor desde su celular o con PIN.
 - **Seguridad.** Inspección de piezas; bloqueo de equipo no apto o sin inspección vigente; ajuste de la vigencia de una inspección por el supervisor o el administrador, con motivo.

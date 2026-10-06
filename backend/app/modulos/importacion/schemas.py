@@ -7,13 +7,18 @@ de que columna es cada dato. El costo solo viaja en las respuestas si quien impo
 
 import uuid
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.modulos.acceso.schemas import FechaUtc
 
 MAX_FILAS = 5000
 MAX_COLUMNAS = 30
 MAX_CELDA = 500
+
+Modo = Literal["ALTA", "REPOSICION"]
+Estado = Literal["NUEVO", "EXISTENTE", "UNIDO", "ERROR"]
 
 # Datos que se pueden relacionar con una columna.
 CAMPOS = (
@@ -34,12 +39,14 @@ class _Estricto(BaseModel):
 
 
 class ColumnasIn(_Estricto):
-    """Indice (desde 0) de la columna de cada dato. Solo `codigo` es obligatorio.
+    """Indice (desde 0) de la columna de cada dato.
 
-    `codigo` es el del articulo; `codigo_pieza` es el de cada pieza en articulos por pieza.
+    `codigo` es el del articulo; `codigo_pieza` es el de cada pieza en articulos por pieza. Que
+    columnas hacen falta depende del modo (I-10) y lo revisa el servicio: en `REPOSICION` el
+    `codigo`; en `ALTA`, el `codigo` o el `nombre`.
     """
 
-    codigo: int = Field(ge=0, lt=MAX_COLUMNAS)
+    codigo: int | None = Field(default=None, ge=0, lt=MAX_COLUMNAS)
     nombre: int | None = Field(default=None, ge=0, lt=MAX_COLUMNAS)
     marca: int | None = Field(default=None, ge=0, lt=MAX_COLUMNAS)
     categoria: int | None = Field(default=None, ge=0, lt=MAX_COLUMNAS)
@@ -60,6 +67,7 @@ class ColumnasIn(_Estricto):
 class ImportacionIn(_Estricto):
     """Cuerpo de la vista previa y de la confirmacion.
 
+    - `modo`: `ALTA` (por omision) o `REPOSICION` (I-10).
     - `filas`: las filas de datos, sin encabezados, cada una con sus celdas.
     - `columnas`: que columna es cada dato. Sin `columnas`, se propone a partir de
       `encabezados` (nombre de cada columna).
@@ -67,19 +75,33 @@ class ImportacionIn(_Estricto):
       tenia encabezados). Los errores se reportan con ese numero.
     - `categoria_por_defecto_id` y `mapa_categorias` ({nombre en el archivo: categoria_id}):
       categoria para los articulos nuevos cuya categoria no existe.
+    - `categoria_por_fila` ({numero de fila: categoria_id}): lo que la persona eligio o acepto
+      viendo la fila (I-14); la sugerencia del servidor nunca se aplica sola.
     - `almacen_por_defecto`: clave o nombre del almacen para las filas sin almacen.
     - `id_lote`: obligatorio al confirmar; repetir la confirmacion con el mismo lote no
       duplica nada.
+    - `confirmar_repetido`: se manda en `true` para confirmar un archivo ya importado (I-12).
     """
 
+    modo: Modo = "ALTA"
     filas: list[list[Any]] = Field(max_length=MAX_FILAS)
     columnas: ColumnasIn | None = None
     encabezados: list[str | None] | None = Field(default=None, max_length=MAX_COLUMNAS)
     primera_fila: int = Field(default=1, ge=1, le=1_000_000)
     categoria_por_defecto_id: uuid.UUID | None = None
     mapa_categorias: dict[str, uuid.UUID] = Field(default_factory=dict, max_length=500)
+    categoria_por_fila: dict[str, uuid.UUID] = Field(default_factory=dict, max_length=MAX_FILAS)
     almacen_por_defecto: str | None = Field(default=None, max_length=100)
     id_lote: uuid.UUID | None = None
+    confirmar_repetido: bool = False
+
+    @field_validator("categoria_por_fila")
+    @classmethod
+    def _filas_numericas(cls, valor: dict[str, uuid.UUID]) -> dict[str, uuid.UUID]:
+        for fila in valor:
+            if not (fila.isascii() and fila.isdigit()):
+                raise ValueError("Cada clave es el número de una fila.")
+        return valor
 
     @field_validator("filas")
     @classmethod
@@ -126,13 +148,22 @@ class AlmacenRefOut(BaseModel):
 
 class FilaValidaOut(BaseModel):
     fila: int
+    estado: Estado
     codigo: str
+    # El numero de un codigo generado es provisional: el definitivo se asigna al confirmar.
+    codigo_generado: bool
     nombre: str
     marca: str | None
     categoria: CategoriaRefOut | None
+    # Solo en el alta, en un articulo nuevo sin categoria en el archivo (I-14); nunca se aplica.
+    categoria_sugerida: CategoriaRefOut | None
+    motivo_sugerencia: str | None
     control: str
     articulo_nuevo: bool
     cantidad: int
+    saldo_antes: int
+    saldo_despues: int
+    unida_de: list[int]
     almacen: AlmacenRefOut
     codigo_pieza: str | None
     numero_serie: str | None
@@ -146,15 +177,28 @@ class FilaErrorOut(BaseModel):
     importa no tiene `catalogo.costos`."""
 
     fila: int
+    estado: Estado = "ERROR"
     datos: dict[str, str]
     motivos: list[MotivoOut]
+    # Solo si el diccionario (I-14) sugirio una categoria para esta fila de articulo nuevo.
+    categoria_sugerida: CategoriaRefOut | None = None
+    motivo_sugerencia: str | None = None
+
+
+class FilaExcluidaOut(BaseModel):
+    """Una fila que no es un articulo (dice SERVICIO): no se importa y no cuenta como error."""
+
+    fila: int
+    nombre: str
+    motivo: str
 
 
 class ArticuloNuevoOut(BaseModel):
     codigo: str
     nombre: str
     marca: str | None
-    categoria: CategoriaRefOut
+    # Vacia mientras la categoria es solo una sugerencia que la persona no ha elegido.
+    categoria: CategoriaRefOut | None
     control: str
     filas: int
     costo: Decimal | None = None
@@ -173,17 +217,30 @@ class ResumenVistaPreviaOut(BaseModel):
     con_error: int
     vacias: int
     articulos_nuevos: int
+    existentes: int
+    unidos: int
+    excluidas: int
+    por_revisar: int
     piezas: int
     unidades: int
     almacenes: int
 
 
+class ArchivoRepetidoOut(BaseModel):
+    """La importacion anterior con la misma huella (I-12)."""
+
+    fecha: FechaUtc
+
+
 class VistaPreviaOut(BaseModel):
+    modo: Modo
     columnas: dict[str, int | None]
     avisos: list[str]
+    archivo_repetido: ArchivoRepetidoOut | None
     resumen: ResumenVistaPreviaOut
     filas_validas: list[FilaValidaOut]
     filas_error: list[FilaErrorOut]
+    filas_excluidas: list[FilaExcluidaOut]
     articulos_nuevos: list[ArticuloNuevoOut]
     categorias_desconocidas: list[CategoriaDesconocidaOut]
 
@@ -204,6 +261,7 @@ class ArchivoOut(BaseModel):
 class ArticuloCreadoOut(BaseModel):
     id: uuid.UUID
     codigo: str
+    codigo_generado: bool
     nombre: str
     categoria: str
     control: str
@@ -222,6 +280,9 @@ class ResumenImportacionOut(BaseModel):
     filas_importadas: int
     filas_con_error: int
     articulos_creados: int
+    existentes: int
+    unidos: int
+    excluidas: int
     vales: int
     piezas: int
     unidades: int
@@ -230,6 +291,7 @@ class ResumenImportacionOut(BaseModel):
 class ImportacionOut(BaseModel):
     """201 al confirmar; 200 con `repetida: true` si el lote ya se habia confirmado."""
 
+    modo: Modo
     id_lote: uuid.UUID
     repetida: bool
     resumen: ResumenImportacionOut

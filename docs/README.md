@@ -22,7 +22,7 @@ Regla de uso: **los documentos globales orientan, los briefs pequeños autorizan
 | 8. Roadmap | [product/roadmap.md](product/roadmap.md) | ¿En qué orden? | Escrito |
 | 9. Historias | [stories/](stories/) | ¿Qué necesidad resuelve cada fase? | Fases 1 a 7 |
 | 10. Tareas | En el roadmap (Fase 0 y Fase 7) | ¿Qué cambia en el código? | El resto se planea por historia |
-| Segunda ola | [features/](features/) | ¿Qué sigue después del núcleo? | Seis briefs |
+| Segunda ola | [features/](features/) | ¿Qué sigue después del núcleo? | Siete briefs |
 | Release | [releases/mvp-checklist.md](releases/mvp-checklist.md), [changelog](releases/changelog.md), [guía del almacenista](guia-almacenista.md), [guía por rol](guia-por-rol.md) | ¿Cuándo está terminado, qué trae y cómo se usa? | Escritos; la checklist se va marcando |
 | Plantillas | [templates/](templates/) | Historias, FEAT, FIX, TECH, ADR, reporte y prompts | Listas |
 

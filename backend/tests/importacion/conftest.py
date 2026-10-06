@@ -46,3 +46,11 @@ def cliente_con(app, crear_usuario) -> Iterator[Callable[..., TestClient]]:
     yield _cliente
     for c in clientes:
         c.close()
+
+
+# Fixtures de concurrencia (conexiones propias y datos confirmados) de `movimientos`.
+from tests.movimientos.conftest import (  # noqa: E402, F401
+    cliente_independiente,
+    limpieza,
+    sesion_independiente,
+)

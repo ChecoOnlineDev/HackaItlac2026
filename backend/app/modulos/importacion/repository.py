@@ -5,16 +5,19 @@ El modulo `importacion` no escribe tablas propias: los articulos los crea `catal
 una consulta por fila.
 """
 
+import re
 import uuid
 from collections.abc import Iterable, Iterator
+from datetime import datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.modulos.almacenes.models import Almacen
+from app.modulos.almacenes.models import Almacen, TipoUbicacion, Ubicacion
+from app.modulos.auditoria.models import Auditoria
 from app.modulos.catalogo.models import Articulo, Categoria, Codigo, Pieza
 from app.modulos.importacion.lectura import clave
-from app.modulos.movimientos.models import Movimiento, Vale
+from app.modulos.movimientos.models import Existencia, Movimiento, Vale
 
 BLOQUE = 500
 
@@ -96,3 +99,53 @@ class ImportacionRepository:
             .group_by(Movimiento.vale_id)
         )
         return {v: (int(r), int(p), int(u)) for v, r, p, u in self.session.execute(consulta)}
+
+    def articulos_por_nombre(self, nombres: Iterable[str]) -> list[Articulo]:
+        """Articulos cuyo nombre coincide (la base compara sin acentos ni mayusculas)."""
+        encontrados: list[Articulo] = []
+        for bloque in _en_bloques(sorted(set(nombres))):
+            consulta = select(Articulo).where(Articulo.nombre.in_(bloque))
+            encontrados.extend(self.session.scalars(consulta.order_by(Articulo.creado_en)))
+        return encontrados
+
+    def saldos(self, articulo_ids: Iterable[uuid.UUID]) -> dict[tuple[uuid.UUID, uuid.UUID], int]:
+        """`(articulo_id, almacen_id) -> cantidad` que hay hoy en cada almacen (Existencia)."""
+        ids = set(articulo_ids)
+        saldos: dict[tuple[uuid.UUID, uuid.UUID], int] = {}
+        for bloque in _en_bloques(sorted(ids)):
+            consulta = (
+                select(Existencia.articulo_id, Ubicacion.almacen_id, Existencia.cantidad)
+                .join(Ubicacion, Ubicacion.id == Existencia.ubicacion_id)
+                .where(Ubicacion.tipo == TipoUbicacion.ALMACEN, Existencia.articulo_id.in_(bloque))
+            )
+            for articulo_id, almacen_id, cantidad in self.session.execute(consulta):
+                saldos[(articulo_id, almacen_id)] = int(cantidad)
+        return saldos
+
+    def ultimo_numero_con_prefijo(self, prefijo: str) -> int:
+        """El consecutivo mas alto de los codigos `PREFIJO-NNNN` que ya existen (0 si no hay)."""
+        patron = re.compile(rf"^{re.escape(prefijo)}-(\d+)$", re.IGNORECASE)
+        mayor = 0
+        consulta = select(Codigo.codigo).where(Codigo.codigo.like(f"{prefijo}-%"))
+        for codigo in self.session.scalars(consulta):
+            encontrado = patron.match(codigo)
+            if encontrado:
+                mayor = max(mayor, int(encontrado.group(1)))
+        return mayor
+
+    def bloquear_categorias(self) -> None:
+        """Toma `FOR UPDATE` las categorias, en orden: serializa los lotes que crean articulos
+        (consecutivo de codigos y articulos repetidos) hasta que el primero confirme."""
+        self.session.execute(select(Categoria.id).order_by(Categoria.id).with_for_update())
+
+    def fecha_de_importacion(self, huella: str) -> datetime | None:
+        """La fecha de la importacion mas reciente con esa huella (I-12), o `None`."""
+        return self.session.scalar(
+            select(Auditoria.creado_en)
+            .where(
+                Auditoria.accion == "importacion.confirmar",
+                Auditoria.despues["huella"].as_string() == huella,
+            )
+            .order_by(Auditoria.creado_en.desc())
+            .limit(1)
+        )

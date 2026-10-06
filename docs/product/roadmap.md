@@ -119,9 +119,9 @@ Las historias están en [stories/](../stories/). Las tareas técnicas de cada hi
 
 **Resultado.** La información sale tan rápido como entra, y el inventario se carga de una vez.
 
-**Historias.** [US-CON-001, US-REP-001, US-REP-002, US-IMP-001](../stories/fase-6-consulta-reportes-e-importacion.md).
+**Historias.** [US-CON-001, US-REP-001, US-REP-002, US-IMP-001, US-IMP-002](../stories/fase-6-consulta-reportes-e-importacion.md).
 
-**Incluido.** Escaneo universal; búsqueda por texto; fichas; cuatro reportes con CSV (existencias, movimientos, adeudos y consumo); importación con relación de columnas.
+**Incluido.** Escaneo universal; búsqueda por texto; fichas; cuatro reportes con CSV (existencias, movimientos, adeudos y consumo); importación con relación de columnas, en dos modos (alta y reposición).
 
 **Fuera de alcance.** Gráficas; reporte de valor del inventario.
 

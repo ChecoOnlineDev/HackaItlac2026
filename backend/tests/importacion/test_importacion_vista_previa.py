@@ -54,7 +54,7 @@ def test_I_06_mezcla_de_filas_buenas_y_malas_cada_una_con_su_numero_y_motivo(com
             fila(buena, cantidad=3),
             fila(unico("X"), cantidad="mucho"),
             fila(unico("Y"), nombre="", cantidad=1),
-            fila("", cantidad=1),
+            fila("", nombre="", cantidad=1),
         ],
         primera_fila=2,
     )
@@ -83,6 +83,10 @@ def test_I_06_resumen_y_articulos_que_se_crearian(compras):
         "con_error": 0,
         "vacias": 0,
         "articulos_nuevos": 1,
+        "existentes": 0,
+        "unidos": 0,
+        "excluidas": 0,
+        "por_revisar": 0,
         "piezas": 0,
         "unidades": 6,
         "almacenes": 2,
@@ -143,7 +147,7 @@ def test_I_06_las_columnas_se_proponen_con_los_encabezados_aunque_tengan_acentos
 
 def test_I_06_sin_la_columna_del_codigo_se_pide_indicarla(compras):
     r = compras.post(
-        VISTA_PREVIA, json={"encabezados": ["Nombre", "Cantidad"], "filas": [["a", "1"]]}
+        VISTA_PREVIA, json={"encabezados": ["Marca", "Cantidad"], "filas": [["a", "1"]]}
     )
     assert r.status_code == 422 and r.json()["codigo"] == "DATOS_INVALIDOS"
 
@@ -191,7 +195,9 @@ def test_I_01_la_cantidad_debe_ser_un_entero_mayor_que_cero(compras):
     )
     assert [f["fila"] for f in vp["filas_error"]] == [1, 2, 3, 4, 5, 6]
     assert motivos(vp, 1)[0]["codigo"] == "FALTA_CANTIDAD"
-    assert all(m["regla"] == "I-01" for f in vp["filas_error"] for m in f["motivos"])
+    assert [motivos(vp, n)[0]["regla"] for n in (1, 2, 3, 4)] == ["I-01"] * 4
+    assert motivos(vp, 5)[0]["codigo"] == "CANTIDAD_NO_ENTERA"  # nunca se redondea (I-13)
+    assert motivos(vp, 6)[0]["codigo"] == "CANTIDAD_EXCESIVA"  # pasa del tope (I-11)
     assert [(f["fila"], f["cantidad"]) for f in vp["filas_validas"]] == [
         (7, 10),
         (8, 10),
@@ -227,7 +233,7 @@ def test_I_01_el_almacen_por_defecto_se_puede_elegir(compras):
 
 
 def test_AC_06_sin_almacenes_todos_solo_se_carga_al_almacen_asignado(cliente_con):
-    kepler = cliente_con({P.INVENTARIO_ENTRADAS}, almacen="KEP")
+    kepler = cliente_con({P.INVENTARIO_ENTRADAS, P.CATALOGO_ADMINISTRAR}, almacen="KEP")
     vp = vista(
         kepler,
         [
@@ -358,7 +364,8 @@ def test_RG_10_el_codigo_se_compara_sin_distinguir_mayusculas_ni_acentos(compras
     assert vp["filas_validas"][0]["articulo_nuevo"] is False
 
 
-def test_RG_10_el_mismo_articulo_por_cantidad_en_el_mismo_almacen_se_rechaza(compras):
+def test_RG_10_el_mismo_articulo_por_cantidad_en_el_mismo_almacen_se_consolida(compras):
+    # Ya no es un código repetido: las filas se suman en una sola (I-06, «Unido: filas 1, 2»).
     codigo = unico("DUP")
     vp = vista(
         compras,
@@ -368,9 +375,14 @@ def test_RG_10_el_mismo_articulo_por_cantidad_en_el_mismo_almacen_se_rechaza(com
             fila(codigo, cantidad=2, almacen="CON"),
         ],
     )
+    assert vp["filas_error"] == []
     assert [f["fila"] for f in vp["filas_validas"]] == [1, 3]  # otro almacén es otra fila
-    motivo = motivos(vp, 2)[0]
-    assert motivo["regla"] == "RG-10" and "fila 1" in motivo["mensaje"]
+    unida = vp["filas_validas"][0]
+    assert unida["estado"] == "UNIDO" and unida["cantidad"] == 6 and unida["unida_de"] == [2]
+    assert "Unido: filas 1, 2" in unida["avisos"]
+    assert (unida["saldo_antes"], unida["saldo_despues"]) == (0, 6)
+    assert vp["filas_validas"][1]["estado"] == "NUEVO"
+    assert vp["resumen"]["unidos"] == 1 and vp["resumen"]["unidades"] == 8
 
 
 def test_RG_10_un_codigo_de_pieza_repetido_en_la_tabla_se_rechaza(compras):
@@ -493,7 +505,7 @@ def test_I_02_un_articulo_por_cantidad_ignora_el_codigo_de_pieza_y_avisa(compras
 
 
 def test_RG_12_sin_catalogo_costos_la_columna_de_costo_se_ignora_con_aviso(cliente_con):
-    sin_costos = cliente_con({P.INVENTARIO_ENTRADAS, P.ALMACENES_TODOS})
+    sin_costos = cliente_con({P.INVENTARIO_ENTRADAS, P.ALMACENES_TODOS, P.CATALOGO_ADMINISTRAR})
     r = sin_costos.post(VISTA_PREVIA, json=cuerpo([fila(unico("A"), cantidad=2, costo="99.90")]))
     assert r.status_code == 200, r.text
     vp = r.json()
@@ -505,7 +517,7 @@ def test_RG_12_sin_catalogo_costos_la_columna_de_costo_se_ignora_con_aviso(clien
 
 
 def test_RG_12_sin_catalogo_costos_el_costo_tampoco_vuelve_en_las_filas_con_error(cliente_con):
-    sin_costos = cliente_con({P.INVENTARIO_ENTRADAS, P.ALMACENES_TODOS})
+    sin_costos = cliente_con({P.INVENTARIO_ENTRADAS, P.ALMACENES_TODOS, P.CATALOGO_ADMINISTRAR})
     r = sin_costos.post(
         VISTA_PREVIA, json=cuerpo([fila(unico("A"), cantidad="mal", costo="123.45")])
     )

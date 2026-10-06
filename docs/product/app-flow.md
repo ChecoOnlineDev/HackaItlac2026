@@ -103,18 +103,35 @@ Confirmar -> vale de entrada con folio
 ## Flujo 5: Importación desde Excel (Compras)
 
 - **Entrada:** Importar.
+- **Precondiciones:** `inventario.entradas`. El alta que crea artículos pide además `catalogo.administrar` (I-10).
 - **Pasos:**
 
 ```
+Elegir el modo: Alta (carga inicial: crea artículos nuevos y suma a los que ya existen)
+                o Reposición (solo suma a artículos que ya existen)
+   -> "Descargar plantilla" ofrece el ejemplo de ese modo
 Pegar la tabla copiada de Excel, o subir el archivo
-Indicar qué columna es cada dato: código, nombre, marca, categoría, cantidad, almacén, serie, costo
-Vista previa: filas válidas, filas con error y artículos nuevos que se crearán
+Indicar qué columna es cada dato
+   Alta: código (opcional), nombre, marca, categoría, cantidad, almacén, serie, costo, código de pieza
+   Reposición: código, cantidad, almacén y, si es por pieza, código de pieza y serie
+Vista previa en tabla: una fila por renglón del archivo, con su estado
+   Nuevo | Existente (suma) | Unido | Error, saldo antes -> después,
+   y en el alta la categoría sugerida, que se puede cambiar por fila
+   Resumen arriba: nuevos, existentes, unidos, errores
+   Aviso si el archivo ya se importó
 Confirmar -> un vale de entrada por almacén
 ```
 
-- **Decisiones:** categoría desconocida: se elige una para esas filas; artículo por pieza: cada fila es una pieza.
-- **Éxito:** catálogo y existencias cargados; resumen de lo creado.
-- **Error:** las filas con error no se importan y se listan con su motivo; el resto sí.
+- **Decisiones:**
+  - Categoría de un artículo nuevo sin categoría en el archivo: el sistema sugiere una según la descripción y dice por qué; la persona la acepta o la cambia en la fila, y lo que no coincide queda «por revisar» hasta elegir una (I-14).
+  - Filas del mismo artículo por cantidad y almacén: se unen en una («Unido: filas 2, 5, 9»); artículo por pieza: cada fila es una pieza, y el código o la serie repetidos son error (I-06).
+  - Código que no existe en Reposición: error «Ese artículo no existe: dalo de alta primero» (I-10).
+  - Cantidad con decimales o con coma ambigua: error que pide una unidad entera menor; nunca se redondea (I-13). Más de 100 000 por fila: error (I-11).
+  - Una descripción con la palabra SERVICIO se excluye con aviso.
+  - Archivo ya importado: aviso en la vista previa; para confirmar hay que aceptar expresamente (I-12).
+  - Sin `catalogo.administrar`: las filas que crearían un artículo salen como error y las demás entran.
+- **Éxito:** catálogo y existencias cargados; resumen de lo creado y de lo sumado, con los folios de los vales.
+- **Error:** las filas con error no se importan y se listan con su motivo (se pueden descargar en CSV); las buenas entran sin esperar a las malas.
 - **Cancelación:** hasta "Confirmar" no se guarda nada.
 
 ## Flujo 6: Entrega (almacenista)

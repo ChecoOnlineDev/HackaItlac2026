@@ -307,7 +307,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 **Funcionalidades clave.**
 - Registrar entradas de inventario (almacén, artículos y piezas con su código, marca y serie).
 - Atender las solicitudes de compra urgentes de todos los almacenes desde **Solicitudes de compra** (`/compras`): tomar, rechazar, marcar comprada e ingresar, ligando el vale de entrada.
-- Importar inventario desde una tabla de Excel con vista previa.
+- Importar inventario desde una tabla de Excel con vista previa, en dos modos: **Alta** (carga inicial; crea artículos y suma a los que existen, con categoría sugerida y filas unidas) y **Reposición** (solo suma a artículos que ya existen).
 - Administrar el catálogo, incluido el **costo** (solo Compras lo ve y captura).
 - Administrar los **puestos** y su dotación recomendada (**Puestos** en el menú): crear, renombrar, inactivar y reactivar un puesto, y definir qué artículos y cuántos se recomiendan. RH los necesita para dar de alta a un trabajador y el almacén para saber qué le falta; Compras conoce el catálogo y puede cuidar que las cantidades respeten los límites (D-04).
 - Ver existencias de todos los almacenes.
@@ -324,7 +324,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 7. Entra a **Etiquetas** para imprimir los QR de las piezas nuevas y de los estantes, desde el navegador.
 
 **Otros flujos frecuentes.**
-- *Importación.* Importar → pegar la tabla o subir el archivo → indicar qué columna es cada dato → vista previa (filas válidas, con error y artículos nuevos) → confirmar; se crea un vale de entrada por almacén. Las filas con error no se importan y se listan con su motivo (I-06).
+- *Importación.* Importar → elegir el modo, **Alta** o **Reposición** (cada uno tiene su plantilla de ejemplo) → pegar la tabla o subir el archivo → indicar qué columna es cada dato → vista previa en tabla (cada fila con su estado: Nuevo, Existente, Unido o Error, y su saldo antes y después; en el alta, la categoría sugerida que se puede cambiar) → confirmar; se crea un vale de entrada por almacén. Las filas con error no se importan y se listan con su motivo (I-06, I-10 a I-14). Reposición nunca crea artículos: un código que no existe es error, y hay que darlo de alta primero. Las cantidades son enteros (nada de 0.25) y un archivo que ya se importó pide confirmación expresa.
 - *Atender las solicitudes de compra.* Entra a **Solicitudes de compra** (en su inicio y en el menú, con el número de pendientes). Arriba ve tres tarjetas con lo que espera (Pendientes, En compra y Compradas por ingresar); tocar una filtra la lista, y puede buscar por folio, artículo o motivo y filtrar por estado, urgencia, almacén y periodo. Ve la cola de **todos** los almacenes (sin ver su inventario), con las urgentes y las más antiguas primero; las urgentes pendientes salen con una franja roja. En cada renglón toca el botón que le ofrece el sistema: **Tomar** (pasa a en compra; pide una confirmación), **Comprada** y, cuando llega la compra y la registra con **Entradas**, **Ingresar**. Al tocar una solicitud abre su detalle, con todos los datos, la **línea de tiempo** (quién hizo cada cosa, cuándo y con qué nota) y los botones: **Rechazar** (pide una nota que explique por qué; la lee quien pidió), **Marcar como comprada** (nota opcional: proveedor o día de llegada) e **Ingresar al almacén**, que permite ligar el vale de entrada con el que metió lo comprado (lo elige de sus últimas entradas o escribe el folio; es opcional). Si otra persona ya cambió la solicitud, el sistema se lo dice en la misma ventana y actualiza el detalle (SC-04 a SC-06). Cada paso queda en la línea de tiempo (SC-08). Ingresar no sube las existencias: eso lo hace el vale de entrada (SC-11).
 - *Revisar faltantes.* Reportes de Existencias y de Consumo (cuánto se consume por artículo, periodo, almacén y trabajador).
 - *Imprimir credenciales.* Etiquetas → credenciales, completa o solo QR; también desde la ficha del trabajador cuando su rol la puede abrir (ver incongruencia 6 de la sección 11).
@@ -337,12 +337,16 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 | Entrada de un artículo inactivo | Se rechaza | I-09 |
 | Código de pieza repetido | Se rechaza | I-02 |
 | Un renglón con problema | Se marca; no se guarda nada hasta corregirlo | RG-09 |
-| Fila de importación con categoría desconocida | Se elige una categoría para esas filas | Flujo 5 |
+| Fila de importación con categoría desconocida | Se sugiere una por la descripción o queda «por revisar»; se elige una para esas filas | I-14 |
+| Reposición de un código que no existe | Esa fila es error: dalo de alta primero; las demás entran | I-10 |
+| Cantidad con decimales (0.25) | La fila es error; se pide una unidad entera menor; nunca se redondea | I-13 |
+| Archivo que ya se importó | Aviso; confirmar pide aceptarlo expresamente | I-12 |
 | Cancelar una entrada cuyo contenido ya se entregó | No se cancela | K-03 |
 
 **Historias de usuario.**
 - Como Compras, quiero registrar lo que entra a un almacén, para que haya existencias que entregar (**US-INV-001**).
 - Como Compras, quiero cargar el inventario pegando una tabla de Excel (**US-IMP-001**).
+- Como Compras, quiero sumar lo que llegó de artículos que ya existen sin crear duplicados (**US-IMP-002**).
 - Como Compras o RH, quiero imprimir hojas de QR para piezas, estantes y credenciales (**US-ETQ-001**).
 - Como responsable del catálogo, quiero crear categorías y artículos (**US-CAT-001**, **US-CAT-002**, **US-CAT-003**).
 - Como supervisor o Compras, quiero saber cuántos consumibles se consumen (**US-REP-002**).

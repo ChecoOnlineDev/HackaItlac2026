@@ -39,6 +39,7 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 | 409 | `CON_MOVIMIENTOS` | No se puede eliminar ni cambiar control o retorno. |
 | 409 | `NO_CANCELABLE` | El vale no se puede cancelar (K-03, K-04, X-14). `mensaje` explica por qué en español llano y `detalles` trae, por cada motivo, `{regla, mensaje}` (y `renglon` y `codigo` si es de un renglón). No se escribe nada. |
 | 409 | `TRANSICION_INVALIDA` | La solicitud de compra no puede pasar a ese estado desde el que tiene (SC-04). `detalles`: `{regla, estado_actual, estado_pedido, estados_permitidos}`. |
+| 409 | `ARCHIVO_REPETIDO` | La confirmación de una importación trae un archivo con la misma huella que otra ya confirmada (I-12) y no manda `confirmar_repetido: true`. `detalles: {regla: "I-12", fecha}` (UTC). No se escribe nada. |
 | 409 | `ID_CLIENTE_EN_USO` | El `id_cliente` de una solicitud de compra ya se usó con otro cuerpo o por otro usuario (SC-10). |
 | 403 | `AUTORIZACION_PROPIA` | Quien pidió la autorización intenta autorizarla (A-05, AC-07). |
 | 409 | `AUTORIZACION_RESUELTA` | La solicitud ya se resolvió o venció; no se resuelve de nuevo. |
@@ -451,11 +452,16 @@ Errores propios (todos con el ID de la regla en `detalles.regla`): 409 `TRANSICI
 
 ## Importación
 
+La importación tiene dos **modos** (`modo`, regla I-10): `ALTA` (por omisión, compatible con lo que ya existía) y `REPOSICION`.
+
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
-| `POST /api/importacion/vista-previa` | `inventario.entradas` | Recibe `{filas, columnas}` y devuelve filas válidas, filas con error y artículos que se crearían. No escribe. |
-| `POST /api/importacion/archivo` | `inventario.entradas` | Recibe un `.xlsx` (multipart, campo `archivo`), lo convierte en las mismas filas y responde `{hoja, encabezados, columnas, primera_fila, filas, vista_previa}`. No escribe ni guarda el archivo. |
-| `POST /api/importacion` | `inventario.entradas` | Confirma: crea artículos faltantes y un vale de entrada por almacén. 201; con un `id_lote` ya confirmado, 200 con `repetida: true`. |
+| `GET /api/importacion/plantilla` | `inventario.entradas` | Descarga un `.xlsx` de ejemplo para el modo del parámetro `modo` (`ALTA` o `REPOSICION`): encabezados que el sistema reconoce, una fila de ejemplo y una hoja de instrucciones. La columna de costo solo viene con `catalogo.costos` y solo en `ALTA`. Sin `modo`, `ALTA`. No lee ni escribe datos. |
+| `POST /api/importacion/vista-previa` | `inventario.entradas` | Recibe `{modo, filas, columnas}` y devuelve filas válidas, filas con error y artículos que se crearían. No escribe. |
+| `POST /api/importacion/archivo` | `inventario.entradas` | Recibe un `.xlsx` (multipart, campo `archivo`, y el campo opcional `modo`), lo convierte en las mismas filas y responde `{hoja, encabezados, columnas, primera_fila, filas, vista_previa}`. No escribe ni guarda el archivo. |
+| `POST /api/importacion` | `inventario.entradas` | Confirma (el alta que crea artículos pide además `catalogo.administrar`, I-10, y se revisa por fila): en `ALTA` crea los artículos faltantes; en los dos modos, un vale de entrada por almacén. 201; con un `id_lote` ya confirmado, 200 con `repetida: true`. |
+
+El router de estas rutas exige `inventario.entradas`. El permiso `catalogo.administrar` del alta depende de las filas (solo se pide si alguna crearía un artículo), así que lo revisa el servicio y se reporta por fila (`SIN_PERMISO_CREAR`), no como 403 de la petición.
 
 La tabla se lee en el navegador (pegada desde Excel, o un `.xlsx` leído allá); al servidor llegan filas ya separadas en columnas. Con `POST /archivo` el servidor lee el `.xlsx` y devuelve las filas ya separadas para reenviarlas a los otros dos endpoints.
 
@@ -463,55 +469,89 @@ La tabla se lee en el navegador (pegada desde Excel, o un `.xlsx` leído allá);
 
 ```json
 {
+  "modo": "ALTA",
   "filas": [["MART-01", "Martillo", "Truper", "Herramienta manual", "12", "Kepler", "", "85.50", ""]],
   "columnas": {"codigo": 0, "nombre": 1, "marca": 2, "categoria": 3, "cantidad": 4,
                "almacen": 5, "serie": 6, "costo": 7, "codigo_pieza": 8},
   "primera_fila": 2,
   "categoria_por_defecto_id": null,
   "mapa_categorias": {"Cosas raras": "<categoria_id>"},
+  "categoria_por_fila": {"5": "<categoria_id>"},
   "almacen_por_defecto": null,
-  "id_lote": "<uuid>"
+  "id_lote": "<uuid>",
+  "confirmar_repetido": false
 }
 ```
 
-- `filas` son solo las de datos (máximo 5 000, 30 columnas, 500 caracteres por celda); cada celda es texto, número o vacía. `columnas` da el índice (desde 0) de cada dato; solo `codigo` es obligatorio y una columna no puede ser dos datos. Sin `columnas`, se acepta `encabezados` (el nombre de cada columna) y el servidor las propone; sin la del código, 422. `codigo` es el del artículo; `codigo_pieza`, el de cada pieza en artículos por pieza.
+- `modo` es `"ALTA"` o `"REPOSICION"`; si falta, `ALTA`. Otro valor da 422.
+- `filas` son solo las de datos (máximo 5 000, 30 columnas, 500 caracteres por celda); cada celda es texto, número o vacía. `columnas` da el índice (desde 0) de cada dato y una columna no puede ser dos datos. Sin `columnas`, se acepta `encabezados` (el nombre de cada columna) y el servidor las propone. `codigo` es el del artículo; `codigo_pieza`, el de cada pieza en artículos por pieza.
+  - **`REPOSICION`:** solo se leen `codigo`, `cantidad`, `almacen` y, en artículos por pieza, `codigo_pieza` y `serie`. `codigo` es obligatorio; sin esa columna, 422. Si vienen `nombre`, `marca`, `categoria` o `costo`, se ignoran con un aviso.
+  - **`ALTA`:** son obligatorias `cantidad` y al menos una de `codigo` o `nombre`. Sin código en una fila de un artículo nuevo, el servidor lo genera (`PREFIJO-NNNN`, regla I-10 y sección «Código generado»).
 - `primera_fila` es el número que tiene la primera fila de `filas` en la hoja (2 si la hoja traía encabezados; por defecto 1): los errores se reportan con ese número.
-- `categoria_por_defecto_id` y `mapa_categorias` ({nombre de categoría en el archivo: `categoria_id`}) dan la categoría de los artículos nuevos cuya categoría no existe o viene vacía. Una categoría elegida que no existe o está inactiva da 422. `almacen_por_defecto` (clave o nombre) es el almacén de las filas sin almacén; sin él, Kepler (o el almacén asignado si no se tiene `almacenes.todos`).
+- Categoría de un artículo nuevo, de más a menos fuerte: la columna `categoria` del archivo (si existe, o su equivalente en `mapa_categorias`); `categoria_por_fila` (`{número de fila: categoria_id}`, lo que el usuario eligió o aceptó en la vista previa); `categoria_por_defecto_id`. La sugerencia del servidor (I-14) **nunca se aplica sola**: solo cuenta si la interfaz la manda de vuelta en `categoria_por_fila`. Una categoría elegida que no existe o está inactiva da 422. `almacen_por_defecto` (clave o nombre) es el almacén de las filas sin almacén; sin él, Kepler (o el almacén asignado si no se tiene `almacenes.todos`).
 - `id_lote` (UUID del cliente) es obligatorio al confirmar y se ignora en la vista previa.
+- `confirmar_repetido` (por omisión `false`) se manda en `true` para confirmar un archivo que la vista previa avisó como ya importado (I-12). Se ignora en la vista previa.
 
 **Reglas que revisa el servidor en cada fila** (la misma revisión en la vista previa y al confirmar; cada motivo lleva el ID de su regla):
 
 | Regla | Qué rechaza |
 |---|---|
 | I-06 | Falta el código o el nombre (de un artículo nuevo); un dato pasa del largo permitido. |
+| I-10 | `REPOSICION`: un código que no existe en el catálogo (`ARTICULO_NO_EXISTE`, «Ese artículo no existe: dalo de alta primero»). `ALTA`: una fila que crearía un artículo sin que el usuario tenga `catalogo.administrar` (`SIN_PERMISO_CREAR`). |
 | I-01 | Cantidad vacía, no entera o ≤ 0 (en artículos por cantidad); almacén desconocido, cerrado o vacío sin almacén por defecto. |
+| I-11 | Cantidad mayor que el tope por fila, 100 000 por omisión (`CANTIDAD_EXCESIVA`; el tope se ajusta por configuración). |
+| I-13 | Cantidad con decimales (`0.25`) o con una coma ambigua (`0,25`, `1,5`): `CANTIDAD_NO_ENTERA`, con el mensaje «La cantidad debe ser un número entero. Usa una unidad menor (por ejemplo, 250 gramos en lugar de 0.25 kilos)». Nunca se redondea. La coma solo vale como separador de miles en grupos de tres dígitos (`1,250` es 1250); `12.0` es 12. |
 | AC-06 | Sin `almacenes.todos`, un almacén que no es el asignado. |
-| CF-02 | Categoría desconocida o vacía en un artículo nuevo (`CATEGORIA_DESCONOCIDA`): se elige una con `categoria_por_defecto_id` o `mapa_categorias`. El artículo nuevo copia la plantilla de su categoría. |
+| CF-02 | Categoría desconocida o vacía en un artículo nuevo (`CATEGORIA_DESCONOCIDA`): se elige una con `categoria_por_fila`, `categoria_por_defecto_id` o `mapa_categorias`. Si la sugerencia (I-14) no coincide con nada, la fila queda «por revisar» con este mismo motivo y no entra hasta elegir una. El artículo nuevo copia la plantilla de su categoría. |
 | I-09 | Artículo inactivo. |
-| RG-10 | Código de artículo que ya identifica una pieza, un trabajador o un vale; el mismo artículo por cantidad dos veces en el mismo almacén de la tabla (otro almacén es otra fila); código de pieza igual al de un artículo. |
+| RG-10 | Código de artículo que ya identifica una pieza, un trabajador o un vale; código de pieza igual al de un artículo. (El mismo artículo por cantidad en el mismo almacén ya no es error: se consolida, ver abajo.) |
 | I-02 | Pieza sin código de pieza o sin número de serie; código de pieza ya usado (en la base o antes en la tabla); serie repetida del mismo artículo. Cada fila de un artículo por pieza es una pieza (cantidad 1). Sin inspección inicial la pieza entra pendiente (I-03, se avisa). |
 | RG-05 | Una pieza con cantidad distinta de 1. |
-| I-04 / RG-12 | Con `catalogo.costos`: un costo inválido (no es un número ≥ 0) rechaza la fila; el costo solo se guarda en artículos nuevos (en uno que ya existe se avisa que no cambia). Sin `catalogo.costos`: la columna de costo se ignora con un aviso, las filas entran y el costo nunca vuelve en las respuestas (ni en `datos` de una fila con error). Ningún vale lleva costos. |
+| I-04 / RG-12 | `ALTA`, con `catalogo.costos`: un costo inválido (no es un número ≥ 0) rechaza la fila; el costo solo se guarda en artículos nuevos (en uno que ya existe se avisa que no cambia). Sin `catalogo.costos`: la columna de costo se ignora con un aviso, las filas entran y el costo nunca vuelve en las respuestas (ni en `datos` de una fila con error). `REPOSICION`: el costo nunca cambia. Ningún vale lleva costos. |
 
-Las filas vacías se ignoran (cuentan en `vacias`). Un artículo que ya existe solo recibe la entrada (su nombre, marca y categoría del archivo no lo cambian). Las filas con error no se importan y se listan con su motivo; las buenas sí entran.
+**Consolidación (I-06).** En un artículo por cantidad, las filas del mismo artículo y el mismo almacén se suman en una sola; la fila resultante lleva la primera de las filas en `fila`, sus compañeras en `unida_de` y el aviso «Unido: filas 2, 5, 9». Una fila sin código se une con otra del mismo nombre y marca, comparados sin acentos ni mayúsculas ni espacios de más. Lo repetido sí es error en artículos por pieza: un `codigo_pieza` o una serie repetidos (`CODIGO_REPETIDO`, `SERIE_REPETIDA`).
+
+**Otros avisos por fila** (no bloquean): un artículo que ya existe cuyo nombre, marca o categoría del archivo no coincide con el registrado («El nombre del archivo es distinto del registrado; no se cambia»), siempre sin actualizar nada; una pieza sin inspección inicial (I-03). Una fila cuya descripción dice SERVICIO (`\bSERVICIO\b`, sin acentos ni mayúsculas) se **excluye** con un aviso: no se importa y no cuenta como error; va en `filas_excluidas`.
+
+**Código generado.** En `ALTA`, una fila de un artículo nuevo sin código recibe `PREFIJO-NNNN`: EPB (EPP básico), EPD (EPP de dotación), ALT (Equipo de alturas), HMA (Herramienta manual), HEL (Herramienta eléctrica), EAV (Equipo de alto valor) y CON (Consumibles de trabajo), con un consecutivo por categoría. En la vista previa el código se muestra como provisional (`codigo_generado: true`); el número definitivo se asigna al confirmar, **dentro de la misma transacción** y con la categoría bloqueada, de modo que dos lotes simultáneos nunca reciben el mismo. Una categoría sin prefijo (creada por la empresa) no genera código: la fila pide el suyo (`FALTA_CODIGO`).
+
+Las filas vacías se ignoran (cuentan en `vacias`). Un artículo que ya existe solo recibe la entrada (su nombre, marca y categoría del archivo no lo cambian). Las filas con error no se importan y se listan con su motivo; las buenas sí entran, sin esperar a las malas.
 
 **Respuesta de la vista previa** (200):
 
 ```json
 {
+  "modo": "ALTA",
   "columnas": {"codigo": 0, "nombre": 1, "...": null},
   "avisos": ["Se ignoró la columna de costo: no tienes permiso para capturar costos."],
-  "resumen": {"total": 4, "validas": 3, "con_error": 1, "vacias": 0,
-              "articulos_nuevos": 2, "piezas": 1, "unidades": 15, "almacenes": 2},
-  "filas_validas": [{"fila": 2, "codigo": "MART-01", "nombre": "Martillo", "marca": "Truper",
+  "archivo_repetido": null,
+  "resumen": {"total": 6, "validas": 4, "con_error": 1, "vacias": 0,
+              "articulos_nuevos": 2, "existentes": 1, "unidos": 1, "excluidas": 1,
+              "por_revisar": 0, "piezas": 1, "unidades": 15, "almacenes": 2},
+  "filas_validas": [{"fila": 2, "estado": "NUEVO", "codigo": "MART-01", "codigo_generado": false,
+                     "nombre": "Martillo", "marca": "Truper",
                      "categoria": {"id": "...", "nombre": "Herramienta manual"},
+                     "categoria_sugerida": null, "motivo_sugerencia": null,
                      "control": "CANTIDAD", "articulo_nuevo": true, "cantidad": 12,
+                     "saldo_antes": 0, "saldo_despues": 12, "unida_de": [],
                      "almacen": {"id": "...", "clave": "KEP", "nombre": "Kepler"},
                      "codigo_pieza": null, "numero_serie": null,
-                     "costo": "85.50", "avisos": []}],
-  "filas_error": [{"fila": 3, "datos": {"codigo": "X", "cantidad": "mucho", "...": ""},
-                   "motivos": [{"regla": "I-01", "campo": "cantidad",
-                                "codigo": "CANTIDAD_INVALIDA", "mensaje": "..."}]}],
+                     "costo": "85.50", "avisos": []},
+                    {"fila": 4, "estado": "UNIDO", "codigo": "CON-0001", "codigo_generado": true,
+                     "nombre": "Disco de corte", "marca": null,
+                     "categoria": null,
+                     "categoria_sugerida": {"id": "...", "nombre": "Consumibles de trabajo"},
+                     "motivo_sugerencia": "La descripción dice «disco»",
+                     "control": "CANTIDAD", "articulo_nuevo": true, "cantidad": 30,
+                     "saldo_antes": 0, "saldo_despues": 30, "unida_de": [7, 9],
+                     "almacen": {"id": "...", "clave": "KEP", "nombre": "Kepler"},
+                     "avisos": ["Unido: filas 4, 7, 9"]}],
+  "filas_error": [{"fila": 3, "estado": "ERROR",
+                   "datos": {"codigo": "X", "cantidad": "0,25", "...": ""},
+                   "motivos": [{"regla": "I-13", "campo": "cantidad",
+                                "codigo": "CANTIDAD_NO_ENTERA", "mensaje": "..."}]}],
+  "filas_excluidas": [{"fila": 8, "nombre": "Servicio de calibración",
+                       "motivo": "Es un servicio, no un artículo."}],
   "articulos_nuevos": [{"codigo": "MART-01", "nombre": "Martillo", "marca": "Truper",
                         "categoria": {"id": "...", "nombre": "..."}, "control": "CANTIDAD",
                         "filas": 1, "costo": "85.50"}],
@@ -519,18 +559,29 @@ Las filas vacías se ignoran (cuentan en `vacias`). Un artículo que ya existe s
 }
 ```
 
-`costo` (en filas válidas y artículos nuevos) solo aparece con `catalogo.costos` y si la fila lo trae. `codigo` de los motivos: `FALTA_CODIGO`, `FALTA_NOMBRE`, `CODIGO_REPETIDO`, `ARTICULO_REPETIDO`, `ARTICULO_INACTIVO`, `CATEGORIA_DESCONOCIDA`, `ALMACEN_DESCONOCIDO`, `ALMACEN_CERRADO`, `ALMACEN_AJENO`, `FALTA_ALMACEN`, `FALTA_CANTIDAD`, `CANTIDAD_INVALIDA`, `FALTA_CODIGO_PIEZA`, `FALTA_SERIE`, `SERIE_REPETIDA`, `COSTO_INVALIDO`, `DEMASIADO_LARGO`.
+- `estado` de una fila: `NUEVO` (crea el artículo), `EXISTENTE` (suma a uno que ya existe), `UNIDO` (varias filas sumadas en una; `unida_de` lista las demás) o `ERROR` (solo en `filas_error`).
+- `saldo_antes` y `saldo_despues` son lo que hay del artículo en ese almacén antes y después de la fila (en un artículo por pieza, el número de piezas). En un artículo nuevo, `saldo_antes` es 0.
+- `categoria_sugerida` y `motivo_sugerencia` vienen solo en `ALTA`, en filas de artículo nuevo sin categoría en el archivo (I-14); son `null` si el archivo trae categoría o si ninguna regla coincidió (la fila queda «por revisar» y va en `filas_error` con `CATEGORIA_DESCONOCIDA`, contada en `resumen.por_revisar`).
+- **Sugerencia pendiente.** En la vista previa, una fila de artículo nuevo con sugerencia (I-14) y sin categoría elegida vuelve en `filas_validas` con `categoria: null` y `categoria_sugerida` puesta (no como error). Al confirmar, sin esa fila en `categoria_por_fila` no entra (`CATEGORIA_DESCONOCIDA`): la sugerencia nunca se aplica sola. Con `categoria_por_fila`, la fila vuelve con `categoria` puesta. Las filas de `filas_error` que tenían sugerencia la traen en `categoria_sugerida` y `motivo_sugerencia` (opcionales).
+- Columnas: `codigo` ya no es obligatorio en el cuerpo; en `ALTA` basta `codigo` o `nombre`, en `REPOSICION` hace falta `codigo` (422 si no). `cantidad` no se exige como columna: sin ella, cada fila de un artículo por cantidad sale con `FALTA_CANTIDAD`.
+- Las marcas conocidas del anexo de FEAT-007 aún no se usan; la clave UNSPSC del archivo no es un dato del contrato (el respaldo 15 del diccionario existe en el código pero la API no lo recibe).
+- `archivo_repetido` es `null` o `{"fecha": "<UTC>"}`, la fecha de la importación anterior con la misma huella (I-12). La interfaz lo muestra como aviso, no como error.
+- `costo` (en filas válidas y artículos nuevos) solo aparece con `catalogo.costos` y si la fila lo trae. `codigo` de los motivos: `FALTA_CODIGO`, `FALTA_NOMBRE`, `CODIGO_REPETIDO`, `ARTICULO_REPETIDO`, `ARTICULO_INACTIVO`, `ARTICULO_NO_EXISTE`, `SIN_PERMISO_CREAR`, `CATEGORIA_DESCONOCIDA`, `ALMACEN_DESCONOCIDO`, `ALMACEN_CERRADO`, `ALMACEN_AJENO`, `FALTA_ALMACEN`, `FALTA_CANTIDAD`, `CANTIDAD_INVALIDA`, `CANTIDAD_NO_ENTERA`, `CANTIDAD_EXCESIVA`, `FALTA_CODIGO_PIEZA`, `FALTA_SERIE`, `SERIE_REPETIDA`, `COSTO_INVALIDO`, `DEMASIADO_LARGO`.
 
-**Respuesta de `POST /archivo`** (200): `{hoja, encabezados, columnas, primera_fila, filas, vista_previa}`. `filas` son las de datos (texto, ya separadas en columnas); `columnas` es la relación propuesta por el nombre de cada encabezado (sin acentos ni mayúsculas); `vista_previa` es la de arriba, o `null` si no se encontró la columna del código. El archivo se lee en memoria: solo `.xlsx` sin macros (se rechazan `.xlsm`, `.xls`, `.csv` y lo que no sea un `.xlsx` válido por su contenido), hasta 5 MB, 5 000 filas, 30 columnas, 500 caracteres por celda y 50 MB descomprimido (zip bomb). Una fórmula nunca se ejecuta: se lee el último valor que Excel guardó (o queda vacía). Un archivo malo da 422 `DATOS_INVALIDOS` con un mensaje en español, nunca un 500. Se lee la primera hoja; las filas vacías de arriba se saltan (el primer renglón con datos son los encabezados).
+**Respuesta de `POST /archivo`** (200): `{hoja, encabezados, columnas, primera_fila, filas, vista_previa}`. `filas` son las de datos (texto, ya separadas en columnas); `columnas` es la relación propuesta por el nombre de cada encabezado (sin acentos ni mayúsculas); `vista_previa` es la de arriba, o `null` si no se encontró la columna del código (en `ALTA`, tampoco la del nombre). El archivo se lee en memoria: solo `.xlsx` sin macros (se rechazan `.xlsm`, `.xls`, `.csv` y lo que no sea un `.xlsx` válido por su contenido), hasta 5 MB, 5 000 filas, 30 columnas, 500 caracteres por celda y 50 MB descomprimido (zip bomb). Una fórmula nunca se ejecuta: se lee el último valor que Excel guardó (o queda vacía). Un archivo malo da 422 `DATOS_INVALIDOS` con un mensaje en español, nunca un 500. Se lee la primera hoja; las filas vacías de arriba se saltan (el primer renglón con datos son los encabezados).
 
-**Confirmación** (`POST /api/importacion`). Crea con `CatalogoService` los artículos que faltan y, con el motor de movimientos, **un vale de ENTRADA por almacén** (un almacén con más de 500 renglones se parte en vales de 500). Todo en una sola transacción: si falla cualquier entrada no se guarda nada (RG-09) y el error es el del motor (por ejemplo 409 `VALE_CAMBIO`) o 409 si algo cambió desde la vista previa. Los folios salen del contador del almacén (RG-06). Las filas con error no se importan. Sin ninguna fila válida: 422 con `detalles.filas_error`.
+**Confirmación** (`POST /api/importacion`). En `ALTA` crea con `CatalogoService` los artículos que faltan (con su código, generado si hacía falta) y, en los dos modos, con el motor de movimientos, **un vale de ENTRADA por almacén** (un almacén con más de 500 renglones se parte en vales de 500). Todo en una sola transacción: si falla cualquier entrada no se guarda nada (RG-09) y el error es el del motor (por ejemplo 409 `VALE_CAMBIO`) o 409 si algo cambió desde la vista previa. Los folios salen del contador del almacén (RG-06). Las filas con error no se importan. Sin ninguna fila válida: 422 con `detalles.filas_error`.
+
+Si la huella del archivo ya está en una importación anterior (I-12) y el cuerpo no trae `confirmar_repetido: true`, no se escribe nada y responde 409 `ARCHIVO_REPETIDO` con `detalles: {regla: "I-12", fecha}`; la interfaz muestra el aviso y reenvía con `confirmar_repetido: true` si la persona decide continuar. Confirmar de nuevo el mismo `id_lote` (idempotencia, abajo) se resuelve antes y no pasa por esta revisión.
 
 ```json
 {
-  "id_lote": "<uuid>", "repetida": false,
+  "modo": "ALTA", "id_lote": "<uuid>", "repetida": false,
   "resumen": {"filas_importadas": 3, "filas_con_error": 1, "articulos_creados": 2,
+              "existentes": 1, "unidos": 1, "excluidas": 0,
               "vales": 2, "piezas": 1, "unidades": 15},
-  "articulos_creados": [{"id": "...", "codigo": "MART-01", "nombre": "Martillo",
+  "articulos_creados": [{"id": "...", "codigo": "MART-01", "codigo_generado": false,
+                         "nombre": "Martillo",
                          "categoria": "Herramienta manual", "control": "CANTIDAD"}],
   "vales": [{"id": "...", "folio": "KEP-ING-000012",
              "almacen": {"id": "...", "clave": "KEP", "nombre": "Kepler"},
@@ -540,7 +591,13 @@ Las filas vacías se ignoran (cuentan en `vacias`). Un artículo que ya existe s
 }
 ```
 
-`filas_error` tiene la misma forma que en la vista previa. **Idempotencia:** el `id_cliente` de cada vale es determinista por (`id_lote`, almacén, parte). Confirmar de nuevo el mismo `id_lote` responde **200** con `repetida: true`, los mismos vales (con sus folios) y `articulos_creados: []`, sin crear nada; el `id_lote` de otra persona da 409. Un lote nuevo con las mismas filas no duplica artículos (los existentes solo reciben otra entrada) y rechaza como error las piezas cuyo código o serie ya existen. La interfaz genera un `id_lote` por importación y lo reutiliza si el usuario reintenta. Cada confirmación deja un renglón de auditoría `importacion.confirmar`.
+`filas_error` tiene la misma forma que en la vista previa. **Idempotencia:** el `id_cliente` de cada vale es determinista por (`id_lote`, almacén, parte). Confirmar de nuevo el mismo `id_lote` responde **200** con `repetida: true`, los mismos vales (con sus folios) y `articulos_creados: []`, sin crear nada; el `id_lote` de otra persona da 409. Un lote nuevo con las mismas filas no duplica artículos (los existentes solo reciben otra entrada) y rechaza como error las piezas cuyo código o serie ya existen. La interfaz genera un `id_lote` por importación y lo reutiliza si el usuario reintenta.
+
+**Concurrencia entre lotes.** Dos confirmaciones al mismo tiempo (de lotes distintos) con los mismos artículos nuevos o las mismas piezas no duplican nada: el servidor bloquea lo que va a crear (la categoría para el consecutivo de códigos, el código del artículo y el de cada pieza) dentro de la transacción. El que llega segundo ve el artículo ya creado y le suma, o recibe 409 sin guardar nada; las existencias quedan iguales a la suma de los movimientos. Es un criterio de aceptación de US-IMP-001 y US-IMP-002.
+
+**Auditoría.** Cada confirmación deja un renglón `importacion.confirmar`; su `despues` lleva, además del resumen, el `modo` y la `huella` (sha256 en hexadecimal) que usa I-12. No hay tabla ni migración para eso. Con `confirmar_repetido: true` se guarda también `repetido: true`.
+
+**Descarga de filas con error.** La interfaz ofrece las filas con error en un CSV (con acentos para Excel). Toda celda que empiece con `=`, `+`, `-`, `@`, tabulador o retorno de carro se escribe con un apóstrofo al principio, para que Excel no la tome por una fórmula; los datos del archivo son ajenos y no se confía en ellos.
 
 ## Reportes
 

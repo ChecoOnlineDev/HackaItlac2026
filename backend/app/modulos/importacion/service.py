@@ -1,26 +1,34 @@
-"""Reglas de negocio y control de la transaccion de la importacion (US-IMP-001).
+"""Reglas de negocio y control de la transaccion de la importacion (US-IMP-001, US-IMP-002).
 
 La vista previa lee y no escribe. La confirmacion hace, en UNA sola transaccion:
 
+0. en `ALTA`, bloquea las categorias (dos lotes que crean articulos se turnan: el segundo ve lo que
+   creo el primero, y el consecutivo de codigos generados no se repite);
 1. crea con `CatalogoService.crear_articulo` los articulos que faltan (con la plantilla de su
-   categoria, CF-02);
+   categoria, CF-02); en `REPOSICION` nunca crea;
 2. confirma con `MovimientoService.confirmar` un vale de ENTRADA por almacen (un vale por cada
    500 renglones si un almacen trae mas), con `id_cliente` determinista por (lote, almacen);
 3. hace commit, o rollback de todo: si falla una entrada no queda ni un articulo ni un vale
    (RG-09, todo o nada de la importacion completa).
 
 Repetir la confirmacion con el mismo `id_lote` devuelve lo ya guardado (200, `repetida`) sin
-crear nada. Quien importa necesita `inventario.entradas`; el costo solo se acepta con
-`catalogo.costos` (RG-12) y nunca aparece en el vale.
+crear nada. Un archivo con la misma huella que una importacion anterior (I-12) pide
+`confirmar_repetido`. Quien importa necesita `inventario.entradas`; dar de alta articulos pide
+ademas `catalogo.administrar` (I-10) y el costo solo se acepta con `catalogo.costos` (RG-12); nunca
+aparece en el vale.
 """
 
+import hashlib
+import json
 import uuid
 from collections import defaultdict
+from datetime import datetime
 
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import DBAPIError, InvalidRequestError
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.core import errores_bd
 from app.core.excepciones import AppError, DatosInvalidos
 from app.modulos.acceso.models import Usuario
@@ -29,6 +37,7 @@ from app.modulos.acceso.service import AccesoService
 from app.modulos.almacenes.models import Almacen
 from app.modulos.almacenes.service import AlmacenService
 from app.modulos.auditoria.service import AuditoriaService
+from app.modulos.catalogo.models import Categoria
 from app.modulos.catalogo.schemas import ArticuloCreate
 from app.modulos.catalogo.service import CatalogoService
 from app.modulos.importacion.analisis import (
@@ -40,22 +49,26 @@ from app.modulos.importacion.analisis import (
 )
 from app.modulos.importacion.exceptions import (
     ArchivoInvalido,
+    ArchivoRepetido,
     ImportacionCambio,
     LoteEnUso,
     SinFilasValidas,
 )
-from app.modulos.importacion.lectura import leer_xlsx, proponer_columnas
+from app.modulos.importacion.lectura import clave, leer_xlsx, proponer_columnas, texto_de_celda
+from app.modulos.importacion.plantilla import generar_plantilla
 from app.modulos.importacion.repository import ImportacionRepository
 from app.modulos.importacion.schemas import (
     CAMPOS,
     AlmacenRefOut,
     ArchivoOut,
+    ArchivoRepetidoOut,
     ArticuloCreadoOut,
     ArticuloNuevoOut,
     CategoriaDesconocidaOut,
     CategoriaRefOut,
     ColumnasIn,
     FilaErrorOut,
+    FilaExcluidaOut,
     FilaValidaOut,
     ImportacionIn,
     ImportacionOut,
@@ -80,6 +93,10 @@ def _id_cliente(id_lote: uuid.UUID, almacen_id: uuid.UUID, parte: int) -> uuid.U
     return uuid.uuid5(id_lote, f"importacion:{almacen_id}:{parte}")
 
 
+def _ref(categoria: Categoria | None) -> CategoriaRefOut | None:
+    return None if categoria is None else CategoriaRefOut(id=categoria.id, nombre=categoria.nombre)
+
+
 class ImportacionService:
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -92,33 +109,81 @@ class ImportacionService:
 
     # ----------------------------------------------------------------------- revisión
 
+    @staticmethod
+    def _faltan_columnas(modo: str, columnas: dict[str, int | None]) -> str | None:
+        """Lo que falta para poder leer la tabla en ese modo (I-10), o `None`."""
+        if modo == "REPOSICION":
+            if columnas.get("codigo") is None:
+                return "Falta la columna del código: la reposición solo suma a lo que ya existe."
+        elif columnas.get("codigo") is None and columnas.get("nombre") is None:
+            return "Falta la columna del código o la del nombre."
+        return None
+
     def _columnas(self, datos: ImportacionIn) -> dict[str, int | None]:
         if datos.columnas is not None:
-            return datos.columnas.model_dump()
-        columnas = proponer_columnas(datos.encabezados or [])
-        if columnas["codigo"] is None:
+            columnas = datos.columnas.model_dump()
+        else:
+            columnas = proponer_columnas(datos.encabezados or [])
+        falta = self._faltan_columnas(datos.modo, columnas)
+        if falta:
             raise DatosInvalidos(
-                "No se encontró la columna del código. Indica qué columna es cada dato.",
-                [{"campo": "columnas", "mensaje": "Falta la columna del código."}],
+                f"{falta} Indica qué columna es cada dato.",
+                [{"campo": "columnas", "mensaje": falta}],
             )
         return columnas
 
-    def _analizar(self, usuario: Usuario, datos: ImportacionIn) -> Resultado:
+    def _analizar(
+        self, usuario: Usuario, datos: ImportacionIn, *, confirmando: bool = False
+    ) -> Resultado:
         contexto = Contexto(
             puede_costos=self.acceso.tiene_permiso(usuario, P.CATALOGO_COSTOS),
             puede_todos_los_almacenes=self.acceso.puede_operar_todos_los_almacenes(usuario),
             almacen_asignado_id=usuario.almacen_id,
+            puede_crear_articulos=self.acceso.tiene_permiso(usuario, P.CATALOGO_ADMINISTRAR),
+            cantidad_maxima=get_settings().importacion_cantidad_maxima,
+            confirmando=confirmando,
         )
         analizador = Analizador(self.repository, contexto)
         return analizador.analizar(datos, self._columnas(datos))
 
+    # ------------------------------------------------------------------------ huella
+
+    @staticmethod
+    def _huella(datos: ImportacionIn) -> str:
+        """La huella del archivo (I-12): `sha256` del modo, las filas normalizadas (sin vacias,
+        sin espacios de mas y en un orden fijo) y el almacen por defecto."""
+        filas = []
+        for fila in datos.filas:
+            celdas = [texto_de_celda(c) for c in fila]
+            while celdas and not celdas[-1]:
+                celdas.pop()
+            if celdas:
+                filas.append(celdas)
+        filas.sort()
+        cuerpo = json.dumps(
+            {
+                "modo": datos.modo,
+                "filas": filas,
+                "almacen_por_defecto": clave(datos.almacen_por_defecto or ""),
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(cuerpo.encode("utf-8")).hexdigest()
+
+    def plantilla(self, usuario: Usuario, modo: str) -> bytes:
+        """El `.xlsx` de ejemplo de ese modo. La columna de costo solo con `catalogo.costos`."""
+        con_costo = self.acceso.tiene_permiso(usuario, P.CATALOGO_COSTOS)
+        return generar_plantilla(modo, con_costo=con_costo)
+
     def vista_previa(self, usuario: Usuario, datos: ImportacionIn) -> VistaPreviaOut:
-        """Revisa la tabla sin guardar nada (US-IMP-001)."""
+        """Revisa la tabla sin guardar nada (US-IMP-001, US-IMP-002)."""
         resultado = self._analizar(usuario, datos)
-        return self._vista_previa_out(usuario, resultado)
+        fecha = self.repository.fecha_de_importacion(self._huella(datos))
+        return self._vista_previa_out(usuario, resultado, fecha)
 
     def vista_previa_de_archivo(
-        self, usuario: Usuario, nombre: str | None, contenido: bytes
+        self, usuario: Usuario, nombre: str | None, contenido: bytes, modo: str = "ALTA"
     ) -> ArchivoOut:
         """Convierte un `.xlsx` en filas, propone las columnas y hace la vista previa."""
         hoja, filas = leer_xlsx(nombre, contenido)
@@ -138,8 +203,9 @@ class ImportacionService:
         columnas = proponer_columnas(encabezados)
         primera_fila = inicio + 2
         vista = None
-        if columnas["codigo"] is not None:
+        if self._faltan_columnas(modo, columnas) is None:
             cuerpo = ImportacionIn(
+                modo=modo,
                 filas=datos,
                 columnas=ColumnasIn(**{c: i for c, i in columnas.items() if i is not None}),
                 primera_fila=primera_fila,
@@ -167,10 +233,15 @@ class ImportacionService:
         for intento in range(1, INTENTOS + 1):
             try:
                 self._aislar_transaccion()
-                previa = self._lote_confirmado(usuario, datos.id_lote)
+                previa = self._lote_confirmado(usuario, datos)
                 if previa is not None:
                     return previa, False
-                salida = self._importar(usuario, datos)
+                huella = self._huella(datos)
+                if not datos.confirmar_repetido:
+                    fecha = self.repository.fecha_de_importacion(huella)
+                    if fecha is not None:
+                        raise ArchivoRepetido(fecha)
+                salida = self._importar(usuario, datos, huella)
                 self.session.commit()
                 return salida, True
             except AppError:
@@ -205,9 +276,13 @@ class ImportacionService:
         except InvalidRequestError:  # pragma: no cover - ya habia una transaccion abierta
             pass
 
-    def _importar(self, usuario: Usuario, datos: ImportacionIn) -> ImportacionOut:
+    def _importar(self, usuario: Usuario, datos: ImportacionIn, huella: str) -> ImportacionOut:
         assert datos.id_lote is not None
-        resultado = self._analizar(usuario, datos)
+        if datos.modo == "ALTA" and self.acceso.tiene_permiso(usuario, P.CATALOGO_ADMINISTRAR):
+            # Antes de revisar: dos lotes que crean articulos se turnan, y el segundo ve lo que el
+            # primero creo (articulos, piezas y consecutivo de codigos generados).
+            self.repository.bloquear_categorias()
+        resultado = self._analizar(usuario, datos, confirmando=True)
         if not resultado.buenas:
             raise SinFilasValidas(
                 detalles={
@@ -218,9 +293,10 @@ class ImportacionService:
             )
         puede_costos = self.acceso.tiene_permiso(usuario, P.CATALOGO_COSTOS)
 
-        # 1. Los articulos que faltan, con la plantilla de su categoria.
+        # 1. Los articulos que faltan (solo en ALTA), con la plantilla de su categoria.
         creados: dict[str, ArticuloCreadoOut] = {}
         for k, nuevo in resultado.nuevos.items():
+            assert nuevo.codigo and not nuevo.pendiente
             articulo = self.catalogo.crear_articulo(
                 ArticuloCreate(
                     codigo=nuevo.codigo,
@@ -235,6 +311,7 @@ class ImportacionService:
             creados[k] = ArticuloCreadoOut(
                 id=articulo.id,
                 codigo=articulo.codigo,
+                codigo_generado=nuevo.codigo_generado,
                 nombre=articulo.nombre,
                 categoria=nuevo.categoria.nombre,
                 control=articulo.control,
@@ -277,12 +354,16 @@ class ImportacionService:
                 )
 
         salida = ImportacionOut(
+            modo=datos.modo,
             id_lote=datos.id_lote,
             repetida=False,
             resumen=ResumenImportacionOut(
                 filas_importadas=len(resultado.buenas),
                 filas_con_error=len(resultado.malas),
                 articulos_creados=len(creados),
+                existentes=sum(1 for b in resultado.buenas if b.estado == "EXISTENTE"),
+                unidos=sum(1 for b in resultado.buenas if b.estado == "UNIDO"),
+                excluidas=len(resultado.excluidas),
                 vales=len(vales),
                 piezas=sum(v.piezas for v in vales),
                 unidades=sum(v.unidades for v in vales),
@@ -299,6 +380,9 @@ class ImportacionService:
             entidad_id=datos.id_lote,
             despues={
                 **salida.resumen.model_dump(),
+                "modo": datos.modo,
+                "huella": huella,
+                **({"repetido": True} if datos.confirmar_repetido else {}),
                 "folios": [v.folio for v in vales],
             },
         )
@@ -318,8 +402,10 @@ class ImportacionService:
 
     # --------------------------------------------------------------------- idempotencia
 
-    def _lote_confirmado(self, usuario: Usuario, id_lote: uuid.UUID) -> ImportacionOut | None:
+    def _lote_confirmado(self, usuario: Usuario, datos: ImportacionIn) -> ImportacionOut | None:
         """Si el lote ya se confirmó, lo que se guardó entonces; si no, `None`."""
+        id_lote = datos.id_lote
+        assert id_lote is not None
         almacenes = self.repository.almacenes()
         encontrados = self.repository.vales_por_id_cliente(
             _id_cliente(id_lote, a.id, 0) for a in almacenes
@@ -358,12 +444,16 @@ class ImportacionService:
                 )
             )
         return ImportacionOut(
+            modo=datos.modo,
             id_lote=id_lote,
             repetida=True,
             resumen=ResumenImportacionOut(
                 filas_importadas=sum(v.renglones for v in salida),
                 filas_con_error=0,
                 articulos_creados=0,
+                existentes=0,
+                unidos=0,
+                excluidas=0,
                 vales=len(salida),
                 piezas=sum(v.piezas for v in salida),
                 unidades=sum(v.unidades for v in salida),
@@ -378,32 +468,45 @@ class ImportacionService:
 
     @staticmethod
     def _fila_error(mala: FilaMala) -> FilaErrorOut:
+        campos: dict = {}
+        if mala.sugerida is not None and mala.sugerida.categoria is not None:
+            campos = {
+                "categoria_sugerida": _ref(mala.sugerida.categoria),
+                "motivo_sugerencia": mala.sugerida.motivo,
+            }
         return FilaErrorOut(
             fila=mala.fila,
+            estado="ERROR",
             datos={c: mala.datos[c] for c in CAMPOS if c in mala.datos},
             motivos=[
                 MotivoOut(regla=m.regla, campo=m.campo, codigo=m.codigo, mensaje=m.mensaje)
                 for m in mala.motivos
             ],
+            **campos,
         )
 
-    def _vista_previa_out(self, usuario: Usuario, res: Resultado) -> VistaPreviaOut:
+    def _vista_previa_out(
+        self, usuario: Usuario, res: Resultado, fecha: datetime | None = None
+    ) -> VistaPreviaOut:
         puede_costos = self.acceso.tiene_permiso(usuario, P.CATALOGO_COSTOS)
         validas = []
         for b in res.buenas:
             campos = dict(
                 fila=b.fila,
+                estado=b.estado,
                 codigo=b.codigo,
+                codigo_generado=b.codigo_generado,
                 nombre=b.nombre,
                 marca=b.marca,
-                categoria=(
-                    CategoriaRefOut(id=b.categoria.id, nombre=b.categoria.nombre)
-                    if b.categoria
-                    else None
-                ),
+                categoria=_ref(b.categoria),
+                categoria_sugerida=_ref(b.categoria_sugerida),
+                motivo_sugerencia=b.motivo_sugerencia,
                 control=b.control,
                 articulo_nuevo=b.nuevo,
                 cantidad=b.cantidad,
+                saldo_antes=b.saldo_antes,
+                saldo_despues=b.saldo_despues,
+                unida_de=b.unida_de,
                 almacen=AlmacenRefOut(
                     id=b.almacen.id, clave=b.almacen.clave, nombre=b.almacen.nombre
                 ),
@@ -420,7 +523,7 @@ class ImportacionService:
                 codigo=n.codigo,
                 nombre=n.nombre,
                 marca=n.marca,
-                categoria=CategoriaRefOut(id=n.categoria.id, nombre=n.categoria.nombre),
+                categoria=None if n.pendiente else _ref(n.categoria),
                 control=n.control,
                 filas=n.filas,
             )
@@ -428,20 +531,30 @@ class ImportacionService:
                 campos["costo"] = n.costo
             nuevos.append(ArticuloNuevoOut(**campos))
         return VistaPreviaOut(
+            modo=res.modo,
             columnas=res.columnas,
             avisos=res.avisos,
+            archivo_repetido=None if fecha is None else ArchivoRepetidoOut(fecha=fecha),
             resumen=ResumenVistaPreviaOut(
                 total=res.total,
                 validas=len(res.buenas),
                 con_error=len(res.malas),
                 vacias=res.vacias,
                 articulos_nuevos=len(res.nuevos),
+                existentes=sum(1 for b in res.buenas if b.estado == "EXISTENTE"),
+                unidos=sum(1 for b in res.buenas if b.estado == "UNIDO"),
+                excluidas=len(res.excluidas),
+                por_revisar=res.por_revisar,
                 piezas=sum(1 for b in res.buenas if b.control == "PIEZA"),
                 unidades=sum(b.cantidad for b in res.buenas),
                 almacenes=len({b.almacen.id for b in res.buenas}),
             ),
             filas_validas=validas,
             filas_error=[self._fila_error(m) for m in res.malas],
+            filas_excluidas=[
+                FilaExcluidaOut(fila=x.fila, nombre=x.nombre, motivo=x.motivo)
+                for x in res.excluidas
+            ],
             articulos_nuevos=nuevos,
             categorias_desconocidas=[
                 CategoriaDesconocidaOut(nombre=nombre, filas=filas)

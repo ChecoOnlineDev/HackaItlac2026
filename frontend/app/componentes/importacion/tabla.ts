@@ -2,7 +2,7 @@
 // se hace en el navegador: al servidor llegan filas ya separadas. Aquí no se decide si una fila es válida:
 // eso lo revisa el servidor en la vista previa.
 
-import { CAMPOS, type CampoImportacion, type Columnas, type FilaError, type Tabla } from "./tipos";
+import { CAMPOS, type CampoImportacion, type Columnas, type FilaError, type ModoImportacion, type Tabla } from "./tipos";
 
 // Los mismos límites que el servidor (backend/app/modulos/importacion/schemas.py), para avisar antes.
 export const MAX_FILAS = 5000;
@@ -22,9 +22,19 @@ export const ETIQUETA_CAMPO: Record<CampoImportacion, string> = {
   codigo_pieza: "Código de la pieza",
 };
 
+/** Cada modo habla distinto de algunos datos. */
+export function ayudaDeCampo(campo: CampoImportacion, modo: ModoImportacion): string {
+  if (modo === "REPOSICION") {
+    if (campo === "codigo") return "Obligatorio. Debe ser el código de un artículo que ya existe.";
+    if (campo === "cantidad") return "Cuántas unidades llegaron. Solo números enteros.";
+    if (campo === "serie") return "Solo para artículos por pieza.";
+  }
+  return AYUDA_CAMPO[campo];
+}
+
 /** Qué es cada dato, en una frase, para quien relaciona las columnas. */
 export const AYUDA_CAMPO: Record<CampoImportacion, string> = {
-  codigo: "Obligatorio. Con él se reconoce el artículo.",
+  codigo: "Con él se reconoce el artículo. Si no lo traes, hace falta el nombre.",
   nombre: "Hace falta en los artículos nuevos.",
   marca: "Opcional.",
   categoria: "Hace falta en los artículos nuevos.",
@@ -187,8 +197,13 @@ export function armarTabla(filas: string[][], conEncabezados: boolean): Tabla {
 // ---------------------------------------------------------------------------------------------
 // Filas con error en CSV
 
-function celdaCsv(valor: string): string {
-  return /[",\n\r]/.test(valor) ? `"${valor.replace(/"/g, '""')}"` : valor;
+/**
+ * Una celda del CSV. Los datos del archivo son ajenos: si empiezan con `=`, `+`, `-`, `@`, tabulador o
+ * retorno de carro, Excel los tomaría por una fórmula; se les antepone un apóstrofo.
+ */
+export function celdaCsv(valor: string): string {
+  const segura = /^[=+\-@\t\r]/.test(valor) ? `'${valor}` : valor;
+  return /[",\n\r]/.test(segura) ? `"${segura.replace(/"/g, '""')}"` : segura;
 }
 
 /** Las filas que no entraron, como CSV (con acentos que Excel lee bien), para corregirlas y volver a importar. */

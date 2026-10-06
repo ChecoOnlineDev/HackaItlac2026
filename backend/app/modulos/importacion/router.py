@@ -1,4 +1,5 @@
-"""Endpoints del modulo `importacion`: vista previa y carga desde tabla (US-IMP-001).
+"""Endpoints del modulo `importacion`: plantilla, vista previa y carga desde tabla (US-IMP-001,
+US-IMP-002).
 
 Todos exigen `inventario.entradas` (por clave, nunca por el nombre del rol). Las respuestas usan
 `response_model_exclude_unset`: sin `catalogo.costos` la clave `costo` no aparece (RG-12).
@@ -6,7 +7,7 @@ Todos exigen `inventario.entradas` (por clave, nunca por el nombre del rol). Las
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile, status
 
 from app.modulos.acceso.dependencies import requiere_permiso
 from app.modulos.acceso.models import Usuario
@@ -17,12 +18,31 @@ from app.modulos.importacion.schemas import (
     ArchivoOut,
     ImportacionIn,
     ImportacionOut,
+    Modo,
     VistaPreviaOut,
 )
+
+TIPO_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 router = APIRouter(prefix="/importacion", tags=["importacion"])
 
 Importar = Annotated[Usuario, Depends(requiere_permiso(P.INVENTARIO_ENTRADAS))]
+
+
+@router.get("/plantilla")
+def plantilla(
+    usuario: Importar,
+    service: ImportacionServiceDep,
+    modo: Annotated[Modo, Query()] = "ALTA",
+) -> Response:
+    """`inventario.entradas`. Descarga un `.xlsx` de ejemplo para ese modo; la columna de costo
+    solo viene con `catalogo.costos` y solo en `ALTA`. No lee ni escribe datos."""
+    nombre = "plantilla-reposicion.xlsx" if modo == "REPOSICION" else "plantilla-alta.xlsx"
+    return Response(
+        content=service.plantilla(usuario, modo),
+        media_type=TIPO_XLSX,
+        headers={"Content-Disposition": f'attachment; filename="{nombre}"'},
+    )
 
 
 @router.post("/vista-previa", response_model=VistaPreviaOut, response_model_exclude_unset=True)
@@ -39,11 +59,12 @@ def vista_previa_de_archivo(
     usuario: Importar,
     service: ImportacionServiceDep,
     archivo: Annotated[UploadFile, File(description="Un Excel .xlsx sin macros.")],
+    modo: Annotated[Modo, Form()] = "ALTA",
 ) -> ArchivoOut:
     """`inventario.entradas`. Lee un `.xlsx` y responde las filas separadas en columnas, las
     columnas propuestas y la vista previa. No guarda el archivo ni escribe en la base."""
     contenido = archivo.file.read(MAX_BYTES_ARCHIVO + 1)
-    return service.vista_previa_de_archivo(usuario, archivo.filename, contenido)
+    return service.vista_previa_de_archivo(usuario, archivo.filename, contenido, modo)
 
 
 @router.post("", response_model=ImportacionOut, status_code=status.HTTP_201_CREATED)

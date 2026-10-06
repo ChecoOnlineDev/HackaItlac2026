@@ -1,16 +1,16 @@
 import { cn } from "cn";
 import { CheckIcon } from "lucide-react";
 
-const NOMBRES = ["Pegar o subir", "Relacionar columnas", "Revisar y confirmar"] as const;
+const NOMBRES = ["Qué hacer", "Pegar o subir", "Relacionar columnas", "Revisar y confirmar"] as const;
 
 /**
- * Los tres pasos de la importación, siempre visibles: el actual con su número resaltado, los anteriores con
+ * Los cuatro pasos de la importación, siempre visibles: el actual con su número resaltado, los anteriores con
  * palomita. Nada se comunica solo con color: cada paso lleva número o icono y su nombre.
  */
-export function PasosImportacion({ actual }: { actual: 1 | 2 | 3 | 4 }) {
+export function PasosImportacion({ actual }: { actual: 1 | 2 | 3 | 4 | 5 }) {
   return (
     <nav aria-label="Pasos de la importación">
-      <ol className="grid grid-cols-3 gap-2">
+      <ol className="grid grid-cols-4 gap-2">
         {NOMBRES.map((nombre, i) => {
           const numero = i + 1;
           const hecho = actual > numero;

@@ -3,6 +3,8 @@
 Modulo `importacion`. Los codigos estan mapeados a su estado HTTP en `app/core/handlers.py`.
 """
 
+from datetime import UTC, datetime
+
 from app.core.excepciones import Conflicto, DatosInvalidos
 
 
@@ -31,3 +33,20 @@ class ImportacionCambio(Conflicto):
         "Los datos cambiaron mientras revisabas la importación. No se guardó nada: "
         "vuelve a revisar la vista previa."
     )
+
+
+class ArchivoRepetido(Conflicto):
+    """El mismo archivo ya se importó (I-12): se pide confirmar de nuevo de forma expresa."""
+
+    codigo = "ARCHIVO_REPETIDO"
+    mensaje_defecto = (
+        "Este archivo ya se importó antes. Si quieres importarlo otra vez, confirma de nuevo."
+    )
+
+    def __init__(self, fecha: datetime) -> None:
+        super().__init__(
+            detalles={
+                "regla": "I-12",
+                "fecha": fecha.replace(tzinfo=UTC).isoformat().replace("+00:00", "Z"),
+            }
+        )
