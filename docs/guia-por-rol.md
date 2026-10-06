@@ -183,7 +183,7 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 | Arnés No apto o sin inspección vigente | Rojo; no se puede entregar ni con autorización | E-05, E-06, SM-04 |
 | Cantidad mayor al límite del artículo | Naranja; pide autorización | E-07, L-04 |
 | Cantidad inusualmente alta | Amarillo; pide confirmar la cantidad | E-27 |
-| Pieza que está con otro trabajador o en otro almacén | Rojo; muestra dónde está | E-03 |
+| Pieza que está con otro trabajador o en otro almacén | Rojo; dice que no está registrada en tu almacén (solo el Administrador ve dónde está) | E-03 |
 | Código desconocido | Rojo | E-01 |
 | Devolución de un código ajeno a la empresa | Rojo; no se recibe | V-12 |
 | Devolver una pieza que no está a nombre de nadie | Amarillo; no hay movimiento | V-02 |

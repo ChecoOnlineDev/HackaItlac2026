@@ -2,6 +2,13 @@
 
 Qué trae cada versión. Se escribe a partir del historial del repositorio (`git log`), del [roadmap](../product/roadmap.md) y de los documentos del proyecto; si algo no está construido, no aparece aquí. El formato sigue el orden del roadmap.
 
+## Sin publicar: visibilidad por almacén (AC-06)
+
+- Solo el Administrador (`almacenes.todos`) ve las piezas y las existencias de todos los almacenes; los demás roles ven únicamente las de su almacén asignado.
+- Escaneo: una pieza fuera del alcance llega como desconocida y, en un artículo, `existencia_total` es la de su almacén. Búsqueda: las piezas se limitan al alcance. Ficha de pieza: 404 si es ajena, e historial sin los movimientos de otros almacenes. Ficha de artículo e inventario (`GET /api/almacenes/{id}/existencias`): solo el almacén del usuario.
+- Evaluación de entrega (E-03) y de traspaso (X-02): sin `almacenes.todos`, el renglón sigue en rojo pero dice solo que la pieza no está registrada en el almacén del usuario, sin nombrar el almacén ni al trabajador. Devolver y Recibir siguen igual.
+- Pantallas: la ficha del artículo y el Inventario muestran solo el almacén del usuario.
+
 ## Sin publicar: dotación por puesto (FEAT-003, servidor)
 
 - Catálogo de puestos (`/api/puestos`) y dotación recomendada por puesto (`GET` y `PUT /api/puestos/{id}/dotacion`), con la cantidad limitada por el límite del artículo (D-04). Migración `0004_puestos_dotacion` (tablas `puesto` y `dotacion`, `periodo_contrato.puesto_id`).
