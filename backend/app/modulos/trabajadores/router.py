@@ -17,6 +17,7 @@ from app.modulos.trabajadores.schemas import (
     BajaOut,
     CodigoCreate,
     CodigoOut,
+    DotacionTrabajadorOut,
     FichaOut,
     FiltrosTrabajadores,
     FotoOut,
@@ -70,6 +71,14 @@ def crear(datos: TrabajadorCreate, usuario: UsuarioAdministrar, service: Service
 def ver(trabajador_id: uuid.UUID, usuario: UsuarioVer, service: ServiceDep) -> FichaOut:
     """`trabajadores.ver`. Ficha; CURP y NSS solo con `trabajadores.ver_datos_personales`."""
     return service.ficha(trabajador_id, usuario)
+
+
+@router.get("/{trabajador_id}/dotacion", response_model=DotacionTrabajadorOut)
+def ver_dotacion(
+    trabajador_id: uuid.UUID, usuario: UsuarioVer, service: ServiceDep
+) -> DotacionTrabajadorOut:
+    """`trabajadores.ver`. Lo que le falta de su dotación por puesto (D-02)."""
+    return service.dotacion(trabajador_id)
 
 
 @router.post(

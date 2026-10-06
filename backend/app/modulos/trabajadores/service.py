@@ -11,14 +11,15 @@ Dos grupos de métodos:
 
 import secrets
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime, time
 
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.core.errores_bd import es_restriccion
-from app.core.tiempo import a_hora_mx, hoy_mx
+from app.core.excepciones import DatosInvalidos, NoEncontrado
+from app.core.tiempo import ZONA_MX, a_hora_mx, hoy_mx
 from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import P
 from app.modulos.acceso.service import AccesoService
@@ -28,6 +29,7 @@ from app.modulos.archivos.service import ArchivoService
 from app.modulos.auditoria.service import AuditoriaService
 from app.modulos.catalogo.codigos import CodigoRepetido, CodigoService
 from app.modulos.catalogo.models import Articulo, Pieza, TipoCodigo
+from app.modulos.catalogo.service_puestos import PuestoService
 from app.modulos.movimientos.models import Vale
 from app.modulos.trabajadores.exceptions import (
     EstadoTrabajadorInvalido,
@@ -44,6 +46,7 @@ from app.modulos.trabajadores.schemas import (
     TEXTO_SITUACION,
     BajaOut,
     CodigoOut,
+    DotacionTrabajadorOut,
     FichaBreveOut,
     FichaOut,
     FiltrosTrabajadores,
@@ -51,13 +54,19 @@ from app.modulos.trabajadores.schemas import (
     PendienteOut,
     PeriodoCreate,
     PeriodoOut,
+    RenglonDotacionTrabajadorOut,
     ResumenPendientesOut,
     Situacion,
     TrabajadorCreate,
     TrabajadorListItem,
     VigenciaOut,
 )
-from app.modulos.trabajadores.tipos import Pendiente, Vigencia
+from app.modulos.trabajadores.tipos import (
+    DotacionDelTrabajador,
+    Pendiente,
+    RenglonDotacion,
+    Vigencia,
+)
 
 _ALFABETO_CODIGO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
@@ -112,6 +121,7 @@ class TrabajadorService:
         self.codigos = CodigoService(session)
         self.archivos = ArchivoService(session)
         self.acceso = AccesoService(session)
+        self.puestos = PuestoService(session)
 
     # =============================================== para otros módulos (sin commit)
 
@@ -175,6 +185,99 @@ class TrabajadorService:
         pendientes = self.pendientes_de(trabajador.id)
         return self._ficha_breve(trabajador, actor, periodos, pendientes)
 
+    # ================================================== puesto y dotación (D-01, D-02)
+
+    def _resolver_puesto(
+        self, puesto_id: uuid.UUID | None, texto: str | None
+    ) -> tuple[str | None, uuid.UUID | None]:
+        """`(texto del puesto, puesto_id)` para un periodo. Con `puesto_id` manda el catálogo
+        (debe existir y estar activo, 422); con solo texto se busca por nombre y, si no existe,
+        el periodo queda sin `puesto_id` (sin dotación)."""
+        if puesto_id is not None:
+            try:
+                puesto = self.puestos.obtener_puesto(puesto_id)
+            except NoEncontrado:
+                raise DatosInvalidos(
+                    "No existe ese puesto.",
+                    [{"campo": "puesto_id", "mensaje": "No existe ese puesto."}],
+                ) from None
+            if not puesto.activo:
+                raise DatosInvalidos(
+                    "Ese puesto está inactivo.",
+                    [{"campo": "puesto_id", "mensaje": "Ese puesto está inactivo."}],
+                )
+            return puesto.nombre, puesto.id
+        puesto = self.puestos.puesto_por_nombre(texto)
+        if puesto is not None:
+            return puesto.nombre, puesto.id
+        return texto, None
+
+    def dotacion_de(
+        self, trabajador: Trabajador, fecha: date | None = None
+    ) -> DotacionDelTrabajador:
+        """La dotación recomendada por el puesto del periodo vigente y lo que ya recibió (D-02).
+
+        `entregada`: de un retornable, lo que tiene ahora; de un consumible, lo consumido desde
+        el inicio del periodo de contrato vigente (vales cancelados no cuentan). Sin puesto del
+        catálogo o con el puesto sin dotación, no hay renglones. Solo lee: no hace commit.
+        """
+        periodo = self.periodo_vigente(trabajador, fecha)
+        if periodo is None or periodo.puesto_id is None:
+            return DotacionDelTrabajador(None, [])
+        puesto = self.puestos.obtener_puesto(periodo.puesto_id)
+        filas = self.puestos.renglones_de_puesto(puesto.id)
+        if not filas:
+            return DotacionDelTrabajador(puesto, [])
+        retornables = [a.id for _, a in filas if a.retornable]
+        consumibles = [a.id for _, a in filas if not a.retornable]
+        # Medianoche del centro de México del primer día del periodo, en UTC como se guarda.
+        desde = (
+            datetime.combine(periodo.inicio, time.min, tzinfo=ZONA_MX)
+            .astimezone(UTC)
+            .replace(tzinfo=None)
+        )
+        tiene = self.trabajadores.en_posesion(trabajador.id, retornables)
+        consumido = self.trabajadores.consumido_desde(trabajador.id, consumibles, desde)
+        return DotacionDelTrabajador(
+            puesto,
+            [
+                RenglonDotacion(
+                    articulo=a,
+                    recomendada=d.cantidad,
+                    entregada=(tiene if a.retornable else consumido).get(a.id, 0),
+                )
+                for d, a in filas
+            ],
+        )
+
+    def dotacion(self, trabajador_id: uuid.UUID) -> DotacionTrabajadorOut:
+        """`GET /api/trabajadores/{id}/dotacion` (D-02): lo que le falta de su dotación. Los
+        artículos inactivos no se listan (no se pueden entregar)."""
+        dotacion = self.dotacion_de(self.obtener(trabajador_id))
+        return DotacionTrabajadorOut(
+            puesto=(
+                None
+                if dotacion.puesto is None
+                else {"id": dotacion.puesto.id, "nombre": dotacion.puesto.nombre}
+            ),
+            renglones=[
+                RenglonDotacionTrabajadorOut(
+                    articulo={
+                        "id": r.articulo.id,
+                        "codigo": r.articulo.codigo,
+                        "nombre": r.articulo.nombre,
+                        "unidad": r.articulo.unidad,
+                        "control": r.articulo.control,
+                    },
+                    recomendada=r.recomendada,
+                    entregada=r.entregada,
+                    falta=r.falta,
+                )
+                for r in dotacion.renglones
+                if r.articulo.activo
+            ],
+        )
+
     def marcar_inactivo(self, trabajador: Trabajador, actor: Usuario) -> Trabajador:
         """B-08: al emitirse el vale de no adeudo el trabajador queda Inactivo hasta el reingreso.
 
@@ -208,6 +311,7 @@ class TrabajadorService:
         CURP ya existen lanza `TrabajadorExiste` con la persona, para ofrecer el reingreso."""
         self._validar_periodo(datos.inicio, datos.fin)
         self._rechazar_si_existe(datos.numero_empleado, datos.curp, actor)
+        puesto_texto, puesto_id = self._resolver_puesto(datos.puesto_id, datos.puesto)
         try:
             trabajador = self.trabajadores.add(
                 Trabajador(
@@ -229,7 +333,8 @@ class TrabajadorService:
         self.trabajadores.add_periodo(
             PeriodoContrato(
                 trabajador_id=trabajador.id,
-                puesto=datos.puesto,
+                puesto=puesto_texto,
+                puesto_id=puesto_id,
                 area_obra=datos.area_obra,
                 referencia=datos.referencia,
                 inicio=datos.inicio,
@@ -246,7 +351,8 @@ class TrabajadorService:
             despues={
                 "numero_empleado": trabajador.numero_empleado,
                 "nombre": trabajador.nombre,
-                "puesto": datos.puesto,
+                "puesto": puesto_texto,
+                "puesto_id": puesto_id,
                 "area_obra": datos.area_obra,
                 "inicio": datos.inicio,
                 "fin": datos.fin,
@@ -310,12 +416,17 @@ class TrabajadorService:
         if trabajador is None:
             raise TrabajadorNoEncontrado()
         anterior = (self.trabajadores.periodos(trabajador.id) or [None])[0]
-        puesto = datos.puesto or (anterior.puesto if anterior else None)
+        if datos.puesto is not None or datos.puesto_id is not None:
+            puesto, puesto_id = self._resolver_puesto(datos.puesto_id, datos.puesto)
+        else:
+            puesto = anterior.puesto if anterior else None
+            puesto_id = anterior.puesto_id if anterior else None
         area_obra = datos.area_obra or (anterior.area_obra if anterior else None)
         periodo = self.trabajadores.add_periodo(
             PeriodoContrato(
                 trabajador_id=trabajador.id,
                 puesto=puesto,
+                puesto_id=puesto_id,
                 area_obra=area_obra,
                 referencia=datos.referencia,
                 inicio=datos.inicio,
@@ -556,6 +667,7 @@ class TrabajadorService:
                     estado=t.estado,
                     estado_texto=TEXTO_ESTADO[t.estado],
                     puesto=periodo.puesto if periodo else None,
+                    puesto_id=periodo.puesto_id if periodo else None,
                     area_obra=periodo.area_obra if periodo else None,
                     periodo_inicio=periodo.inicio if periodo else None,
                     periodo_fin=periodo.fin if periodo else None,
@@ -589,6 +701,7 @@ class TrabajadorService:
             estado=trabajador.estado,
             estado_texto=TEXTO_ESTADO[trabajador.estado],
             puesto=periodo.puesto if periodo else None,
+            puesto_id=periodo.puesto_id if periodo else None,
             area_obra=periodo.area_obra if periodo else None,
             vigencia=VigenciaOut(**vars(vigencia)),
             tiene_foto=ve_foto and trabajador.foto_adjunto_id is not None,

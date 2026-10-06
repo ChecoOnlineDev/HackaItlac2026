@@ -281,3 +281,88 @@ class EtiquetaOut(BaseModel):
 class EtiquetasOut(BaseModel):
     elementos: list[EtiquetaOut]
     total: int
+
+
+# ------------------------------------------------------------------------------- puestos
+
+
+class PuestoCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nombre: Texto = Field(max_length=100)
+
+
+class PuestoUpdate(BaseModel):
+    """Se cambia solo lo que viene (omitido no es `null`)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nombre: Texto | None = Field(default=None, max_length=100)
+    activo: bool | None = None
+
+    @model_validator(mode="after")
+    def _obligatorios(self) -> PuestoUpdate:
+        _sin_nulos(self, ("nombre", "activo"))
+        return self
+
+
+class PuestoFilters(BaseModel):
+    activo: bool | None = None
+
+
+class PuestoOut(BaseModel):
+    id: uuid.UUID
+    nombre: str
+    activo: bool
+    # Artículos distintos en su dotación (D-01).
+    total_articulos: int
+
+
+class PuestoRefOut(BaseModel):
+    id: uuid.UUID
+    nombre: str
+
+
+class ArticuloDotacionOut(BaseModel):
+    """Lo mínimo de un artículo para listar una dotación. Sin costo (RG-12)."""
+
+    id: uuid.UUID
+    codigo: str
+    nombre: str
+    unidad: str
+    control: str
+
+
+class LimiteOut(BaseModel):
+    """El límite del artículo (4.1): `periodo_dias` vacío significa "en posesión" (L-05)."""
+
+    cantidad: int
+    periodo_dias: int | None
+
+
+class RenglonDotacionOut(BaseModel):
+    articulo: ArticuloDotacionOut
+    cantidad: int
+    # `None` si el artículo no tiene límite (L-01).
+    limite: LimiteOut | None
+
+
+class DotacionOut(BaseModel):
+    puesto: PuestoRefOut
+    renglones: list[RenglonDotacionOut]
+
+
+class RenglonDotacionIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    articulo_id: uuid.UUID
+    cantidad: int = Field(ge=1, le=1000)
+
+
+class DotacionIn(BaseModel):
+    """Reemplaza toda la dotación del puesto: lo que no viene se quita. Vacía la deja sin
+    dotación."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    renglones: list[RenglonDotacionIn] = Field(max_length=200)

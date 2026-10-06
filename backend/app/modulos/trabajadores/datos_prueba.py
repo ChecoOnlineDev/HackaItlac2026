@@ -6,13 +6,14 @@ trabajador conserve su situación (vigente, vencido, en baja o por iniciar). No 
 
 from datetime import timedelta
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.tiempo import hoy_mx
 from app.modulos.acceso.repository import UsuarioRepository
 from app.modulos.almacenes.service import AlmacenService
 from app.modulos.catalogo.codigos import CodigoService
-from app.modulos.catalogo.models import TipoCodigo
+from app.modulos.catalogo.models import Puesto, TipoCodigo
 from app.modulos.trabajadores.models import EstadoTrabajador, PeriodoContrato, Trabajador
 from app.modulos.trabajadores.repository import TrabajadorRepository
 
@@ -96,6 +97,7 @@ def cargar(session: Session) -> None:
                 )
             )
         inicio, fin = hoy + timedelta(days=d_inicio), hoy + timedelta(days=d_fin)
+        puesto_catalogo = session.scalar(select(Puesto).where(Puesto.nombre == puesto))
         periodos = repositorio.periodos(trabajador.id)
         propio = next((p for p in periodos if p.referencia == REFERENCIA), None)
         if propio is None:
@@ -103,6 +105,7 @@ def cargar(session: Session) -> None:
                 PeriodoContrato(
                     trabajador_id=trabajador.id,
                     puesto=puesto,
+                    puesto_id=puesto_catalogo.id if puesto_catalogo else None,
                     area_obra=area,
                     referencia=REFERENCIA,
                     inicio=inicio,
@@ -112,6 +115,8 @@ def cargar(session: Session) -> None:
             )
         else:
             propio.inicio, propio.fin = inicio, fin
+            if propio.puesto_id is None and puesto_catalogo is not None:
+                propio.puesto_id = puesto_catalogo.id
         ubicaciones.asegurar_ubicacion_de_trabajador(trabajador.id)
         codigos.registrar(codigo, TipoCodigo.TRABAJADOR, trabajador.id)
     session.flush()

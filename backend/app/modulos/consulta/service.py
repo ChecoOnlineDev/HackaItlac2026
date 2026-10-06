@@ -598,6 +598,7 @@ class ConsultaService:
                 motivo=f.motivo,
                 saldo_origen=f.saldo_origen,
                 saldo_destino=f.saldo_destino,
+                observacion=f.observacion,
             )
             for f in filas
         ]

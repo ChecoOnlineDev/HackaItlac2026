@@ -762,6 +762,7 @@ class MovimientoService:
         return EvaluacionOut(
             nivel=evaluacion.nivel,
             puede_confirmar=evaluacion.puede_confirmar,
+            pide_observacion=evaluacion.pide_observacion,
             motivos=[
                 MotivoOut(regla=m.regla, nivel=m.nivel, mensaje=m.mensaje)
                 for m in evaluacion.motivos_vale

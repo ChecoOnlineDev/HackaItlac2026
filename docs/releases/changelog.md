@@ -2,6 +2,15 @@
 
 Qué trae cada versión. Se escribe a partir del historial del repositorio (`git log`), del [roadmap](../product/roadmap.md) y de los documentos del proyecto; si algo no está construido, no aparece aquí. El formato sigue el orden del roadmap.
 
+## Sin publicar: dotación por puesto (FEAT-003, servidor)
+
+- Catálogo de puestos (`/api/puestos`) y dotación recomendada por puesto (`GET` y `PUT /api/puestos/{id}/dotacion`), con la cantidad limitada por el límite del artículo (D-04). Migración `0004_puestos_dotacion` (tablas `puesto` y `dotacion`, `periodo_contrato.puesto_id`).
+- El alta y el reingreso de trabajadores aceptan `puesto_id`; con solo el texto se busca el puesto por nombre.
+- `GET /api/trabajadores/{id}/dotacion`: lo que le falta de su dotación (D-02).
+- Entrega: aviso amarillo E-09 (fuera de la dotación o más de lo recomendado) que pide observación y la exige al confirmar; avisos E-10 (talla) y E-11 (inspección que vence en 7 días o menos) sin observación. `pide_observacion` en la evaluación; la observación aparece en el reporte de movimientos.
+- Datos de prueba: cuatro puestos con dotación, propuestas basadas en el PDF.
+- Pendiente: la interfaz.
+
 ## 0.1.0: MVP (octubre de 2026)
 
 Primera versión completa del flujo principal del reto IMHOTEP: de dar de alta a un trabajador hasta su vale de no adeudo, pasando por entregas con límite y autorización, devoluciones y traspasos entre almacenes. La etiqueta de git la crea el equipo al cerrar la [checklist](mvp-checklist.md); este archivo no la crea.

@@ -382,6 +382,7 @@ class ConsultaRepository:
                 Movimiento.cantidad,
                 Movimiento.saldo_origen,
                 Movimiento.saldo_destino,
+                Movimiento.observacion,
                 Vale.id.label("vale_id"),
                 Vale.folio,
                 Vale.tipo,

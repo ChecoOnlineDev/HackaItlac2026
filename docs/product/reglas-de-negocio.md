@@ -129,8 +129,15 @@ El PDF muestra que el EPP se define por puesto (p.3, paso 5) y lista el equipo d
 | D-01 | Cada puesto tiene una dotación: lista de artículos con cantidad recomendada. | PDF p.3, p.7 |
 | D-02 | Al identificar al trabajador se muestra qué le falta de su dotación. El almacenista escanea para completarla. | Propuesta |
 | D-03 | Entregar algo fuera de la dotación, o más de lo recomendado, da aviso amarillo y pide una observación corta ("se mojaron", "se llenaron de grasa"). | Idea del equipo; plática min 36 |
+| D-04 | La cantidad recomendada de un artículo en una dotación no puede ser mayor que su límite (4.1). Si el artículo no tiene límite, no hay tope. Tampoco se puede bajar el límite de un artículo por debajo de lo recomendado en alguna dotación. | Propuesta |
 
 La dotación es lo recomendado (amarillo) y el límite es el máximo (naranja). La dotación siempre debe ser menor o igual al límite.
+
+**Estado: construido en el servidor** (FEAT-003; la interfaz está pendiente). Cómo se aplica:
+
+- **Puesto y dotación.** El catálogo de puestos y su dotación son datos que administra quien tiene `catalogo.administrar`. Los puestos de los datos de prueba y sus dotaciones son **propuestas basadas en el PDF** (EPP por trabajador de la p. 10 y equipo y herramienta de la p. 7 del documento); el PDF no dice qué puestos existen: los reales los define la empresa. Cada periodo de contrato guarda el puesto como texto y, si coincide con el catálogo, también su `puesto_id`. Sin `puesto_id` o con un puesto sin dotación, el trabajador no tiene dotación y no hay avisos.
+- **D-02: lo que `entregada` y `falta` significan.** Para cada artículo de la dotación del puesto del periodo de contrato vigente hoy: `entregada` es, en un **retornable**, lo que el trabajador tiene ahora (su existencia en su ubicación, de cualquier almacén); en un **consumible**, lo que se le entregó desde el primer día del periodo de contrato vigente (a las 00:00 hora del centro de México), sin contar vales cancelados. `falta` es lo recomendado menos lo entregado, nunca negativa. Los artículos inactivos no se listan.
+- **E-09.** En una entrega, el renglón avisa si el trabajador tiene dotación y (a) el artículo no está en ella, o (b) `entregada` más lo que ya pidieron los renglones anteriores del mismo artículo en el vale más la cantidad del renglón supera la recomendada. Es amarillo con el ID `E-09`; si también supera el límite gana el naranja (SM-01) y se muestran los dos motivos. La evaluación trae `pide_observacion: true` (en el renglón y en el vale) y la confirmación exige una observación en el renglón (`renglones[].observacion`) o en el vale (`observacion`); sin ella responde 422 con la regla `E-09`. La observación queda en el movimiento (`movimiento.observacion`) y se ve en el reporte de movimientos. Un renglón en rojo no pide observación.
 
 ### 4.3 Autorización del supervisor
 
@@ -286,8 +293,8 @@ Pasos: escanear credencial, confirmar la foto, escanear artículos, resolver nar
 | E-07 | Supera el límite del artículo (4.1). | Naranja | PDF función 6 |
 | E-08 | El artículo pide una habilitación (CF-06) y el trabajador no la tiene vigente. | Naranja | PDF p.4, p.9 (opcional) |
 | E-09 | Está fuera de la dotación o supera lo recomendado (4.2). Pide observación. | Amarillo | Idea del equipo; plática min 36 |
-| E-10 | La talla no coincide con la del trabajador. | Amarillo | PDF p.8 paso 4 |
-| E-11 | La inspección vence en 7 días o menos. | Amarillo | Propuesta |
+| E-10 | La talla no coincide con la del trabajador. Sin observación. | Amarillo | PDF p.8 paso 4 |
+| E-11 | La inspección vence en 7 días o menos (hoy incluido). Sin observación. | Amarillo | Propuesta |
 | E-12 | El trabajador trae pendientes de un periodo anterior. | Amarillo | Plática min 9 |
 | E-14 | La entrega deja al almacén por debajo del mínimo (I-05). | Amarillo | Plática min 47 |
 | E-15 | La pieza ya está en este vale. | Se ignora con sonido | Propuesta |
@@ -309,7 +316,7 @@ Otras reglas de la entrega:
 | E-25 | No hay plazo por préstamo: la herramienta puede quedarse todo el proyecto. El plazo es el fin del contrato. | Plática min 37 y 52 |
 | E-28 | Escanear un código agrega el renglón a un borrador del vale, y el servidor lo evalúa sin escribir nada. Las existencias y el resguardo cambian solo al confirmar el vale, en una sola operación (RG-01, RG-09). Mientras no se confirme, cualquier renglón se puede quitar. | RG-01, RG-09; idea del equipo |
 
-Cómo se aplican en el servidor: E-01 también cubre escanear el código de un artículo controlado por pieza en lugar del de la pieza (no hay a cuál pieza entregar). E-02 pone en rojo todos los renglones y se muestra también como motivo del vale; E-12 es un aviso del vale, no de un renglón. Una pieza se entrega de una en una (RG-05) y la condición al salir es Bueno si no se indica (E-22; un equipo dañado no se entrega). El motivo de cada renglón lleva el ID de su regla y se guarda en `movimiento.reglas`.
+Cómo se aplican en el servidor: E-01 también cubre escanear el código de un artículo controlado por pieza en lugar del de la pieza (no hay a cuál pieza entregar). E-02 pone en rojo todos los renglones y se muestra también como motivo del vale; E-12 es un aviso del vale, no de un renglón. E-10 compara la talla del artículo (`articulo.talla`) con las tallas del trabajador (`trabajador.tallas`, por ejemplo camisa y calzado): como las tallas del trabajador no dicen a qué prenda corresponde cada una, avisa si la talla del artículo no coincide con ninguna de ellas (sin distinguir mayúsculas); si el artículo no tiene talla o el trabajador no tiene tallas, no avisa. E-11 solo aplica a piezas de artículos que requieren inspección y que ya tienen una vigente: una inspección vencida es E-06 (rojo). Una pieza se entrega de una en una (RG-05) y la condición al salir es Bueno si no se indica (E-22; un equipo dañado no se entrega). El motivo de cada renglón lleva el ID de su regla y se guarda en `movimiento.reglas`.
 
 ### 7.4 Devolución (almacenista)
 
@@ -575,6 +582,7 @@ Los supuestos con los que se escribieron estas reglas, y qué pasa si resultan d
 
 ## 11. Historial
 
+- **Versión 7 (5 oct 2026).** Dotación por puesto construida en el servidor (FEAT-003): D-04 (la dotación no pasa del límite), el criterio de lo entregado en D-02 y los avisos E-09, E-10 y E-11. Sin permisos nuevos: puestos y dotación usan `catalogo.ver` y `catalogo.administrar`.
 - **Versión 6 (5 oct 2026).** Alineación con el código construido, sin reglas nuevas. I-04: el costo unitario se captura en el catálogo y en la importación, no en la entrada. V-02: un vale con solo renglones V-02 sale en rojo y no se confirma. Prioridades (sección 9): E-27, E-28 y P-07 pasan a P0, y T-09 y F-11 quedan solo en P0.
 - **Versión 5 (4 oct 2026).** Escanear solo agrega a un borrador y las existencias cambian al confirmar (E-28); aviso de cantidad inusual por artículo (E-27, sección 5.4); filtro por usuario en el reporte de movimientos y rastreo de desapariciones (C-05, C-11). La carta de aceptación queda pospuesta (T-04, F-01). Cancelar y rehacer (K-05), Mis movimientos de hoy (C-12) y ajuste de la vigencia de una inspección por un supervisor o administrador (P-07, permiso `piezas.ajustar_vigencia`). RG-07 aclara que cada almacenista usa su propia cuenta y dispositivo. Entran el reporte de consumo (C-08, permiso `reportes.consumo`) y la foto opcional del trabajador (T-09). Se agregan AC-12 y AC-13 y el permiso `almacenes.asignar_personal` para asignar personal a almacenes con FEAT-006.
 - **Versión 4 (4 oct 2026).** El acceso pasa de perfiles fijos a roles con permisos por clave (sección 8, reglas AC-01 a AC-11). RG-07, RG-12, RG-13 y A-01 se redactan en términos de permisos. De los [escenarios](escenarios.md) salen dos aclaraciones: T-02 dice cómo se extiende un contrato, y V-14 y E-18 qué hacer con una etiqueta ilegible.

@@ -111,6 +111,21 @@ class HechosCuenta:
 
 
 @dataclass(frozen=True)
+class HechosDotacion:
+    """La dotación del puesto del trabajador respecto de un artículo (D-01, E-09).
+
+    `tiene_dotacion` es falso si el trabajador no tiene puesto del catálogo o su puesto no tiene
+    dotación: en ese caso no hay avisos. `recomendada` es la cantidad del artículo en la
+    dotación (`None` si el artículo no está) y `entregada` lo que ya tiene (retornable) o lo
+    consumido en su periodo de contrato (consumible), sin contar lo que lleva este vale.
+    """
+
+    tiene_dotacion: bool = False
+    recomendada: int | None = None
+    entregada: int = 0
+
+
+@dataclass(frozen=True)
 class HechosRenglonEntrega:
     codigo: str
     cantidad: int
@@ -124,6 +139,9 @@ class HechosRenglonEntrega:
     cuenta: HechosCuenta
     # Cantidad de renglones anteriores del mismo artículo en este vale (límite acumulado).
     pedido_previo: int = 0
+    dotacion: HechosDotacion = field(default_factory=HechosDotacion)
+    # Tallas del trabajador (`{"camisa": "M", "calzado": "27"}`); vacío si no las tiene (E-10).
+    tallas_trabajador: dict[str, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -334,6 +352,75 @@ def regla_e27_cantidad_inusual(h: HechosRenglonEntrega) -> Motivo | None:
     )
 
 
+def regla_e09_dotacion(h: HechosRenglonEntrega) -> Motivo | None:
+    """E-09 con D-01 y D-03: el artículo está fuera de la dotación del puesto o la cantidad
+    supera lo recomendado. Amarillo: avisa y pide una observación, no bloquea. Sin dotación
+    (sin puesto o puesto sin renglones) no avisa. Si además pasa el límite, gana el naranja."""
+    art = h.articulo
+    d = h.dotacion
+    if art is None or not d.tiene_dotacion:
+        return None
+    if d.recomendada is None:
+        return Motivo(
+            "E-09",
+            Nivel.AMARILLO,
+            f"{art.nombre} no está en la dotación de su puesto. Anota por qué se entrega.",
+        )
+    lleva = d.entregada + h.pedido_previo
+    if lleva + h.cantidad <= d.recomendada:
+        return None
+    return Motivo(
+        "E-09",
+        Nivel.AMARILLO,
+        f"Supera lo recomendado para su puesto (recomendado {d.recomendada}, lleva {lleva}, "
+        f"pide {h.cantidad}). Anota por qué se entrega.",
+    )
+
+
+def regla_e10_talla(h: HechosRenglonEntrega) -> Motivo | None:
+    """E-10: la talla del artículo no coincide con ninguna de las del trabajador. Amarillo, sin
+    observación. Sin talla en el artículo o sin tallas del trabajador no avisa: las tallas del
+    trabajador no dicen a qué prenda corresponden, así que se compara con todas."""
+    art = h.articulo
+    if art is None or not (art.talla or "").strip() or not h.tallas_trabajador:
+        return None
+    del_trabajador = {k: v.strip() for k, v in h.tallas_trabajador.items() if v and v.strip()}
+    if not del_trabajador:
+        return None
+    if art.talla.strip().casefold() in {v.casefold() for v in del_trabajador.values()}:
+        return None
+    suyas = ", ".join(f"{k} {v}" for k, v in sorted(del_trabajador.items()))
+    return Motivo(
+        "E-10",
+        Nivel.AMARILLO,
+        f"La talla del artículo ({art.talla.strip()}) no coincide con la del trabajador "
+        f"({suyas}). Verifica antes de entregar.",
+    )
+
+
+# Días de anticipación del aviso de inspección por vencer (E-11).
+DIAS_AVISO_INSPECCION = 7
+
+
+def regla_e11_inspeccion_por_vencer(h: HechosRenglonEntrega, hoy: date) -> Motivo | None:
+    """E-11: la inspección vigente de la pieza vence en 7 días o menos. Amarillo, sin
+    observación. Una vencida es E-06 (rojo); una que vence hoy todavía es vigente."""
+    if h.pieza is None or h.articulo is None or not h.articulo.requiere_inspeccion:
+        return None
+    hasta = h.pieza.inspeccion_vigente_hasta
+    if hasta is None or hasta < hoy:
+        return None
+    dias = (hasta - hoy).days
+    if dias > DIAS_AVISO_INSPECCION:
+        return None
+    cuando = "hoy" if dias == 0 else "mañana" if dias == 1 else f"en {dias} días"
+    return Motivo(
+        "E-11",
+        Nivel.AMARILLO,
+        f"La inspección vence {cuando} ({fecha_texto(hasta)}).",
+    )
+
+
 @dataclass
 class ResultadoRenglon:
     motivos: list[Motivo] = field(default_factory=list)
@@ -369,9 +456,16 @@ def evaluar_renglon_entrega(
     agregar(regla_e06_inspeccion(h, hoy))
     agregar(regla_limite(h))  # límites
     agregar(regla_e26_autorizacion(h))
-    aviso = regla_e27_cantidad_inusual(h)  # avisos
+    e09 = regla_e09_dotacion(h)  # avisos
+    agregar(e09)
+    agregar(regla_e10_talla(h))
+    agregar(regla_e11_inspeccion_por_vencer(h, hoy))
+    aviso = regla_e27_cantidad_inusual(h)
     agregar(aviso)
-    return ResultadoRenglon(motivos, requiere_confirmacion=aviso is not None)
+    resultado = ResultadoRenglon(motivos, requiere_confirmacion=aviso is not None)
+    # Un renglón en rojo no se entrega: no tiene caso pedirle observación.
+    resultado.pide_observacion = e09 is not None and resultado.nivel != Nivel.ROJO
+    return resultado
 
 
 # ------------------------------------------------------------------------------ entrada

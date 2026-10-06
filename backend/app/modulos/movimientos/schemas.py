@@ -254,6 +254,9 @@ class AlmacenResumenOut(BaseModel):
 class EvaluacionOut(BaseModel):
     nivel: Nivel
     puede_confirmar: bool
+    # Verdadero si algún renglón pide una observación (E-09): al confirmar hace falta una, en el
+    # renglón (`renglones[].observacion`) o en el vale (`observacion`); sin ella, 422 con E-09.
+    pide_observacion: bool = False
     # Motivos que valen para todo el vale (por ejemplo E-12) y no para un renglón.
     motivos: list[MotivoOut]
     almacen: AlmacenResumenOut

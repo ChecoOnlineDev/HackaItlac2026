@@ -327,7 +327,10 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
         ("GET", "/api/roles", None, set()),
         ("GET", "/api/usuarios", None, set()),
     ],
-    P.TRABAJADORES_VER: [("GET", "/api/trabajadores", None, set())],
+    P.TRABAJADORES_VER: [
+        ("GET", "/api/trabajadores", None, set()),
+        ("GET", f"/api/trabajadores/{UUID_FALSO}/dotacion", None, set()),
+    ],
     P.TRABAJADORES_ADMINISTRAR: [
         ("POST", "/api/trabajadores", {}, set()),
         ("POST", f"/api/trabajadores/{UUID_FALSO}/periodos", {}, set()),
@@ -338,11 +341,16 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
         ("GET", "/api/categorias", None, set()),
         ("GET", "/api/articulos", None, set()),
         ("GET", f"/api/piezas/{UUID_FALSO}", None, set()),
+        ("GET", "/api/puestos", None, set()),
+        ("GET", f"/api/puestos/{UUID_FALSO}/dotacion", None, set()),
     ],
     P.CATALOGO_ADMINISTRAR: [
         ("POST", "/api/categorias", {}, set()),
         ("POST", "/api/articulos", {}, set()),
         ("DELETE", f"/api/articulos/{UUID_FALSO}", None, set()),
+        ("POST", "/api/puestos", {}, set()),
+        ("PATCH", f"/api/puestos/{UUID_FALSO}", {}, set()),
+        ("PUT", f"/api/puestos/{UUID_FALSO}/dotacion", {"renglones": []}, set()),
     ],
     P.INVENTARIO_VER: [
         ("GET", "/api/almacenes", None, set()),

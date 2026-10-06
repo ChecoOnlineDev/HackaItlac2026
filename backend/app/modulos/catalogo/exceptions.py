@@ -38,3 +38,19 @@ class SerieRepetida(Conflicto):
     """El artículo ya tiene una pieza con ese número de serie."""
 
     mensaje_defecto = "Ya existe una pieza de ese artículo con ese número de serie."
+
+
+class PuestoNoEncontrado(NoEncontrado):
+    mensaje_defecto = "No se encontró el puesto."
+
+
+class PuestoRepetido(Conflicto):
+    """Ya existe un puesto con ese nombre (sin importar mayúsculas ni acentos)."""
+
+    mensaje_defecto = "Ya existe un puesto con ese nombre."
+
+
+class EnDotacion(Conflicto):
+    """El artículo está en la dotación de algún puesto: no se elimina."""
+
+    mensaje_defecto = "El artículo está en la dotación de un puesto."

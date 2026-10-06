@@ -18,6 +18,7 @@ from app.modulos.catalogo.service import CatalogoService
 from app.modulos.movimientos.evaluador import (
     HechosArticulo,
     HechosCuenta,
+    HechosDotacion,
     HechosPieza,
     HechosRenglonEntrega,
     HechosTrabajador,
@@ -27,6 +28,7 @@ from app.modulos.movimientos.repository import MovimientoRepository
 from app.modulos.trabajadores.models import Trabajador
 from app.modulos.trabajadores.schemas import FichaBreveOut
 from app.modulos.trabajadores.service import TrabajadorService
+from app.modulos.trabajadores.tipos import DotacionDelTrabajador
 
 # Cómo se nombra cada lugar virtual ante el usuario (nunca su clave interna).
 _NOMBRE_VIRTUAL = {
@@ -104,10 +106,12 @@ class Cargador:
         self.usuario = usuario
         self._identificaciones: dict[str, Identificacion] = {}
         self._fichas: dict[uuid.UUID, FichaBreveOut] = {}
+        self._dotaciones: dict[uuid.UUID, DotacionDelTrabajador] = {}
 
     def olvidar_lecturas(self) -> None:
         """Descarta lo leído antes de bloquear las filas: al confirmar se vuelve a leer todo."""
         self._fichas.clear()
+        self._dotaciones.clear()
 
     # ------------------------------------------------------------------ códigos
 
@@ -165,6 +169,18 @@ class Cargador:
             motivo_no_vigente=ficha.vigencia.motivo,
             pendientes_periodo_anterior=ficha.pendientes.de_periodos_anteriores,
         )
+
+    def hechos_dotacion(self, trabajador: Trabajador, articulo: Articulo) -> HechosDotacion:
+        """D-01 y E-09: la dotación del puesto del trabajador respecto de este artículo."""
+        if trabajador.id not in self._dotaciones:
+            self._dotaciones[trabajador.id] = self.trabajadores.dotacion_de(trabajador)
+        dotacion = self._dotaciones[trabajador.id]
+        if not dotacion.renglones:
+            return HechosDotacion()
+        for renglon in dotacion.renglones:
+            if renglon.articulo.id == articulo.id:
+                return HechosDotacion(True, renglon.recomendada, renglon.entregada)
+        return HechosDotacion(True, None, 0)
 
     # ---------------------------------------------------------------- ubicaciones
 
@@ -282,4 +298,6 @@ class Cargador:
             disponible=self.disponible(ubicacion_almacen_id, articulo),
             cuenta=self.cuenta(trabajador, articulo, ahora),
             pedido_previo=pedido_previo,
+            dotacion=self.hechos_dotacion(trabajador, articulo),
+            tallas_trabajador=trabajador.tallas,
         )

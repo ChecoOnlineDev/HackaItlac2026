@@ -4,8 +4,11 @@ Almacén -> trabajador (retornable, E-20) o almacén -> CONSUMIDO con el trabaja
 (consumible, E-21). Reglas: E-01 a E-07, E-12, E-15 a E-22, E-24, E-26 a E-28, L-01 a L-05,
 A-01 a A-07 (la autorización la resuelve el motor), F-02, F-03, F-05, F-12.
 
-Fuera de alcance (otras fases): E-08 (habilitaciones), E-09 a E-11 (dotación, talla, inspección por
-vencer: FEAT-003), E-14 (mínimos: FEAT-004).
+FEAT-003: E-09 (fuera de la dotación o más de lo recomendado, pide observación), E-10 (talla) y
+E-11 (inspección por vencer) son avisos amarillos que no bloquean. Con E-09 la confirmación exige
+una observación (en el renglón o en el vale): sin ella, 422 con la regla E-09.
+
+Fuera de alcance (otras fases): E-08 (habilitaciones), E-14 (mínimos: FEAT-004).
 """
 
 import uuid
@@ -32,7 +35,7 @@ from app.modulos.movimientos.evaluador import (
     tiene_para_limite,
 )
 from app.modulos.movimientos.exceptions import FirmaRequerida
-from app.modulos.movimientos.models import Condicion, FirmaModo, TipoVale
+from app.modulos.movimientos.models import Condicion, FirmaModo, Nivel, TipoVale
 from app.modulos.movimientos.schemas import (
     TRAZO_PUNTOS_MINIMO,
     RenglonIn,
@@ -182,6 +185,24 @@ class EntregaTipo(ManejadorTipo):
 
     # ---------------------------------------------------------------- confirmación
 
+    def exigir_al_confirmar(self, cuerpo: ValeIn, evaluacion: Evaluacion) -> None:
+        """E-09: un renglón fuera de la dotación o sobre lo recomendado necesita observación,
+        la del renglón o la del vale. Con el vale en rojo responde el motor (VALE_CAMBIO)."""
+        if evaluacion.nivel == Nivel.ROJO:
+            return
+        del_vale = (getattr(cuerpo, "observacion", None) or "").strip()
+        errores = [
+            {
+                "campo": f"renglones.{i}.observacion",
+                "mensaje": "Anota por qué se entrega fuera de lo recomendado.",
+                "regla": "E-09",
+            }
+            for i, r in enumerate(evaluacion.renglones)
+            if r.pide_observacion and not (r.extra.get("observacion") or del_vale)
+        ]
+        if errores:
+            raise DatosInvalidos(errores[0]["mensaje"], errores)
+
     def bloqueos(self, ctx: ContextoVale, cuerpo: ValeIn) -> PlanBloqueo:
         carga = ctx.cargador
         assert cuerpo.trabajador_id is not None
@@ -236,7 +257,13 @@ class EntregaTipo(ManejadorTipo):
                     condicion=str(r.extra["condicion"] or Condicion.BUENO),  # E-22
                     nivel=r.nivel,
                     reglas=motivos_ids(r),
-                    observacion=r.extra["observacion"],
+                    # E-09: sin observación propia, el renglón lleva la del vale.
+                    observacion=r.extra["observacion"]
+                    or (
+                        (getattr(cuerpo, "observacion", None) or None)
+                        if r.pide_observacion
+                        else None
+                    ),
                 )
             )
         return movimientos

@@ -30,6 +30,7 @@ from app.modulos.catalogo.exceptions import (
     ArticuloNoEncontrado,
     CategoriaNoEncontrada,
     ConMovimientos,
+    EnDotacion,
     EstadoRepetido,
     NombreRepetido,
     PiezaNoEncontrada,
@@ -445,6 +446,7 @@ class CatalogoService:
             if nuevos["vigencia_inspeccion_dias"] != articulo.vigencia_inspeccion_dias:
                 diferencias["vigencia_inspeccion_dias"] = nuevos["vigencia_inspeccion_dias"]
         validar_reglas(nuevos["control"], nuevos)
+        self._exigir_limite_sobre_dotacion(articulo, nuevos["limite_cantidad"])
 
         if not diferencias:
             return self._articulo_out(articulo, usuario)
@@ -469,6 +471,20 @@ class CatalogoService:
                 despues=despues,
             )
         return self._articulo_out(articulo, usuario)
+
+    def _exigir_limite_sobre_dotacion(self, articulo: Articulo, limite: int | None) -> None:
+        """D-04: el límite no puede quedar por debajo de lo recomendado en algún puesto."""
+        if limite is None:
+            return
+        maxima = self.articulos.dotacion_maxima(articulo.id)
+        if maxima is not None and maxima > limite:
+            mensaje = (
+                f"El límite no puede ser menor que la cantidad recomendada en una dotación "
+                f"({maxima}). Ajusta primero la dotación del puesto."
+            )
+            raise DatosInvalidos(
+                mensaje, [{"campo": "limite_cantidad", "mensaje": mensaje, "regla": "D-04"}]
+            )
 
     def _exigir_sin_movimientos(self, articulo: Articulo, cambia_control: bool) -> None:
         """CF-05: control y retorno no cambian si el artículo ya tiene movimientos."""
@@ -534,6 +550,11 @@ class CatalogoService:
     def eliminar_articulo(self, articulo_id: uuid.UUID, usuario: Usuario) -> None:
         """CF-12: solo se elimina un artículo sin movimientos; con ellos, solo se inactiva."""
         articulo = self.obtener_articulo(articulo_id)
+        if self.articulos.en_dotacion(articulo.id):
+            raise EnDotacion(
+                "El artículo está en la dotación de un puesto: quítalo de ahí o inactívalo.",
+                {"regla": "D-01"},
+            )
         if self.articulos.tiene_movimientos(articulo.id) or self.articulos.tiene_piezas(
             articulo.id
         ):

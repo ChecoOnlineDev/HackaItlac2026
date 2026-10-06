@@ -46,7 +46,7 @@ Son los diferenciadores (prioridad P1). Se construyen como features, una por una
 
 1. [FEAT-001](../features/FEAT-001-vale-como-prueba.md): vale como prueba.
 2. [FEAT-002](../features/FEAT-002-cierre-de-almacen.md): cierre de almacén de proyecto y valor del inventario.
-3. [FEAT-003](../features/FEAT-003-dotacion-por-puesto.md): dotación por puesto y avisos no bloqueantes.
+3. [FEAT-003](../features/FEAT-003-dotacion-por-puesto.md): dotación por puesto y avisos no bloqueantes. **En construcción: el servidor está listo** (puestos, dotación, dotación del trabajador y avisos E-09, E-10 y E-11); falta la interfaz.
 4. [FEAT-004](../features/FEAT-004-minimos-y-estados.md): mínimos, estados de pieza y alertas.
 5. [FEAT-005](../features/FEAT-005-identidad-con-foto.md): identidad con foto. **Pasó al MVP** como foto opcional en el alta (T-09); el brief queda como referencia.
 

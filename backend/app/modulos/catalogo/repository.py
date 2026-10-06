@@ -15,8 +15,10 @@ from app.modulos.catalogo.models import (
     Categoria,
     Codigo,
     Control,
+    Dotacion,
     EstadoPieza,
     Pieza,
+    Puesto,
     TipoCodigo,
 )
 from app.modulos.movimientos.models import Movimiento
@@ -125,6 +127,23 @@ class ArticuloRepository:
     def tiene_piezas(self, articulo_id: uuid.UUID) -> bool:
         return bool(self.session.scalar(select(exists().where(Pieza.articulo_id == articulo_id))))
 
+    def get_varios(self, ids: list[uuid.UUID]) -> dict[uuid.UUID, Articulo]:
+        if not ids:
+            return {}
+        filas = self.session.scalars(select(Articulo).where(Articulo.id.in_(ids)))
+        return {a.id: a for a in filas}
+
+    def en_dotacion(self, articulo_id: uuid.UUID) -> bool:
+        return bool(
+            self.session.scalar(select(exists().where(Dotacion.articulo_id == articulo_id)))
+        )
+
+    def dotacion_maxima(self, articulo_id: uuid.UUID) -> int | None:
+        """La mayor cantidad recomendada de este artículo en cualquier puesto (D-04)."""
+        return self.session.scalar(
+            select(func.max(Dotacion.cantidad)).where(Dotacion.articulo_id == articulo_id)
+        )
+
 
 class PiezaRepository:
     def __init__(self, session: Session) -> None:
@@ -223,3 +242,79 @@ class EtiquetaRepository:
             for trabajador_id, puesto in recientes.items():
                 puestos.setdefault(trabajador_id, puesto)
         return [(c, n, e, puestos.get(tid)) for c, tid, n, e in filas]
+
+
+class PuestoRepository:
+    """Puestos y su dotación (D-01). Nunca hace commit."""
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, puesto_id: uuid.UUID) -> Puesto | None:
+        return self.session.get(Puesto, puesto_id)
+
+    def get_by_nombre(self, nombre: str) -> Puesto | None:
+        """La colación de la base ignora mayúsculas y acentos."""
+        return self.session.scalar(select(Puesto).where(Puesto.nombre == nombre.strip()))
+
+    def listar(
+        self, *, activo: bool | None, offset: int, limit: int
+    ) -> tuple[list[tuple[Puesto, int]], int]:
+        """`(puesto, total de artículos de su dotación)` por nombre, y el total sin paginar."""
+        condiciones = [] if activo is None else [Puesto.activo == activo]
+        total = self.session.scalar(select(func.count()).select_from(Puesto).where(*condiciones))
+        cuenta = (
+            select(func.count(Dotacion.id))
+            .where(Dotacion.puesto_id == Puesto.id)
+            .correlate(Puesto)
+            .scalar_subquery()
+        )
+        filas = self.session.execute(
+            select(Puesto, cuenta)
+            .where(*condiciones)
+            .order_by(Puesto.nombre)
+            .offset(offset)
+            .limit(limit)
+        ).all()
+        return [(p, int(n or 0)) for p, n in filas], int(total or 0)
+
+    def total_articulos(self, puesto_id: uuid.UUID) -> int:
+        return int(
+            self.session.scalar(
+                select(func.count(Dotacion.id)).where(Dotacion.puesto_id == puesto_id)
+            )
+            or 0
+        )
+
+    def add(self, puesto: Puesto) -> Puesto:
+        self.session.add(puesto)
+        self.session.flush()
+        return puesto
+
+    def renglones(self, puesto_id: uuid.UUID) -> list[tuple[Dotacion, Articulo]]:
+        """La dotación del puesto con sus artículos, por nombre de artículo."""
+        filas = self.session.execute(
+            select(Dotacion, Articulo)
+            .join(Articulo, Articulo.id == Dotacion.articulo_id)
+            .where(Dotacion.puesto_id == puesto_id)
+            .order_by(Articulo.nombre, Articulo.codigo)
+        ).all()
+        return [(d, a) for d, a in filas]
+
+    def reemplazar_renglones(self, puesto_id: uuid.UUID, nuevos: dict[uuid.UUID, int]) -> None:
+        """Deja la dotación exactamente como `nuevos` (`articulo_id -> cantidad`)."""
+        actuales = {
+            d.articulo_id: d
+            for d in self.session.scalars(select(Dotacion).where(Dotacion.puesto_id == puesto_id))
+        }
+        for articulo_id, fila in actuales.items():
+            if articulo_id not in nuevos:
+                self.session.delete(fila)
+            elif fila.cantidad != nuevos[articulo_id]:
+                fila.cantidad = nuevos[articulo_id]
+        for articulo_id, cantidad in nuevos.items():
+            if articulo_id not in actuales:
+                self.session.add(
+                    Dotacion(puesto_id=puesto_id, articulo_id=articulo_id, cantidad=cantidad)
+                )
+        self.session.flush()

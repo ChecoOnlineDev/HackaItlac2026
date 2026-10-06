@@ -357,6 +357,8 @@ class MovimientoReporteItem(BaseModel):
     motivo: str | None = None
     saldo_origen: int | None
     saldo_destino: int | None
+    # Lo que anotó quien hizo el vale en ese renglón (por ejemplo el porqué de E-09).
+    observacion: str | None = None
 
 
 class AdeudoReporteItem(BaseModel):

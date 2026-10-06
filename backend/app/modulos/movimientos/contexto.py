@@ -87,6 +87,11 @@ class Evaluacion:
         return max(niveles, key=GRAVEDAD.__getitem__, default=Nivel.VERDE)
 
     @property
+    def pide_observacion(self) -> bool:
+        """Algún renglón pide observación (E-09 en la entrega); uno en rojo no cuenta."""
+        return any(r.pide_observacion and r.nivel != Nivel.ROJO for r in self.renglones)
+
+    @property
     def puede_confirmar(self) -> bool:
         """SM-03: sin rojos y con todos los naranjas autorizados. Debe haber algún renglón (salvo
         en los tipos que no los llevan)."""

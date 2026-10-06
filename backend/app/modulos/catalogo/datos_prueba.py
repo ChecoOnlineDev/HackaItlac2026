@@ -6,6 +6,11 @@ NO carga piezas ni existencias: las escribe `movimientos`.
 
 Fuentes: categorías, sección 5.1 de las reglas; artículos, páginas 7 y 10 del PDF del reto. Los
 costos son los de la página 10 (sin IVA); los artículos de la página 7 no traen costo en el PDF.
+
+Puestos y dotación (FEAT-003): PROPUESTAS DE DATOS DE PRUEBA a partir del PDF. El PDF no dice qué
+puestos existen: solo lista el EPP por trabajador (p. 10, con cantidades) y el equipo y herramienta
+para un trabajador dentro de Mittal (p. 7 del documento, p. 8 del PDF). Los puestos reales y su
+dotación los define la empresa. Cada cantidad recomendada respeta el límite del artículo (D-04).
 """
 
 from decimal import Decimal
@@ -18,6 +23,8 @@ from app.modulos.catalogo.models import (
     Articulo,
     Categoria,
     Control,
+    Dotacion,
+    Puesto,
     TipoCategoria,
     TipoCodigo,
 )
@@ -126,6 +133,57 @@ ARTICULOS: tuple[tuple[str, str, str | None, str | None, str, str, str | None], 
 )
 
 
+# EPP por trabajador (PDF p. 10): código del artículo -> cantidad recomendada. El filtro 2097 es la
+# opción alternativa del 7093 y no entra en la dotación.
+EPP_ESTANDAR: dict[str, int] = {
+    "LENTE-CL": 1,
+    "TAPON-AU": 2,
+    "RESP-6200": 1,
+    "FILTRO-7093": 2,
+    "CACHUCHA": 1,
+    "CAMISOLA": 1,
+    "LOGO-FR": 1,
+    "LOGO-CON": 1,
+    "GUANTE-DIE": 1,
+    "GUANTE-CAR": 1,
+    "ZAPATO-755": 1,
+}
+
+# Puestos de los cuatro trabajadores de prueba. Equipo y herramienta: PDF p. 7 del documento.
+PUESTOS: dict[str, dict[str, int]] = {
+    "Ayudante general": EPP_ESTANDAR,
+    "Soldador": {**EPP_ESTANDAR, "PETO": 1, "POLAINAS": 1, "MINIPUL": 1, "DISCO-4M": 2},
+    "Electricista": {
+        **EPP_ESTANDAR,
+        "FLEXOM": 1,
+        "EXT-ELE": 1,
+        "REFLECT": 1,
+        "DET-GAS": 1,
+    },
+    # Trabajo en alturas: EPP estándar más el equipo de alturas.
+    "Rigger": {**EPP_ESTANDAR, "ARN-KEV": 1, "BANDOLA": 1, "RET-3M": 1},
+}
+
+
+def _cargar_puestos(session: Session) -> None:
+    """Crea los puestos y su dotación si faltan. Un puesto que ya tiene dotación no se toca."""
+    for nombre, renglones in PUESTOS.items():
+        puesto = session.scalar(select(Puesto).where(Puesto.nombre == nombre))
+        if puesto is None:
+            puesto = Puesto(nombre=nombre)
+            session.add(puesto)
+            session.flush()
+        ya_tiene = session.scalar(select(Dotacion.id).where(Dotacion.puesto_id == puesto.id))
+        if ya_tiene is not None:
+            continue
+        for codigo, cantidad in renglones.items():
+            articulo = session.scalar(select(Articulo).where(Articulo.codigo == codigo))
+            if articulo is None:
+                raise RuntimeError(f"Falta el artículo {codigo} para el puesto {nombre}")
+            session.add(Dotacion(puesto_id=puesto.id, articulo_id=articulo.id, cantidad=cantidad))
+    session.flush()
+
+
 def cargar(session: Session) -> None:
     codigos = CodigoService(session)
 
@@ -166,3 +224,4 @@ def cargar(session: Session) -> None:
         session.flush()
         codigos.registrar(codigo, TipoCodigo.ARTICULO, articulo.id)
     session.flush()
+    _cargar_puestos(session)
