@@ -24,6 +24,7 @@ export default [
     route("vales/:id", "routes/consulta/vale.tsx"),
     route("v/:token", "routes/consulta/vale-qr.tsx"),
     route("mis-movimientos", "routes/consulta/mis-movimientos.tsx"),
+    route("seguimiento", "routes/consulta/seguimiento.tsx"),
     // personas
     route("trabajadores", "routes/personas/trabajadores.tsx"),
     route("trabajadores/nuevo", "routes/personas/trabajador-nuevo.tsx"),

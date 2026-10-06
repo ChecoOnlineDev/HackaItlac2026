@@ -116,12 +116,14 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 | Alta, edición, desactivación de usuarios y restablecer contraseña y PIN | Sí, en **Usuarios** (`/usuarios`) |
 | Asignar o mover personal entre almacenes (de cualquier almacén) | Sí, en **Personal** (`/personal`) |
 | Crear roles, duplicarlos y activar o quitar permisos desde la matriz | Sí, en **Roles y permisos** (`/roles`), con el rol Administrador protegido (AC-09) |
+| Seguimiento de piezas: dónde está o quién tiene cada pieza, desde cuándo y con qué vale | Sí, en **Seguimiento de piezas** (`/seguimiento`), de todos los almacenes (C-13) |
 | Tablero general por almacén | Pospuesto |
 
 **Funcionalidades clave.**
 - Administrar usuarios (alta, cambio de rol, baja lógica, restablecer contraseña y PIN) por el servidor.
 - Asignar personal a almacenes (también lo puede hacer el Supervisor).
 - Hacer cualquier operación del sistema cuando hace falta (por ejemplo, ajustar la vigencia de una inspección).
+- Seguir cada pieza: en **Seguimiento de piezas** (menú, Supervisión) busca "minipulidor" y ve todas sus piezas, cada una con "En resguardo de…", "En Kepler", "En tránsito a…" o "No apta", desde cuándo y con qué vale; al tocar una pieza abre su ficha con la inspección y el historial completo. Puede filtrar por almacén, estado y lugar, y descargar el CSV.
 - Garantizar que siempre exista al menos un administrador activo (AC-09).
 
 **Flujo principal (puesta en marcha de un equipo nuevo).**
@@ -247,6 +249,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 - Cancelar los vales de cualquiera de su almacén.
 - En **Personal** (menú, Supervisión) ve a su personal y a quien no tiene almacén: puede traerlo a su almacén o dejarlo libre; mover personas entre almacenes distintos es del Administrador.
 - Imprimir credenciales y hojas de QR.
+- Seguimiento de piezas (menú, Supervisión): dónde está o quién tiene cada pieza de su almacén, desde cuándo y con qué vale. Ve las de su almacén, las que tienen trabajadores y el tránsito desde o hacia su almacén; no las de otros almacenes (C-13, AC-06).
 - Reportes de su almacén, incluido el de consumo, y rastrear quién tocó un equipo.
 
 **Flujo principal: autorizar un excedente.**

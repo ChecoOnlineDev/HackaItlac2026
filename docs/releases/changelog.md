@@ -2,6 +2,11 @@
 
 Qué trae cada versión. Se escribe a partir del historial del repositorio (`git log`), del [roadmap](../product/roadmap.md) y de los documentos del proyecto; si algo no está construido, no aparece aquí. El formato sigue el orden del roadmap.
 
+## Sin publicar: seguimiento de piezas (C-13)
+
+- `GET /api/seguimiento/piezas` (`reportes.existencias`, sin permiso nuevo): todas las piezas con dónde está o quién la tiene, su estado e inspección, desde cuándo y con qué vale, más un resumen de conteos (total, en almacén, en resguardo, en tránsito, no aptas). Filtros por texto (artículo, serie, código o trabajador), artículo, almacén, estado y lugar; CSV con `formato=csv`. El alcance es el de la ficha de la pieza (AC-06): el Administrador ve todas; el Supervisor y los demás, las de su almacén, las que tienen trabajadores y el tránsito desde o hacia su almacén. Una sola consulta, sin una por pieza.
+- Pantalla `/seguimiento` ("Seguimiento de piezas"), en el menú Supervisión y en el inicio, y el enlace "Ver todas sus piezas" en la ficha de un artículo por pieza. Sin migración.
+
 ## Sin publicar: visibilidad por almacén (AC-06)
 
 - Solo el Administrador (`almacenes.todos`) ve las piezas y las existencias de todos los almacenes; los demás roles ven únicamente las de su almacén asignado.

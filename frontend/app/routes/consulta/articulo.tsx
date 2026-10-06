@@ -1,4 +1,4 @@
-import { PackageCheckIcon, PencilIcon, UsersIcon, WarehouseIcon } from "lucide-react";
+import { MapPinnedIcon, PackageCheckIcon, PencilIcon, UsersIcon, WarehouseIcon } from "lucide-react";
 import { Link, useParams } from "react-router";
 
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "~/components/ui/table";
@@ -88,6 +88,12 @@ export default function FichaArticulo() {
           <Boton variante="normal" nativeButton={false} render={<Link to="/entregar" />}>
             <PackageCheckIcon aria-hidden="true" />
             Entregar
+          </Boton>
+        ) : null}
+        {articulo.control === "PIEZA" && puede("reportes.existencias") ? (
+          <Boton variante="contorno" nativeButton={false} render={<Link to={`/seguimiento?articulo=${articulo.id}`} />}>
+            <MapPinnedIcon aria-hidden="true" />
+            Ver todas sus piezas
           </Boton>
         ) : null}
         {puede("catalogo.administrar") ? (
