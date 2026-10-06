@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, aliased
 
 from app.modulos.acceso.models import Usuario
 from app.modulos.almacenes.models import Almacen, TipoUbicacion, Ubicacion, UbicacionVirtual
+from app.modulos.autorizaciones.models import Autorizacion
 from app.modulos.catalogo.models import Articulo, Categoria, Control, EstadoPieza, Pieza
 from app.modulos.inspecciones.models import AjusteVigencia, EventoPieza, Inspeccion
 from app.modulos.movimientos.models import Existencia, Movimiento, TipoVale, Vale
@@ -373,6 +374,7 @@ class ConsultaRepository:
         origen, destino = Lugar("origen"), Lugar("destino")
         trabajador = aliased(Trabajador, name="t_vale")
         responsable = aliased(Usuario, name="responsable")
+        autorizador = aliased(Usuario, name="autorizador")
         consulta = (
             select(
                 Movimiento.id,
@@ -390,6 +392,8 @@ class ConsultaRepository:
                 responsable.nombre.label("responsable"),
                 trabajador.numero_empleado.label("numero_empleado"),
                 trabajador.nombre.label("trabajador"),
+                autorizador.nombre.label("autorizado_por"),
+                func.coalesce(Autorizacion.motivo, Movimiento.motivo_baja).label("motivo"),
                 *origen.columnas(),
                 *destino.columnas(),
             )
@@ -398,6 +402,8 @@ class ConsultaRepository:
             .join(Articulo, Articulo.id == Movimiento.articulo_id)
             .outerjoin(Pieza, Pieza.id == Movimiento.pieza_id)
             .join(responsable, responsable.id == Vale.responsable_id)
+            .outerjoin(Autorizacion, Autorizacion.id == Vale.autorizacion_id)
+            .outerjoin(autorizador, autorizador.id == Autorizacion.resuelta_por)
             .outerjoin(
                 trabajador,
                 trabajador.id == func.coalesce(Movimiento.trabajador_id, Vale.trabajador_id),

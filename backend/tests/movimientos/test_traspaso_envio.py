@@ -85,6 +85,20 @@ def test_X_01_la_pieza_queda_en_transito_y_no_esta_en_ningun_almacen(almacenista
     revisar_invariantes(session)
 
 
+def test_X_03_la_pieza_en_transito_dice_hacia_donde_va_en_espanol(almacenista, compras, session):
+    """El titular de una pieza en tránsito no es un código interno: dice a dónde va."""
+    articulo, p = pieza_en_kep(compras, session, vigente_hasta=vigencia())
+    enviar(almacenista, session, "CON", [renglon(p.codigo)])
+    nombre_destino = session.scalar(select(Almacen.nombre).where(Almacen.clave == "CON"))
+
+    r = evaluar_traspaso(almacenista, session, "MID", [renglon(p.codigo)])
+
+    titular = r["renglones"][0]["titular"]
+    assert titular["tipo"] == "VIRTUAL"
+    assert titular["nombre"] == f"En tránsito a {nombre_destino}"
+    assert "EN_TRANSITO" not in titular["nombre"] + titular["descripcion"]
+
+
 def test_X_06_el_vale_lleva_folio_trs_qr_y_queda_en_transito(almacenista, compras, session):
     guantes = crear_articulo(session, retornable=False)
     abastecer(compras, guantes, 5)

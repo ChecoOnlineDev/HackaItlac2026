@@ -39,6 +39,8 @@ export interface MovimientoReporte {
   destino: string;
   responsable: string;
   trabajador: string | null;
+  autorizado_por: string | null;
+  motivo: string | null;
   saldo_origen: number | null;
   saldo_destino: number | null;
 }

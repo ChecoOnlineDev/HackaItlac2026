@@ -28,6 +28,14 @@ from app.modulos.trabajadores.models import Trabajador
 from app.modulos.trabajadores.schemas import FichaBreveOut
 from app.modulos.trabajadores.service import TrabajadorService
 
+# Cómo se nombra cada lugar virtual ante el usuario (nunca su clave interna).
+_NOMBRE_VIRTUAL = {
+    UbicacionVirtual.EN_TRANSITO: "En tránsito",
+    UbicacionVirtual.CONSUMIDO: "Consumida",
+    UbicacionVirtual.BAJA: "De baja",
+    UbicacionVirtual.PROVEEDOR: "Con el proveedor",
+}
+
 _TEXTO_VIRTUAL = {
     UbicacionVirtual.EN_TRANSITO: "está en tránsito entre almacenes",
     UbicacionVirtual.CONSUMIDO: "ya se consumió",
@@ -192,6 +200,13 @@ class Cargador:
         texto = _TEXTO_VIRTUAL.get(
             UbicacionVirtual(ubicacion.virtual), "está fuera de los almacenes"
         )
+        virtual = UbicacionVirtual(ubicacion.virtual)
+        nombre = _NOMBRE_VIRTUAL.get(virtual, "Fuera de los almacenes")
+        if virtual == UbicacionVirtual.EN_TRANSITO:
+            destino = self.repository.destino_del_transito(pieza.id, ubicacion.id)
+            if destino:
+                nombre = f"En tránsito a {destino}"
+                texto = f"está en tránsito hacia {destino}"
         return Titular("VIRTUAL", None, nombre, texto)
 
     # ---------------------------------------------------------------- existencias

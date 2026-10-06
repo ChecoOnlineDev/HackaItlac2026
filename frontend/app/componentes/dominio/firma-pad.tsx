@@ -11,6 +11,8 @@ const ALTO = 450;
 const GROSOR = 5;
 /** Largo mínimo (en puntos del lienzo) para que algo cuente como firma. Un toque suelto no lo es. */
 const LARGO_MINIMO = 60;
+/** Puntos mínimos del trazo: el servidor rechaza la entrega con menos de 10, así que aquí no se deja firmar. */
+const PUNTOS_MINIMOS = 10;
 
 export interface FirmaExportada {
   /** PNG en `data:image/png;base64,…` sobre fondo blanco. */
@@ -36,6 +38,10 @@ export interface PropiedadesFirmaPad {
   deshabilitado?: boolean;
   className?: string;
   ref?: Ref<ManejadorFirma>;
+}
+
+function puntosDeTrazos(trazos: Trazo): number {
+  return trazos.reduce((suma, t) => suma + t.length, 0);
 }
 
 function largoDeTrazos(trazos: Trazo): number {
@@ -99,6 +105,8 @@ export function FirmaPad({ onCambio, etiqueta = "Firma del trabajador", deshabil
   const actual = useRef<PuntoTrazo[] | null>(null);
   const inicio = useRef(0);
   const [hayTinta, setHayTinta] = useState(false);
+  // Hay un trazo, pero muy corto para valer como firma.
+  const [muyCorta, setMuyCorta] = useState(false);
   const alCambiar = useRef(onCambio);
   useEffect(() => {
     alCambiar.current = onCambio;
@@ -114,7 +122,9 @@ export function FirmaPad({ onCambio, etiqueta = "Firma del trabajador", deshabil
   }, [repintar]);
 
   const exportar = useCallback((): FirmaExportada | null => {
-    if (largoDeTrazos(trazos.current) < LARGO_MINIMO || !lienzo.current) return null;
+    if (largoDeTrazos(trazos.current) < LARGO_MINIMO || puntosDeTrazos(trazos.current) < PUNTOS_MINIMOS || !lienzo.current) {
+      return null;
+    }
     return {
       imagen: lienzo.current.toDataURL("image/png"),
       trazo: trazos.current.map((t) => t.map((p) => ({ ...p }))),
@@ -126,6 +136,7 @@ export function FirmaPad({ onCambio, etiqueta = "Firma del trabajador", deshabil
   const avisar = useCallback(() => {
     const firma = exportar();
     setHayTinta(trazos.current.length > 0);
+    setMuyCorta(firma === null && trazos.current.length > 0);
     alCambiar.current(firma === null, firma?.imagen ?? null, firma?.trazo ?? []);
   }, [exportar]);
 
@@ -134,6 +145,7 @@ export function FirmaPad({ onCambio, etiqueta = "Firma del trabajador", deshabil
     actual.current = null;
     repintar();
     setHayTinta(false);
+    setMuyCorta(false);
     alCambiar.current(true, null, []);
   }, [repintar]);
 
@@ -158,6 +170,7 @@ export function FirmaPad({ onCambio, etiqueta = "Firma del trabajador", deshabil
     if (trazos.current.length === 0) inicio.current = performance.now();
     actual.current = [punto(e)];
     setHayTinta(true);
+    setMuyCorta(false);
     repintar();
   };
   const alMover = (e: PointerEvent<HTMLCanvasElement>) => {
@@ -216,6 +229,11 @@ export function FirmaPad({ onCambio, etiqueta = "Firma del trabajador", deshabil
           </div>
         ) : null}
       </div>
+      {muyCorta ? (
+        <p role="alert" className="text-sm font-semibold text-semaforo-rojo">
+          Firma un poco más. El trazo es muy corto para aceptarse como firma; toca “Borrar” y vuelve a firmar.
+        </p>
+      ) : null}
       <p id={`${id}-ayuda`} className="text-sm text-muted-foreground">
         Firma con el dedo o con el ratón dentro del recuadro. Si te equivocas, toca “Borrar”.
       </p>

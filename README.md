@@ -57,6 +57,10 @@ docker compose logs tunel
 
 El servicio `tunel` no arranca sin el perfil `tunel`, así que el comando normal funciona aunque no haya token. En Cloudflare, el destino del subdominio es `http://app:8000`.
 
+### Aplicación instalable
+
+Con HTTPS (el túnel de Cloudflare) o en `localhost`, el navegador ofrece instalar la aplicación en el celular o en la computadora: botón **Instalar aplicación** en el menú. Solo guarda los archivos estáticos de la interfaz y una pantalla de «sin conexión»; la API y los datos nunca se guardan, así que sin red no se opera. Detalle en [`docs/architecture/despliegue-local-cloudflare.md`](docs/architecture/despliegue-local-cloudflare.md).
+
 ### Otros comandos
 
 | Acción | Comando |

@@ -2,6 +2,8 @@
 
 import base64
 import hashlib
+import re
+from pathlib import Path
 
 import pytest
 from fastapi import APIRouter, FastAPI
@@ -191,3 +193,43 @@ def test_pwa_la_api_no_recibe_cabeceras_del_service_worker(web_pwa):
     r = web_pwa.get("/api/salud")
     assert r.json() == {"estado": "ok"}
     assert "service-worker-allowed" not in r.headers
+
+
+# ------------------------------------------------------------- contenido del service worker
+
+SW = Path(__file__).resolve().parents[2] / "frontend" / "public" / "sw.js"
+
+
+def _sw() -> str:
+    return SW.read_text(encoding="utf-8")
+
+
+def test_S_07_el_service_worker_ignora_la_api_y_solo_atiende_get():
+    codigo = _sw()
+    # Antes de responder nada, se sale si no es GET o si la ruta es de la API.
+    assert 'peticion.method !== "GET"' in codigo
+    assert 'url.pathname === "/api"' in codigo and 'url.pathname.startsWith("/api/")' in codigo
+    cuerpo = codigo[codigo.index('addEventListener("fetch"') :]
+    assert cuerpo.index('"/api/"') < cuerpo.index("respondWith")
+    assert cuerpo.index('method !== "GET"') < cuerpo.index("respondWith")
+
+
+def test_S_07_el_service_worker_no_guarda_navegaciones_ni_datos_de_negocio():
+    codigo = _sw()
+    navegacion = codigo[codigo.index('peticion.mode === "navigate"') :]
+    navegacion = navegacion[: navegacion.index("return;")]
+    # La navegación va a la red; solo si falla se muestra la pantalla de «sin conexión».
+    assert "fetch(peticion)" in navegacion and "cache.put" not in navegacion
+    assert "caches.match(PAGINA_SIN_CONEXION)" in navegacion
+    # Lo único que se guarda al responder son los archivos con huella de /assets/.
+    assert codigo.count(".put(") == 1
+    assert 'url.pathname.startsWith("/assets/")' in codigo
+
+
+def test_S_07_el_service_worker_tiene_version_y_tope_de_cache():
+    codigo = _sw()
+    assert re.search(r'const VERSION = "v\d+";', codigo)
+    assert "imhotep-estaticos-${VERSION}" in codigo
+    tope = re.search(r"const MAX_ESTATICOS = (\d+);", codigo)
+    assert tope and 0 < int(tope.group(1)) <= 500
+    assert "recortar" in codigo  # el tope se aplica al guardar y al activar

@@ -67,11 +67,27 @@ Primera versión completa del flujo principal del reto IMHOTEP: de dar de alta a
 - Manifiesto, iconos (192, 512 y adaptable), icono para iPhone y atajos (Entregar, Devolver, Consultar); botón «Instalar aplicación» en el menú.
 - Service worker mínimo: acelera los archivos con huella y muestra una pantalla de «sin conexión» al abrir sin red. No guarda la API ni datos de negocio; el modo sin conexión sigue excluido.
 
+### Interfaz y operación tras la primera integración
+
+- **Aplicación instalable** (PWA): botón «Instalar aplicación» en el menú; ver arriba.
+- **Credencial de trabajador** con código QR, nombre completo, número de empleado y puesto del periodo vigente; se imprime o se descarga en PNG, completa o solo con el QR (US-ETQ-001).
+- **Pantalla de Personal** (`/personal`): asignación de cada persona a su almacén (AC-12, AC-13). El menú marca la sección activa, también en las subpantallas.
+- **Filtros en una hoja lateral** en Inventario, Artículos y los reportes, con chips de los filtros aplicados; búsquedas con retraso unificado y un solo «Atrás» en los flujos.
+- **Tipografía Poppins** servida desde el propio sitio, escala tipográfica y tamaños de botón (40 y 48 px) comunes, tablas y tarjetas redondeadas.
+- **Avisos** discretos arriba de la pantalla; la solicitud nueva del supervisor suena y se anuncia.
+- **Reporte de movimientos con quién autorizó y el motivo** (ES-26, A-04): dos columnas nuevas en la pantalla y en el CSV, `autorizado_por` y `motivo`.
+- **Traspaso en tránsito legible:** el «titular» de una pieza en tránsito dice «En tránsito a <almacén>» en lugar de un código interno.
+- **Mensajes claros ante límites del servidor:** archivo muy pesado (413), sistema ocupado (503) y demasiados intentos (429), con «Reintentar» donde sirve y sin duplicar vales.
+- **Firma:** la interfaz exige un trazo de al menos 10 puntos y dice «Firma un poco más» antes de que el servidor tenga que rechazarla.
+- **Menú:** los contadores (Recibir y Autorizaciones) comparten una sola petición ligera en lugar de repetirla.
+- **Lector de pantalla:** cada renglón del semáforo anuncia su nivel y el de cada motivo con los textos de su pantalla.
+- Prueba del contenido del service worker (ignora `/api`, solo atiende GET, no guarda navegaciones, tiene versión y tope de caché).
+
 ### Funciones absorbidas de la segunda ola
 
 - **Foto del trabajador** (FEAT-005, T-09): pasó al MVP como foto opcional en el alta.
 - **Ajuste de vigencia de una inspección** por supervisor o administrador, con motivo (P-07, permiso `piezas.ajustar_vigencia`).
-- **Usuarios y asignación de personal a almacenes** (parte de FEAT-006, AC-12 y AC-13, permiso `almacenes.asignar_personal`): API de usuarios y personal y aviso `ALMACEN_CAMBIO`. Falta su pantalla y la matriz editable de roles.
+- **Usuarios y asignación de personal a almacenes** (parte de FEAT-006, AC-12 y AC-13, permiso `almacenes.asignar_personal`): API de usuarios y personal y aviso `ALMACEN_CAMBIO`. La pantalla de Personal ya existe; falta la de usuarios y la matriz editable de roles.
 - **Reporte de consumo**, **Mis movimientos de hoy**, **cancelar y rehacer** y el filtro por usuario de la bitácora, descritos arriba.
 
 ### Seguridad
@@ -98,6 +114,7 @@ Lo que existe en el código y está documentado en [security-model.md](../archit
 
 ### Conocido y pendiente
 
+- Pregunta de producto abierta (H11): si un almacenista puede inspeccionar piezas que están en otro almacén. Aún no se decide.
 - Lo de la segunda ola sigue sin construir: vale como prueba (FEAT-001), cierre de almacén (FEAT-002), dotación (FEAT-003), mínimos y estados (FEAT-004) y la matriz de roles (FEAT-006).
 - La inmutabilidad de vales y movimientos depende solo del código hasta FEAT-001 (sin sello contra alteración).
 - La cámara usa la API nativa `BarcodeDetector`: en un navegador que no la trae se usa pistola o teclado.

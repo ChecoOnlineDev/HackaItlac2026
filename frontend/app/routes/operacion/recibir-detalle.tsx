@@ -427,6 +427,8 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
         setErrorEnvio({ tipo: "otro", mensaje: mensajeDeError(causa) });
       } else if (causa.sinConexion) {
         setErrorEnvio({ tipo: "conexion", mensaje: "Sin conexión. Lo que marcaste está guardado en este dispositivo." });
+      } else if (causa.reintentable) {
+        setErrorEnvio({ tipo: "conexion", mensaje: causa.message });
       } else if (causa.codigo === "VALE_CAMBIO" && causa.detalles) {
         ev.adoptar(causa.detalles as unknown as EvaluacionApi);
         setAvisoCambio(causa.message);
@@ -535,7 +537,7 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
             {errorEnvio.tipo === "conexion" ? <WifiOffIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" /> : <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />}
             {errorEnvio.mensaje}
           </p>
-          {errorEnvio.tipo === "conexion" ? <p className="text-base">Cuando vuelva la conexión, toca “Reintentar”. No se guardará dos veces.</p> : null}
+          {errorEnvio.tipo === "conexion" ? <p className="text-base">Toca “Reintentar” cuando haya conexión o el sistema responda. No se guardará dos veces.</p> : null}
         </section>
       ) : null}
 

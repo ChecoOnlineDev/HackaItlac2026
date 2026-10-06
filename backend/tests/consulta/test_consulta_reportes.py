@@ -265,6 +265,49 @@ def test_C_05_el_reporte_de_movimientos_trae_las_columnas_del_contrato(cliente_c
     assert fila["fecha"].startswith("2026-09-10T16:00:00")  # 10:00 en México son las 16:00 UTC
 
 
+def _autorizar(datos, vale, motivo: str):
+    """Deja el vale como el motor lo deja tras un límite autorizado: con su autorización."""
+    from app.modulos.autorizaciones.models import Autorizacion
+
+    autorizacion = Autorizacion(
+        almacen_id=vale.almacen_id,
+        trabajador_id=vale.trabajador_id,
+        solicitada_por=vale.responsable_id,
+        motivo=motivo,
+        estado="USADA",
+        resuelta_por=datos.usuario("supervisor").id,
+        medio="PIN",
+        resuelta_en=ahora_utc(),
+        vence_en=ahora_utc() + timedelta(minutes=10),
+    )
+    datos.session.add(autorizacion)
+    datos.session.flush()
+    vale.autorizacion_id = autorizacion.id
+    datos.session.flush()
+    return autorizacion
+
+
+def test_A_04_el_reporte_de_movimientos_dice_quien_autorizo_y_el_motivo(cliente_como, datos):
+    """ES-26: el detalle del reporte muestra la autorización con su motivo, en JSON y en CSV."""
+    _, ana, _, casco, ent_juan, ent_ana, _ = _escenario_movimientos(datos)
+    _autorizar(datos, ent_ana, "Cuadrilla de paro de planta")
+    supervisor = cliente_como("Supervisor")
+
+    cuerpo = pedir(supervisor, MOVIMIENTOS)
+    por_folio = {f["folio"]: f for f in cuerpo["elementos"]}
+    assert por_folio[ent_ana.folio]["autorizado_por"] == datos.usuario("supervisor").nombre
+    assert por_folio[ent_ana.folio]["motivo"] == "Cuadrilla de paro de planta"
+    assert por_folio[ent_juan.folio]["autorizado_por"] is None
+    assert por_folio[ent_juan.folio]["motivo"] is None
+
+    filas = filas_csv(pedir_csv(supervisor, MOVIMIENTOS))
+    encabezado = filas[0]
+    assert "Autorizado por" in encabezado and "Motivo" in encabezado
+    fila = next(f for f in filas[1:] if f[encabezado.index("Folio")] == ent_ana.folio)
+    assert fila[encabezado.index("Autorizado por")] == datos.usuario("supervisor").nombre
+    assert fila[encabezado.index("Motivo")] == "Cuadrilla de paro de planta"
+
+
 def test_C_05_los_filtros_de_movimientos_se_combinan(cliente_como, datos):
     juan, ana, guante, casco, ent_juan, ent_ana, ent_con = _escenario_movimientos(datos)
     supervisor = cliente_como("Supervisor")
@@ -514,7 +557,8 @@ def test_C_05_el_csv_de_movimientos_tiene_el_mismo_conteo_que_el_json(cliente_co
     assert len(filas) - 1 == cuerpo["total"]
     assert filas[0] == [
         "Fecha", "Folio", "Tipo", "Código del artículo", "Artículo", "Pieza", "Cantidad",
-        "Origen", "Destino", "Responsable", "Trabajador", "Saldo origen", "Saldo destino",
+        "Origen", "Destino", "Responsable", "Trabajador", "Autorizado por", "Motivo",
+        "Saldo origen", "Saldo destino",
     ]  # fmt: skip
     assert {f[1] for f in filas[1:]} == {e["folio"] for e in cuerpo["elementos"]}
 

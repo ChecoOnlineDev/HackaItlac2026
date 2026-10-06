@@ -20,6 +20,27 @@ function contar(datos: unknown): number | undefined {
   return undefined;
 }
 
+/**
+ * Una sola petición por cuenta: si ya hay una en camino, o terminó hace menos de un segundo, todos los que
+ * la piden reciben la misma respuesta. Así no importa cuántas veces se monte el menú ni cuántos
+ * temporizadores o avisos pidan contar a la vez.
+ */
+const VENTANA_MS = 1_000;
+const compartidas = new Map<string, { promesa: Promise<number | undefined>; en: number }>();
+
+function contarCompartido(clave: string, pedir: () => Promise<unknown>): Promise<number | undefined> {
+  const previa = compartidas.get(clave);
+  if (previa && Date.now() - previa.en < VENTANA_MS) return previa.promesa;
+  const promesa = pedir().then(contar, () => undefined);
+  const entrada = { promesa, en: Date.now() };
+  compartidas.set(clave, entrada);
+  // Si no se pudo contar, la siguiente vez vuelve a intentarlo sin esperar.
+  void promesa.then((n) => {
+    if (n === undefined && compartidas.get(clave) === entrada) compartidas.delete(clave);
+  });
+  return promesa;
+}
+
 const EVENTO_CONTADORES = "imhotep:contadores";
 
 /** Pide al inicio y al menú volver a contar ya (por ejemplo, tras confirmar una recepción). */
@@ -42,10 +63,11 @@ function useCargarContadores(): Contadores {
     const cargar = async () => {
       const [porRecibir, porAutorizar] = await Promise.all([
         verTraspasos
-          ? apiGet("/traspasos/por-recibir", undefined, control.signal).then(contar, () => undefined)
+          ? contarCompartido("por-recibir", () => apiGet("/traspasos/por-recibir", { solo_contar: true }))
           : undefined,
         verAutorizaciones
-          ? apiGet("/autorizaciones", { estado: "PENDIENTE" }, control.signal).then(contar, () => undefined)
+          ? // El servidor responde `{total}`; con una sola fila de muestra basta para contar.
+            contarCompartido("autorizaciones", () => apiGet("/autorizaciones", { estado: "PENDIENTE", tamano: 1 }))
           : undefined,
       ]);
       if (!control.signal.aborted) setContadores({ porRecibir, porAutorizar });

@@ -426,6 +426,11 @@ export default function Entregar() {
       setErrorEnvio({ tipo: "conexion", mensaje: "Sin conexión. La entrega y la firma están guardadas en este dispositivo." });
       return;
     }
+    if (causa.reintentable) {
+      // El sistema estaba ocupado: lo capturado sigue aquí y reintentar no duplica el vale.
+      setErrorEnvio({ tipo: "conexion", mensaje: causa.message });
+      return;
+    }
     if (causa.codigo === "VALE_CAMBIO" && causa.detalles) {
       const nueva = causa.detalles as unknown as EvaluacionApi;
       const marcas: Record<string, string> = {};
@@ -809,7 +814,7 @@ export default function Entregar() {
               {errorEnvio.tipo === "conexion" ? <WifiOffIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" /> : <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />}
               {errorEnvio.mensaje}
             </p>
-            {errorEnvio.tipo === "conexion" ? <p className="text-base">Cuando vuelva la conexión, toca “Reintentar”. No se guardará dos veces.</p> : null}
+            {errorEnvio.tipo === "conexion" ? <p className="text-base">Toca “Reintentar” cuando haya conexión o el sistema responda. No se guardará dos veces.</p> : null}
           </section>
         ) : null}
         <PasoFirma

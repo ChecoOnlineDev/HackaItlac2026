@@ -12,7 +12,9 @@ Para entregar, devolver, trasladar y consultar equipo y material con el celular.
 
 *Captura: el logotipo de IMHOTEP, los campos de usuario y contraseña y un botón grande «Entrar».*
 
-Después de entrar ves tu inicio: arriba, el nombre de tu almacén y tu usuario; abajo, botones grandes **Entregar**, **Devolver**, **Trasladar**, **Recibir** y **Consultar**. **Recibir** muestra un número cuando hay traspasos en camino a tu almacén. Con el botón **Menú** llegas a todo lo demás que te corresponde, como **Mis movimientos de hoy**. Para salir, usa **Salir**.
+Después de entrar ves tu inicio: arriba, el nombre de tu almacén y tu usuario; abajo, botones grandes **Entregar**, **Devolver**, **Trasladar**, **Recibir** y **Consultar**. **Recibir** muestra un número cuando hay traspasos en camino a tu almacén. Con el botón **Menú** llegas a todo lo demás que te corresponde, como **Mis movimientos de hoy**; la sección en la que estás aparece marcada. Para salir, usa **Salir**.
+
+**Instalar la aplicación.** Si tu navegador lo permite, en el **Menú** aparece **Instalar aplicación**: queda como un ícono en tu celular y abre sin la barra del navegador. Instalarla no cambia nada más: sigues necesitando señal para confirmar vales.
 
 *Si pide permiso para usar la cámara, toca «Permitir». Si lo negaste sin querer, actívalo en los ajustes del navegador para este sitio.*
 
@@ -33,16 +35,16 @@ Debajo de cada renglón están los motivos escritos. No necesitas interpretar na
 
 Inicio → **Entregar**. Si operas más de un almacén, primero eliges **el almacén que operas**.
 
-**Paso 1: el trabajador.** *Captura: el escáner ocupa la pantalla y debajo dice «Escribir número o nombre».* Escanea su credencial, o escribe su número o su nombre. Aparece su ficha: foto, nombre, número, puesto, área, vigencia y lo que ya tiene en resguardo.
+**Paso 1: el trabajador.** *Captura: el escáner ocupa la pantalla y debajo dice «Escribir número o nombre».* Escanea el código QR de su credencial, o escribe su número o su nombre en «Escribir número o nombre». Aparece su ficha: foto, nombre, número, puesto, área, vigencia y lo que ya tiene en resguardo.
 - **Compara la foto con la persona.** Si no tiene foto, aparece «Sin foto registrada»; es un aviso, no impide entregar.
 - Si el trabajador no está vigente (contrato vencido), toda la ficha sale en **rojo** con el motivo y no se le puede entregar nada.
 
-**Paso 2: los artículos.** Toca **Escanear** y lee uno tras otro. Cada lectura aparece como un renglón con su color.
+**Paso 2: los artículos.** Escanea con la cámara o con la pistola lectora, o escribe el código o el nombre en «Escribir código o nombre» y toca **Agregar**. Lee uno tras otro. Cada lectura aparece como un renglón con su color.
 - Artículos por cantidad (guantes, discos): volver a escanear suma uno. Con **+** y **−**, o tocando el número, pones la cantidad exacta.
 - Cada vez que agregas algo aparece «Se agregó… **Deshacer**» durante 5 segundos. Si escaneaste lo que no era, toca **Deshacer** o **Quitar** en el renglón.
 - Cuando no quede ningún rojo ni naranja sin resolver, toca **Continuar**. Si no puedes continuar, la pantalla escribe el motivo debajo del botón.
 
-**Paso 3: la firma.** *Captura: resumen de artículos, una leyenda de responsabilidad y un recuadro para firmar.* Pide al trabajador que firme con el dedo. **Borrar** limpia el recuadro. Toca **Confirmar entrega**.
+**Paso 3: la firma.** *Captura: resumen de artículos, una leyenda de responsabilidad y un recuadro para firmar.* Pide al trabajador que firme con el dedo. **Borrar** limpia el recuadro. Si el trazo es muy corto, la pantalla dice «Firma un poco más» y no deja confirmar hasta que firme de nuevo. Toca **Confirmar entrega**.
 
 **Resultado.** *Captura: el folio en grande, por ejemplo KEP-ENT-000123, y el código QR del vale.* Aquí ya se descontó del inventario. **Imprimir** saca el vale en hoja carta; **Nueva entrega** empieza otra.
 
@@ -65,7 +67,7 @@ Quien captura la entrega no puede autorizarla él mismo. Un renglón rojo no se 
 Inicio → **Devolver**. *Captura: el escáner y, debajo, «Escanea una pieza o la credencial del trabajador para empezar».*
 - **Una pieza (arnés, taladro):** escanéala. La pantalla dice de quién es y la abona a su dueño, aunque la traiga otra persona.
 - **Material por cantidad:** escanea la credencial del trabajador, elige de su lista el artículo y la cantidad. No puedes recibir más de lo que tiene.
-- Para cada artículo elige **cómo regresa**: **Bueno**, **Desgaste por uso** o **Dañado**. Si es **Dañado**, escribe qué pasó y, si quieres, toca **Agregar foto del daño**. Una pieza dañada queda como no apta; un daño nunca genera cargo al trabajador.
+- Para cada artículo elige «¿Cómo regresa?»: **Bueno**, **Desgaste por uso** o **Dañado**. Si es **Dañado**, escribe qué pasó y, si quieres, toca **Agregar foto del daño**. Una pieza dañada queda como no apta; un daño nunca genera cargo al trabajador.
 - **«No es de la empresa»** (rojo): el código no existe en el sistema; no se recibe y el pendiente del trabajador sigue abierto.
 - Una pieza que **no está a nombre de nadie** sale en amarillo con el lugar donde está según el sistema: no hay nada que devolver. Si es lo único que escaneaste, no se puede confirmar.
 - Toca **Confirmar devolución**. Sale el folio del vale de devolución.
@@ -74,7 +76,7 @@ Inicio → **Devolver**. *Captura: el escáner y, debajo, «Escanea una pieza o 
 
 ## 6. Trasladar y recibir
 
-**Trasladar** (tú envías). Inicio → **Trasladar**. Elige **a qué almacén se envía** (arriba están las rutas habituales), escanea los artículos como en una entrega y toca **Confirmar traspaso**. Sale el folio y un QR. El material queda **en tránsito**: ya no está en tu almacén y todavía no está en el otro.
+**Trasladar** (tú envías). Inicio → **Trasladar**. Elige **a qué almacén se envía** (arriba están las rutas habituales), escanea los artículos como en una entrega y toca **Confirmar traspaso**. Sale el folio y un QR. El material queda **en tránsito**: ya no está en tu almacén y todavía no está en el otro. Si consultas una pieza en ese estado, la pantalla dice «En tránsito a» y el nombre del almacén al que va.
 
 **Recibir** (tú recibes). Inicio → **Recibir**. *Captura: «Traspasos en camino»: una tarjeta por cada envío que viene hacia tu almacén.* También puedes escanear el QR del vale de traspaso.
 1. Abre el traspaso. Cada renglón es una fila grande que se marca como **recibido**.
@@ -90,7 +92,7 @@ Inicio → **Consultar**. Escanea un código o escribe en el campo para buscar. 
 - **Un trabajador:** lo que tiene en resguardo y sus vales.
 - **Un vale:** escanea su QR o escribe su folio para ver el detalle.
 
-Desde cada ficha hay atajos a la acción siguiente (entregarle, devolver). Desde aquí también llegas a **Mis movimientos de hoy**.
+Desde cada ficha hay atajos a la acción siguiente (entregarle, devolver). En la ficha de un trabajador, **Credencial** permite imprimir su credencial con QR o descargarla como imagen. Desde aquí también llegas a **Mis movimientos de hoy**.
 
 ## 8. Cancelar un error
 
@@ -104,6 +106,9 @@ No se puede cancelar si lo que entregaste ya cambió de lugar (por ejemplo, esa 
 
 ## 9. Si se va la red o algo falla
 
+- **El sistema está ocupado.** Si al confirmar dice que el sistema está ocupado, espera unos segundos y toca **Reintentar**; el vale no se guarda dos veces.
+- **La foto o el archivo pesa demasiado.** Toma la foto otra vez o elige una más ligera.
+- **«Hubo demasiados intentos».** Espera los minutos que indica la pantalla antes de volver a intentar.
 - **Sin conexión.** Aparece arriba una banda negra: «Sin conexión. Lo que capturaste se conserva en este dispositivo». Lo que llevabas en la lista no se pierde. **No puedes confirmar vales sin red**: en cuanto vuelva la señal, confirma. Si falla al confirmar, toca **Reintentar**; el mismo vale nunca se guarda dos veces.
 - **Si sigues sin red,** acércate al punto de acceso del equipo o cambia de red, y sigue desde donde ibas.
 - **«No pudimos leer el código».** Limpia la etiqueta, acércate o aleja un poco el celular, o escribe el código.

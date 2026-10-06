@@ -133,9 +133,7 @@ export default function Trasladar() {
       borrador.renglones.flatMap((b) => {
         const r = mapaEvaluados.get(claveDeCodigo(b.codigo));
         if (!r) return [];
-        // El servidor manda el lugar "virtual" con su clave interna (EN_TRANSITO); el motivo ya lo explica en palabras.
-        const virtual = typeof r.titular === "object" && r.titular?.tipo === "VIRTUAL";
-        return [{ ...r, cantidad: b.cantidad, titular: virtual ? null : r.titular }];
+        return [{ ...r, cantidad: b.cantidad }];
       }),
     [borrador.renglones, mapaEvaluados],
   );
@@ -315,6 +313,10 @@ export default function Trasladar() {
       setErrorEnvio({ tipo: "conexion", mensaje: "Sin conexión. El traspaso está guardado en este dispositivo." });
       return;
     }
+    if (causa.reintentable) {
+      setErrorEnvio({ tipo: "conexion", mensaje: causa.message });
+      return;
+    }
     if (causa.codigo === "VALE_CAMBIO" && causa.detalles) {
       const nueva = causa.detalles as unknown as EvaluacionApi;
       const marcas: Record<string, string> = {};
@@ -462,7 +464,7 @@ export default function Trasladar() {
                   )}
                   {errorEnvio.mensaje}
                 </p>
-                {errorEnvio.tipo === "conexion" ? <p className="text-base">Cuando vuelva la conexión, toca “Reintentar”. No se guardará dos veces.</p> : null}
+                {errorEnvio.tipo === "conexion" ? <p className="text-base">Toca “Reintentar” cuando haya conexión o el sistema responda. No se guardará dos veces.</p> : null}
               </section>
             ) : null}
 
