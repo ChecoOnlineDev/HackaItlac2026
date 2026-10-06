@@ -69,9 +69,16 @@ export function leerBorradorTraslado(usuarioId: string): BorradorTraslado | null
   const dato = leer<Partial<BorradorTraslado>>(CLAVE_TRASLADO);
   if (!dato || dato.version !== 1 || dato.usuarioId !== usuarioId) return null;
   if (typeof dato.idCliente !== "string" || !Array.isArray(dato.renglones)) return null;
+  if (dato.resultado) return null; // un traspaso ya emitido no se retoma
   return dato as BorradorTraslado;
 }
-export const guardarBorradorTraslado = (b: BorradorTraslado) => guardar(CLAVE_TRASLADO, { ...b, actualizadoEn: Date.now() });
+export const guardarBorradorTraslado = (b: BorradorTraslado) => {
+  if (b.resultado) {
+    borrar(CLAVE_TRASLADO);
+    return true;
+  }
+  return guardar(CLAVE_TRASLADO, { ...b, actualizadoEn: Date.now() });
+};
 export const borrarBorradorTraslado = () => borrar(CLAVE_TRASLADO);
 
 // ------------------------------------------------------------------------------- recibir

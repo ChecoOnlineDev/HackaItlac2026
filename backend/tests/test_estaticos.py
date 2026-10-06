@@ -176,11 +176,15 @@ def test_pwa_pagina_sin_conexion_e_iconos_se_entregan_tal_cual(web_pwa):
 def test_pwa_csp_permite_manifiesto_y_worker_sin_relajar_lo_demas(web_pwa):
     csp = web_pwa.get("/entrar").headers["content-security-policy"]
     assert "manifest-src 'self'" in csp
-    assert "worker-src 'self'" in csp
+    assert "worker-src 'self';" in csp  # S-04: sin `blob:`; ningún código usa workers en memoria
     assert "default-src 'self'" in csp
     assert "unsafe-eval" not in csp
     assert "script-src 'self' 'sha256-" in csp
     assert "connect-src 'self'" in csp
+
+
+def test_S_07_la_api_responde_sin_guardar_en_cache(web_pwa):
+    assert web_pwa.get("/api/salud").headers["cache-control"] == "no-store"
 
 
 def test_pwa_la_api_no_recibe_cabeceras_del_service_worker(web_pwa):

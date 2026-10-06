@@ -30,6 +30,20 @@ interface ValorSesion {
   recargar: () => Promise<void>;
 }
 
+/** Los borradores de vale guardan la ficha del trabajador y la firma: al salir o vencer la sesión se borran. */
+function borrarBorradoresLocales() {
+  try {
+    const claves: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const clave = window.localStorage.key(i);
+      if (clave?.startsWith("imhotep.borrador.")) claves.push(clave);
+    }
+    claves.forEach((c) => window.localStorage.removeItem(c));
+  } catch {
+    // Sin almacenamiento no hay nada que borrar.
+  }
+}
+
 const ContextoSesion = createContext<ValorSesion | null>(null);
 
 export function SesionProvider({ children }: { children: ReactNode }) {
@@ -62,6 +76,7 @@ export function SesionProvider({ children }: { children: ReactNode }) {
   // Si cualquier llamada responde 401, la sesión venció: la guardia lleva a Entrar.
   useEffect(() => {
     registrarManejadorSesionVencida(() => {
+      borrarBorradoresLocales();
       setMotivo("vencida");
       aplicar(null);
     });
@@ -87,6 +102,7 @@ export function SesionProvider({ children }: { children: ReactNode }) {
     } catch {
       // Aunque falle la red, se sale de la interfaz; la cookie vence sola.
     }
+    borrarBorradoresLocales();
     setMotivo("salio");
     aplicar(null);
   }, [aplicar]);

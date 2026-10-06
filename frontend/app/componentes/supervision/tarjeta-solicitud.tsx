@@ -48,10 +48,12 @@ interface PropiedadesTarjeta {
   /** Refrescar la lista sin darla por resuelta aquí. */
   alRefrescar: () => void;
   alDescartar?: () => void;
+  /** La pidió quien mira: no puede autorizarla él mismo (A-05). */
+  esPropia?: boolean;
 }
 
 /** Tarjeta del supervisor: trabajador, artículo, cuánto excede, motivo y quién la pide. */
-export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrabajador, alResolver, alRefrescar, alDescartar }: PropiedadesTarjeta) {
+export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrabajador, alResolver, alRefrescar, alDescartar, esPropia }: PropiedadesTarjeta) {
   const [decision, setDecision] = useState<"APROBAR" | "RECHAZAR" | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -157,6 +159,10 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
             </Boton>
           ) : null}
         </div>
+      ) : esPropia ? (
+        <p role="status" className="rounded-xl border bg-background p-3 text-sm font-semibold">
+          La pediste tú. Debe autorizarla otro supervisor.
+        </p>
       ) : (
         <div className="grid grid-cols-2 gap-3">
           <Boton variante="principal" onClick={() => setDecision("APROBAR")} disabled={enviando}>

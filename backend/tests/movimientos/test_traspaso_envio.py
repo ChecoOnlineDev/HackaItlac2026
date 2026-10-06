@@ -291,7 +291,7 @@ def test_X_04_una_pieza_no_apta_se_traslada_con_aviso_y_conserva_su_estado(
     ev = evaluar_traspaso(almacenista, session, "CON", [renglon(p.codigo)])
     assert ev["nivel"] == "AMARILLO" and ev["puede_confirmar"] is True
     assert reglas(ev, 0) == ["X-04"]
-    assert "no apta" in ev["renglones"][0]["motivos"][0]["mensaje"]
+    assert "no es apta" in ev["renglones"][0]["motivos"][0]["mensaje"]
     traspaso = enviar(almacenista, session, "CON", [renglon(p.codigo)])
     assert "X-04" in traspaso["renglones"][0]["reglas"]
     assert pieza(session, p.codigo).estado == EstadoPieza.NO_APTO  # conserva su estado

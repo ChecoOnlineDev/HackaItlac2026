@@ -63,7 +63,7 @@ def politica_csp(hashes_scripts: list[str]) -> str:
             "media-src 'self' blob:",
             "font-src 'self' data:",
             "connect-src 'self'",
-            "worker-src 'self' blob:",
+            "worker-src 'self'",
             "manifest-src 'self'",
             "object-src 'none'",
             "base-uri 'self'",
@@ -96,6 +96,10 @@ def agregar_cabeceras_seguridad(
         ruta = request.url.path
         if not any(ruta == p or ruta.startswith(p + "/") for p in rutas_sin_csp):
             h.setdefault("Content-Security-Policy", csp)
+        elif ruta == "/api" or ruta.startswith("/api/"):
+            # Defensa en profundidad: nada de la API se guarda en cachés compartidas. Las firmas y
+            # fotos que ya traen su propia política (`private, no-cache`) la conservan.
+            h.setdefault("Cache-Control", "no-store")
         return respuesta
 
 

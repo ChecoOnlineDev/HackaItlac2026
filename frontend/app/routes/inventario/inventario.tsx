@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { Boxes, SearchIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
@@ -28,6 +28,15 @@ import { useSesion } from "~/sesion/sesion";
 
 export const handle: ManejadorRuta = { permiso: "inventario.ver" };
 
+/** El almacén que se operó por última vez en este dispositivo (lo guarda Entregar). */
+function leerAlmacenRecordado(): string | null {
+  try {
+    return window.localStorage.getItem("imhotep.almacen.operando");
+  } catch {
+    return null;
+  }
+}
+
 export default function Inventario() {
   const { sesion, puede } = useSesion();
   const puedeVerArticulo = puede("catalogo.ver");
@@ -43,9 +52,16 @@ export default function Inventario() {
     "categorias",
   );
 
+  // La página vuelve a la 1 cuando cambia el texto ya retrasado, no en cada tecla.
+  useEffect(() => {
+    setPagina(1);
+  }, [q]);
+
   const lista = almacenes.datos ?? [];
-  // Por omisión, el almacén de quien entra; si opera todos o ninguno, el primero de la lista.
-  const almacenId = almacenElegido ?? sesion?.almacen?.id ?? lista[0]?.id ?? "";
+  // Por omisión, el almacén de quien entra; si opera todos, el último que operó; si no, el primero.
+  const recordado = lista.find((a) => a.id === leerAlmacenRecordado())?.id;
+  const almacenPorOmision = sesion?.almacen?.id ?? recordado ?? lista[0]?.id ?? "";
+  const almacenId = almacenElegido ?? almacenPorOmision;
 
   const existencias = useConsulta(
     (signal) =>
@@ -171,7 +187,7 @@ export default function Inventario() {
   }
 
   const almacenActual = lista.find((a) => a.id === almacenId);
-  const almacenCambiado = almacenElegido !== null && almacenElegido !== (sesion?.almacen?.id ?? lista[0]?.id ?? "");
+  const almacenCambiado = almacenElegido !== null && almacenElegido !== almacenPorOmision;
   const activos = (categoria ? 1 : 0) + (almacenCambiado ? 1 : 0);
 
   return (
@@ -183,7 +199,6 @@ export default function Inventario() {
           value={texto}
           alCambiar={(v) => {
             setTexto(v);
-            setPagina(1);
           }}
         />
         <HojaFiltros

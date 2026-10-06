@@ -34,7 +34,7 @@ import { useEvaluacion, type CuerpoEvaluar } from "~/componentes/entrega/use-eva
 import { BotonAtrasPaso, usarAtrasDePasos } from "~/componentes/navegacion/atras";
 import { AccionPrincipal, Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
 import type { Ficha, Pendiente } from "~/componentes/personas/tipos";
-import { aviso } from "~/componentes/ui/aviso";
+import { aviso, cerrarAviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
 import { Cargando } from "~/componentes/ui/cargando";
 import { Confirmacion } from "~/componentes/ui/confirmacion";
@@ -248,6 +248,8 @@ export default function Devolver() {
       if (!anunciados.current.has(l.uid)) {
         anunciados.current.add(l.uid);
         const uid = l.uid;
+        // Un código que el servidor no reconoce (rojo) no se "agregó": la fila roja ya lo dice.
+        if (r.nivel === "ROJO") continue;
         aviso({
           titulo: `Se agregó ${r.articulo?.nombre ?? l.codigo}`,
           tipo: "info",
@@ -257,6 +259,13 @@ export default function Devolver() {
       }
     }
   }, [ev.actual, evaluadoDe, borrador.renglones, actualizar]);
+
+  // Los avisos "Se agregó… Deshacer" no sobreviven al vale terminado ni a salir de la pantalla.
+  const terminada = Boolean(borrador.resultado);
+  useEffect(() => {
+    if (terminada) cerrarAviso();
+  }, [terminada]);
+  useEffect(() => () => cerrarAviso(), []);
 
   // Un error de almacén al evaluar se atiende igual que al confirmar.
   const errorEvaluacion: ErrorApi | null = cuerpo ? ev.error : null;
@@ -749,7 +758,7 @@ export default function Devolver() {
               >
                 {motivosVale.map((m, i) => (
                   <li key={`${m.regla}-${i}`} className="text-base">
-                    <span className="sr-only">{TEXTO_NIVEL[m.nivel]}: </span>
+                    <span className="sr-only">{m.nivel === "ROJO" ? "No se puede recibir" : TEXTO_NIVEL[m.nivel]}: </span>
                     {m.mensaje} <span className="text-xs font-medium whitespace-nowrap text-muted-foreground">({m.regla})</span>
                   </li>
                 ))}

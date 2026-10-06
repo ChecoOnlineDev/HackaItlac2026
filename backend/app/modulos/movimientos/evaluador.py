@@ -21,11 +21,11 @@ from app.modulos.movimientos.models import Nivel
 GRAVEDAD: dict[Nivel, int] = {Nivel.VERDE: 0, Nivel.AMARILLO: 1, Nivel.NARANJA: 2, Nivel.ROJO: 3}
 
 ESTADO_PIEZA_TEXTO: dict[str, str] = {
-    "APTO": "apta",
-    "NO_APTO": "no apta",
-    "EN_MANTENIMIENTO": "en mantenimiento",
-    "EN_CALIBRACION": "en calibración",
-    "BAJA": "de baja",
+    "APTO": "está apta",
+    "NO_APTO": "no es apta",
+    "EN_MANTENIMIENTO": "está en mantenimiento",
+    "EN_CALIBRACION": "está en calibración",
+    "BAJA": "está de baja",
 }
 
 
@@ -236,8 +236,8 @@ def regla_e05_estado(h: HechosRenglonEntrega) -> Motivo | None:
     seguridad: no se autoriza, SM-04)."""
     if h.pieza is None or h.pieza.estado == "APTO":
         return None
-    estado = ESTADO_PIEZA_TEXTO.get(h.pieza.estado, h.pieza.estado.lower())
-    return Motivo("E-05", Nivel.ROJO, f"La pieza está {estado}. No se puede entregar.")
+    estado = ESTADO_PIEZA_TEXTO.get(h.pieza.estado, f"está {h.pieza.estado.lower()}")
+    return Motivo("E-05", Nivel.ROJO, f"La pieza {estado}. No se puede entregar.")
 
 
 def regla_e06_inspeccion(h: HechosRenglonEntrega, hoy: date) -> Motivo | None:

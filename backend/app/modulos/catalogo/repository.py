@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from sqlalchemy import delete, exists, func, select, update
 from sqlalchemy.orm import Session
 
+from app.core.tiempo import hoy_mx
 from app.modulos.catalogo.models import (
     Articulo,
     Categoria,
@@ -199,15 +200,26 @@ class EtiquetaRepository:
             )
             .order_by(Trabajador.nombre, Codigo.codigo)
         ).all()
-        # El puesto es el del periodo de contrato vigente: el más reciente (el primero que
-        # aparece al ordenar por inicio y alta, de más nuevo a más viejo).
+        # El puesto es el del periodo vigente hoy (mismo criterio que la vigencia E-02); si no hay
+        # uno vigente, el del más reciente (los periodos llegan del más nuevo al más viejo).
         puestos: dict[uuid.UUID, str | None] = {}
         if filas:
+            hoy = hoy_mx()
             periodos = self.session.execute(
-                select(PeriodoContrato.trabajador_id, PeriodoContrato.puesto)
+                select(
+                    PeriodoContrato.trabajador_id,
+                    PeriodoContrato.puesto,
+                    PeriodoContrato.inicio,
+                    PeriodoContrato.fin,
+                )
                 .where(PeriodoContrato.trabajador_id.in_([f[1] for f in filas]))
                 .order_by(PeriodoContrato.inicio.desc(), PeriodoContrato.creado_en.desc())
             ).all()
-            for trabajador_id, puesto in periodos:
+            recientes: dict[uuid.UUID, str | None] = {}
+            for trabajador_id, puesto, inicio, fin in periodos:
+                recientes.setdefault(trabajador_id, puesto)
+                if inicio <= hoy <= fin:
+                    puestos.setdefault(trabajador_id, puesto)
+            for trabajador_id, puesto in recientes.items():
                 puestos.setdefault(trabajador_id, puesto)
         return [(c, n, e, puestos.get(tid)) for c, tid, n, e in filas]

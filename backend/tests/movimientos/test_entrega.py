@@ -245,6 +245,17 @@ def test_RG_05_una_pieza_se_entrega_de_una_en_una(almacenista, compras, session,
 # ------------------------------------------------------------------------- seguridad
 
 
+def test_E_05_el_mensaje_de_una_pieza_no_apta_se_lee_natural(
+    almacenista, compras, session, trabajador
+):
+    articulo, pieza = pieza_en_kep(
+        compras, session, estado=EstadoPieza.NO_APTO, vigente_hasta=hoy_mx() + timedelta(days=30)
+    )
+    ev = evaluar(almacenista, trabajador, [renglon(pieza.codigo)])
+    mensaje = ev["renglones"][0]["motivos"][0]["mensaje"]
+    assert mensaje == "La pieza no es apta. No se puede entregar."
+
+
 @pytest.mark.parametrize(
     "estado",
     [
