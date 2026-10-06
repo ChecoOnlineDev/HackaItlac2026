@@ -97,7 +97,7 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 |---|---|
 | Todas las pantallas operativas | Sí, por tener todos los permisos |
 | Alta, edición, desactivación de usuarios y restablecer contraseña | Existe en el servidor (`/api/usuarios`), **sin pantalla** |
-| Asignar o mover personal entre almacenes | Existe en el servidor (`/api/personal` y `PATCH /api/usuarios/{id}/almacen`), **sin pantalla** |
+| Asignar o mover personal entre almacenes | Sí, en **Personal** (`/personal`) |
 | Crear roles y activar o quitar permisos desde pantalla | **Pospuesto** (parte pendiente de FEAT-006). Los cinco roles se cargan con el script de datos de prueba |
 | Tablero general por almacén | Pospuesto |
 
@@ -225,7 +225,7 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 - Administrar el catálogo (categorías, artículos, requisitos, límites, inactivar).
 - Ajustar la vigencia de una inspección, con motivo.
 - Cancelar los vales de cualquiera.
-- Asignar y mover personal entre almacenes (por el servidor; sin pantalla todavía).
+- Asignar y mover personal entre almacenes, en **Personal** (menú, Supervisión).
 - Imprimir credenciales y hojas de QR.
 - Reportes de todos los almacenes, incluido el de consumo, y rastrear quién tocó un equipo.
 
@@ -243,7 +243,7 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 - *Rastrear una desaparición.* Reporte de Movimientos filtrado por usuario, artículo, almacén y periodo, más el historial de la pieza (C-11).
 - *Cancelar el vale de otro.* Abre el vale y lo cancela con motivo (K-01).
 - *Operar un almacén.* Elige el almacén y usa Entregar, Devolver, Trasladar y Recibir como un almacenista.
-- *Asignar personal a un almacén.* Por el servidor (`/api/personal`); aplica en la siguiente petición del usuario (AC-12, AC-13).
+- *Asignar personal a un almacén.* Menú, Supervisión, **Personal**: busca a la persona, toca "Cambiar almacén", elige el almacén (o "Sin almacén") y guarda; aplica en cuanto la persona vuelve a usar el sistema (AC-12, AC-13).
 
 **Casos límite y qué hace el sistema.**
 
@@ -414,7 +414,7 @@ Para no confundir a quien pruebe. Fuente: [mvp-scope.md](product/mvp-scope.md).
 - Firma electrónica avanzada y constancias NOM-151.
 - Impresión directa a impresoras térmicas (se imprime desde el navegador).
 - **Matriz editable de roles y permisos desde la pantalla.** Los cinco roles se cargan con el script.
-- **Pantalla de usuarios y de personal por almacén.** El servidor ya los atiende, pero la interfaz no los tiene.
+- **Pantalla de usuarios** (altas, edición, restablecer contraseña). El servidor ya la atiende, pero la interfaz no la tiene. La de personal por almacén sí existe.
 - Niveles del semáforo configurables, límites sumados por categoría, rutas de traspaso obligatorias.
 - Tema oscuro, varios idiomas, personalización visual.
 - Ubicación dentro del almacén (estante o pasillo): llega hasta el almacén o el trabajador.
@@ -430,7 +430,7 @@ Para no confundir a quien pruebe. Fuente: [mvp-scope.md](product/mvp-scope.md).
 Las anoto sin decidir cuál manda; conviene que alguien del equipo lo confirme.
 
 1. **Quién imprime etiquetas.** `app-flow.md` (flujo 16 y tabla de pantallas) y US-ETQ-001 dicen «Compras» o «Compras y RH», pero el código y la tabla 8.2 dan `etiquetas.imprimir` también al Supervisor (y al Administrador). El menú de la interfaz se arma por permiso, así que el Supervisor ve **Etiquetas**.
-2. **Administrador sin pantallas propias.** El PRD dice que «en el MVP solo carga los datos iniciales» y `app-flow.md` que no tiene pantallas propias; en cambio `mvp-scope.md` y el contrato de la API describen que usuarios (`/api/usuarios`) y personal (`/api/personal`) ya están integrados en el servidor. Ninguna ruta de la interfaz (`routes.ts`) los usa. La regla AC-08 habla de «desde la pantalla».
+2. **Administrador sin pantallas propias.** El PRD dice que «en el MVP solo carga los datos iniciales» y `app-flow.md` que no tiene pantallas propias; en cambio `mvp-scope.md` y el contrato de la API describen que usuarios (`/api/usuarios`) y personal (`/api/personal`) ya están integrados en el servidor. Solo el personal tiene pantalla (`/personal`); ninguna ruta de la interfaz usa los usuarios. La regla AC-08 habla de «desde la pantalla».
 3. **Reporte de consumo.** El PRD lo lista en capacidades como **Futuro** (junto con «EPP entregado por trabajador»), pero el alcance del MVP lo incluye, existe la historia US-REP-002 y el menú y los permisos ya lo tienen.
 4. **Dónde se emite el no adeudo.** US-BAJ-001 dice «almacenista de Kepler»; la regla B-04 dice «el almacén» y la tabla 8.2 da `no_adeudo.emitir` a cualquier Almacenista y Supervisor, sin limitarlo a Kepler. En esta guía lo uso en Kepler por ser el ejemplo del PDF.
 5. **Quién inicia la baja.** B-01 dice RH o el almacenista; la tabla 8.2 también le da `trabajadores.iniciar_baja` al Supervisor y al Administrador. El flujo 11 de `app-flow.md` solo nombra a RH y al almacenista.

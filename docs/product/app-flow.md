@@ -10,14 +10,14 @@ Son los cinco roles iniciales. Lo que puede cada uno sale de sus permisos (secci
 - **Supervisor**: autoriza y administra el catálogo; también puede operar un almacén, eligiéndolo.
 - **Compras**: inventario, entradas, importación, catálogo y reportes.
 - **RH**: trabajadores y bajas.
-- **Administrador**: tiene todos los permisos, así que ve todos los menús. No tiene pantallas propias hasta [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md).
+- **Administrador**: tiene todos los permisos, así que ve todos los menús. Solo tiene pantalla propia para asignar personal a almacenes (`/personal`); las de usuarios y roles llegan con [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md).
 
 ## Navegación global
 
 ```
 Entrar
   -> Almacenista   -> Inicio de almacén: Entregar | Devolver | Trasladar | Recibir (n) | Consultar
-  -> Supervisor    -> Autorizaciones (n) | Operar un almacén | Catálogo | Reportes
+  -> Supervisor    -> Autorizaciones (n) | Personal | Operar un almacén | Catálogo | Reportes
   -> Compras       -> Inventario | Entradas | Importar | Catálogo | Etiquetas | Reportes
   -> RH            -> Trabajadores | Alta | Bajas
   -> Administrador -> todos los menús anteriores
@@ -279,6 +279,14 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 - **Entrada:** Etiquetas.
 - **Pasos:** elegir qué imprimir (credenciales, piezas o estantes; en credenciales, la credencial completa o solo el código QR) -> seleccionar -> hoja con QR y texto -> imprimir desde el navegador. Una credencial suelta también se imprime o se descarga como PNG desde la ficha del trabajador.
 
+## Flujo 17: Personal por almacén (supervisor y administrador)
+
+- **Entrada:** Menú -> Supervisión -> Personal (`/personal`, permiso `almacenes.asignar_personal`; AC-12, AC-13).
+- **Pasos:** buscar por nombre o usuario, o filtrar por almacén o "Sin almacén" -> "Cambiar almacén" en la persona -> elegir el almacén (o "Sin almacén") -> la hoja dice en una frase qué cambiará ("Ana pasará de Kepler a Contratistas") -> Guardar -> aviso de éxito y la lista se actualiza.
+- **Quiénes aparecen:** solo quienes operan un almacén (los que no tienen `almacenes.todos`). El servidor decide si el cambio procede; si lo rechaza (422), la hoja muestra su mensaje junto a la lista desplegable.
+- **Efecto:** aplica en cuanto la persona vuelve a usar el sistema; no toca vales ni movimientos ya hechos.
+- **Vacío:** "No hay personal con ese filtro". Sin el permiso, "Tu rol no puede hacer esto".
+
 ## Estados transversales
 
 | Estado | Comportamiento |
@@ -306,6 +314,7 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 | `/vales/:id` | Detalle de un vale, con la opción de cancelarlo o de cancelarlo y rehacerlo | Almacenista, supervisor, Compras |
 | `/mis-movimientos` | Mis movimientos de hoy | Almacenista, supervisor, Compras |
 | `/autorizaciones` | Solicitudes pendientes | Supervisor |
+| `/personal` | Personal por almacén: asignar y mover usuarios entre almacenes | Supervisor, administrador (`almacenes.asignar_personal`) |
 | `/inventario` | Existencias | Compras, supervisor, almacenista |
 | `/entradas/nueva`, `/importar` | Entrada e importación | Compras |
 | `/catalogo/categorias`, `/catalogo/articulos` | Catálogo | Compras, supervisor |
@@ -321,5 +330,4 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 - Lista de revisión del supervisor.
 - Solicitud de compra.
 - Administración de roles, permisos y usuarios ([FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md)).
-- Asignación de personal a almacenes (FEAT-006): lista de personal por almacén con un selector para moverlo, con el permiso `almacenes.asignar_personal` (AC-12, AC-13).
 - Tablero general por almacén.

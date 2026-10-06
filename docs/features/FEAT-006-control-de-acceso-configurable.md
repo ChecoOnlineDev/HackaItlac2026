@@ -65,7 +65,7 @@ Ejemplo guía: el administrador activa `trabajadores.ver_datos_personales` en el
 
 - Sin tablas nuevas: `rol`, `rol_permiso` y `usuario.rol_id` existen desde la Fase 1.
 - `GET /api/permisos`; `GET`, `POST` y `PATCH /api/roles`; `PUT /api/roles/{id}/permisos`; `GET`, `POST` y `PATCH /api/usuarios`; `POST /api/usuarios/{id}/contrasena`. Todos piden `acceso.administrar`, salvo `GET /api/personal` y `PATCH /api/usuarios/{id}/almacen`, que piden `almacenes.asignar_personal`.
-- Avance: la lista de personal, la reasignación de almacén, las altas y ediciones de usuario, el restablecimiento de contraseña y `GET /api/roles` (solo lectura) ya existen en el módulo `acceso` y están en [api-contracts.md](../architecture/api-contracts.md#usuarios-y-personal); el permiso `almacenes.asignar_personal` ya está en la sección 8.2. Falta la matriz editable de roles y permisos.
+- Avance: la lista de personal, la reasignación de almacén, las altas y ediciones de usuario, el restablecimiento de contraseña y `GET /api/roles` (solo lectura) ya existen en el módulo `acceso` y están en [api-contracts.md](../architecture/api-contracts.md#usuarios-y-personal); el permiso `almacenes.asignar_personal` ya está en la sección 8.2. La pantalla de personal por almacén ya existe (`/personal`, [app-flow.md](../product/app-flow.md)). Faltan las pantallas de usuarios y la matriz editable de roles y permisos.
 
 ## Restricciones y compatibilidad
 
