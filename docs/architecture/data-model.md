@@ -46,7 +46,7 @@ Decisión completa en [ADR-006](decisions/ADR-006-identificadores-uuid-y-folio.m
 | `rol` | `id`, `nombre`, `descripcion`, `protegido`, `activo`, `creado_en` | `nombre` único. `protegido` marca al Administrador, que no se elimina ni pierde `acceso.administrar`. |
 | `rol_permiso` | `rol_id`, `permiso` | Llave: ambas columnas. `permiso` es una clave del catálogo, como `entregas.crear`. El catálogo vive en el código, no en una tabla (AC-01). |
 | `trabajador` | `id`, `numero_empleado`, `nombre`, `curp`, `nss`, `tallas`, `foto_adjunto_id`, `estado`, `creado_en` | `numero_empleado` único; `curp` único si existe. `estado`: ACTIVO, BAJA_EN_PROCESO, INACTIVO. `foto_adjunto_id` va vacío si el trabajador no tiene foto (T-09). |
-| `periodo_contrato` | `id`, `trabajador_id`, `puesto`, `area_obra`, `referencia`, `inicio`, `fin`, `creado_por`, `creado_en` | Un renglón por contrato o reingreso. El vigente es el más reciente. |
+| `periodo_contrato` | `id`, `trabajador_id`, `puesto`, `puesto_id`, `area_obra`, `referencia`, `inicio`, `fin`, `creado_por`, `creado_en` | Un renglón por contrato o reingreso. El vigente es el más reciente. `puesto` es el texto capturado y `puesto_id` (opcional, FK a `puesto`) lo liga al catálogo; de él sale la dotación. Un texto que no coincide con ningún puesto deja `puesto_id` vacío y el trabajador sin dotación. |
 
 ### Lugares
 
@@ -63,6 +63,8 @@ Decisión completa en [ADR-006](decisions/ADR-006-identificadores-uuid-y-folio.m
 | `articulo` | `id`, `codigo`, `nombre`, `marca`, `modelo`, `categoria_id`, `control`, `retornable`, `talla`, `unidad`, `costo_unitario`, `requiere_inspeccion`, `vigencia_inspeccion_dias`, `requiere_autorizacion`, `motivo_uso_especial`, `limite_cantidad`, `limite_periodo_dias`, `cantidad_aviso`, `activo`, `motivo_inactivacion`, `creado_en` | `control`: PIEZA, CANTIDAD. Guarda sus propias reglas; las de la categoría solo son el punto de partida. `limite_periodo_dias` vacío significa "en posesión" (L-05). `cantidad_aviso` vacío significa que no hay aviso de cantidad inusual (E-27). |
 | `pieza` | `id`, `articulo_id`, `codigo`, `numero_serie`, `estado`, `inspeccion_vigente_hasta`, `ubicacion_id`, `creado_en` | `estado`: APTO, NO_APTO, EN_MANTENIMIENTO, EN_CALIBRACION, BAJA. `ubicacion_id` la actualiza solo el motor. |
 | `codigo` | `codigo`, `tipo`, `ref_id` | Registro único de todo lo que se escanea. `tipo`: TRABAJADOR, ARTICULO, PIEZA, VALE. Un trabajador puede tener varios códigos. |
+| `puesto` | `id`, `nombre`, `activo`, `creado_en` | `nombre` único sin distinguir mayúsculas ni acentos. Se inactiva, no se borra. |
+| `dotacion` | `id`, `puesto_id`, `articulo_id`, `cantidad` | La cantidad recomendada de un artículo en un puesto (D-01). `(puesto_id, articulo_id)` único, `cantidad >= 1`. La cantidad no pasa del `limite_cantidad` del artículo (D-04): lo verifica el servicio, no la base. |
 
 ### Bitácora
 
@@ -99,6 +101,8 @@ Fijadas al construir las tablas; son parte del contrato para los demás módulos
 - **`movimiento`**: `cantidad > 0`, una pieza siempre con cantidad 1, `origen_id` distinto de `destino_id`, `(vale_id, renglon)` único, `nivel` (VERDE, AMARILLO, NARANJA, ROJO). `reglas` es una lista JSON de IDs de regla.
 - **`autorizacion`**: `resuelta_por` no puede ser `solicitada_por` (AC-07, A-05).
 - **`periodo_contrato`**: `fin >= inicio`.
+- **`puesto` y `dotacion`** (migración `0004_puestos_dotacion`): se crean junto con `periodo_contrato.puesto_id`. La migración relaciona los periodos que ya existían con el catálogo por nombre; como el catálogo nace vacío, quedan sin `puesto_id` y sin dotación hasta que se capture el puesto. Un artículo que está en una dotación no se elimina (409) y su límite no baja de lo recomendado (422, D-04).
+- **Tallas (E-10).** No se agregó ningún campo: se compara `articulo.talla` con los valores de `trabajador.tallas` (JSON `{prenda: talla}`).
 - **Cómo escribe el motor** (módulo `movimientos`; ver `backend/app/modulos/movimientos/README.md`):
   - Una confirmación es una sola transacción en READ COMMITTED que bloquea (`FOR UPDATE`), en este orden, vales, trabajador, `existencia` por `(ubicacion_id, articulo_id)`, `pieza` por `id` y `serie_folio`; vuelve a evaluar y solo entonces escribe.
   - `serie_folio` guarda el último consecutivo por almacén y tipo; su fila se crea en la primera confirmación de ese par. El folio es `CLAVE-PREFIJO-000123`; los prefijos son `ING`, `ENT`, `DEV`, `TRS`, `REC`, `NAD` y `CAN`.
@@ -107,7 +111,7 @@ Fijadas al construir las tablas; son parte del contrato para los demás módulos
   - Al confirmar, el vale registra en `codigo` (tipo VALE) su `token`, que es el contenido del QR, y su folio.
   - El límite de consumibles (L-03) suma los movimientos de vales de ENTREGA no cancelados hacia CONSUMIDO con ese trabajador y artículo, creados después de ahora menos N días (una entrega hecha hace exactamente N días ya no cuenta). El de retornables (L-02) usa la existencia del trabajador.
 - **Llaves circulares.** `trabajador.foto_adjunto_id` y `vale.firma_adjunto_id` apuntan a `adjunto`, que a su vez apunta a `vale` y `movimiento`; la migración las agrega al final. Al confirmar una entrega, el vale se inserta sin `firma_adjunto_id`, se guarda el adjunto de la firma con su `vale_id` y se completa `firma_adjunto_id`, todo en la misma transacción.
-- **Dueños.** `acceso`: usuario, rol, rol_permiso. `trabajadores`: trabajador, periodo_contrato. `almacenes`: almacen, ubicacion. `catalogo`: categoria, articulo, pieza, codigo. `movimientos`: vale, movimiento, existencia, serie_folio. `autorizaciones`: autorizacion. `inspecciones`: inspeccion, ajuste_vigencia, evento_pieza. `archivos`: adjunto. `auditoria`: auditoria.
+- **Dueños.** `acceso`: usuario, rol, rol_permiso. `trabajadores`: trabajador, periodo_contrato (lee `puesto` y `dotacion`). `almacenes`: almacen, ubicacion. `catalogo`: categoria, articulo, pieza, codigo, puesto, dotacion. `movimientos`: vale, movimiento, existencia, serie_folio. `autorizaciones`: autorizacion. `inspecciones`: inspeccion, ajuste_vigencia, evento_pieza. `archivos`: adjunto. `auditoria`: auditoria.
 - **Lo que no se puede expresar en la base** y queda para los services: que `vale` y `movimiento` no se actualicen (salvo `vale.estado`), que `existencia` sea la suma de los movimientos, que `pieza.ubicacion_id` sea el destino de su último movimiento, que `control` y `retornable` no cambien con movimientos (CF-05), y que siempre exista un usuario activo con `acceso.administrar` (AC-09).
 
 ## Qué movimientos genera cada vale
@@ -149,7 +153,8 @@ La CANCELACION es genérica: invierte las filas de `movimiento` del vale origina
 - `movimiento`: por `(articulo_id, creado_en)`, por `origen_id`, por `(destino_id, creado_en)` (también para el reporte de consumo), por `(trabajador_id, articulo_id, creado_en)` para los límites por periodo, y por `pieza_id` para el historial.
 - `vale`: por `(tipo, almacen_id, creado_en)`, por `trabajador_id` y por `(responsable_id, creado_en)` para el filtro por usuario de la bitácora (C-11).
 - `pieza`: por `(ubicacion_id, estado)` y por `articulo_id`.
-- `periodo_contrato`: por `(trabajador_id, fin)`.
+- `periodo_contrato`: por `(trabajador_id, fin)` y por `puesto_id`.
+- `dotacion`: por `(puesto_id, articulo_id)` (único) y por `articulo_id`.
 
 ## Fechas y horas
 
@@ -165,6 +170,7 @@ El script carga, de forma repetible:
 
 - Los seis almacenes del PDF y las cuatro ubicaciones virtuales.
 - Las siete categorías iniciales (sección 5.1 de las reglas).
+- Cuatro puestos (Ayudante general, Soldador, Electricista y Rigger) con su dotación, **propuestas de datos de prueba basadas en el PDF** (EPP de la p. 10 más equipo de las p. 7 y 10); los puestos reales los define la empresa. Los cuatro trabajadores de prueba quedan ligados a su puesto. Las cantidades caben en los límites de los artículos sembrados, así que no hubo que ajustar ninguno. La línea base de las pruebas automáticas borra las dotaciones para que las demás pruebas no pidan observación.
 - Los quince artículos de la página 7 del PDF y el EPP de la página 10, con sus costos.
 - Existencias iniciales de los artículos por cantidad en Kepler y Contratistas, cargadas con un vale de entrada real por almacén (folio `KEP-ING-000001`, `CON-ING-000001`), nunca escribiendo saldos. Es repetible: cada carga lleva un `id_cliente` fijo y no se duplica.
 - Piezas de prueba, en Kepler, dadas de alta con **un vale de entrada real** y su inspección inicial (las carga `app/datos_prueba_piezas.py`, que corre al final porque depende de `catalogo`, `movimientos` e `inspecciones`; es repetible y no duplica): ocho de equipo de alturas (`ALT-001` a `ALT-008`: arneses Kevlar y Poliéster, bandola, gancho doble de vida y retráctil) y cinco herramientas por serie (`HER-001` a `HER-005`: minipulidores, detectores de gases y un radio). Entre las de alturas, `ALT-001`, `ALT-002` y `ALT-004` están aptas con inspección vigente, `ALT-003` está **no apta** y `ALT-005` tiene la **inspección vencida**: entra con una inspección inicial de hace 200 días y el servicio de inspecciones le calcula la vigencia (180 días) como a cualquier pieza. El artículo `RADIO` (Radio de comunicación) se crea ahí mismo.
@@ -177,7 +183,7 @@ El script carga, de forma repetible:
 |---|---|
 | FEAT-001 | `vale.hash`, `vale.hash_anterior`; tabla `cadena_sello`; `adjunto.tipo` TICKET_FIRMADO; `vale.firma_modo` PAPEL |
 | FEAT-002 | Vale AJUSTE con movimientos entre almacén y BAJA |
-| FEAT-003 | Tablas `puesto` y `dotacion` |
+| FEAT-003 | Tablas `puesto` y `dotacion` y `periodo_contrato.puesto_id`: **construidas** (`0004_puestos_dotacion`) |
 | FEAT-004 | Tabla `minimo` (`almacen_id`, `articulo_id`, `cantidad`) |
 | FEAT-005 | Ninguno: pasó al MVP (T-09) |
 | FEAT-006 | Sin tablas nuevas: administra `rol`, `rol_permiso` y `usuario` desde la pantalla, incluida la asignación de personal a almacenes (`usuario.almacen_id`) |

@@ -1,5 +1,7 @@
 # FEAT-003: Dotación por puesto y avisos no bloqueantes
 
+**Estado: servidor construido** (migración `0004_puestos_dotacion`, endpoints de puestos, dotación y `GET /api/trabajadores/{id}/dotacion`, avisos E-09, E-10 y E-11 en la entrega y observación en el reporte de movimientos). **Pendiente: la interfaz** (catálogo de puestos, ficha con lo que falta y observación con respuestas rápidas). Contrato en [api-contracts.md](../architecture/api-contracts.md#puestos-y-dotación); reglas en la sección 4.2 de las [reglas](../product/reglas-de-negocio.md). Los puestos y dotaciones de los datos de prueba son propuestas basadas en el PDF.
+
 ## Problema u oportunidad
 
 El EPP se define por puesto (PDF p.3, paso 5) y hay consumo que llama la atención sin llegar a un límite (plática min 34 y 36). El MVP solo conoce el límite, que bloquea. Falta un nivel intermedio: lo recomendado, que avisa.
