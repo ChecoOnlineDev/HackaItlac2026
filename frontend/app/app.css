@@ -9,6 +9,7 @@
 @import "@fontsource/poppins/latin-700.css";
 @import "@fontsource/poppins/latin-ext-400.css";
 @import "@fontsource/poppins/latin-ext-600.css";
+@import "@fontsource/poppins/latin-ext-700.css";
 
 /* Tema IMHOTEP (docs/product/ui-ux.md). Tipografía Poppins, sin tema oscuro. */
 
@@ -86,7 +87,7 @@
   /* Error de formulario o acción destructiva; distinto del rojo del semáforo. */
   --destructive: #991b1b;
   --border: #e2e5ea;
-  --input: #b6bcc6;
+  --input: #8a93a1;
   --ring: #0054a6;
   --radius: 0.75rem; /* 12 px */
   --sidebar: #f8fafc;

@@ -14,6 +14,9 @@ import { ALTO_MM, ANCHO_MM, ajustarNombre, type DatosCredencial } from "./creden
  */
 
 const PX_POR_MM = 24;
+
+/** Milímetros a píxeles del lienzo. */
+const mm = (valor: number) => valor * PX_POR_MM;
 const MARINO = "#1b1f8a";
 const AZUL = "#0054a6";
 const TEXTO = "#111827";
@@ -49,7 +52,7 @@ function imagenQr(valor: string): Promise<HTMLImageElement> {
 async function esperarFuentes() {
   if (typeof document === "undefined" || !document.fonts) return;
   await Promise.all(
-    ["400", "600", "700"].map((peso) => document.fonts.load(`${peso} 24px Poppins`, "Ñáéíóú").catch(() => [])),
+    ["400", "600", "700"].map((peso) => document.fonts.load(`${peso} 24px Poppins`, "Ñáéíóú ČŐŁŞ").catch(() => [])),
   );
 }
 
@@ -109,77 +112,78 @@ export async function credencialComoPng(datos: DatosCredencial): Promise<Blob> {
   lienzo.height = Math.round(ALTO_MM * PX_POR_MM);
   const ctx = lienzo.getContext("2d");
   if (!ctx) throw new Error("No se pudo preparar la imagen.");
-  ctx.scale(PX_POR_MM, PX_POR_MM); // de aquí en adelante, todo en milímetros
   ctx.textBaseline = "alphabetic";
 
+  // Todo se dibuja en píxeles reales: las medidas de abajo van en milímetros y `mm` las convierte.
   // Tarjeta blanca con esquinas redondeadas; todo lo demás se recorta a ella.
   ctx.save();
-  rectRedondeado(ctx, 0, 0, ANCHO_MM, ALTO_MM, 3);
+  rectRedondeado(ctx, 0, 0, mm(ANCHO_MM), mm(ALTO_MM), mm(3));
   ctx.clip();
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, ANCHO_MM, ALTO_MM);
+  ctx.fillRect(0, 0, mm(ANCHO_MM), mm(ALTO_MM));
 
   // Banda superior azul marino con el logo en un círculo blanco.
   ctx.fillStyle = MARINO;
-  ctx.fillRect(0, 0, ANCHO_MM, 13.5);
+  ctx.fillRect(0, 0, mm(ANCHO_MM), mm(13.5));
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
-  ctx.arc(9.2, 6.75, 5.1, 0, Math.PI * 2);
+  ctx.arc(mm(9.2), mm(6.75), mm(5.1), 0, Math.PI * 2);
   ctx.fill();
-  ctx.drawImage(logo, 4.7, 2.3, 9, 8.47);
+  ctx.drawImage(logo, mm(4.7), mm(2.3), mm(9), mm(8.47));
   ctx.fillStyle = "#ffffff";
-  ctx.font = `700 4.6px ${FAMILIA}`;
-  ctx.fillText("IMHOTEP", 16.2, 7.1);
+  ctx.font = `700 ${mm(4.6)}px ${FAMILIA}`;
+  ctx.fillText("IMHOTEP", mm(16.2), mm(7.1));
   ctx.fillStyle = "#c7d2fe";
-  ctx.font = `400 2.1px ${FAMILIA}`;
-  ctx.fillText("Mantenimiento Industrial", 16.2, 10.4);
+  ctx.font = `400 ${mm(2.1)}px ${FAMILIA}`;
+  ctx.fillText("Mantenimiento Industrial", mm(16.2), mm(10.4));
   // Franja delgada azul claro bajo la banda.
   ctx.fillStyle = AZUL;
-  ctx.fillRect(0, 13.5, ANCHO_MM, 0.7);
+  ctx.fillRect(0, mm(13.5), mm(ANCHO_MM), mm(0.7));
 
-  // Nombre completo (2 o 3 renglones; el tamaño baja si es largo, nunca se corta).
-  const anchoTexto = 46.5;
+  // Nombre completo (2 o 3 renglones; el tamaño baja si es largo; si aun así no cabe, termina en "…"
+  // igual que la tarjeta de pantalla).
+  const anchoTexto = mm(46.5);
   const { tamano, interlinea, lineas: maxLineas } = ajustarNombre(datos.nombre);
   ctx.fillStyle = TEXTO;
-  ctx.font = `700 ${tamano}px ${FAMILIA}`;
+  ctx.font = `700 ${mm(tamano)}px ${FAMILIA}`;
   const lineas = partirEnLineas(ctx, datos.nombre, anchoTexto, maxLineas);
-  let y = 14.2 + 2.9 + tamano * 0.95;
+  let y = mm(14.2 + 2.9 + tamano * 0.95);
   for (const linea of lineas) {
-    ctx.fillText(linea, 5, y);
-    y += interlinea;
+    ctx.fillText(linea, mm(5), y);
+    y += mm(interlinea);
   }
 
   // Puesto y número de empleado, en posiciones fijas para que no se muevan según el nombre.
   ctx.fillStyle = AZUL;
-  ctx.font = `600 3.1px ${FAMILIA}`;
-  ctx.fillText(ajustarLinea(ctx, datos.puesto?.trim() || "Sin puesto registrado", anchoTexto), 5, 35.2);
+  ctx.font = `600 ${mm(3.1)}px ${FAMILIA}`;
+  ctx.fillText(ajustarLinea(ctx, datos.puesto?.trim() || "Sin puesto registrado", anchoTexto), mm(5), mm(35.2));
   ctx.fillStyle = GRIS;
-  ctx.font = `400 2.2px ${FAMILIA}`;
-  ctx.fillText("Número de empleado", 5, 40.6);
+  ctx.font = `400 ${mm(2.2)}px ${FAMILIA}`;
+  ctx.fillText("Número de empleado", mm(5), mm(40.6));
   ctx.fillStyle = TEXTO;
-  ctx.font = `700 3.9px ${FAMILIA}`;
-  ctx.fillText(ajustarLinea(ctx, datos.numero_empleado, anchoTexto), 5, 45);
+  ctx.font = `700 ${mm(3.9)}px ${FAMILIA}`;
+  ctx.fillText(ajustarLinea(ctx, datos.numero_empleado, anchoTexto), mm(5), mm(45));
 
   // QR a la derecha, con su marco y el código en texto legible.
   ctx.strokeStyle = "#d1d5db";
-  ctx.lineWidth = 0.25;
-  rectRedondeado(ctx, 54.6, 18.4, 27.2, 27.2, 1.4);
+  ctx.lineWidth = mm(0.25);
+  rectRedondeado(ctx, mm(54.6), mm(18.4), mm(27.2), mm(27.2), mm(1.4));
   ctx.fillStyle = "#ffffff";
   ctx.fill();
   ctx.stroke();
-  ctx.drawImage(qr, 55.2, 19, 26, 26);
+  ctx.drawImage(qr, mm(55.2), mm(19), mm(26), mm(26));
   ctx.fillStyle = TEXTO;
   ctx.textAlign = "center";
-  ctx.font = `700 2.9px ${FAMILIA}`;
-  ctx.fillText(ajustarLinea(ctx, datos.codigo, 27), 68.2, 49);
+  ctx.font = `700 ${mm(2.9)}px ${FAMILIA}`;
+  ctx.fillText(ajustarLinea(ctx, datos.codigo, mm(27)), mm(68.2), mm(49));
   ctx.textAlign = "left";
 
   ctx.restore();
 
   // Contorno fino de la tarjeta.
   ctx.strokeStyle = "#cbd5e1";
-  ctx.lineWidth = 0.2;
-  rectRedondeado(ctx, 0.1, 0.1, ANCHO_MM - 0.2, ALTO_MM - 0.2, 3);
+  ctx.lineWidth = mm(0.2);
+  rectRedondeado(ctx, mm(0.1), mm(0.1), mm(ANCHO_MM - 0.2), mm(ALTO_MM - 0.2), mm(3));
   ctx.stroke();
 
   return aBlob(lienzo);
@@ -192,24 +196,24 @@ export async function etiquetaQrComoPng(datos: { codigo: string; texto: string }
   const ancho = 60;
   const alto = 36;
   const lienzo = document.createElement("canvas");
-  lienzo.width = ancho * PX_POR_MM;
-  lienzo.height = alto * PX_POR_MM;
+  lienzo.width = mm(ancho);
+  lienzo.height = mm(alto);
   const ctx = lienzo.getContext("2d");
   if (!ctx) throw new Error("No se pudo preparar la imagen.");
-  ctx.scale(PX_POR_MM, PX_POR_MM);
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, ancho, alto);
-  ctx.drawImage(qr, 3, 4, 28, 28);
+  ctx.fillRect(0, 0, lienzo.width, lienzo.height);
+  ctx.drawImage(qr, mm(3), mm(4), mm(28), mm(28));
   ctx.fillStyle = TEXTO;
-  ctx.font = `700 3.2px ${FAMILIA}`;
-  const lineas = partirEnLineas(ctx, datos.texto, 24, 4);
-  let y = 10;
+  ctx.font = `700 ${mm(3.2)}px ${FAMILIA}`;
+  // Hasta 3 renglones, igual que la etiqueta de pantalla; si no cabe, termina en "…".
+  const lineas = partirEnLineas(ctx, datos.texto, mm(24), 3);
+  let y = mm(10);
   for (const linea of lineas) {
-    ctx.fillText(linea, 33, y);
-    y += 4;
+    ctx.fillText(linea, mm(33), y);
+    y += mm(4);
   }
-  ctx.font = `600 3px ${FAMILIA}`;
-  ctx.fillText(ajustarLinea(ctx, datos.codigo, 24), 33, 31);
+  ctx.font = `600 ${mm(3)}px ${FAMILIA}`;
+  ctx.fillText(ajustarLinea(ctx, datos.codigo, mm(24)), mm(33), mm(31));
   return aBlob(lienzo);
 }
 

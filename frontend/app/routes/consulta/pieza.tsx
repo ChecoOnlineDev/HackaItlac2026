@@ -69,7 +69,7 @@ export default function FichaPiezaPantalla() {
         {pieza.ubicacion ? (
           <p className="text-base font-semibold">
             {conTrabajador && pieza.ubicacion.trabajador_id && puede("trabajadores.ver") ? (
-              <Link to={`/trabajadores/${pieza.ubicacion.trabajador_id}`} className="text-primary underline underline-offset-2">
+              <Link to={`/trabajadores/${pieza.ubicacion.trabajador_id}`} className="inline-flex min-h-10 items-center text-primary underline underline-offset-2">
                 {pieza.ubicacion.texto}
               </Link>
             ) : (
@@ -122,7 +122,7 @@ export default function FichaPiezaPantalla() {
           <Dato
             etiqueta="Artículo"
             valor={
-              <Link to={`/articulos/${pieza.articulo.id}`} className="text-primary underline underline-offset-2">
+              <Link to={`/articulos/${pieza.articulo.id}`} className="inline-flex min-h-10 items-center text-primary underline underline-offset-2">
                 {pieza.articulo.nombre}
               </Link>
             }

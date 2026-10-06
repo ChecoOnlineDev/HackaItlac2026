@@ -7,7 +7,6 @@ import { apiPost } from "~/api/cliente";
 import { esErrorApi, mensajeDeError } from "~/api/errores";
 import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
-import { Campo } from "~/componentes/ui/campo";
 import { CampoFecha } from "~/componentes/ui/campo-fecha";
 import { Confirmacion } from "~/componentes/ui/confirmacion";
 import { Hoja } from "~/componentes/ui/hoja";

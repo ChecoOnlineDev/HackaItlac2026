@@ -29,6 +29,9 @@ interface PropiedadesCampoFecha {
 /** Etiqueta + botón de 44 px que abre el calendario de shadcn. Entrega y recibe `YYYY-MM-DD`. */
 export function CampoFecha({ etiqueta, value, alCambiar, min, max, error, ayuda, disabled, claseContenedor }: PropiedadesCampoFecha) {
   const id = useId();
+  const idError = `${id}-error`;
+  const idAyuda = `${id}-ayuda`;
+  const descripcion = [error ? idError : null, ayuda ? idAyuda : null].filter(Boolean).join(" ") || undefined;
   const esMovil = useIsMobile();
   const [abierto, setAbierto] = useState(false);
   const elegida = value ? aFechaLocal(value) : undefined;
@@ -43,6 +46,7 @@ export function CampoFecha({ etiqueta, value, alCambiar, min, max, error, ayuda,
       variante="contorno"
       disabled={disabled}
       aria-invalid={error ? true : undefined}
+      aria-describedby={descripcion}
       onClick={esMovil ? () => setAbierto(true) : undefined}
       className={cn("h-11 w-full justify-start font-normal", !value && "text-muted-foreground", error && "border-destructive")}
     >
@@ -70,7 +74,7 @@ export function CampoFecha({ etiqueta, value, alCambiar, min, max, error, ayuda,
 
   return (
     <div className={cn("flex flex-col gap-1.5", claseContenedor)}>
-      <Label htmlFor={id} className="text-base font-medium text-foreground">
+      <Label htmlFor={id} className="text-sm font-medium text-foreground">
         {etiqueta}
       </Label>
       {esMovil ? (
@@ -88,9 +92,9 @@ export function CampoFecha({ etiqueta, value, alCambiar, min, max, error, ayuda,
           </PopoverContent>
         </Popover>
       )}
-      {ayuda ? <p className="text-sm text-muted-foreground">{ayuda}</p> : null}
+      {ayuda ? <p id={idAyuda} className="text-sm text-muted-foreground">{ayuda}</p> : null}
       {error ? (
-        <p role="alert" className="flex items-start gap-1.5 text-sm font-medium text-destructive">
+        <p id={idError} role="alert" className="flex items-start gap-1.5 text-sm font-medium text-destructive">
           <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           {error}
         </p>

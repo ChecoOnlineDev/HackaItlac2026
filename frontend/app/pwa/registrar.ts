@@ -52,13 +52,12 @@ export async function instalarAplicacion(): Promise<void> {
   try {
     await a.prompt();
     const { outcome } = await a.userChoice;
-    if (outcome === "accepted") aviso = null;
+    // Si la persona descarta el cuadro, el evento se conserva y el botón sigue disponible: solo se
+    // retira cuando el navegador avisa que la aplicación quedó instalada (`appinstalled`).
+    if (outcome === "accepted") avisar();
   } catch {
     // El navegador puede rechazar un segundo intento; no es un error para quien usa la aplicación.
   }
-  // El aviso solo sirve una vez.
-  aviso = null;
-  avisar();
 }
 
 /** `true` si la aplicación ya corre como instalada (ventana propia). */

@@ -45,7 +45,7 @@ export function ListaDesplegable({
   const sinGrupo = opciones.filter((o) => !o.grupo);
 
   const item = (o: OpcionLista) => (
-    <SelectItem key={o.valor} value={o.valor} className="min-h-10 text-sm">
+    <SelectItem key={o.valor} value={o.valor} className="min-h-10 py-2 text-sm">
       {o.texto}
     </SelectItem>
   );
@@ -61,7 +61,7 @@ export function ListaDesplegable({
         id={id}
         aria-invalid={invalido ? true : undefined}
         aria-describedby={descritoPor}
-        className={cn("w-full min-w-0 rounded-xl px-3 text-base data-[size=default]:h-11", className)}
+        className={cn("w-full min-w-0 rounded-xl px-3 text-base whitespace-normal data-[size=default]:h-auto data-[size=default]:min-h-11 *:data-[slot=select-value]:line-clamp-2", className)}
       >
         <SelectValue placeholder={marcador ?? vacio ?? "Elige una opción"} />
       </SelectTrigger>

@@ -23,6 +23,8 @@ import { EstadoError } from "~/componentes/ui/estado-error";
 import { EstadoVacio } from "~/componentes/ui/estado-vacio";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { Hoja } from "~/componentes/ui/hoja";
+import { Insignia } from "~/componentes/ui/insignia";
+import { ListaDesplegable } from "~/componentes/ui/lista-desplegable";
 import { hoyMx } from "~/componentes/personas/formato";
 import { useSesion } from "~/sesion/sesion";
 
@@ -76,6 +78,8 @@ export default function FichaTrabajador() {
   const [foto, setFoto] = useState<File | null>(null);
   const [codigo, setCodigo] = useState("");
   const [generar, setGenerar] = useState(false);
+  // Qué código se imprime en la credencial cuando la persona tiene varios ligados.
+  const [codigoImpreso, setCodigoImpreso] = useState("");
   // Baja
   const [baja, setBaja] = useState<RespuestaBaja | null>(null);
 
@@ -230,6 +234,7 @@ export default function FichaTrabajador() {
   const inactivo = ficha.estado === "INACTIVO";
   const tallas = Object.entries(ficha.tallas ?? {});
   const fotoUrl = ficha.foto_url ? `${ficha.foto_url}?v=${versionFoto}` : null;
+  const codigoEnCredencial = ficha.codigos.includes(codigoImpreso) ? codigoImpreso : (ficha.codigos[0] ?? "");
   const pendientesBaja = baja?.pendientes ?? ficha.resguardo;
 
   return (
@@ -260,7 +265,7 @@ export default function FichaTrabajador() {
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <InsigniaVigencia vigencia={ficha.vigencia} />
               <InsigniaSituacion situacion={ficha.situacion} texto={ficha.situacion_texto} />
-              <span className="text-base text-muted-foreground">{ficha.estado_texto}</span>
+              <Insignia estado="neutra">{ficha.estado_texto}</Insignia>
             </div>
             {ficha.periodo ? (
               <p className="text-base">
@@ -424,9 +429,22 @@ export default function FichaTrabajador() {
           titulo="Credencial"
           descripcion="Imprímela, guárdala como PDF o descarga la imagen."
         >
+          {ficha.codigos.length > 1 ? (
+            <div className="mb-4">
+              <label htmlFor="codigo-credencial" className="mb-1.5 block text-sm font-medium">
+                Código de la credencial
+              </label>
+              <ListaDesplegable
+                id="codigo-credencial"
+                valor={codigoEnCredencial}
+                alCambiar={setCodigoImpreso}
+                opciones={ficha.codigos.map((c) => ({ valor: c, texto: c }))}
+              />
+            </div>
+          ) : null}
           <VistaCredencial
-            key={ficha.codigos[0]}
-            datos={{ codigo: ficha.codigos[0], nombre: ficha.nombre, puesto: ficha.puesto, numero_empleado: ficha.numero_empleado }}
+            key={codigoEnCredencial}
+            datos={{ codigo: codigoEnCredencial, nombre: ficha.nombre, puesto: ficha.puesto, numero_empleado: ficha.numero_empleado }}
           />
         </Hoja>
       ) : null}

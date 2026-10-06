@@ -169,22 +169,25 @@ export function ValeImprimible({ vale, botonImprimir = true, acciones, className
         </dl>
 
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-sm">
+          <table className="w-full border-collapse text-left text-[13px] sm:text-sm print:text-sm">
             <caption className="sr-only">Artículos del vale</caption>
             <thead>
               <tr className="border-y-2 border-black bg-neutral-100 print:bg-neutral-100">
-                <th scope="col" className="px-2 py-2 font-bold">N.º</th>
-                <th scope="col" className="px-2 py-2 font-bold">Descripción</th>
-                <th scope="col" className="px-2 py-2 font-bold">Código o serie</th>
-                <th scope="col" className="px-2 py-2 text-right font-bold">Cantidad</th>
-                {mostrarCondicion ? <th scope="col" className="px-2 py-2 font-bold">Condición</th> : null}
+                <th scope="col" className="hidden px-1.5 py-2 font-bold sm:table-cell sm:px-2 print:table-cell">N.º</th>
+                <th scope="col" className="px-1.5 py-2 sm:px-2 font-bold">Descripción</th>
+                <th scope="col" className="px-1.5 py-2 sm:px-2 font-bold">Código o serie</th>
+                <th scope="col" className="px-1.5 py-2 text-right font-bold sm:px-2">
+                  <span className="sm:hidden print:hidden" aria-hidden="true">Cant.</span>
+                  <span className="sr-only sm:not-sr-only print:not-sr-only">Cantidad</span>
+                </th>
+                {mostrarCondicion ? <th scope="col" className="px-1.5 py-2 sm:px-2 font-bold">Condición</th> : null}
               </tr>
             </thead>
             <tbody>
               {vale.renglones.map((r) => (
                 <tr key={r.renglon} className="border-b border-neutral-400 align-top">
-                  <td className="px-2 py-2 tabular-nums">{r.renglon}</td>
-                  <td className="px-2 py-2">
+                  <td className="hidden px-1.5 py-2 tabular-nums sm:table-cell sm:px-2 print:table-cell">{r.renglon}</td>
+                  <td className="px-1.5 py-2 sm:px-2">
                     <span className="font-semibold">{r.articulo.nombre}</span>
                     {r.articulo.marca || r.articulo.talla ? (
                       <span className="block text-neutral-700">
@@ -192,12 +195,12 @@ export function ValeImprimible({ vale, botonImprimir = true, acciones, className
                       </span>
                     ) : null}
                   </td>
-                  <td className="px-2 py-2 break-all">
+                  <td className="px-1.5 py-2 sm:px-2 [overflow-wrap:anywhere]">
                     {r.codigo}
                     {r.numero_serie ? <span className="block text-neutral-700">Serie {r.numero_serie}</span> : null}
                   </td>
-                  <td className="px-2 py-2 text-right font-semibold tabular-nums">{r.cantidad}</td>
-                  {mostrarCondicion ? <td className="px-2 py-2">{r.condicion ? NOMBRE_CONDICION[r.condicion] : ""}</td> : null}
+                  <td className="px-1.5 py-2 sm:px-2 text-right font-semibold tabular-nums">{r.cantidad}</td>
+                  {mostrarCondicion ? <td className="px-1.5 py-2 sm:px-2">{r.condicion ? NOMBRE_CONDICION[r.condicion] : ""}</td> : null}
                 </tr>
               ))}
             </tbody>

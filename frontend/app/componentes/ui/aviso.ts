@@ -18,7 +18,7 @@ const TIPOS = { exito: "success", info: "info", aviso: "warning", error: "error"
  * Devuelve un id para cerrarlo antes con `cerrarAviso(id)`.
  */
 export function aviso({ titulo, descripcion, tipo = "info", accion, duracionMs = 5000 }: OpcionesAviso): string {
-  return toast.add({
+  const id = toast.add({
     title: titulo,
     description: descripcion,
     type: TIPOS[tipo],
@@ -32,6 +32,9 @@ export function aviso({ titulo, descripcion, tipo = "info", accion, duracionMs =
         }
       : undefined,
   });
+  // Respaldo: el aviso se cierra aunque algo pause su temporizador (foco, toque o pestaña oculta).
+  window.setTimeout(() => toast.close(id), duracionMs + 1500);
+  return id;
 }
 
 export function cerrarAviso(id?: string) {

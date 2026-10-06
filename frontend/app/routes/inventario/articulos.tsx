@@ -158,7 +158,7 @@ export default function Articulos() {
             <TableBody>
               {articulos.map((a) => (
                 <TableRow key={a.id} className={cn(!a.activo && "bg-muted/40 text-muted-foreground")}>
-                  <TableCell className="whitespace-normal">
+                  <TableHead scope="row" className="whitespace-normal">
                     <button
                       type="button"
                       onClick={() => cambiarFiltro({ articulo: a.id })}
@@ -167,7 +167,7 @@ export default function Articulos() {
                       {a.nombre}
                       {a.marca ? <span className="block text-xs font-normal text-muted-foreground">{a.marca}</span> : null}
                     </button>
-                  </TableCell>
+                  </TableHead>
                   <TableCell>{a.codigo}</TableCell>
                   <TableCell>{a.categoria_nombre}</TableCell>
                   <TableCell>

@@ -125,7 +125,7 @@ export default function Trabajadores() {
               <TableBody>
                 {datos.elementos.map((t) => (
                   <TableRow key={t.id}>
-                    <TableCell className="whitespace-normal">
+                    <TableHead scope="row" className="whitespace-normal">
                       <Link to={`/trabajadores/${t.id}`} className="flex min-h-12 items-center gap-3 font-semibold text-foreground hover:underline">
                         <Avatar nombre={t.nombre} fotoUrl={t.tiene_foto ? `/api/trabajadores/${t.id}/foto` : null} />
                         <span className="flex flex-col">
@@ -133,7 +133,7 @@ export default function Trabajadores() {
                           <span className="text-xs font-normal text-muted-foreground">{t.numero_empleado}</span>
                         </span>
                       </Link>
-                    </TableCell>
+                    </TableHead>
                     <TableCell className="whitespace-normal">
                       <div>{t.puesto ?? "—"}</div>
                       <div className="text-xs text-muted-foreground">{t.area_obra ?? ""}</div>

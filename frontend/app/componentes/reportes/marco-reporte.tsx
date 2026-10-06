@@ -137,7 +137,7 @@ export function MarcoReporte<T>({
                 type="button"
                 onClick={() => alQuitar(f.clave)}
                 aria-label={`Quitar filtro: ${f.texto}`}
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-primary/30 bg-accent px-3 text-xs font-semibold text-marino hover:bg-accent/70"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-primary/30 bg-accent px-3 text-xs font-semibold text-marino hover:bg-accent/70"
               >
                 {f.texto}
                 <XIcon aria-hidden="true" className="size-3.5" />
@@ -145,7 +145,7 @@ export function MarcoReporte<T>({
             </li>
           ))}
           <li>
-            <Boton variante="texto" className="h-9 px-3 text-xs" onClick={alQuitarTodos}>
+            <Boton variante="texto" className="h-10 px-3 text-xs" onClick={alQuitarTodos}>
               Quitar todos
             </Boton>
           </li>

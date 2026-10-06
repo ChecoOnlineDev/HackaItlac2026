@@ -10,7 +10,9 @@
  * Al cambiar este archivo, subir VERSION: el navegador instala la versión nueva y la activa al
  * siguiente cierre y apertura de la aplicación; los cachés de versiones viejas se borran.
  */
-const VERSION = "v1";
+const VERSION = "v2";
+/** Tope de archivos en la caché de estáticos: al pasarlo se borran los más viejos. */
+const MAX_ESTATICOS = 120;
 const CACHE_ESTATICOS = `imhotep-estaticos-${VERSION}`;
 const CACHE_BASE = `imhotep-base-${VERSION}`;
 const PAGINA_SIN_CONEXION = "/offline.html";
@@ -31,9 +33,17 @@ self.addEventListener("activate", (evento) => {
             .map((n) => caches.delete(n)),
         ),
       )
+      .then(() => caches.open(CACHE_ESTATICOS).then(recortar))
       .then(() => self.clients.claim()),
   );
 });
+
+/** Quita las entradas más antiguas (las primeras guardadas) cuando se pasa el tope. */
+async function recortar(cache) {
+  const claves = await cache.keys();
+  const sobran = claves.length - MAX_ESTATICOS;
+  for (let i = 0; i < sobran; i++) await cache.delete(claves[i]);
+}
 
 async function cachePrimero(peticion) {
   const cache = await caches.open(CACHE_ESTATICOS);
@@ -42,7 +52,10 @@ async function cachePrimero(peticion) {
   const respuesta = await fetch(peticion);
   // Solo respuestas completas y correctas; nunca errores ni respuestas parciales.
   if (respuesta.status === 200 && respuesta.type === "basic") {
-    cache.put(peticion, respuesta.clone()).catch(() => {});
+    cache
+      .put(peticion, respuesta.clone())
+      .then(() => recortar(cache))
+      .catch(() => {});
   }
   return respuesta;
 }
