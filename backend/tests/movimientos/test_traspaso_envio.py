@@ -248,10 +248,13 @@ def test_X_02_cada_almacen_solo_envia_lo_suyo(almacenista, cliente_almacen, comp
     [("KEP", "CON"), ("CON", "KEP"), ("CON", "MID"), ("MID", "CON"), ("CON", "HYL")],
 )
 def test_X_03_las_rutas_habituales_no_llevan_aviso(
-    cliente_almacen, compras, session, origen, destino
+    cliente_almacen, cliente_como, session, origen, destino
 ):
     guantes = crear_articulo(session, retornable=False)
-    abastecer(compras, guantes, 3, almacen_id=str(almacen_id(session, origen)))
+    # Compras es de Kepler: los demás almacenes los abastece el Administrador.
+    abastecer(
+        cliente_como("Administrador"), guantes, 3, almacen_id=str(almacen_id(session, origen))
+    )
     ev = evaluar_traspaso(cliente_almacen(origen), session, destino, [renglon(guantes.codigo)])
     assert ev["nivel"] == "VERDE" and ev["puede_confirmar"] is True
     assert [(m["regla"], m["nivel"]) for m in ev["motivos"]] == [("X-03", "VERDE")]
@@ -260,10 +263,13 @@ def test_X_03_las_rutas_habituales_no_llevan_aviso(
 
 @pytest.mark.parametrize(("origen", "destino"), [("KEP", "MID"), ("MID", "HYL"), ("HYL", "KEP")])
 def test_X_03_otra_ruta_se_permite_con_aviso_amarillo(
-    cliente_almacen, compras, session, origen, destino
+    cliente_almacen, cliente_como, session, origen, destino
 ):
     guantes = crear_articulo(session, retornable=False)
-    abastecer(compras, guantes, 3, almacen_id=str(almacen_id(session, origen)))
+    # Compras es de Kepler: los demás almacenes los abastece el Administrador.
+    abastecer(
+        cliente_como("Administrador"), guantes, 3, almacen_id=str(almacen_id(session, origen))
+    )
     cliente = cliente_almacen(origen)
     ev = evaluar_traspaso(cliente, session, destino, [renglon(guantes.codigo)])
     assert ev["nivel"] == "AMARILLO" and ev["puede_confirmar"] is True
@@ -342,7 +348,7 @@ def test_F_09_el_traspaso_se_firma_con_la_sesion_de_quien_envia(almacenista, com
     traspaso = enviar(almacenista, session, "CON", [renglon(guantes.codigo)])  # sin `firma`
     d = almacenista.get(f"/api/vales/{traspaso['id']}").json()
     assert d["firma_modo"] == "SESION" and d["tiene_firma"] is False
-    assert d["responsable"]["nombre"] == "Almacenista Kepler"
+    assert d["responsable"]["nombre"] == "Supervisor Kepler"
 
 
 # --------------------------------------------------------------------- cuerpo y alcance

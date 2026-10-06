@@ -92,7 +92,7 @@ def test_X_08_la_recepcion_total_mete_todo_al_destino_y_el_traspaso_queda_recibi
     assert ubicacion_de_pieza(session, p2.codigo) == "CON"
     # X-08: quien recibe es el responsable de lo recibido; F-09: firma con su sesión.
     d = con.get(f"/api/vales/{recepcion['id']}").json()
-    assert d["tipo"] == "RECEPCION" and d["responsable"]["nombre"] == "Almacenista Contratistas"
+    assert d["tipo"] == "RECEPCION" and d["responsable"]["nombre"] == "Supervisor Contratistas"
     assert d["firma_modo"] == "SESION" and d["tiene_firma"] is False
     assert d["vale_origen_id"] == traspaso["id"] and d["vale_origen_folio"] == traspaso["folio"]
     assert d["almacen"]["clave"] == "CON"
@@ -581,7 +581,7 @@ def test_por_recibir_cada_almacen_solo_ve_los_que_vienen_hacia_el_suyo(
     assert t["folio"] == a_con["folio"] and t["token"] == a_con["token"]
     assert t["estado"] == "EN_TRANSITO" and t["pendiente_total"] == 2
     assert t["origen"]["clave"] == "KEP" and t["destino"]["clave"] == "CON"
-    assert t["envio"]["nombre"] == "Almacenista Kepler"
+    assert t["envio"]["nombre"] == "Supervisor Kepler"
     assert t["renglones"][0]["codigo"] == guantes.codigo and t["recepciones"] == []
     assert almacenista.get(POR_RECIBIR).json() == {"total": 0, "elementos": []}
 

@@ -458,18 +458,21 @@ def test_AC_12_el_pin_solo_va_en_quien_puede_autorizar(cliente_como, session):
     r = _alta(admin, session, pin="4321")
     assert r.status_code == 422 and r.json()["detalles"][0]["campo"] == "pin"
     r = _alta(
-        admin, session, usuario="otro.sup", rol_id=_rol_id(admin, "Supervisor"), almacen_id=None,
-        pin="4321",
+        admin, session, usuario="otro.sup", rol_id=_rol_id(admin, "Supervisor"),
+        almacen_id=str(_almacen(session, "KEP").id), pin="4321",
     )  # fmt: skip
     assert r.status_code == 201 and r.json()["tiene_pin"] is True
     r = _alta(
-        admin, session, usuario="otro.sup2", rol_id=_rol_id(admin, "Supervisor"), almacen_id=None,
-        contrasena="12345678", pin="12345678",
+        admin, session, usuario="otro.sup2", rol_id=_rol_id(admin, "Supervisor"),
+        almacen_id=str(_almacen(session, "KEP").id), contrasena="12345678", pin="12345678",
     )  # fmt: skip
     assert r.status_code == 422  # el PIN debe ser distinto de la contraseña
     assert _alta(admin, session, usuario="otro.x", contrasena="corta").status_code == 422
-    assert _alta(admin, session, usuario="otro.y", rol_id=_rol_id(admin, "Supervisor"),
-                 almacen_id=None, pin="abc").status_code == 422  # fmt: skip
+    r = _alta(
+        admin, session, usuario="otro.y", rol_id=_rol_id(admin, "Supervisor"),
+        almacen_id=str(_almacen(session, "KEP").id), pin="abc",
+    )  # fmt: skip
+    assert r.status_code == 422
 
 
 # ---------------------------------------------------------- edición de usuarios

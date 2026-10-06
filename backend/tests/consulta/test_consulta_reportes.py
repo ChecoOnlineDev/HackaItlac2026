@@ -610,7 +610,9 @@ def test_C_05_el_csv_neutraliza_la_inyeccion_de_formulas(cliente_como, datos, pe
     datos.existencia(datos.ub_almacen("KEP"), articulo, 5)
     datos.entrega(juan, articulo)
 
-    filas = filas_csv(pedir_csv(cliente_como("Administrador"), MOVIMIENTOS, articulo_id=articulo.id))
+    filas = filas_csv(
+        pedir_csv(cliente_como("Administrador"), MOVIMIENTOS, articulo_id=articulo.id)
+    )
 
     nombre = filas[1][4]
     assert nombre == "'" + peligroso
