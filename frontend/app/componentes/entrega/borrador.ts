@@ -90,6 +90,8 @@ export function leerBorrador(usuarioId: string): BorradorEntrega | null {
     const dato = JSON.parse(texto) as Partial<BorradorEntrega> | null;
     if (!dato || dato.version !== 1 || dato.usuarioId !== usuarioId) return null;
     if (typeof dato.idCliente !== "string" || !Array.isArray(dato.renglones)) return null;
+    // Un vale ya emitido no se retoma: la pantalla vuelve a empezar de cero.
+    if (dato.paso === "resultado" || dato.resultado) return null;
     return dato as BorradorEntrega;
   } catch {
     return null;
@@ -98,6 +100,10 @@ export function leerBorrador(usuarioId: string): BorradorEntrega | null {
 
 /** Guarda el borrador. Devuelve `false` si el dispositivo no deja guardar (la captura sigue en pantalla). */
 export function guardarBorrador(borrador: BorradorEntrega): boolean {
+  if (borrador.paso === "resultado") {
+    borrarBorrador();
+    return true;
+  }
   try {
     window.localStorage.setItem(CLAVE, JSON.stringify({ ...borrador, actualizadoEn: Date.now() }));
     return true;

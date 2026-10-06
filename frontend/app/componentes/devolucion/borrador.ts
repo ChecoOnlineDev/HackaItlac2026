@@ -73,6 +73,7 @@ export function leerBorradorDevolucion(usuarioId: string): BorradorDevolucion | 
     const dato = JSON.parse(texto) as Partial<BorradorDevolucion> | null;
     if (!dato || dato.version !== 1 || dato.usuarioId !== usuarioId) return null;
     if (typeof dato.idCliente !== "string" || !Array.isArray(dato.renglones)) return null;
+    if (dato.resultado) return null; // un vale ya emitido no se retoma
     return dato as BorradorDevolucion;
   } catch {
     return null;
@@ -81,6 +82,10 @@ export function leerBorradorDevolucion(usuarioId: string): BorradorDevolucion | 
 
 /** Guarda el borrador. Devuelve `false` si el dispositivo no deja guardar todo (la captura sigue en pantalla). */
 export function guardarBorradorDevolucion(borrador: BorradorDevolucion): boolean {
+  if (borrador.resultado) {
+    borrarBorradorDevolucion();
+    return true;
+  }
   try {
     window.localStorage.setItem(CLAVE, JSON.stringify({ ...borrador, actualizadoEn: Date.now() }));
     return true;
