@@ -6,10 +6,12 @@ import { api, apiDelete, apiGet, apiPost } from "~/api/cliente";
 import { esErrorApi, mensajeDeError } from "~/api/errores";
 import { BotonNoAdeudo, useAccionNoAdeudo } from "~/componentes/devolucion/no-adeudo";
 import { VistaCredencial } from "~/componentes/dominio/credencial";
+import { BloqueDotacion } from "~/componentes/personas/bloque-dotacion";
 import { SelectorFoto } from "~/componentes/personas/foto";
 import { fechaCorta } from "~/componentes/personas/formato";
 import { InsigniaSituacion, InsigniaVigencia } from "~/componentes/personas/insignias";
 import { ListaPendientes } from "~/componentes/personas/pendientes";
+import { cuerpoDePuesto, SelectorPuesto } from "~/componentes/puestos/selector-puesto";
 import { etiquetaTalla } from "~/componentes/personas/tallas";
 import type { CodigoLigado, Ficha, RespuestaBaja } from "~/componentes/personas/tipos";
 import { Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
@@ -72,6 +74,7 @@ export default function FichaTrabajador() {
   // Reingreso
   const [inicio, setInicio] = useState(hoyMx());
   const [fin, setFin] = useState("");
+  const [puestoId, setPuestoId] = useState("");
   const [puesto, setPuesto] = useState("");
   const [area, setArea] = useState("");
   // Foto y credencial
@@ -110,6 +113,7 @@ export default function FichaTrabajador() {
     if (p === "reingreso" && ficha) {
       setInicio(hoyMx());
       setFin("");
+      setPuestoId("");
       setPuesto(ficha.puesto ?? "");
       setArea(ficha.area_obra ?? "");
     }
@@ -147,7 +151,7 @@ export default function FichaTrabajador() {
       const nueva = await apiPost<Ficha>(`/trabajadores/${id}/periodos`, {
         inicio,
         fin,
-        puesto: puesto.trim() || undefined,
+        ...cuerpoDePuesto(puestoId, puesto),
         area_obra: area.trim() || undefined,
       });
       setFicha(nueva);
@@ -352,6 +356,10 @@ export default function FichaTrabajador() {
           )}
         </Seccion>
 
+        <Seccion titulo="Dotación del puesto">
+          <BloqueDotacion trabajadorId={ficha.id} version={`${ficha.periodo?.id ?? ""}|${intento}`} />
+        </Seccion>
+
         <Seccion titulo="Datos">
           <dl className="grid gap-4 sm:grid-cols-2">
             {ficha.periodo ? (
@@ -388,7 +396,16 @@ export default function FichaTrabajador() {
         <div className="flex flex-col gap-4">
           <CampoFecha etiqueta="Inicio" value={inicio} alCambiar={(v) => setInicio(v)} />
           <CampoFecha etiqueta="Fin" value={fin} alCambiar={(v) => { setFin(v); setErrorFecha(null); }} error={errorFecha} />
-          <Campo etiqueta="Puesto" value={puesto} onChange={(e) => setPuesto(e.target.value)} />
+          <SelectorPuesto
+            valorId={puestoId}
+            valorTexto={puesto}
+            alCambiar={(id, texto) => {
+              setPuestoId(id);
+              setPuesto(texto);
+            }}
+            vacio="Conservar el puesto actual"
+            deshabilitado={trabajando}
+          />
           <Campo etiqueta="Área u obra" value={area} onChange={(e) => setArea(e.target.value)} />
           {panel === "reingreso" && errorPanel ?<p role="alert" className="text-base font-semibold text-destructive">{errorPanel}</p> : null}
         </div>
