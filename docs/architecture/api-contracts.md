@@ -481,6 +481,41 @@ Todos aceptan `formato=csv` y las listas, `pagina` y `tamano`. Las fechas (`desd
 - **Consumo:** un elemento por artículo consumible con `total`, `unidad` y `trabajadores` (mayor a menor). Suma los movimientos a CONSUMIDO y resta los que salen de CONSUMIDO (cancelaciones, K-02); una cancelación se fecha con el vale que cancela, así un vale cancelado no cuenta en ningún periodo. Sin renglones en cero.
 - **CSV:** `text/csv; charset=utf-8` con BOM (Excel abre bien los acentos), encabezados en español, fechas en hora de México, todas las filas con los mismos filtros (movimientos y existencias: un renglón por elemento del JSON; adeudos: igual; consumo: un renglón por artículo y trabajador). Una celda de texto que empiece con `=`, `+`, `-` o `@` se antepone con `'`.
 
+## Seguimiento de piezas
+
+| Método y ruta | Permiso | Qué hace |
+|---|---|---|
+| `GET /api/seguimiento/piezas` | `reportes.existencias` | Seguimiento de piezas (C-13): todas las piezas dentro del alcance del usuario, cada una con dónde está o quién la tiene, desde cuándo y con qué vale. Filtros: `q`, `articulo_id`, `almacen_id`, `estado`, `ubicacion`, `pagina`, `tamano` y `formato=csv`. Solo lee. |
+
+- **Filtros.** `q` busca por nombre o código del artículo, número de serie, código de la pieza y nombre o número del trabajador que la tiene; varias palabras deben coincidir todas, y con menos de dos caracteres no busca (lista vacía y `mensaje` "Escribe al menos dos caracteres para buscar."). `estado`: `APTO`, `NO_APTO`, `EN_MANTENIMIENTO`, `EN_CALIBRACION` o `BAJA`. `ubicacion`: `ALMACEN`, `TRABAJADOR`, `TRANSITO` o `BAJA`. `almacen_id` deja las piezas que están en ese almacén, las que tiene un trabajador por un vale de ese almacén y las que van en tránsito desde o hacia él. Un valor inválido responde 422 `DATOS_INVALIDOS`.
+- **Alcance (AC-06, C-02).** Con `almacenes.todos`, todas las piezas. Sin él, solo las del almacén asignado, las que tiene un trabajador (si el rol tiene `trabajadores.ver`) y el tránsito desde o hacia su almacén; pedir el `almacen_id` de otro no devuelve nada (no es error), y sin almacén asignado ni `almacenes.todos` tampoco. `vale` es `null` cuando el vale es de un almacén fuera del alcance. Nunca lleva costos, CURP ni NSS (RG-12, RG-13).
+- **Respuesta.** `{elementos, total, sin_registros, mensaje, resumen}`, ordenada por artículo y código de pieza. `resumen` = `{total, en_almacen, en_resguardo, en_transito, no_aptas}` cuenta las piezas del alcance con el texto, el artículo y el almacén del filtro, **sin** aplicar `estado` ni `ubicacion`, para que las tarjetas de la pantalla cambien entre ellos. Cada elemento:
+
+```json
+{
+  "id": "0192...",
+  "codigo": "HER-001",
+  "numero_serie": "MP-2041",
+  "articulo": {"id": "0192...", "codigo": "MINIPULIDOR", "nombre": "Minipulidor", "marca": "Bosch"},
+  "estado": "APTO",
+  "estado_texto": "Apta",
+  "inspeccion_vigente": true,
+  "inspeccion_vigente_hasta": "2026-12-01",
+  "ubicacion": {
+    "tipo": "TRABAJADOR",
+    "texto": "En resguardo de Juan Pérez",
+    "almacen": null,
+    "trabajador": {"id": "0192...", "numero_empleado": "EMP-1001", "nombre": "Juan Pérez"}
+  },
+  "desde": "2026-10-05T16:20:00Z",
+  "vale": {"id": "0192...", "folio": "KEP-ENT-000012"}
+}
+```
+
+  `ubicacion.tipo` es `ALMACEN` (`almacen` es el almacén; texto "En Kepler"), `TRABAJADOR` (`trabajador` es quien la tiene), `TRANSITO` (`almacen` es el almacén al que va; texto "En tránsito a Contratistas"), `BAJA` ("De baja"), `OTRA` o `NINGUNA` (sin ubicación todavía). `desde` (UTC) es el movimiento que la dejó en esa ubicación; con un trabajador, su entrega más reciente, porque una cancelación que se la regresa no cambia desde cuándo la tiene. `vale` es el vale de ese movimiento.
+- **CSV.** `formato=csv` descarga todas las filas del filtro (`seguimiento-piezas-AAAAMMDD.csv`): código de la pieza, serie, código y nombre del artículo, marca, estado, inspección vigente hasta, dónde está, número y nombre del trabajador, desde (hora de México) y folio del vale. Mismas reglas del CSV de los reportes (BOM, neutralización de `=`, `+`, `-` y `@`).
+- **Pantalla.** La ficha de cada pieza es `GET /api/piezas/{id}` (C-02): trae su inspección y su historial completo.
+
 ## Etiquetas
 
 | Método y ruta | Permiso | Qué hace |

@@ -6,6 +6,7 @@ from fastapi import Depends
 
 from app.db import SesionDep
 from app.modulos.consulta.service import ConsultaService
+from app.modulos.consulta.service_seguimiento import SeguimientoService
 
 
 def get_consulta_service(session: SesionDep) -> ConsultaService:
@@ -13,3 +14,10 @@ def get_consulta_service(session: SesionDep) -> ConsultaService:
 
 
 ConsultaServiceDep = Annotated[ConsultaService, Depends(get_consulta_service)]
+
+
+def get_seguimiento_service(session: SesionDep) -> SeguimientoService:
+    return SeguimientoService(session)
+
+
+SeguimientoServiceDep = Annotated[SeguimientoService, Depends(get_seguimiento_service)]

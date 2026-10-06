@@ -10,6 +10,10 @@ Qué trae cada versión. Se escribe a partir del historial del repositorio (`git
 - Variables nuevas en `.env`: `ACCESO_MINUTOS`, `REFRESH_DIAS`, `REFRESH_TOPE_DIAS`, `REFRESH_TOLERANCIA_SEGUNDOS`. La cookie de acceso ya no dura 12 horas.
 - Entrar muestra «Tu sesión venció» cuando la renovación ya no es posible y regresa a la pantalla donde se estaba.
 - «Salir» ofrece «Ver dispositivos con sesión abierta»: lista las sesiones (navegador y sistema, entrada y último uso) con «Cerrar las demás» y «Cerrar todas, también esta».
+## Sin publicar: seguimiento de piezas (C-13)
+
+- `GET /api/seguimiento/piezas` (`reportes.existencias`, sin permiso nuevo): todas las piezas con dónde está o quién la tiene, su estado e inspección, desde cuándo y con qué vale, más un resumen de conteos (total, en almacén, en resguardo, en tránsito, no aptas). Filtros por texto (artículo, serie, código o trabajador), artículo, almacén, estado y lugar; CSV con `formato=csv`. El alcance es el de la ficha de la pieza (AC-06): el Administrador ve todas; el Supervisor y los demás, las de su almacén, las que tienen trabajadores y el tránsito desde o hacia su almacén. Una sola consulta, sin una por pieza.
+- Pantalla `/seguimiento` ("Seguimiento de piezas"), en el menú Supervisión y en el inicio, y el enlace "Ver todas sus piezas" en la ficha de un artículo por pieza. Sin migración.
 
 ## Sin publicar: visibilidad por almacén (AC-06)
 

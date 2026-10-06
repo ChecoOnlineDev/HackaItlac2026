@@ -334,6 +334,7 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 | `/articulos/:id`, `/piezas/:id` | Fichas de artículo y de pieza | Almacenista, supervisor, Compras |
 | `/vales/:id` | Detalle de un vale, con la opción de cancelarlo o de cancelarlo y rehacerlo | Almacenista, supervisor, Compras |
 | `/mis-movimientos` | Mis movimientos de hoy | Almacenista, supervisor, Compras |
+| `/seguimiento` | Seguimiento de piezas: todas las piezas de un artículo, dónde está o quién tiene cada una, desde cuándo y con qué vale (C-13). Acepta `?articulo=<id>` y `?q=` | Administrador, supervisor y Compras (`reportes.existencias`); cada quien ve solo lo que le toca (AC-06) |
 | `/autorizaciones` | Solicitudes pendientes | Supervisor |
 | `/personal` | Personal por almacén: asignar y mover usuarios entre almacenes | Supervisor, administrador (`almacenes.asignar_personal`) |
 | `/usuarios` | Usuarios: alta, edición, rol, almacén, activar o inactivar, restablecer contraseña y PIN | Administrador (`acceso.administrar`) |
