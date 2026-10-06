@@ -275,7 +275,7 @@ Sustento (referencia, no asesoría legal; la empresa debe validarlo con su aboga
 | I-05 | Cada artículo puede tener un mínimo por almacén. Se compara contra lo disponible: no cuenta lo No apto, en mantenimiento ni en calibración. Al bajar del mínimo se marca en rojo en la pantalla de Compras. | Plática min 47 y 50 |
 | I-06 | El inventario inicial se carga pegando o subiendo una tabla de Excel, con vista previa antes de guardar. | Plática min 34 |
 | I-07 | Todo artículo por cantidad tiene un QR de producto que se imprime como etiqueta de estante. | Plática min 20–21 |
-| I-08 | Si falta una herramienta, el supervisor genera una solicitud de compra; Compras la atiende y registra la entrada. | Plática min 45 (opcional) |
+| I-08 | Si falta una herramienta, el supervisor o el almacenista levanta una solicitud de compra urgente; Compras la atiende y registra la entrada. Construida: ver la sección 7.13 (SC-01 a SC-11). | Plática min 45; decisión del usuario |
 | I-09 | No se registran entradas de un artículo inactivo (CF-10). | Idea del equipo |
 
 ### 7.3 Entrega (almacenista)
@@ -462,8 +462,29 @@ Dónde está resuelto cada caso que se sale de lo habitual.
 | Un rol necesita ver o hacer algo más | El administrador le activa el permiso; aplica en la siguiente consulta. | AC-08 a AC-11 | P1 |
 | Hay que mover a un almacenista de almacén | Un supervisor con `almacenes.asignar_personal` lo reasigna; aplica en la siguiente petición y el historial no cambia. | AC-12, AC-13 | P1 |
 | En mantenimiento o calibración | No se entrega ni cuenta como disponible. | P-06, E-05 | P1 |
+| Falta una herramienta que el almacén no tiene (por ejemplo, de medidas europeas) | El supervisor o el almacenista levanta una solicitud de compra urgente; Compras la toma, la compra y la ingresa con un vale de entrada. | I-08, SC-01 a SC-11 | P1 |
 | Quedó instalado en planta | Se cierra sin devolución y sin pendiente. | V-09 | P2 |
 | Pérdida o robo | Sigue como pendiente hasta que un supervisor lo dé por perdido. | V-13, P-05 | P2 |
+
+### 7.13 Solicitud de compra urgente
+
+Cuando falta un equipo o una herramienta para un trabajo y el almacén no la tiene, el supervisor o el almacenista levanta una **solicitud de compra urgente**; Compras la recibe, la compra y la ingresa al almacén con un vale de entrada, y desde ahí ya está disponible. La plática del patrocinador lo dice así: «El supervisor hace una solicitud de compra de manera urgente, la recibe Compras, la compra, la ingresa al almacén y ya está disponible» (min 45); el ejemplo fue una herramienta de medidas europeas para el laminador nuevo, que la planta no tiene. Una solicitud **no es inventario**: no mueve existencias ni escribe vales; la entrada la sigue haciendo `movimientos` (I-01) y la solicitud solo se liga con su vale. El permiso de pedir es `compras.solicitar` y el de atender, `compras.atender` (sección 8.2).
+
+Estados: PENDIENTE, EN_COMPRA, COMPRADA, INGRESADA, RECHAZADA y CANCELADA. Las transiciones que existen: PENDIENTE a EN_COMPRA, RECHAZADA o CANCELADA; EN_COMPRA a COMPRADA o RECHAZADA; COMPRADA a INGRESADA. INGRESADA, RECHAZADA y CANCELADA son finales.
+
+| ID | Regla | Origen |
+|---|---|---|
+| SC-01 | Quien tiene `compras.solicitar` (de inicio, Almacenista, Supervisor y Administrador) levanta una solicitud. Nace PENDIENTE en el almacén del solicitante en ese momento (RG-07, AC-06); con `almacenes.todos` se indica el almacén. Sin almacén asignado y sin `almacenes.todos`, no puede pedir. Compras (`compras.atender`) no pide: atiende. | Plática min 45; decisión del usuario |
+| SC-02 | Qué se pide: un artículo del catálogo o, si el equipo no está en el catálogo, una descripción en texto libre (obligatoria sin artículo). Con artículo se toma su nombre y el texto libre se ignora; un artículo inactivo no se pide (CF-10, I-09). La cantidad es un entero de 1 en adelante; el motivo (para qué trabajo o área) es obligatorio; la urgencia es URGENTE o NORMAL, y por omisión URGENTE. | Plática min 45 (el pedido es urgente) |
+| SC-03 | Quién ve qué. Quien tiene `compras.atender` ve las solicitudes de **todos** los almacenes sin ver su inventario: es la excepción a AC-06, porque una solicitud no es inventario. Quien solo tiene `compras.solicitar` ve las de su almacén, incluidas las de sus compañeros (para saber si ya se pidió), y nada si no tiene almacén. `almacenes.todos` ve todas. Una solicitud fuera de su alcance responde 404. La lista pone primero lo pendiente, luego lo que está en compra, luego lo comprado y al final lo cerrado; en cada grupo, las urgentes primero y las más antiguas primero (lo cerrado, la más reciente primero). | Plática min 45; AC-06 |
+| SC-04 | Solo Compras (`compras.atender`) hace avanzar una solicitud: **tomar** la pendiente (EN_COMPRA), **rechazarla** (RECHAZADA) desde PENDIENTE o EN_COMPRA, marcarla **comprada** (COMPRADA) e **ingresarla** (INGRESADA). Cualquier otra transición se rechaza (409 `TRANSICION_INVALIDA`, con el estado actual y los permitidos). El servidor dice qué acciones puede hacer cada usuario con cada solicitud. | Plática min 45: «la recibe Compras, la compra, la ingresa» |
+| SC-05 | Rechazar exige una nota que diga por qué (422). Quien pidió la lee en su solicitud. En las demás transiciones la nota es opcional; la última nota de Compras queda a la vista. | Propuesta |
+| SC-06 | Al ingresar, Compras puede ligar el vale de ENTRADA con el que la metió al almacén (`vale_entrada_id`, opcional). Debe ser un vale de ENTRADA que exista, no esté cancelado y sea de un almacén dentro del alcance de quien lo liga (el suyo, o cualquiera con `almacenes.todos`); si no, 422. Solo se indica al pasar a INGRESADA, y la base no deja ligar un vale a una solicitud que no esté ingresada. El mismo vale puede cubrir varias solicitudes. | Plática min 45: «la ingresa al almacén»; I-01 |
+| SC-07 | Se cancela solo mientras está PENDIENTE (después, Compras ya la tomó: se rechaza, no se cancela; 409 `NO_CANCELABLE`) y solo por quien la pidió, por un supervisor de su almacén (quien tiene `vales.cancelar_todos` en ese almacén) o por quien tiene `almacenes.todos`, siempre con `compras.solicitar`. La nota es opcional. | Propuesta |
+| SC-08 | Cada cambio de estado agrega un evento (estado anterior y nuevo, quién, cuándo y su nota), también el primero (nace PENDIENTE). Las solicitudes y sus eventos no se editan ni se borran: no hay endpoint que lo haga y un error se corrige con otra solicitud. El evento y el cambio van en la misma transacción. | AC-07, ADR-001 |
+| SC-09 | El folio es `CLAVE-SOL-CONSECUTIVO` (por ejemplo `MID-SOL-000001`), por almacén del solicitante, sin huecos, de un contador propio (`serie_solicitud_compra`) que se bloquea al asignarlo; nunca sale del `id`. Se usa un contador aparte de `serie_folio` porque este lleva un CHECK con los tipos de vale y es de `movimientos`. | RG-06, ADR-006 |
+| SC-10 | La solicitud lleva un `id_cliente` que genera el dispositivo, para que un doble toque no duplique: repetir la petición con el mismo cuerpo devuelve la misma solicitud (200); con otro cuerpo, o desde otro usuario, 409 `ID_CLIENTE_EN_USO`. | RG-09 |
+| SC-11 | El módulo de solicitudes **no escribe inventario**: ni vales, ni movimientos, ni existencias (solo `movimientos` lo hace). Ingresar una solicitud no sube existencias: lo hace el vale de entrada que Compras registra aparte (I-01); la solicitud solo lo lee para ligarlo. | Reglas generales |
 
 ---
 
@@ -480,7 +501,7 @@ El sistema decide qué puede hacer y qué puede ver cada usuario por **permisos*
 | AC-03 | El sistema nace con cinco roles: Administrador, con todos los permisos, y los cuatro que pide el PDF: Almacenista, Supervisor (de almacén), Compras y Recursos Humanos. No existe un «supervisor general»: el Administrador cubre esa función. | PDF función 1 |
 | AC-04 | El servidor verifica el permiso, nunca el nombre del rol. La interfaz muestra solo lo que el rol permite, pero no es el control. | Propuesta |
 | AC-05 | Hay permisos de acción (qué puede hacer) y de información (qué datos puede ver). Sin el permiso de información, el dato no se envía. | Plática min 28 |
-| AC-06 | El alcance de cada usuario sale de su almacén asignado: opera y ve solo lo de ese almacén (existencias, piezas, movimientos, vales, autorizaciones, inspecciones y personal), salvo que su rol tenga `almacenes.todos`, que de inicio es solo el Administrador. Sin almacén asignado y sin `almacenes.todos`, el usuario no ve nada de ningún almacén. No hay subconjuntos de almacenes por usuario: ve el suyo o todos. De un traspaso, el origen y el destino ven lo que les toca. Una pieza es del almacén donde está; la que tiene un trabajador, del almacén de su última entrega (inspecciones, H11). | Plática min 33; decisión del usuario |
+| AC-06 | El alcance de cada usuario sale de su almacén asignado: opera y ve solo lo de ese almacén (existencias, piezas, movimientos, vales, autorizaciones, inspecciones y personal), salvo que su rol tenga `almacenes.todos`, que de inicio es solo el Administrador. Sin almacén asignado y sin `almacenes.todos`, el usuario no ve nada de ningún almacén. No hay subconjuntos de almacenes por usuario: ve el suyo o todos. De un traspaso, el origen y el destino ven lo que les toca. Una pieza es del almacén donde está; la que tiene un trabajador, del almacén de su última entrega (inspecciones, H11). Única excepción: quien atiende compras (`compras.atender`) ve las solicitudes de compra de todos los almacenes, porque una solicitud no es inventario (SC-03). | Plática min 33; decisión del usuario |
 | AC-07 | Hay cuatro cosas que ningún rol puede hacer, porque no son permisos: editar o borrar movimientos, autorizarse a sí mismo, autorizar un rojo de seguridad y mostrar costos en un vale. | Propuesta |
 | AC-08 | El administrador crea roles, activa o quita permisos y administra a los usuarios desde la pantalla. | Idea del equipo |
 | AC-09 | Siempre existe al menos un usuario activo con `acceso.administrar`, y el rol Administrador no puede perderlo. | Propuesta |
@@ -533,6 +554,8 @@ A es Almacenista, S Supervisor (de almacén), C Compras y R Recursos Humanos. El
 | Almacenes | `almacenes.todos` | Operar cualquier almacén y ver los movimientos de todos | Solo Administrador |
 | | `almacenes.asignar_personal` | Asignar personal a su almacén o liberarlo, sin tocar roles ni permisos (AC-12); entre almacenes, solo con `almacenes.todos` | S |
 | Etiquetas | `etiquetas.imprimir` | Hojas de QR | S, C, R |
+| Compras | `compras.solicitar` | Pedir una compra urgente y consultar las solicitudes de su almacén (7.13) | A, S |
+| | `compras.atender` | Atender las solicitudes de compra de todos los almacenes: tomar, rechazar, marcar comprada e ingresar (7.13) | C |
 
 Un permiso de acción incluye el de ver su módulo: quien puede entregar ve la ficha básica del trabajador y las existencias de su almacén.
 
@@ -580,7 +603,8 @@ Usuarios iniciales por almacén: cada almacén (Kepler, Contratistas, Midrex, HY
 | P1 | Ajustes finos del catálogo | CF-03, CF-04, CF-14 |
 | P1 | Control de acceso configurable y asignación de personal | AC-08 a AC-13 |
 | P2 | Lista de revisión y reporte de EPP por trabajador | RG-14, C-07, C-10 |
-| P2 | Casos poco frecuentes | V-09, V-10, V-13, P-04, P-05, I-08 |
+| P1 | Solicitud de compra urgente | I-08, SC-01 a SC-11 |
+| P2 | Casos poco frecuentes | V-09, V-10, V-13, P-04, P-05 |
 | P2 | Habilitaciones y carta de aceptación | E-08, F-01, T-04 |
 
 En el MVP, las excepciones que resuelve el almacenista ya piden observación; lo que queda en P2 de RG-14 es la pantalla donde el supervisor las revisa.
@@ -595,6 +619,7 @@ Los supuestos con los que se escribieron estas reglas, y qué pasa si resultan d
 
 ## 11. Historial
 
+- **Versión 8 (6 oct 2026).** Solicitud de compra urgente (I-08, sección 7.13, SC-01 a SC-11): el supervisor o el almacenista la levanta, Compras la ve de todos los almacenes, la toma, la compra y la ingresa ligándola con su vale de entrada. Permisos nuevos `compras.solicitar` (A, S) y `compras.atender` (C) en la sección 8.2. Pasa de pospuesta a incluida.
 - **Versión 7 (5 oct 2026).** Dotación por puesto construida en el servidor (FEAT-003): D-04 (la dotación no pasa del límite), el criterio de lo entregado en D-02 y los avisos E-09, E-10 y E-11. Sin permisos nuevos: puestos y dotación usan `catalogo.ver` y `catalogo.administrar`.
 - **Versión 6 (5 oct 2026).** Alineación con el código construido, sin reglas nuevas. I-04: el costo unitario se captura en el catálogo y en la importación, no en la entrada. V-02: un vale con solo renglones V-02 sale en rojo y no se confirma. Prioridades (sección 9): E-27, E-28 y P-07 pasan a P0, y T-09 y F-11 quedan solo en P0.
 - **Versión 5 (4 oct 2026).** Escanear solo agrega a un borrador y las existencias cambian al confirmar (E-28); aviso de cantidad inusual por artículo (E-27, sección 5.4); filtro por usuario en el reporte de movimientos y rastreo de desapariciones (C-05, C-11). La carta de aceptación queda pospuesta (T-04, F-01). Cancelar y rehacer (K-05), Mis movimientos de hoy (C-12) y ajuste de la vigencia de una inspección por un supervisor o administrador (P-07, permiso `piezas.ajustar_vigencia`). RG-07 aclara que cada almacenista usa su propia cuenta y dispositivo. Entran el reporte de consumo (C-08, permiso `reportes.consumo`) y la foto opcional del trabajador (T-09). Se agregan AC-12 y AC-13 y el permiso `almacenes.asignar_personal` para asignar personal a almacenes con FEAT-006.

@@ -9,7 +9,7 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 - Los `id` son UUID en texto, por ejemplo `01a10a17-3a3b-74ed-89d0-2082afd9941a` ([ADR-006](decisions/ADR-006-identificadores-uuid-y-folio.md)). En los ejemplos se abrevian.
 - Las fechas van en ISO 8601; las horas, en UTC.
 - Las listas admiten `pagina` y `tamano` y responden `{elementos, total}`.
-- Cada endpoint exige un **permiso**; la columna "Permiso" da su clave ([ADR-007](decisions/ADR-007-permisos-por-clave.md)). Qué roles lo tienen de inicio está en la sección 8.2 de las [reglas](../product/reglas-de-negocio.md). "Sesión" significa que basta haber entrado. Seis rutas (las que dicen "Sesión" o "Según el tipo" en la columna Permiso) solo exigen sesión en el router y verifican el permiso en el servicio, porque depende del tipo de vale o del usuario: `POST /api/vales`, `POST /api/vales/evaluar`, `GET /api/escaneo/{codigo}`, `GET /api/busqueda`, `GET /api/autorizaciones/{id}` y `POST /api/autorizaciones/{id}/resolucion`; sin el permiso responden 403 `SIN_PERMISO` igual que las demás.
+- Cada endpoint exige un **permiso**; la columna "Permiso" da su clave ([ADR-007](decisions/ADR-007-permisos-por-clave.md)). Qué roles lo tienen de inicio está en la sección 8.2 de las [reglas](../product/reglas-de-negocio.md). "Sesión" significa que basta haber entrado. Ocho rutas (las que dicen "Sesión", "Según el tipo" o "Solicitar o atender" en la columna Permiso) solo exigen sesión en el router y verifican el permiso en el servicio, porque depende del tipo de vale o del usuario, o porque aceptan uno de dos permisos: `POST /api/vales`, `POST /api/vales/evaluar`, `GET /api/escaneo/{codigo}`, `GET /api/busqueda`, `GET /api/autorizaciones/{id}`, `POST /api/autorizaciones/{id}/resolucion`, `GET /api/solicitudes-compra` y `GET /api/solicitudes-compra/{id}` (`compras.solicitar` o `compras.atender`); sin el permiso responden 403 `SIN_PERMISO` igual que las demás.
 - El almacén sale del usuario de la sesión. Quien tiene `almacenes.todos` lo indica con `almacen_id`.
 - Los datos reservados no se envían sin su permiso de información: `costo_unitario` pide `catalogo.costos`; `curp` y `nss` piden `trabajadores.ver_datos_personales`.
 
@@ -37,6 +37,8 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 | 409 | `CON_PENDIENTES` | No se puede emitir el vale de no adeudo. `detalles` trae `{regla: "B-04", pendientes}`: cada pendiente con `articulo`, `codigo`, `numero_serie`, `cantidad`, `entregado_en`, `folio` y almacén (`almacen_clave`, `almacen`); sin costos. |
 | 409 | `CON_MOVIMIENTOS` | No se puede eliminar ni cambiar control o retorno. |
 | 409 | `NO_CANCELABLE` | El vale no se puede cancelar (K-03, K-04, X-14). `mensaje` explica por qué en español llano y `detalles` trae, por cada motivo, `{regla, mensaje}` (y `renglon` y `codigo` si es de un renglón). No se escribe nada. |
+| 409 | `TRANSICION_INVALIDA` | La solicitud de compra no puede pasar a ese estado desde el que tiene (SC-04). `detalles`: `{regla, estado_actual, estado_pedido, estados_permitidos}`. |
+| 409 | `ID_CLIENTE_EN_USO` | El `id_cliente` de una solicitud de compra ya se usó con otro cuerpo o por otro usuario (SC-10). |
 | 403 | `AUTORIZACION_PROPIA` | Quien pidió la autorización intenta autorizarla (A-05, AC-07). |
 | 409 | `AUTORIZACION_RESUELTA` | La solicitud ya se resolvió o venció; no se resuelve de nuevo. |
 | 409 | `AUTORIZACION_INVALIDA` | La autorización no sirve para este vale: no está aprobada, venció, ya se usó, es de otro almacén o trabajador, o no cubre los renglones ni la cantidad (A-03). |
@@ -364,6 +366,83 @@ Con `"rehacer": true`, `borrador` trae los datos del vale cancelado, con la form
 | `POST /api/autorizaciones/{id}/resolucion` | `autorizaciones.resolver` | `{decision}` desde la sesión de quien autoriza (medio REMOTA); o `{decision, usuario, pin}` desde el dispositivo del almacenista (medio PIN). `decision`: `APROBAR` o `RECHAZAR`. En el segundo caso la sesión es la del almacenista (`entregas.crear`) y el permiso `autorizaciones.resolver`, el almacén y el PIN se verifican sobre ese usuario. Errores: 403 `AUTORIZACION_PROPIA` (A-05), 403 `PIN_INCORRECTO`, 429 `DEMASIADOS_INTENTOS`, 409 `AUTORIZACION_RESUELTA`. |
 
 La autorización aprobada se usa una sola vez (A-03) con `POST /api/vales` y `autorizacion_id`; el vale la valida y la marca usada en su misma transacción. Al solicitar, el servidor evalúa de verdad los renglones (la misma evaluación de la ENTREGA) y rechaza con 422 `RENGLON_NO_AUTORIZABLE` los que están en rojo, aunque quien los pide los marque `autorizable` (A-06, SM-04); `detalles` trae el `codigo`, la `regla` y los `motivos`.
+
+## Solicitudes de compra
+
+La solicitud de compra urgente (reglas SC-01 a SC-11, sección 7.13 de las [reglas](../product/reglas-de-negocio.md)). Todo va bajo `/api/solicitudes-compra`. Permisos: `compras.solicitar` (pedir y cancelar; de inicio Almacenista, Supervisor y Administrador) y `compras.atender` (hacer avanzar la solicitud; de inicio Compras y Administrador). Las dos lecturas aceptan cualquiera de los dos permisos: la columna dice «Solicitar o atender», el router solo exige sesión y el servicio verifica cualquiera de los dos (403 `SIN_PERMISO` si no tiene ninguno). El módulo no escribe inventario (SC-11).
+
+| Método y ruta | Permiso | Qué hace |
+|---|---|---|
+| `POST /api/solicitudes-compra` | `compras.solicitar` | Levanta una solicitud (SC-01, SC-02). Cuerpo abajo. 201 con la solicitud completa; 200 con la misma si el `id_cliente` ya existía con el mismo cuerpo (SC-10). El almacén sale del usuario; con `almacenes.todos` se indica `almacen_id`. |
+| `GET /api/solicitudes-compra` | Solicitar o atender | Lista paginada (`{elementos, total}`) de lo que el usuario ve (SC-03): con `compras.atender` o `almacenes.todos`, las de todos los almacenes; si no, las de su almacén (y nada si no tiene almacén). Filtros: `estado`, `urgencia`, `almacen_id` (con alcance restringido, pedir otro almacén no devuelve nada), `q` (folio, descripción, nombre o código del artículo y motivo; sin distinguir mayúsculas ni acentos), `desde` y `hasta` (fechas de México, `AAAA-MM-DD`; el día `hasta` entra completo; un rango invertido da 422), `mias=true` (solo las que pidió el usuario), `pagina` y `tamano`. Con `solo_contar=true` responde `{"total": n}` con los mismos filtros, para el contador del menú (por ejemplo `estado=PENDIENTE`). Orden: primero PENDIENTE, luego EN_COMPRA, COMPRADA y al final lo cerrado; en cada grupo, URGENTE antes que NORMAL y las más antiguas primero (lo cerrado, la más reciente primero). |
+| `GET /api/solicitudes-compra/{id}` | Solicitar o atender | El detalle: la solicitud y su línea de tiempo (`eventos`). Fuera del alcance del usuario, 404. |
+| `POST /api/solicitudes-compra/{id}/estado` | `compras.atender` | `{estado, nota?, vale_entrada_id?}`. Transiciones válidas (SC-04): PENDIENTE a EN_COMPRA o RECHAZADA, EN_COMPRA a COMPRADA o RECHAZADA, COMPRADA a INGRESADA. Rechazar exige `nota` (SC-05, 422). `vale_entrada_id` solo con `estado: INGRESADA`, es opcional y debe ser un vale de ENTRADA que exista, no esté cancelado y sea de un almacén en el alcance de quien lo liga (SC-06, 422). Cualquier otra transición: 409 `TRANSICION_INVALIDA`. Responde el detalle. |
+| `POST /api/solicitudes-compra/{id}/cancelacion` | `compras.solicitar` | `{nota?}` (el cuerpo es opcional). Solo mientras está PENDIENTE (409 `NO_CANCELABLE` si no) y solo por quien la pidió, por un supervisor de su almacén (`vales.cancelar_todos`) o por quien tiene `almacenes.todos` (403 `SIN_PERMISO` si no; 404 si no la ve). Responde el detalle (SC-07). |
+
+No hay métodos que editen o borren una solicitud ni sus eventos (SC-08).
+
+**Cuerpo de `POST /api/solicitudes-compra`:**
+
+```json
+{
+  "id_cliente": "6f0c8c0e-2f6e-4f4a-9a53-0b1f4d1b9a10",
+  "articulo_id": null,
+  "descripcion": "Llave métrica 24 mm",
+  "cantidad": 2,
+  "motivo": "Mantenimiento de un equipo europeo en Midrex",
+  "urgencia": "URGENTE",
+  "almacen_id": null
+}
+```
+
+`id_cliente` (UUID que genera el dispositivo) es obligatorio. Hace falta `articulo_id` (artículo activo del catálogo; con él se toma su nombre y `descripcion` se ignora) o, sin él, `descripcion` (texto libre). `cantidad` es un entero de 1 en adelante; `motivo` es obligatorio; `urgencia` es `URGENTE` (por omisión) o `NORMAL`. `almacen_id` solo lo indica quien tiene `almacenes.todos` (y lo exige); para los demás debe ser el suyo o no venir. El mismo `id_cliente` con el mismo cuerpo (el almacén ya resuelto) devuelve la misma solicitud con 200; con otro cuerpo o de otro usuario, 409 `ID_CLIENTE_EN_USO`.
+
+**Respuesta de la solicitud** (cada elemento de la lista trae lo mismo, sin `eventos`):
+
+```json
+{
+  "id": "01a10fe7-76c8-76d5-b333-9ff4e3d49f27",
+  "folio": "MID-SOL-000001",
+  "estado": "PENDIENTE",
+  "urgencia": "URGENTE",
+  "almacen": { "id": "01a10fe7-4db0-…", "clave": "MID", "nombre": "Midrex" },
+  "solicitante": { "id": "01a10fe7-638a-…", "nombre": "Almacenista Midrex" },
+  "articulo": null,
+  "descripcion": "Llave métrica 24 mm",
+  "cantidad": 2,
+  "motivo": "Mantenimiento de un equipo europeo en Midrex",
+  "nota_compras": null,
+  "vale_entrada": null,
+  "creada_en": "2026-10-06T06:29:49.894352Z",
+  "actualizada_en": "2026-10-06T06:29:49.894352Z",
+  "acciones": ["tomar", "rechazar"],
+  "eventos": [
+    {
+      "id": "01a10fe8-7321-…",
+      "estado_anterior": null,
+      "estado_nuevo": "PENDIENTE",
+      "usuario": { "id": "01a10fe7-638a-…", "nombre": "Almacenista Midrex" },
+      "nota": null,
+      "creado_en": "2026-10-06T06:29:49.894352Z"
+    }
+  ]
+}
+```
+
+- `articulo` es `{id, codigo, nombre}` o `null` si el equipo no está en el catálogo; `descripcion` siempre trae un texto (el nombre del artículo, si lo hay).
+- `vale_entrada` es `{id, folio}` o `null`; solo lo tiene una solicitud INGRESADA a la que Compras ligó un vale (SC-06).
+- `nota_compras` es la última nota que dejó Compras (por ejemplo, el motivo del rechazo).
+- `eventos` va del más antiguo al más reciente; el primero tiene `estado_anterior: null` y `estado_nuevo: "PENDIENTE"`. Cada cambio de estado agrega uno (SC-08).
+- `acciones` la calcula el servidor según el permiso del usuario y el estado actual, siempre en este orden: `tomar` (PENDIENTE a EN_COMPRA), `rechazar` (desde PENDIENTE o EN_COMPRA), `comprar` (EN_COMPRA a COMPRADA), `ingresar` (COMPRADA a INGRESADA) y `cancelar`. Con `compras.atender` salen las de Compras; `cancelar` sale solo si está PENDIENTE y el usuario puede cancelarla (SC-07). Una solicitud cerrada (INGRESADA, RECHAZADA, CANCELADA) trae `[]`.
+
+| Estado | Con `compras.atender` | Con `compras.solicitar` (quien la pidió, supervisor de su almacén o `almacenes.todos`) |
+|---|---|---|
+| PENDIENTE | `tomar`, `rechazar` | `cancelar` |
+| EN_COMPRA | `rechazar`, `comprar` | ninguna |
+| COMPRADA | `ingresar` | ninguna |
+| INGRESADA, RECHAZADA, CANCELADA | ninguna | ninguna |
+
+Errores propios (todos con el ID de la regla en `detalles.regla`): 409 `TRANSICION_INVALIDA` (`detalles`: `{regla: "SC-04", estado_actual, estado_pedido, estados_permitidos}`), 409 `NO_CANCELABLE` (`{regla: "SC-07", estado_actual}`), 409 `ID_CLIENTE_EN_USO` (`{regla: "SC-10"}`), 403 `SIN_PERMISO` al cancelar sin ser quien corresponde (`{regla: "SC-07"}`), y 422 `DATOS_INVALIDOS` con `detalles: [{campo, mensaje, regla}]` cuando falta la nota al rechazar (SC-05), el vale de entrada no sirve (SC-06) o el artículo está inactivo (SC-02).
 
 ## Importación
 

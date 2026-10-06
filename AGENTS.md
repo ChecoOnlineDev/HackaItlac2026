@@ -33,7 +33,7 @@ frontend/app/componentes/         escáner, renglón con semáforo, fichas
 docs/                             documentación; el índice es docs/README.md
 ```
 
-Los módulos son once: `acceso`, `almacenes`, `catalogo`, `trabajadores`, `movimientos`, `autorizaciones`, `inspecciones`, `consulta`, `importacion`, `archivos` y `auditoria`. Todos tienen su `router.py` montado en `main.py`: quien construye un módulo llena sus archivos y no toca `main.py`. El backend es **síncrono** (PyMySQL): endpoints con `def` y `Session` de SQLAlchemy. Flujo: Router, Service, Repository, Model; el service controla la transacción y el repository nunca hace commit. Detalle en `docs/architecture/overview.md`.
+Los módulos son doce: `acceso`, `almacenes`, `catalogo`, `trabajadores`, `movimientos`, `autorizaciones`, `inspecciones`, `consulta`, `importacion`, `archivos`, `auditoria` y `solicitudes_compra`. Todos tienen su `router.py` montado en `main.py`: quien construye un módulo llena sus archivos y no toca `main.py`. El backend es **síncrono** (PyMySQL): endpoints con `def` y `Session` de SQLAlchemy. Flujo: Router, Service, Repository, Model; el service controla la transacción y el repository nunca hace commit. Detalle en `docs/architecture/overview.md`.
 
 El frontend es la aplicación construida: `routes.ts` registra una ruta por pantalla (`routes/operacion`, `consulta`, `personas`, `inventario`, `supervision`), `componentes/` agrupa lo reutilizable por área (`dominio` trae el escáner, el renglón con semáforo, la ficha, la firma y el QR; `ui` los componentes base), `api/` es el cliente de la API y `sesion/` la sesión y el menú según permisos. `components/` (en inglés) es el código base de shadcn.
 
@@ -75,7 +75,7 @@ El frontend es la aplicación construida: `routes.ts` registra una ruta por pant
 ## Autenticación, autorización y secretos
 
 - Sesión por cookie `HttpOnly`; identifica al usuario, y de él salen su rol, sus permisos y su almacén.
-- Cada `router.py` declara qué permiso exige cada endpoint. Excepción documentada: seis rutas lo verifican en el servicio porque depende del tipo de vale o del usuario (`POST /api/vales`, `POST /api/vales/evaluar`, `GET /api/escaneo/{codigo}`, `GET /api/busqueda`, `GET /api/autorizaciones/{id}` y `POST /api/autorizaciones/{id}/resolucion`); en ellas el router solo exige sesión.
+- Cada `router.py` declara qué permiso exige cada endpoint. Excepción documentada: ocho rutas lo verifican en el servicio porque depende del tipo de vale o del usuario, o porque aceptan uno de dos permisos (`POST /api/vales`, `POST /api/vales/evaluar`, `GET /api/escaneo/{codigo}`, `GET /api/busqueda`, `GET /api/autorizaciones/{id}`, `POST /api/autorizaciones/{id}/resolucion`, y `GET /api/solicitudes-compra` y `GET /api/solicitudes-compra/{id}`, que piden `compras.solicitar` o `compras.atender`); en ellas el router solo exige sesión.
 - Los roles y sus permisos son datos. Los cinco iniciales los carga el script de datos de prueba.
 - El PIN del supervisor es distinto de su contraseña.
 - Los secretos están en `.env`; `.env.example` documenta las variables.

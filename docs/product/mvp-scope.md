@@ -37,6 +37,7 @@ Corresponde a la prioridad P0 de las [reglas de negocio](reglas-de-negocio.md).
 - **Traspasos.** Salida, tránsito y recepción con QR.
 - **Baja.** Pendientes del trabajador, vale de no adeudo y paso a inactivo.
 - **Consulta y reportes.** Escaneo universal, búsqueda por texto, historial de pieza; reportes de existencias, movimientos, adeudos y consumo, con descarga en CSV.
+- **Solicitud de compra urgente.** Cuando falta un equipo o herramienta para un trabajo, el supervisor o el almacenista levanta una solicitud; Compras ve la cola de todos los almacenes (sin ver su inventario), la toma, la compra y la ingresa, y la liga con el vale de entrada que ella misma registra; pendiente, en compra, comprada, ingresada (o rechazada o cancelada). No es una orden de compra: no lleva proveedor, precio ni factura, y no mueve existencias (reglas SC-01 a SC-11).
 - **Corrección.** Cancelación de un vale con sus movimientos inversos, con motivo; cancelar y rehacer con los mismos renglones; y la lista de los movimientos del día de cada usuario.
 - **Aplicación instalable (PWA) sin modo sin conexión.** Se puede instalar en el celular y en la computadora (por HTTPS). Solo guarda en el dispositivo los archivos estáticos de la interfaz y una pantalla de «sin conexión»; la API y los datos de negocio nunca se guardan. El modo sin conexión sigue excluido (ver abajo).
 
@@ -78,7 +79,6 @@ Probable en fases posteriores; hoy no tiene brief.
 - Que un usuario vea un subconjunto de almacenes; hoy ve el suyo o, si es Administrador, todos.
 - Un rol de «supervisor general»: lo cubre el Administrador.
 - Habilitaciones del trabajador, como la capacitación de alturas.
-- Solicitud de compra.
 - Carta de aceptación como requisito del alta.
 - Importación de trabajadores desde Excel.
 - Tablero general para el administrador, con una pestaña por almacén: Kepler, Contratistas y los almacenes de área.

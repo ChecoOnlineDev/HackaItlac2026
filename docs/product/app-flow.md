@@ -351,5 +351,4 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 - Cierre de almacén de proyecto ([FEAT-002](../features/FEAT-002-cierre-de-almacen.md)).
 - Cierre sin devolución y equipo dado por perdido.
 - Lista de revisión del supervisor.
-- Solicitud de compra.
 - Tablero general por almacén.
