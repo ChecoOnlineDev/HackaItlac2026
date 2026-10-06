@@ -720,7 +720,7 @@ def test_AC_12_la_lista_de_roles_trae_los_cinco_iniciales(cliente_como):
     }
     admin = next(r for r in roles if r["nombre"] == "Administrador")
     assert admin["protegido"] is True
-    assert set(admin) == {"id", "nombre", "descripcion", "activo", "protegido"}
+    assert set(admin) >= {"id", "nombre", "descripcion", "activo", "protegido"}
 
 
 def test_AC_12_los_datos_de_prueba_dan_asignar_personal_al_supervisor_y_no_a_otros(

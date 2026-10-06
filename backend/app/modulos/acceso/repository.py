@@ -95,6 +95,12 @@ class UsuarioRepository:
         ).all()
         return [(u, a) for u, a in filas], total or 0
 
+    def de_rol(self, rol_id: uuid.UUID, *, solo_activos: bool = False) -> list[Usuario]:
+        consulta = select(Usuario).where(Usuario.rol_id == rol_id)
+        if solo_activos:
+            consulta = consulta.where(Usuario.activo.is_(True))
+        return list(self.session.scalars(consulta.order_by(Usuario.nombre, Usuario.id)))
+
     def administradores_activos(self) -> set[uuid.UUID]:
         """Ids de los usuarios activos, con rol activo, que tienen `acceso.administrar`.
 
@@ -127,6 +133,34 @@ class RolRepository:
         self.session.add(rol)
         self.session.flush()
         return rol
+
+    def eliminar(self, rol: Rol) -> None:
+        """Quita el rol y sus permisos (el service ya comprobó que nadie lo usa)."""
+        self.session.execute(delete(RolPermiso).where(RolPermiso.rol_id == rol.id))
+        self.session.delete(rol)
+        self.session.flush()
+
+    def conteos(self) -> tuple[dict[uuid.UUID, int], dict[uuid.UUID, list[str]]]:
+        """Usuarios por rol y permisos de cada rol (ordenados): `(usuarios, permisos)`."""
+        usuarios = dict(
+            self.session.execute(
+                select(Usuario.rol_id, func.count()).group_by(Usuario.rol_id)
+            ).all()
+        )
+        permisos: dict[uuid.UUID, list[str]] = {}
+        for rol_id, clave in self.session.execute(
+            select(RolPermiso.rol_id, RolPermiso.permiso).order_by(RolPermiso.permiso)
+        ):
+            permisos.setdefault(rol_id, []).append(clave)
+        return usuarios, permisos
+
+    def contar_usuarios(self, rol_id: uuid.UUID) -> int:
+        return (
+            self.session.scalar(
+                select(func.count()).select_from(Usuario).where(Usuario.rol_id == rol_id)
+            )
+            or 0
+        )
 
     def permisos(self, rol_id: uuid.UUID) -> set[str]:
         filas = self.session.scalars(select(RolPermiso.permiso).where(RolPermiso.rol_id == rol_id))

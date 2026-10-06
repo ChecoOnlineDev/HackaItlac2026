@@ -10,7 +10,7 @@ Son los cinco roles iniciales. Lo que puede cada uno sale de sus permisos (secci
 - **Supervisor**: autoriza y administra el catálogo; también puede operar un almacén, eligiéndolo.
 - **Compras**: inventario, entradas, importación, catálogo y reportes.
 - **RH**: trabajadores y bajas.
-- **Administrador**: tiene todos los permisos, así que ve todos los menús. Solo tiene pantalla propia para asignar personal a almacenes (`/personal`); las de usuarios y roles llegan con [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md).
+- **Administrador**: tiene todos los permisos, así que ve todos los menús. Tiene además sus pantallas de administración: Personal por almacén (`/personal`), Usuarios (`/usuarios`) y Roles y permisos (`/roles`, `/roles/:id`; [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md)). Solo aparecen con `acceso.administrar`.
 
 ## Navegación global
 
@@ -20,7 +20,7 @@ Entrar
   -> Supervisor    -> Autorizaciones (n) | Personal | Operar un almacén | Catálogo | Reportes
   -> Compras       -> Inventario | Entradas | Importar | Catálogo | Etiquetas | Reportes
   -> RH            -> Trabajadores | Alta | Bajas
-  -> Administrador -> todos los menús anteriores
+  -> Administrador -> todos los menús anteriores | Administración: Usuarios | Roles y permisos
 ```
 
 "Consultar" y la búsqueda están disponibles para todos; cada usuario ve solo lo que permiten los permisos de su rol (AC-05).
@@ -290,6 +290,15 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 - **Entrada:** Etiquetas.
 - **Pasos:** elegir qué imprimir (credenciales, piezas o estantes; en credenciales, la credencial completa o solo el código QR) -> seleccionar -> hoja con QR y texto -> imprimir desde el navegador. Una credencial suelta también se imprime o se descarga como PNG desde la ficha del trabajador.
 
+## Flujo 18: Usuarios y roles (administrador)
+
+- **Entrada:** Menú -> Administración -> Usuarios (`/usuarios`) o Roles y permisos (`/roles`); permiso `acceso.administrar` (AC-08).
+- **Usuarios:** búsqueda por nombre o usuario a la vista y filtros de rol, almacén y estado en "Filtros". "Nuevo usuario" abre una hoja (nombre, usuario, rol, almacén, contraseña y, si el rol autoriza, PIN opcional). El almacén solo se pide si el rol no tiene `almacenes.todos` (RG-07). "Editar" cambia nombre, rol y almacén; "Contraseña" abre una hoja con confirmación (se cierran las sesiones abiertas y se quitan los bloqueos); "Inactivar" o "Reactivar" piden confirmación. Nadie puede inactivarse a sí mismo desde la pantalla, y el servidor rechaza inactivar o cambiar de rol al último administrador (`ULTIMO_ADMINISTRADOR`, AC-09).
+- **Roles:** tarjetas con nombre, descripción, número de usuarios y de permisos; "Nuevo rol" crea uno sin permisos y "Duplicar" copia los permisos de otro. "Ver permisos" abre `/roles/:id`: la matriz de permisos agrupada por módulo, con un interruptor por permiso, su descripción en lenguaje de persona y la clave técnica en segundo plano. Los permisos de información reservada (costos, CURP y NSS) llevan su advertencia. Activar un permiso de acción activa también los de ver que necesita. Los que no se pueden cambiar quedan deshabilitados con su razón: el Administrador siempre lleva `acceso.administrar`, nadie se lo quita a su propio rol, y no se quita un permiso de ver mientras otro lo necesita.
+- **Guardar:** con cambios aparece una barra con "Se agregan 2 permisos y se quitan 1" y qué cambia exactamente (también si el rol recibe o pierde `almacenes.todos` y qué le pasa a sus usuarios). "Guardar cambios" pide confirmación; el cambio aplica en la siguiente acción de cada persona (AC-10) y la sesión de quien se edita su propio rol se actualiza al instante.
+- **Estado del rol:** "Inactivar rol" y "Eliminar rol" quedan deshabilitados, con la razón escrita debajo, si el rol es el Administrador, es uno de los cinco iniciales (solo la eliminación) o tiene usuarios (AC-11).
+- **Sin permiso:** "Tu rol no puede hacer esto".
+
 ## Flujo 17: Personal por almacén (supervisor y administrador)
 
 - **Entrada:** Menú -> Supervisión -> Personal (`/personal`, permiso `almacenes.asignar_personal`; AC-12, AC-13).
@@ -326,6 +335,8 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 | `/mis-movimientos` | Mis movimientos de hoy | Almacenista, supervisor, Compras |
 | `/autorizaciones` | Solicitudes pendientes | Supervisor |
 | `/personal` | Personal por almacén: asignar y mover usuarios entre almacenes | Supervisor, administrador (`almacenes.asignar_personal`) |
+| `/usuarios` | Usuarios: alta, edición, rol, almacén, activar o inactivar, restablecer contraseña y PIN | Administrador (`acceso.administrar`) |
+| `/roles`, `/roles/:id` | Roles y permisos: lista de roles y matriz de permisos de cada uno | Administrador (`acceso.administrar`) |
 | `/inventario` | Existencias | Compras, supervisor, almacenista |
 | `/entradas/nueva`, `/importar` | Entrada e importación | Compras |
 | `/catalogo/categorias`, `/catalogo/articulos` | Catálogo | Compras, supervisor |
@@ -341,5 +352,4 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 - Cierre sin devolución y equipo dado por perdido.
 - Lista de revisión del supervisor.
 - Solicitud de compra.
-- Administración de roles, permisos y usuarios ([FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md)).
 - Tablero general por almacén.

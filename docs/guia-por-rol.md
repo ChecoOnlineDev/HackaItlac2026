@@ -96,9 +96,9 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 | Parte | Estado |
 |---|---|
 | Todas las pantallas operativas | Sí, por tener todos los permisos |
-| Alta, edición, desactivación de usuarios y restablecer contraseña | Existe en el servidor (`/api/usuarios`), **sin pantalla** |
+| Alta, edición, desactivación de usuarios y restablecer contraseña y PIN | Sí, en **Usuarios** (`/usuarios`) |
 | Asignar o mover personal entre almacenes | Sí, en **Personal** (`/personal`) |
-| Crear roles y activar o quitar permisos desde pantalla | **Pospuesto** (parte pendiente de FEAT-006). Los cinco roles se cargan con el script de datos de prueba |
+| Crear roles, duplicarlos y activar o quitar permisos desde la matriz | Sí, en **Roles y permisos** (`/roles`), con el rol Administrador protegido (AC-09) |
 | Tablero general por almacén | Pospuesto |
 
 **Funcionalidades clave.**
@@ -126,8 +126,8 @@ Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve l
 
 **Historias de usuario.**
 - Como usuario del sistema, quiero entrar y ver solo lo que permite mi rol, para trabajar sin acceso a lo que no me toca (**US-ACC-001**).
-- Como administrador, quiero dar de alta usuarios y asignarles rol y almacén, para que cada persona tenga su propia cuenta (FEAT-006; en el servidor, sin pantalla).
-- Como administrador, quiero crear roles y activar o quitar permisos desde una matriz, para ajustar el sistema sin un programador (**FEAT-006**, pospuesta).
+- Como administrador, quiero dar de alta usuarios y asignarles rol y almacén, para que cada persona tenga su propia cuenta (FEAT-006; pantalla **Usuarios**).
+- Como administrador, quiero crear roles y activar o quitar permisos desde una matriz, para ajustar el sistema sin un programador (**FEAT-006**; pantalla **Roles y permisos**).
 - Como administrador, quiero ver un tablero con una pestaña por almacén, para vigilar la operación (pospuesta, sin brief).
 - *Propuesta:* Como administrador, quiero ver un registro de los cambios de permisos y de almacén, para saber quién cambió qué (AC-10, AC-13 lo garantizan en el servidor; no hay pantalla).
 
@@ -415,8 +415,7 @@ Para no confundir a quien pruebe. Fuente: [mvp-scope.md](product/mvp-scope.md).
 - Órdenes de compra, proveedores y facturas.
 - Firma electrónica avanzada y constancias NOM-151.
 - Impresión directa a impresoras térmicas (se imprime desde el navegador).
-- **Matriz editable de roles y permisos desde la pantalla.** Los cinco roles se cargan con el script.
-- **Pantalla de usuarios** (altas, edición, restablecer contraseña). El servidor ya la atiende, pero la interfaz no la tiene. La de personal por almacén sí existe.
+- **Comando que restablece los cinco roles iniciales** (FEAT-006): no se construyó; el script de datos de prueba vuelve a cargar sus permisos.
 - Niveles del semáforo configurables, límites sumados por categoría, rutas de traspaso obligatorias.
 - Tema oscuro, varios idiomas, personalización visual.
 - Ubicación dentro del almacén (estante o pasillo): llega hasta el almacén o el trabajador.
@@ -432,7 +431,7 @@ Para no confundir a quien pruebe. Fuente: [mvp-scope.md](product/mvp-scope.md).
 Las anoto sin decidir cuál manda; conviene que alguien del equipo lo confirme.
 
 1. **Quién imprime etiquetas.** `app-flow.md` (flujo 16 y tabla de pantallas) y US-ETQ-001 dicen «Compras» o «Compras y RH», pero el código y la tabla 8.2 dan `etiquetas.imprimir` también al Supervisor (y al Administrador). El menú de la interfaz se arma por permiso, así que el Supervisor ve **Etiquetas**.
-2. **Administrador sin pantallas propias.** El PRD dice que «en el MVP solo carga los datos iniciales» y `app-flow.md` que no tiene pantallas propias; en cambio `mvp-scope.md` y el contrato de la API describen que usuarios (`/api/usuarios`) y personal (`/api/personal`) ya están integrados en el servidor. Solo el personal tiene pantalla (`/personal`); ninguna ruta de la interfaz usa los usuarios. La regla AC-08 habla de «desde la pantalla».
+2. **Administrador con pantallas propias.** El PRD dice que «en el MVP solo carga los datos iniciales»; con FEAT-006 ya tiene Usuarios (`/usuarios`), Roles y permisos (`/roles`) y Personal (`/personal`), que solo aparecen con `acceso.administrar`.
 3. **Reporte de consumo.** El PRD lo lista en capacidades como **Futuro** (junto con «EPP entregado por trabajador»), pero el alcance del MVP lo incluye, existe la historia US-REP-002 y el menú y los permisos ya lo tienen.
 4. **Dónde se emite el no adeudo.** US-BAJ-001 dice «almacenista de Kepler»; la regla B-04 dice «el almacén» y la tabla 8.2 da `no_adeudo.emitir` a cualquier Almacenista y Supervisor, sin limitarlo a Kepler. En esta guía lo uso en Kepler por ser el ejemplo del PDF.
 5. **Quién inicia la baja.** B-01 dice RH o el almacenista; la tabla 8.2 también le da `trabajadores.iniciar_baja` al Supervisor y al Administrador. El flujo 11 de `app-flow.md` solo nombra a RH y al almacenista.

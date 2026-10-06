@@ -3,12 +3,14 @@
 from fastapi import APIRouter, Response, status
 
 from app.modulos.acceso.dependencies import AccesoServiceDep, UsuarioActual
+from app.modulos.acceso.router_roles import router as router_roles
 from app.modulos.acceso.router_usuarios import router as router_usuarios
 from app.modulos.acceso.schemas import LoginIn, SesionOut
 from app.seguridad import crear_token, poner_cookie_sesion, quitar_cookie_sesion
 
 router = APIRouter(tags=["acceso"])
 router.include_router(router_usuarios)
+router.include_router(router_roles)
 
 
 @router.post("/sesion", response_model=SesionOut)

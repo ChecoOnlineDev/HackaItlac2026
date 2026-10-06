@@ -50,7 +50,7 @@ Son los diferenciadores (prioridad P1). Se construyen como features, una por una
 4. [FEAT-004](../features/FEAT-004-minimos-y-estados.md): mínimos, estados de pieza y alertas.
 5. [FEAT-005](../features/FEAT-005-identidad-con-foto.md): identidad con foto. **Pasó al MVP** como foto opcional en el alta (T-09); el brief queda como referencia.
 
-Aparte está [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md), control de acceso configurable. No compite por ese orden: toca solo el módulo de acceso y puede avanzar en paralelo, en una rama aparte, desde el cierre de la Fase 1. **Parte ya está integrada:** la asignación de personal a almacenes, en el servidor y con su pantalla (`/personal`), y en el servidor los usuarios (alta, edición, restablecer contraseña), todavía sin pantalla. **Sigue pospuesta** la matriz editable de roles y permisos. Su base, los permisos por clave, ya es parte del MVP ([ADR-007](../architecture/decisions/ADR-007-permisos-por-clave.md)).
+Aparte está [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md), control de acceso configurable. No compite por ese orden: toca solo el módulo de acceso y puede avanzar en paralelo, en una rama aparte, desde el cierre de la Fase 1. **Ya está integrada:** la asignación de personal a almacenes (`/personal`), la administración de usuarios (`/usuarios`: alta, edición, rol, almacén, activar o inactivar, restablecer contraseña y PIN) y la matriz editable de roles y permisos (`/roles`), con sus protecciones (AC-08 a AC-13). Queda pendiente solo el comando que restablece los cinco roles iniciales. Su base, los permisos por clave, ya es parte del MVP ([ADR-007](../architecture/decisions/ADR-007-permisos-por-clave.md)).
 
 ## Excluido explícitamente
 
@@ -62,7 +62,6 @@ Aparte está [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md),
 - Órdenes de compra, proveedores y facturas.
 - Firma electrónica avanzada y constancias NOM-151.
 - Impresión directa a impresoras térmicas; se imprime desde el navegador.
-- Matriz editable de roles y permisos desde la interfaz: los cinco roles iniciales se cargan con el script de datos de prueba. Llega con la parte pendiente de FEAT-006. La asignación de personal a almacenes ya está integrada, con su pantalla (`/personal`); la administración de usuarios ya está en el servidor (`/api/usuarios`; ver [api-contracts.md](../architecture/api-contracts.md)) y solo le falta su pantalla.
 - Niveles del semáforo configurables por regla.
 - Límites sumados por categoría.
 - Rutas de traspaso obligatorias; una ruta inusual solo avisa.

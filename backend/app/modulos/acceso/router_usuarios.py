@@ -1,4 +1,4 @@
-"""Usuarios, personal por almacén y roles de solo lectura (FEAT-006).
+"""Usuarios y personal por almacén (FEAT-006); los roles están en `router_roles.py`.
 
 `/personal` y `PATCH /usuarios/{id}/almacen` piden `almacenes.asignar_personal` (el Supervisor
 puede, sin acceso a roles ni altas). El resto pide `acceso.administrar`. Las reglas viven en
@@ -20,7 +20,6 @@ from app.modulos.acceso.schemas import (
     AsignarAlmacenIn,
     PersonalOut,
     RestablecerContrasenaIn,
-    RolOut,
     UsuarioCreate,
     UsuarioOut,
     UsuarioUpdate,
@@ -67,12 +66,6 @@ def asignar_almacen(
 ) -> PersonalOut:
     """`almacenes.asignar_personal`. Asigna, mueve o deja sin almacén (AC-12, AC-13)."""
     return service.mover_almacen(actor, usuario_id, datos.almacen_id)
-
-
-@router.get("/roles", response_model=list[RolOut])
-def listar_roles(_: QuienAdministra, service: ServiceDep) -> list:
-    """`acceso.administrar`. Roles, solo lectura, para llenar selectores."""
-    return service.listar_roles()
 
 
 @router.get("/usuarios", response_model=Pagina[UsuarioOut])
