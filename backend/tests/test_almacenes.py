@@ -25,8 +25,8 @@ from tests.conftest import iniciar_sesion_en
 def cliente_con(app, crear_usuario) -> Callable[..., TestClient]:
     clientes: list[TestClient] = []
 
-    def _hacer(permisos: set[str]) -> TestClient:
-        usuario = crear_usuario(set(permisos))
+    def _hacer(permisos: set[str], almacen: str | None = None) -> TestClient:
+        usuario = crear_usuario(set(permisos), almacen=almacen)
         cliente = TestClient(app)
         assert iniciar_sesion_en(cliente, usuario).status_code == 200
         clientes.append(cliente)
@@ -57,7 +57,8 @@ def test_AC_01_listar_almacenes_pide_inventario_ver(cliente_con, cliente_como):
 
 
 def test_RG_07_la_lista_de_almacenes_trae_la_red(cliente_como):
-    r = cliente_como("Almacenista").get("/api/almacenes")
+    # El Supervisor necesita los destinos de un traspaso (`traspasos.operar`): ve la red completa.
+    r = cliente_como("Supervisor").get("/api/almacenes")
     assert r.status_code == 200
     almacenes = {a["clave"]: a for a in r.json()}
     assert set(almacenes) == {"KEP", "CON", "MID", "HYL", "LAM", "MIN"}
@@ -68,9 +69,30 @@ def test_RG_07_la_lista_de_almacenes_trae_la_red(cliente_como):
     assert almacenes["MID"]["padre_clave"] == "CON" and almacenes["MID"]["hijos"] == []
 
 
+def test_AC_06_el_almacenista_solo_ve_su_almacen_en_la_lista_y_en_las_existencias(
+    cliente_como, session
+):
+    almacenista = cliente_como("Almacenista")  # Kepler
+    assert [a["clave"] for a in almacenista.get("/api/almacenes").json()] == ["KEP"]
+    ruta_ajena = f"/api/almacenes/{_almacen(session, 'MID').id}/existencias"
+    r = cliente_como("Almacenista").get(ruta_ajena)
+    assert r.status_code == 404
+    assert (
+        cliente_como("Almacenista")
+        .get(f"/api/almacenes/{_almacen(session, 'KEP').id}/existencias")
+        .status_code
+        == 200
+    )
+    # Compras es de Kepler; el Administrador ve todo.
+    assert [a["clave"] for a in cliente_como("Compras").get("/api/almacenes").json()] == ["KEP"]
+    assert cliente_como("Compras").get(ruta_ajena).status_code == 404
+    admin = cliente_como("Administrador")
+    assert len(admin.get("/api/almacenes").json()) == 6 and admin.get(ruta_ajena).status_code == 200
+
+
 def test_AC_01_existencias_pide_inventario_ver(cliente_con, session):
     ruta = f"/api/almacenes/{_almacen(session, 'KEP').id}/existencias"
-    assert cliente_con({P.INVENTARIO_VER}).get(ruta).status_code == 200
+    assert cliente_con({P.INVENTARIO_VER}, almacen="KEP").get(ruta).status_code == 200
     assert cliente_con({P.CATALOGO_ADMINISTRAR}).get(ruta).status_code == 403
 
 
@@ -113,7 +135,10 @@ def test_I_05_existencias_y_disponibles_por_articulo(cliente_como, session):
     # Sin costos (RG-12).
     assert "costo_unitario" not in filas["FLEXOM"]
 
-    con = cliente.get(f"/api/almacenes/{_almacen(session, 'CON').id}/existencias")
+    # El de Contratistas solo lo ve quien ve todos los almacenes (AC-06).
+    con = cliente_como("Administrador").get(
+        f"/api/almacenes/{_almacen(session, 'CON').id}/existencias"
+    )
     assert [e["codigo"] for e in con.json()["elementos"]] == ["FLEXOM"]
 
 

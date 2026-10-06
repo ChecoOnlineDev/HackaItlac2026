@@ -153,7 +153,7 @@ Ejemplo de `GET /api/trabajadores/{id}/dotacion` (D-02). `entregada` es, en un r
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
 | `GET /api/almacenes` | `inventario.ver` | Lista con su red: `{id, clave, nombre, tipo, estado, padre_id, padre_clave, hijos: [{id, clave, nombre}]}`. |
-| `GET /api/almacenes/{id}/existencias` | `inventario.ver` | `{almacen, elementos, total}`: por artículo con existencia, `cantidad` y `disponible` (en piezas, solo las Aptas; I-05), con `activo` para marcar los inactivos (CF-11). Filtros: `q`, `categoria_id`, `activo`; admite `pagina` y `tamano`. Sin costos. |
+| `GET /api/almacenes/{id}/existencias` | `inventario.ver` | `{almacen, elementos, total}`: por artículo con existencia, `cantidad` y `disponible` (en piezas, solo las Aptas; I-05), con `activo` para marcar los inactivos (CF-11). Filtros: `q`, `categoria_id`, `activo`; admite `pagina` y `tamano`. Sin costos. Sin `almacenes.todos`, solo el almacén asignado; el de otro responde 404 (AC-06). |
 
 ## Vales
 

@@ -6,6 +6,7 @@ Qué trae cada versión. Se escribe a partir del historial del repositorio (`git
 
 - Solo el Administrador tiene `almacenes.todos`: Supervisor y Compras ven y operan únicamente su almacén asignado (AC-06, RG-07). Sin almacén asignado y sin `almacenes.todos`, no se ve nada.
 - Autorizaciones por almacén (A-01): la lista, el contador, el detalle y la resolución respetan el almacén de la solicitud; quien da su PIN en el mostrador debe ser del almacén de la solicitud o Administrador.
+- `GET /api/almacenes` y `GET /api/almacenes/{id}/existencias` respetan el almacén asignado: el Almacenista solo ve el suyo; la lista completa (solo nombre y clave) la ven quienes tienen `almacenes.todos` o `traspasos.operar`.
 - Inspecciones y ajuste de vigencia solo de piezas del almacén propio (cierra H11).
 - Personal: el Supervisor ve a su personal y a quien no tiene almacén, y solo asigna a su almacén o libera; mover entre almacenes es del Administrador. RH no aparece como personal de almacén.
 - El Almacenista queda con lo indispensable: sin `traspasos.operar` (pasa al Supervisor y al Administrador) y sin permisos de reportes. En el menú, Categorías, Artículos y Puestos se muestran por `catalogo.administrar`.
