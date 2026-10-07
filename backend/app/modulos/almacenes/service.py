@@ -393,8 +393,10 @@ class AlmacenService:
         if unidades:
             b = {
                 "codigo": "CON_EXISTENCIAS",
-                "mensaje": f"{nombre} todavía tiene {unidades} unidades de {articulos} "
-                f"artículos. Regrésalas por traspaso {regreso} antes de cerrarlo.",
+                "mensaje": f"{nombre} todavía tiene {unidades} "
+                f"{'unidad' if unidades == 1 else 'unidades'} de {articulos} "
+                f"{'artículo' if articulos == 1 else 'artículos'}. Regrésalas por traspaso "
+                f"{regreso} antes de cerrarlo.",
                 "unidades": unidades,
                 "total_articulos": articulos,
             }
@@ -415,9 +417,14 @@ class AlmacenService:
             bloqueos.append(
                 {
                     "codigo": "CON_HIJOS_ACTIVOS",
-                    "mensaje": f"De {nombre} dependen {len(hijos)} almacén(es) activo(s): "
-                    + ", ".join(h.nombre for h in hijos)
-                    + ". Ciérralos o cámbialos de almacén primero.",
+                    "mensaje": (
+                        f"Del almacén {nombre} depende {hijos[0].nombre}, que sigue activo."
+                        if len(hijos) == 1
+                        else f"De {nombre} dependen {len(hijos)} almacenes activos: "
+                        + ", ".join(h.nombre for h in hijos)
+                        + "."
+                    )
+                    + " Ciérralos o cámbialos de almacén primero.",
                     "total": len(hijos),
                     "hijos": [
                         {"id": str(h.id), "clave": h.clave, "nombre": h.nombre} for h in hijos
@@ -429,8 +436,9 @@ class AlmacenService:
         if usuarios:
             b = {
                 "codigo": "CON_USUARIOS",
-                "mensaje": f"{nombre} tiene {usuarios} usuario(s) asignado(s). Cámbialos de "
-                "almacén antes de cerrarlo.",
+                "mensaje": f"{nombre} tiene {usuarios} "
+                f"{'usuario asignado' if usuarios == 1 else 'usuarios asignados'}. "
+                "Cámbialos de almacén antes de cerrarlo.",
                 "total": usuarios,
             }
             if con_detalle:

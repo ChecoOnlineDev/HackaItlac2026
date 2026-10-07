@@ -4,6 +4,7 @@
     uv run python -m app.mantenimiento reconstruir-existencias --simular
     uv run python -m app.mantenimiento reconstruir-existencias --aplicar
     uv run python -m app.mantenimiento sembrar-almacenes
+    uv run python -m app.mantenimiento sembrar-categorias
 
 `verificar` es de SOLO LECTURA. Compara la base real con las invariantes de
 `docs/architecture/data-model.md` y sale con código 0 si todo cuadra, o con 1 listando las
@@ -39,6 +40,10 @@ HYL, Laminador y Minas) SOLO si no existe ningún almacén, con sus ubicaciones,
 virtuales que falten y su renglón de auditoría (`almacen.crear`), todo en una transacción. Si ya
 hay alguno, no hace nada y lo dice: es seguro de repetir.
 
+`sembrar-categorias` crea las siete categorías iniciales (`catalogo/categorias_iniciales.py`)
+que falten, por nombre, con su renglón de auditoría (`categoria.crear`). Nunca modifica una
+categoría que ya existe: es seguro de repetir y no pisa lo que la empresa haya editado.
+
 Este módulo está aislado: no importa servicios de otros módulos, solo sus modelos.
 """
 
@@ -62,7 +67,15 @@ from app.modulos.almacenes.models import (
     UbicacionVirtual,
 )
 from app.modulos.auditoria.models import Auditoria
-from app.modulos.catalogo.models import Articulo, Codigo, Control, Pieza, TipoCodigo
+from app.modulos.catalogo.categorias_iniciales import CATEGORIAS
+from app.modulos.catalogo.models import (
+    Articulo,
+    Categoria,
+    Codigo,
+    Control,
+    Pieza,
+    TipoCodigo,
+)
 from app.modulos.movimientos.models import (
     PREFIJO_FOLIO,
     EstadoVale,
@@ -592,6 +605,48 @@ def _comando_sembrar(session: Session, salida: Callable[[str], None]) -> int:
     return 0
 
 
+def sembrar_categorias(session: Session) -> list[str]:
+    """Crea las categorías iniciales que falten (por nombre) y devuelve los nombres creados. No toca
+    las que ya existen. Hace `flush`, no `commit`."""
+    existentes = set(session.scalars(select(Categoria.nombre)))
+    creadas: list[str] = []
+    for nombre, (tipo, control, retornable, reglas) in CATEGORIAS.items():
+        if nombre in existentes:
+            continue
+        categoria = Categoria(
+            nombre=nombre, tipo=tipo, control=control, retornable=retornable, **reglas
+        )
+        session.add(categoria)
+        session.flush()
+        session.add(
+            Auditoria(
+                usuario_id=None,
+                accion="categoria.crear",
+                entidad="categoria",
+                entidad_id=str(categoria.id),
+                antes=None,
+                despues={
+                    "nombre": nombre,
+                    "tipo": str(tipo),
+                    "control": str(control),
+                    "origen": "mantenimiento.sembrar-categorias",
+                },
+            )
+        )
+        creadas.append(nombre)
+    return creadas
+
+
+def _comando_sembrar_categorias(session: Session, salida: Callable[[str], None]) -> int:
+    creadas = sembrar_categorias(session)
+    if not creadas:
+        salida("Ya están todas las categorías iniciales: no se creó nada.")
+        return 0
+    session.commit()
+    salida(f"Listo: se crearon {len(creadas)} categorías ({', '.join(creadas)}).")
+    return 0
+
+
 def _comando_verificar(session: Session, salida: Callable[[str], None]) -> int:
     diferencias = verificar(session)
     if not diferencias:
@@ -670,6 +725,10 @@ def main(
         "sembrar-almacenes",
         help="Crea Kepler, Contratistas, Midrex, HYL, Laminador y Minas si no hay ningún almacén.",
     )
+    sub.add_parser(
+        "sembrar-categorias",
+        help="Crea las siete categorías iniciales que falten, sin tocar las que ya existen.",
+    )
     grupo = rec.add_mutually_exclusive_group(required=True)
     grupo.add_argument(
         "--simular", action="store_true", help="Muestra las diferencias; no escribe."
@@ -685,6 +744,8 @@ def main(
             return _comando_verificar(s, salida)
         if args.comando == "sembrar-almacenes":
             return _comando_sembrar(s, salida)
+        if args.comando == "sembrar-categorias":
+            return _comando_sembrar_categorias(s, salida)
         return _comando_reconstruir(
             s, aplicar=args.aplicar, salida=salida, pedir=pedir, interactivo=interactivo
         )

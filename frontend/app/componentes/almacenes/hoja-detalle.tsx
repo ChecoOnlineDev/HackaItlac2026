@@ -1,4 +1,16 @@
-import { BanIcon, PencilIcon, RotateCcwIcon } from "lucide-react";
+import {
+  BanIcon,
+  ChevronRightIcon,
+  CircleCheckIcon,
+  PackageIcon,
+  PencilIcon,
+  RotateCcwIcon,
+  ShoppingCartIcon,
+  TriangleAlertIcon,
+  UserCogIcon,
+  UsersIcon,
+} from "lucide-react";
+import type { ComponentType, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
@@ -21,12 +33,34 @@ interface Propiedades {
   alCambiar: () => void;
 }
 
-function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
+function Dato({ etiqueta, valor, cero }: { etiqueta: string; valor: string; cero?: boolean }) {
   return (
-    <div className="flex flex-col rounded-xl border bg-card p-3">
+    <div className="flex flex-col gap-0.5 rounded-xl border bg-card p-3">
       <dt className="text-xs text-muted-foreground">{etiqueta}</dt>
-      <dd className="text-base font-semibold text-marino tabular-nums">{valor}</dd>
+      <dd className={`text-xl font-semibold tabular-nums ${cero ? "text-muted-foreground" : "text-marino"}`}>{valor}</dd>
     </div>
+  );
+}
+
+/** Un acceso a otra pantalla: renglón completo de 44 px con icono y flecha. */
+function Acceso({
+  a,
+  icono: Icono,
+  children,
+}: {
+  a: string;
+  icono: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      to={a}
+      className="flex min-h-11 items-center gap-3 rounded-xl border bg-card px-3 text-sm font-medium text-marino transition-colors hover:bg-accent/60"
+    >
+      <Icono aria-hidden className="size-4 shrink-0 text-primary" />
+      <span className="flex-1">{children}</span>
+      <ChevronRightIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+    </Link>
   );
 }
 
@@ -91,7 +125,7 @@ function Bloqueo({ bloqueo, almacenId }: { bloqueo: BloqueoCierre; almacenId: st
     }
   })();
   return (
-    <li className="flex flex-col gap-1 rounded-xl border border-semaforo-rojo bg-semaforo-rojo/10 p-3">
+    <li className="flex flex-col gap-1 rounded-xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3">
       <p className="text-sm font-medium">{bloqueo.mensaje}</p>
       {extra}
     </li>
@@ -202,26 +236,31 @@ export function HojaDetalleAlmacen({ almacen, alCerrar, alEditar, alCambiar }: P
             </div>
 
             {resumen ? (
-              <dl className="grid grid-cols-2 gap-2">
-                <Dato
-                  etiqueta="Existencias"
-                  valor={
-                    resumen.existencias.unidades === 0
-                      ? "Sin existencias"
-                      : `${resumen.existencias.unidades.toLocaleString("es-MX")} (${plural(resumen.existencias.articulos, "artículo", "artículos")})`
-                  }
-                />
-                <Dato etiqueta="Piezas en resguardo" valor={resumen.piezas_en_resguardo.toLocaleString("es-MX")} />
-                <Dato etiqueta="Usuarios activos" valor={resumen.usuarios.toLocaleString("es-MX")} />
-                <Dato etiqueta="Traspasos en camino" valor={resumen.traspasos_en_transito.toLocaleString("es-MX")} />
-                <Dato etiqueta="Compras urgentes abiertas" valor={resumen.solicitudes_compra_abiertas.toLocaleString("es-MX")} />
+              <dl className="flex flex-col gap-2">
+                <div className="flex flex-col gap-0.5 rounded-xl border bg-accent/40 p-4">
+                  <dt className="text-xs text-muted-foreground">Existencias</dt>
+                  <dd
+                    className={`text-2xl font-semibold tabular-nums ${resumen.existencias.unidades === 0 ? "text-muted-foreground" : "text-marino"}`}
+                  >
+                    {resumen.existencias.unidades === 0 ? "Sin existencias" : plural(resumen.existencias.unidades, "unidad", "unidades")}
+                  </dd>
+                  {resumen.existencias.unidades > 0 ? (
+                    <dd className="text-sm text-muted-foreground">en {plural(resumen.existencias.articulos, "artículo", "artículos")}</dd>
+                  ) : null}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Dato etiqueta="Piezas con trabajadores" valor={resumen.piezas_en_resguardo.toLocaleString("es-MX")} cero={resumen.piezas_en_resguardo === 0} />
+                  <Dato etiqueta="Usuarios activos" valor={resumen.usuarios.toLocaleString("es-MX")} cero={resumen.usuarios === 0} />
+                  <Dato etiqueta="Traspasos en camino" valor={resumen.traspasos_en_transito.toLocaleString("es-MX")} cero={resumen.traspasos_en_transito === 0} />
+                  <Dato etiqueta="Compras urgentes" valor={resumen.solicitudes_compra_abiertas.toLocaleString("es-MX")} cero={resumen.solicitudes_compra_abiertas === 0} />
+                </div>
               </dl>
             ) : null}
 
             {almacen.hijos.length > 0 ? (
               <section aria-labelledby="almacen-hijos" className="flex flex-col gap-1">
                 <h3 id="almacen-hijos" className="text-sm font-semibold text-marino">
-                  Almacenes que dependen de este
+                  Dependen de este almacén ({almacen.hijos.length})
                 </h3>
                 <ul className="flex flex-wrap gap-2">
                   {almacen.hijos.map((h) => (
@@ -236,39 +275,46 @@ export function HojaDetalleAlmacen({ almacen, alCerrar, alEditar, alCambiar }: P
               </section>
             ) : null}
 
-            <nav aria-label={`Lo que tiene ${almacen.nombre}`} className="flex flex-col gap-1">
+            <nav aria-label={`Lo que tiene ${almacen.nombre}`} className="flex flex-col gap-2">
               <h3 className="text-sm font-semibold text-marino">Ir a</h3>
-              <div className="flex flex-wrap gap-x-1">
-                <Link to={`/personal?almacen=${almacen.id}`} className={ENLACE}>
+              <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
+                <Acceso a={`/personal?almacen=${almacen.id}`} icono={UserCogIcon}>
                   Su personal
-                </Link>
-                <Link to="/usuarios" className={ENLACE}>
+                </Acceso>
+                <Acceso a="/usuarios" icono={UsersIcon}>
                   Usuarios
-                </Link>
-                <Link to={`/inventario?almacen=${almacen.id}`} className={ENLACE}>
+                </Acceso>
+                <Acceso a={`/inventario?almacen=${almacen.id}`} icono={PackageIcon}>
                   Su inventario
-                </Link>
-                <Link to={`/compras?almacen=${almacen.id}`} className={ENLACE}>
+                </Acceso>
+                <Acceso a={`/compras?almacen=${almacen.id}`} icono={ShoppingCartIcon}>
                   Sus compras urgentes
-                </Link>
+                </Acceso>
               </div>
             </nav>
 
             {activo && resumen ? (
-              <section aria-labelledby="almacen-cierre" className="flex flex-col gap-2">
-                <h3 id="almacen-cierre" className="text-sm font-semibold text-marino">
-                  Inactivar este almacén
+              <section aria-labelledby="almacen-cierre" className="flex flex-col gap-3 border-t pt-5">
+                <h3 id="almacen-cierre" className="flex items-center gap-2 text-sm font-semibold text-marino">
+                  {bloqueos.length === 0 ? (
+                    <CircleCheckIcon aria-hidden className="size-4 text-semaforo-verde" />
+                  ) : (
+                    <TriangleAlertIcon aria-hidden className="size-4 text-semaforo-amarillo" />
+                  )}
+                  {bloqueos.length === 0 ? "Se puede inactivar" : "Todavía no se puede inactivar"}
                 </h3>
                 {bloqueos.length === 0 ? (
-                  <p className="text-sm">
-                    Se puede inactivar: no tiene existencias, traspasos en camino, almacenes que dependan de él ni usuarios asignados.
+                  <p className="text-sm text-muted-foreground">
+                    No tiene existencias, traspasos en camino, almacenes que dependan de él ni usuarios asignados.
                     {resumen.piezas_en_resguardo > 0
                       ? ` Las ${plural(resumen.piezas_en_resguardo, "pieza", "piezas")} que siguen con trabajadores no lo impiden.`
                       : ""}
                   </p>
                 ) : (
                   <>
-                    <p className="text-sm text-muted-foreground">Falta resolver esto para poder inactivarlo:</p>
+                    <p className="text-sm text-muted-foreground">
+                      {bloqueos.length === 1 ? "Falta resolver esto:" : `Faltan por resolver ${bloqueos.length} cosas:`}
+                    </p>
                     <ul className="flex flex-col gap-2">
                       {bloqueos.map((b) => (
                         <Bloqueo key={b.codigo} bloqueo={b} almacenId={almacen.id} />
