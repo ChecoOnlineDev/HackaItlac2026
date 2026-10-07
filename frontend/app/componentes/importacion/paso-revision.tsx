@@ -13,7 +13,7 @@ import { EstadoError } from "~/componentes/ui/estado-error";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
 import type { Pagina } from "~/api/tipos";
 import { CampoSelect } from "./campo-select";
-import { filasDeVista, TablaVistaPrevia, type FiltroFilas } from "./tabla-vista-previa";
+import { EsqueletoTablaVista, filasDeVista, TablaVistaPrevia, type FiltroFilas } from "./tabla-vista-previa";
 import type { CategoriaDesconocida, FilaError, ModoImportacion, OpcionesImportacion, VistaPreviaApi } from "./tipos";
 
 interface AlmacenLista {
@@ -137,7 +137,12 @@ export function PasoRevision({
       ) : null}
 
       {error && !vista ? <EstadoError error={error} alReintentar={alReintentar} /> : null}
-      {!vista && !error ? <Esqueleto tipo="tarjeta" cantidad={2} /> : null}
+      {!vista && !error ? (
+        <div className="flex flex-col gap-6">
+          <Esqueleto tipo="tarjeta" cantidad={2} />
+          <EsqueletoTablaVista />
+        </div>
+      ) : null}
 
       {error && vista ? (
         <section role="alert" className="flex flex-col gap-2 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-4">

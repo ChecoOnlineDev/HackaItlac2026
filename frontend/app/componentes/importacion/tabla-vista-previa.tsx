@@ -3,6 +3,8 @@ import { ArrowRightIcon, LinkIcon, PlusIcon, SigmaIcon, TriangleAlertIcon, XIcon
 import { useState, type ReactNode } from "react";
 
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
+import { Skeleton } from "~/components/ui/skeleton";
+import { Paginador } from "~/componentes/catalogo/campos";
 import { Boton } from "~/componentes/ui/boton";
 import { ListaDesplegable, type OpcionLista } from "~/componentes/ui/lista-desplegable";
 import type { CategoriaRef, EstadoFila, Motivo, ModoImportacion, VistaPreviaApi } from "./tipos";
@@ -14,8 +16,12 @@ export interface FilaVista {
   codigo: string;
   codigoGenerado: boolean;
   nombre: string;
+  marca: string;
   cantidad: string;
   almacen: string;
+  costo: string;
+  codigoPieza: string;
+  serie: string;
   saldoAntes: number | null;
   saldoDespues: number | null;
   unidaDe: number[];
@@ -39,8 +45,12 @@ export function filasDeVista(vista: VistaPreviaApi, modo: ModoImportacion, elegi
     codigo: f.codigo,
     codigoGenerado: f.codigo_generado === true,
     nombre: f.nombre,
+    marca: f.marca ?? "",
     cantidad: String(f.cantidad),
     almacen: f.almacen.nombre,
+    costo: f.costo ?? "",
+    codigoPieza: f.codigo_pieza ?? "",
+    serie: f.numero_serie ?? "",
     saldoAntes: f.saldo_antes ?? null,
     saldoDespues: f.saldo_despues ?? null,
     unidaDe: f.unida_de ?? [],
@@ -57,8 +67,12 @@ export function filasDeVista(vista: VistaPreviaApi, modo: ModoImportacion, elegi
     codigo: f.datos.codigo ?? "",
     codigoGenerado: false,
     nombre: f.datos.nombre || f.datos.codigo || "Sin nombre",
+    marca: f.datos.marca ?? "",
     cantidad: f.datos.cantidad ?? "",
     almacen: f.datos.almacen ?? "",
+    costo: f.datos.costo ?? "",
+    codigoPieza: f.datos.codigo_pieza ?? "",
+    serie: f.datos.serie ?? "",
     saldoAntes: null,
     saldoDespues: null,
     unidaDe: [],
@@ -105,7 +119,8 @@ interface PropiedadesTabla {
   categoriasListas: boolean;
 }
 
-const POR_PAGINA = 50;
+/** Filas por página de la vista previa. */
+export const POR_PAGINA = 12;
 
 function Contador({ etiqueta, valor, activo, alTocar, error }: { etiqueta: string; valor: number; activo: boolean; alTocar: () => void; error?: boolean }) {
   return (
@@ -134,15 +149,37 @@ function Contador({ etiqueta, valor, activo, alTocar, error }: { etiqueta: strin
  * servidor; aquí solo se muestra y se recogen las categorías que la persona elige.
  */
 export function TablaVistaPrevia({ vista, modo, filtro, alFiltrar, categoriaPorFila, opcionesCategoria, alElegirCategoria, alAceptarSugeridas, categoriasListas }: PropiedadesTabla) {
-  const [visibles, setVisibles] = useState(POR_PAGINA);
+  const [pagina, setPagina] = useState(1);
   const todas = filasDeVista(vista, modo, categoriaPorFila);
   const cuenta = (e: EstadoFila) => todas.filter((f) => f.estado === e).length;
   const filas = filtro === "TODAS" ? todas : todas.filter((f) => f.estado === filtro);
-  const porVer = filas.slice(0, visibles);
+  const ultima = Math.max(1, Math.ceil(filas.length / POR_PAGINA));
+  const actual = Math.min(pagina, ultima);
+  const porVer = filas.slice((actual - 1) * POR_PAGINA, actual * POR_PAGINA);
   const sugeridasSinAceptar = todas.filter((f) => f.sugerida && !categoriaPorFila[String(f.fila)]);
+  // Las columnas opcionales solo salen si alguna fila trae ese dato (el costo, por ejemplo, depende del permiso).
+  const hay = {
+    marca: todas.some((f) => f.marca !== ""),
+    costo: todas.some((f) => f.costo !== ""),
+    pieza: todas.some((f) => f.codigoPieza !== "" || f.serie !== ""),
+    saldo: todas.some((f) => f.saldoAntes !== null),
+  };
+  const encabezados = [
+    "Fila",
+    "Estado",
+    "Código",
+    "Artículo",
+    ...(hay.marca ? ["Marca"] : []),
+    ...(modo === "ALTA" ? ["Categoría"] : []),
+    "Cantidad",
+    "Almacén",
+    ...(hay.costo ? ["Costo"] : []),
+    ...(hay.pieza ? ["Código de pieza", "Serie"] : []),
+    ...(hay.saldo ? ["Saldo (antes → después)"] : []),
+  ];
 
   const filtrar = (f: FiltroFilas) => {
-    setVisibles(POR_PAGINA);
+    setPagina(1);
     alFiltrar(filtro === f ? "TODAS" : f);
   };
 
@@ -182,48 +219,68 @@ export function TablaVistaPrevia({ vista, modo, filtro, alFiltrar, categoriaPorF
 
       {filas.length > 0 ? (
         <>
-          {/* Computadora y tableta: tabla. */}
+          {/* Computadora y tableta: tabla con todos los campos; si no caben, se desliza hacia los lados. */}
           <div className="hidden [contain:inline-size] md:block">
-            <Table>
-              <TableCaption className="sr-only">Cada fila del archivo con su estado, cantidad y saldo antes y después</TableCaption>
-              <TableHeader>
-                <TableRow>
-                  {["Fila", "Estado", "Artículo", "Cantidad", "Saldo (antes → después)", ...(modo === "ALTA" ? ["Categoría"] : [])].map((t) => (
-                    <TableHead key={t} scope="col">
-                      {t}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {porVer.map((f) => (
-                  <TableRow key={f.fila} className={cn(f.estado === "ERROR" && "bg-destructive/5")}>
-                    <TableCell className="align-top text-muted-foreground tabular-nums">{f.fila}</TableCell>
-                    <TableCell className="align-top">
-                      <InsigniaEstado estado={f.estado} />
-                    </TableCell>
-                    <TableCell className="min-w-56 px-3 py-2 align-top">
-                      <DatosArticulo f={f} />
-                    </TableCell>
-                    <TableCell className="px-3 py-2 align-top tabular-nums">
-                      {f.cantidad}
-                      {f.almacen ? <span className="block text-sm text-muted-foreground">{f.almacen}</span> : null}
-                    </TableCell>
-                    <TableCell className="px-3 py-2 align-top tabular-nums whitespace-nowrap">
-                      <Saldo f={f} />
-                    </TableCell>
-                    {modo === "ALTA" ? (
-                      <TableCell className="min-w-64 px-3 py-2 align-top">
-                        <CategoriaFila f={f} elegida={categoriaPorFila[String(f.fila)] ?? ""} opciones={opcionesCategoria} listas={categoriasListas} alElegir={alElegirCategoria} />
-                      </TableCell>
-                    ) : null}
+            <div className="overflow-x-auto rounded-2xl border">
+              <Table>
+                <TableCaption className="sr-only">Cada fila del archivo con todos sus datos, su estado y el saldo antes y después</TableCaption>
+                <TableHeader>
+                  <TableRow>
+                    {encabezados.map((t) => (
+                      <TableHead key={t} scope="col" className="whitespace-nowrap">
+                        {t}
+                      </TableHead>
+                    ))}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {porVer.map((f) => (
+                    <TableRow key={f.fila} className={cn(f.estado === "ERROR" && "bg-destructive/5")}>
+                      <TableCell className="align-top text-muted-foreground tabular-nums">{f.fila}</TableCell>
+                      <TableCell className="align-top">
+                        <InsigniaEstado estado={f.estado} />
+                      </TableCell>
+                      <TableCell className="px-3 py-2 align-top text-sm whitespace-nowrap">
+                        {f.codigo ? (
+                          <>
+                            {f.codigo}
+                            {f.codigoGenerado ? <span className="block text-xs text-muted-foreground">Provisional: se asigna al confirmar</span> : null}
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="min-w-56 px-3 py-2 align-top">
+                        <DatosArticulo f={f} />
+                      </TableCell>
+                      {hay.marca ? <TableCell className="px-3 py-2 align-top">{f.marca || <span className="text-muted-foreground">—</span>}</TableCell> : null}
+                      {modo === "ALTA" ? (
+                        <TableCell className="min-w-64 px-3 py-2 align-top">
+                          <CategoriaFila f={f} elegida={categoriaPorFila[String(f.fila)] ?? ""} opciones={opcionesCategoria} listas={categoriasListas} alElegir={alElegirCategoria} />
+                        </TableCell>
+                      ) : null}
+                      <TableCell className="px-3 py-2 align-top tabular-nums">{f.cantidad || <span className="text-muted-foreground">—</span>}</TableCell>
+                      <TableCell className="px-3 py-2 align-top whitespace-nowrap">{f.almacen || <span className="text-muted-foreground">—</span>}</TableCell>
+                      {hay.costo ? <TableCell className="px-3 py-2 align-top tabular-nums">{f.costo ? `$${f.costo}` : <span className="text-muted-foreground">—</span>}</TableCell> : null}
+                      {hay.pieza ? (
+                        <>
+                          <TableCell className="px-3 py-2 align-top text-sm whitespace-nowrap">{f.codigoPieza || <span className="text-muted-foreground">—</span>}</TableCell>
+                          <TableCell className="px-3 py-2 align-top text-sm whitespace-nowrap">{f.serie || <span className="text-muted-foreground">—</span>}</TableCell>
+                        </>
+                      ) : null}
+                      {hay.saldo ? (
+                        <TableCell className="px-3 py-2 align-top tabular-nums whitespace-nowrap">
+                          <Saldo f={f} />
+                        </TableCell>
+                      ) : null}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
 
-          {/* Celular: la misma lista como tarjetas. */}
+          {/* Celular: la misma lista como tarjetas, con todos los datos. */}
           <ul className="flex flex-col gap-3 md:hidden">
             {porVer.map((f) => (
               <li key={f.fila} className={cn("flex flex-col gap-2 rounded-2xl border p-3", f.estado === "ERROR" && "border-destructive bg-destructive/5")}>
@@ -232,30 +289,77 @@ export function TablaVistaPrevia({ vista, modo, filtro, alFiltrar, categoriaPorF
                   <InsigniaEstado estado={f.estado} />
                 </div>
                 <DatosArticulo f={f} />
-                <p className="text-base tabular-nums">
-                  <span className="text-sm text-muted-foreground">Cantidad: </span>
-                  {f.cantidad}
-                  {f.almacen ? <span className="text-sm text-muted-foreground"> · {f.almacen}</span> : null}
-                </p>
-                {f.saldoAntes !== null ? (
-                  <p className="text-base tabular-nums">
-                    <span className="text-sm text-muted-foreground">Saldo: </span>
-                    <Saldo f={f} />
-                  </p>
-                ) : null}
+                <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                  <Campo etiqueta="Código" valor={f.codigo} nota={f.codigoGenerado ? "Provisional" : undefined} />
+                  {hay.marca ? <Campo etiqueta="Marca" valor={f.marca} /> : null}
+                  <Campo etiqueta="Cantidad" valor={f.cantidad} />
+                  <Campo etiqueta="Almacén" valor={f.almacen} />
+                  {hay.costo ? <Campo etiqueta="Costo" valor={f.costo ? `$${f.costo}` : ""} /> : null}
+                  {hay.pieza ? <Campo etiqueta="Código de pieza" valor={f.codigoPieza} /> : null}
+                  {hay.pieza ? <Campo etiqueta="Serie" valor={f.serie} /> : null}
+                  {f.saldoAntes !== null ? (
+                    <div>
+                      <dt className="text-muted-foreground">Saldo</dt>
+                      <dd className="tabular-nums">
+                        <Saldo f={f} />
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
                 {modo === "ALTA" ? <CategoriaFila f={f} elegida={categoriaPorFila[String(f.fila)] ?? ""} opciones={opcionesCategoria} listas={categoriasListas} alElegir={alElegirCategoria} /> : null}
               </li>
             ))}
           </ul>
 
-          {filas.length > visibles ? (
-            <Boton variante="contorno" className="self-start" onClick={() => setVisibles((n) => n + POR_PAGINA)}>
-              Ver más filas ({Math.min(POR_PAGINA, filas.length - visibles)} de {filas.length - visibles} que faltan)
-            </Boton>
-          ) : null}
+          <Paginador pagina={actual} tamano={POR_PAGINA} total={filas.length} alCambiar={setPagina} />
         </>
       ) : null}
     </section>
+  );
+}
+
+function Campo({ etiqueta, valor, nota }: { etiqueta: string; valor: string; nota?: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-muted-foreground">{etiqueta}</dt>
+      <dd className="break-words">
+        {valor || <span className="text-muted-foreground">—</span>}
+        {nota ? <span className="block text-xs text-muted-foreground">{nota}</span> : null}
+      </dd>
+    </div>
+  );
+}
+
+/** Marcador de lugar de la tabla mientras se revisa el archivo: la misma forma que tendrá, con 12 filas. */
+export function EsqueletoTablaVista({ columnas = 8 }: { columnas?: number }) {
+  return (
+    <div role="status" aria-label="Revisando la tabla" aria-busy="true" className="flex flex-col gap-3">
+      <span className="sr-only">Revisando la tabla</span>
+      <div className="hidden overflow-hidden rounded-2xl border bg-card md:block">
+        <div className="flex gap-4 border-b bg-muted/60 p-3">
+          {Array.from({ length: columnas }, (_, i) => (
+            <Skeleton key={i} className="h-4 flex-1" />
+          ))}
+        </div>
+        {Array.from({ length: POR_PAGINA }, (_, i) => (
+          <div key={i} className="flex gap-4 border-b p-3 last:border-b-0">
+            {Array.from({ length: columnas }, (_, c) => (
+              <Skeleton key={c} className={cn("h-5 flex-1", c === 3 && "h-9 flex-[2]")} />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-col gap-3 md:hidden">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="space-y-3 rounded-2xl border bg-card p-4">
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-5 w-4/5" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -280,12 +384,6 @@ function DatosArticulo({ f }: { f: FilaVista }) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-base font-semibold break-words">{f.nombre}</span>
-      {f.codigo ? (
-        <span className="text-sm text-muted-foreground">
-          {f.codigo}
-          {f.codigoGenerado ? " (código provisional: se asigna al confirmar)" : ""}
-        </span>
-      ) : null}
       {f.unidaDe.length > 0 ? <span className="text-sm font-medium">Unido: filas {[f.fila, ...f.unidaDe].join(", ")}</span> : null}
       {f.avisos.map((a, i) => (
         <span key={i} className="flex items-start gap-1.5 rounded-lg border border-semaforo-amarillo bg-semaforo-amarillo/10 px-2 py-1 text-sm">
