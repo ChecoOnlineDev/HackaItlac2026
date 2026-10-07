@@ -31,6 +31,7 @@ from tests.movimientos.ayudas_traspasos import (
     cuerpo_traspaso,
     en_transito,
     enviar,
+    enviar_por_ruta_inusual,
     evaluar_traspaso,
     movimientos_del_vale,
     pieza,
@@ -262,20 +263,18 @@ def test_X_03_las_rutas_habituales_no_llevan_aviso(
 
 
 @pytest.mark.parametrize(("origen", "destino"), [("KEP", "MID"), ("MID", "HYL"), ("HYL", "KEP")])
-def test_X_03_otra_ruta_se_permite_con_aviso_amarillo(
-    cliente_almacen, cliente_como, session, origen, destino
+def test_X_03_otra_ruta_la_hace_el_administrador_con_aviso_amarillo(
+    cliente_como, session, origen, destino
 ):
     guantes = crear_articulo(session, retornable=False)
-    # Compras es de Kepler: los demás almacenes los abastece el Administrador.
-    abastecer(
-        cliente_como("Administrador"), guantes, 3, almacen_id=str(almacen_id(session, origen))
-    )
-    cliente = cliente_almacen(origen)
-    ev = evaluar_traspaso(cliente, session, destino, [renglon(guantes.codigo)])
+    admin = cliente_como("Administrador")
+    abastecer(admin, guantes, 3, almacen_id=str(almacen_id(session, origen)))
+    desde = {"almacen_id": str(almacen_id(session, origen))}
+    ev = evaluar_traspaso(admin, session, destino, [renglon(guantes.codigo)], **desde)
     assert ev["nivel"] == "AMARILLO" and ev["puede_confirmar"] is True
     assert [(m["regla"], m["nivel"]) for m in ev["motivos"]] == [("X-03", "AMARILLO")]
-    # Con el aviso se confirma, y el movimiento guarda la regla.
-    traspaso = enviar(cliente, session, destino, [renglon(guantes.codigo)])
+    # Con el aviso y su observación se confirma, y el movimiento guarda la regla.
+    traspaso = enviar_por_ruta_inusual(admin, session, origen, destino, [renglon(guantes.codigo)])
     assert "X-03" in traspaso["renglones"][0]["reglas"]
 
 

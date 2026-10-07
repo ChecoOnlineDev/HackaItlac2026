@@ -93,6 +93,13 @@ export const AVISO_RESERVADO: Record<string, string> = {
   "reportes.valor_inventario": "Quien lo tenga verá cuánto vale el inventario.",
 };
 
+/** Lo que deja ver un permiso de información, en pocas palabras, para nombrarlo en la confirmación de guardar. */
+export const FRASE_RESERVADO: Record<string, string> = {
+  "catalogo.costos": "ver costos",
+  "trabajadores.ver_datos_personales": "ver CURP y NSS (datos personales)",
+  "reportes.valor_inventario": "ver el valor del inventario",
+};
+
 export function textoPermisos(n: number): string {
   return n === 1 ? "1 permiso" : `${n} permisos`;
 }

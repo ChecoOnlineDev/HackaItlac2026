@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.core.errores_bd import es_restriccion
-from app.core.excepciones import DatosInvalidos, NoEncontrado
+from app.core.excepciones import DatosInvalidos, NoEncontrado, SinPermiso
 from app.core.paginacion import Pagina, Paginacion
 from app.core.tiempo import ZONA_MX, a_hora_mx, hoy_mx
 from app.modulos.acceso.models import Usuario
@@ -317,15 +317,26 @@ class TrabajadorService:
     # ============================================================= alta (T-03)
 
     def crear(self, datos: TrabajadorCreate, actor: Usuario) -> Trabajador:
-        """Alta (T-03): trabajador Activo, su primer periodo y su ubicación. Si el número o la
-        CURP ya existen lanza `TrabajadorExiste` con la persona, para ofrecer el reingreso."""
+        """Alta (T-03, T-10): trabajador Activo, su primer periodo y su ubicación. El número de
+        empleado lo genera el servidor; solo `trabajadores.numero_externo` puede escribir uno. Si
+        la CURP (o, sin CURP, el nombre completo) ya es de alguien lanza `TrabajadorExiste` con la
+        persona, para ofrecer el reingreso (T-02)."""
+        externo = datos.numero_empleado is not None
+        if externo and not self.acceso.tiene_permiso(actor, P.TRABAJADORES_NUMERO_EXTERNO):
+            raise SinPermiso(
+                "Tu rol no puede escribir el número de empleado: lo asigna el sistema."
+            )
         self._validar_periodo(datos.inicio, datos.fin)
-        self._rechazar_si_existe(datos.numero_empleado, datos.curp, actor)
+        self._rechazar_si_existe(datos, actor)
         puesto_texto, puesto_id = self._resolver_puesto(datos.puesto_id, datos.puesto)
         try:
+            # El contador se bloquea al final, lo más tarde posible, y avanza en esta misma
+            # transacción: sin huecos ni repetidos aunque dos altas lleguen a la vez.
+            numero = datos.numero_empleado or self._siguiente_numero_de_empleado()
             trabajador = self.trabajadores.add(
                 Trabajador(
-                    numero_empleado=datos.numero_empleado,
+                    numero_empleado=numero,
+                    numero_externo=externo,
                     nombre=datos.nombre,
                     curp=datos.curp,
                     nss=datos.nss,
@@ -338,7 +349,7 @@ class TrabajadorService:
             if es_restriccion(exc, "uq_trabajador_numero_empleado") or es_restriccion(
                 exc, "uq_trabajador_curp"
             ):
-                self._rechazar_si_existe(datos.numero_empleado, datos.curp, actor)
+                self._rechazar_si_existe(datos, actor)
             raise
         self.trabajadores.add_periodo(
             PeriodoContrato(
@@ -360,6 +371,7 @@ class TrabajadorService:
             entidad_id=trabajador.id,
             despues={
                 "numero_empleado": trabajador.numero_empleado,
+                "numero_externo": trabajador.numero_externo,
                 "nombre": trabajador.nombre,
                 "puesto": puesto_texto,
                 "puesto_id": puesto_id,
@@ -369,18 +381,37 @@ class TrabajadorService:
                 "con_curp": datos.curp is not None,
                 "con_nss": datos.nss is not None,
                 "con_tallas": datos.tallas is not None,
-                "regla": "T-03",
+                "regla": "T-10" if trabajador.numero_externo else "T-03",
             },
         )
         self.session.commit()
         return trabajador
 
-    def _rechazar_si_existe(self, numero_empleado: str, curp: str | None, actor: Usuario) -> None:
-        existente = self.trabajadores.get_by_numero(numero_empleado)
-        campo = "numero_empleado"
-        if existente is None and curp:
-            existente = self.trabajadores.get_by_curp(curp)
+    def _siguiente_numero_de_empleado(self) -> str:
+        """T-10: `E-000001`, `E-000002`... del contador `serie_empleado`, ya bloqueado. Salta los
+        que ya existan (un número externo con esa forma) para no chocar con la restricción."""
+        serie = self.trabajadores.bloquear_serie_empleado()
+        while True:
+            serie.ultimo += 1
+            numero = f"E-{serie.ultimo:06d}"
+            if self.trabajadores.get_by_numero(numero) is None:
+                self.session.flush()
+                return numero
+
+    def _rechazar_si_existe(self, datos: TrabajadorCreate, actor: Usuario) -> None:
+        """T-02, T-10: la CURP; sin CURP, el nombre completo (se puede confirmar que es otra
+        persona); y el número escrito a mano."""
+        existente = None
+        campo = ""
+        if datos.numero_empleado is not None:
+            existente = self.trabajadores.get_by_numero(datos.numero_empleado)
+            campo = "numero_empleado"
+        if existente is None and datos.curp:
+            existente = self.trabajadores.get_by_curp(datos.curp)
             campo = "curp"
+        if existente is None and not datos.curp and not datos.confirmar_distinta:
+            existente = self.trabajadores.get_by_nombre(datos.nombre)
+            campo = "nombre"
         if existente is None:
             return
         if campo == "curp" and not self.acceso.tiene_permiso(
@@ -391,12 +422,19 @@ class TrabajadorService:
             raise TrabajadorExiste(
                 "Ya existe un trabajador registrado con esos datos.", {"regla": "T-02"}
             )
-        cual = "ese número de empleado" if campo == "numero_empleado" else "esa CURP"
+        cual = {
+            "numero_empleado": "ese número de empleado",
+            "curp": "esa CURP",
+            "nombre": "ese nombre",
+        }[campo]
+        confirmable = " Si es otra persona, confirma que es distinta." if campo == "nombre" else ""
         raise TrabajadorExiste(
-            f"Ya existe un trabajador con {cual}: {existente.nombre}. ¿Quieres reingresarlo?",
+            f"Ya existe un trabajador con {cual}: {existente.nombre}. "
+            f"¿Quieres reingresarlo?{confirmable}",
             {
-                "regla": "T-02",
+                "regla": "T-10" if campo == "numero_empleado" else "T-02",
                 "coincide_por": campo,
+                "puede_confirmar_distinta": campo == "nombre",
                 "trabajador": {
                     "id": str(existente.id),
                     "numero_empleado": existente.numero_empleado,
@@ -673,6 +711,7 @@ class TrabajadorService:
                 TrabajadorListItem(
                     id=t.id,
                     numero_empleado=t.numero_empleado,
+                    numero_externo=t.numero_externo,
                     nombre=t.nombre,
                     estado=t.estado,
                     estado_texto=TEXTO_ESTADO[t.estado],
@@ -707,6 +746,7 @@ class TrabajadorService:
         return FichaBreveOut(
             id=trabajador.id,
             numero_empleado=trabajador.numero_empleado,
+            numero_externo=trabajador.numero_externo,
             nombre=trabajador.nombre,
             estado=trabajador.estado,
             estado_texto=TEXTO_ESTADO[trabajador.estado],

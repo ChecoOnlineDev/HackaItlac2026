@@ -15,7 +15,7 @@
 | Duda | Respuesta |
 |---|---|
 | **Cadena de surtido** | **Kepler → Contratistas → almacenes de proyecto** (Midrex, HYL, Laminador y Minas). Es la ruta oficial. |
-| **Kepler directo a un proyecto** | Las fuentes no lo describen como flujo normal. **Decisión: es una excepción y solo la hace el Administrador**, con aviso amarillo y observación obligatoria. El supervisor no puede saltarse Contratistas. |
+| **Kepler directo a un proyecto** | Las fuentes no lo describen como flujo normal. **Decisión: es una excepción y solo la hace el Administrador** (quien tiene `almacenes.todos`), con aviso amarillo y observación obligatoria (X-03). El supervisor no puede saltarse Contratistas. |
 | **Dónde se entrega el EPP** | **Decisión: en Contratistas, de forma general.** Las fuentes dicen que ahí «se queda el equipo de seguridad», y Kepler también lo entrega al contratar (caso de prueba del reto). La **herramienta especializada** de un proyecto se entrega en el **almacén de ese proyecto**. |
 | **Alta de almacenes** | Una persona con `almacenes.administrar` los crea. Orden: Kepler, luego Contratistas, luego cada proyecto. Se abre el proyecto al empezar el mantenimiento y se cierra al terminar. |
 
@@ -59,7 +59,7 @@
 
 ### 4.1 Quién y con qué
 
-Quien tiene `almacenes.administrar` (de inicio, el Administrador; ver FEAT-008, decisión 1) abre **Administración → Almacenes → Nuevo almacén**. El permiso y la pantalla son los que describe FEAT-008. La interfaz solo muestra lo que el servidor evalúa.
+Quien tiene `almacenes.administrar` (de inicio, solo el Administrador; ver FEAT-008, sección 6) abre **Administración → Almacenes → Nuevo almacén**. El permiso y la pantalla son los que describe FEAT-008. La interfaz solo muestra lo que el servidor evalúa.
 
 ### 4.2 Datos del alta
 
@@ -86,7 +86,7 @@ En una sola transacción: crea el almacén, crea su **ubicación** (donde vivir�
 | 6 | Cuando arranca un mantenimiento, dar de alta el almacén de **proyecto** (`MID`, `HYL`, `LAM` o `MIN`) dependiente de Contratistas y asignarle su personal. | Administrador |
 | 7 | **Surtir el proyecto** desde Contratistas (sección 6). | Supervisor de Contratistas |
 
-Los pasos 1 y 2 y la carga inicial pueden automatizarse con el comando de «sembrar» propuesto en FEAT-008 (4.1.5). Los proyectos **no se siembran**: se abren cuando hay un mantenimiento.
+Los pasos 1 y 2 pueden hacerse de una vez con el comando `uv run python -m app.mantenimiento sembrar-almacenes` (decidido en FEAT-008, 4.1.5): crea Kepler, Contratistas, Midrex, HYL, Laminador y Minas **solo si no existe ningún almacén**. En la práctica los proyectos se abren cuando hay un mantenimiento, así que los que todavía no operan se inactivan o simplemente no reciben personal ni surtido; los futuros se dan de alta desde la pantalla (paso 6). La carga inicial de inventario (paso 4) sigue siendo de Compras.
 
 ### 4.5 Activar, inactivar y reactivar
 
@@ -129,13 +129,13 @@ El mecanismo es **el mismo traspaso de la sección 5**, con Contratistas como or
 
 **Lo que dicen las fuentes.** Describen la cadena Kepler → Contratistas → áreas. **No** describen un surtido directo de Kepler a un almacén de proyecto como camino normal.
 
-**Lo que hace el sistema hoy (X-03).** Un destino que no es padre ni hijo del origen **sí se permite, con aviso amarillo**: «Otra ruta se permite con aviso». No bloquea.
+**Lo que hacía el sistema antes (X-03).** Un destino que no es padre ni hijo del origen se permitía a cualquiera con aviso amarillo: «Otra ruta se permite con aviso». Ya no: la decisión de abajo está escrita en `reglas-de-negocio.md` (X-03) y en `api-contracts.md`; el código se ajusta en FEAT-008, etapa 1.
 
 **Decisión.**
 - El flujo normal es por Contratistas, porque ahí está el inventario y la responsabilidad del subalmacén.
 - **Kepler → proyecto directo es una excepción y solo la hace el Administrador** (quien tiene `almacenes.todos`). El supervisor y el almacenista no pueden: si intentan una ruta que no es padre-hijo, el servidor la rechaza.
 - La excepción lleva **aviso amarillo y observación obligatoria**, para dejar constancia de por qué se saltó Contratistas.
-- Esto **cambia X-03**: hoy otra ruta se permite a cualquiera con aviso; pasa a ser «otra ruta solo la hace el Administrador, con aviso y observación». Se actualiza en `reglas-de-negocio.md` al implementarlo.
+- Esto **cambia X-03**: antes otra ruta se permitía a cualquiera con aviso; ahora es «otra ruta solo la hace quien tiene `almacenes.todos` (el Administrador), con aviso y observación». Ya está actualizado en `reglas-de-negocio.md` (X-03 y su cómo-se-aplica). Para quien no puede, la evaluación sale en rojo y el servidor responde 403 `RUTA_SOLO_ADMINISTRADOR` ([api-contracts.md](../architecture/api-contracts.md), fila TRASPASO).
 - Dos caminos cubren la falta de material **sin saltarse Contratistas**: Kepler → Contratistas y luego Contratistas → proyecto; o una **compra urgente** que Compras ingresa directo al almacén que la pidió (sección 8).
 
 ## 8. Compras urgentes: ¿a qué almacén llega lo comprado?
@@ -188,6 +188,8 @@ El sistema **no ata el EPP a un almacén**. La entrega se hace en **el almacén 
 | 6 | **Quién recibe en un proyecto** con turnos de 24 horas | **Propuesto:** permiso de recibir separado del de enviar, para que el almacenista del proyecto reciba (sección 12.1, mejora 2). Pendiente de confirmar. |
 | 7 | **Un trabajador que cambia de proyecto** | Lo que tiene en resguardo sigue siendo suyo (sección 11). |
 | 8 | **Periodo por apertura** | **Decidido: después del MVP** (sección 12.2). |
+| 9 | **Sembrar los almacenes iniciales** | **Decidido:** comando `sembrar-almacenes`, solo si no existe ningún almacén (FEAT-008). |
+| 10 | **Inactivar con usuarios asignados** | **Decidido:** bloquea hasta reasignarlos (`CON_USUARIOS`, AL-03). |
 
 > **Pendiente 6, a revisar con cuidado.** El reto dice que el Almacenista queda como responsable de lo recibido y que se asignan almacenistas por proyecto (turnos de 24 horas). Pero X-01 reserva el traspaso al Supervisor. Es una incongruencia entre las fuentes y la regla y conviene resolverla antes de construir el alta del proyecto.
 
@@ -241,7 +243,8 @@ El sistema **no ata el EPP a un almacén**. La entrega se hace en **el almacén 
 | Alta, edición, inactivar y reactivar almacenes | **Falta** (FEAT-008, etapas 1 y 2) |
 | Rechazo de almacén cerrado en entregas, entradas y compras | **Falta** (hoy solo traspasos, usuarios e importación) |
 | Reporte de cierre y faltantes | **Falta** (FEAT-002) |
-| Traspaso fuera de ruta solo para el Administrador, con observación obligatoria | **Falta** (12.1, mejora 4; cambia X-03) |
+| Traspaso fuera de ruta solo para el Administrador, con observación obligatoria | **Falta el código** (12.1, mejora 4); la regla X-03 y el contrato de API ya están escritos |
+| Comando `sembrar-almacenes` | **Falta** (FEAT-008, etapa 1) |
 | Permiso de recibir separado de enviar | **Falta** (12.1, mejora 2) |
 | Surtido por lista (Excel) | **Falta** (12.1, mejora 1) |
 | «Devolver todo al cerrar» | **Falta** (12.1, mejora 3) |
@@ -249,4 +252,4 @@ El sistema **no ata el EPP a un almacén**. La entrega se hace en **el almacén 
 
 ## 14. Documentos que se actualizan
 
-Una vez aprobados los pendientes de la sección 10: `reglas-de-negocio.md` (X-03 y las reglas AL-*), `app-flow.md` (flujo de puesta en marcha y de cierre), `guia-por-rol.md`, y los briefs FEAT-002 y FEAT-008 para que no se contradigan (quién abre y cierra almacenes).
+**Hecho el 6 de octubre de 2026** con FEAT-008: `reglas-de-negocio.md` (X-03 y las reglas AL-*), `app-flow.md` (flujo 21, puesta en marcha y cierre), `guia-por-rol.md`, y los briefs FEAT-002 y FEAT-008 para que no se contradigan (quién abre y cierra almacenes). Sigue pendiente la sección 10, punto 6 (permiso de recibir separado de enviar): al decidirlo se actualizan X-01 y la sección 8 de las reglas.

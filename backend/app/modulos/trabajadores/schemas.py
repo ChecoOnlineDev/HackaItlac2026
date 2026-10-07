@@ -41,13 +41,16 @@ def _vacio_a_none(valor):
 
 
 class TrabajadorCreate(BaseModel):
-    """Alta (T-03). Obligatorios: nombre, número, puesto (`puesto_id` del catálogo o su nombre en
-    `puesto`), área u obra y periodo."""
+    """Alta (T-03). Obligatorios: nombre, puesto (`puesto_id` del catálogo o su nombre en
+    `puesto`), área u obra y periodo. El número de empleado lo genera el servidor (T-10): solo se
+    acepta uno escrito a mano con `trabajadores.numero_externo`. `confirmar_distinta` es para el
+    aviso de nombre repetido sin CURP (T-02)."""
 
     model_config = ConfigDict(str_strip_whitespace=True)
 
     nombre: str = Field(min_length=1, max_length=150)
-    numero_empleado: str = Field(min_length=1, max_length=30)
+    numero_empleado: str | None = Field(default=None, min_length=1, max_length=30)
+    confirmar_distinta: bool = False
     puesto_id: uuid.UUID | None = None
     puesto: str | None = Field(default=None, min_length=1, max_length=100, validate_default=True)
     area_obra: str = Field(min_length=1, max_length=100)
@@ -58,7 +61,7 @@ class TrabajadorCreate(BaseModel):
     curp: str | None = Field(default=None, max_length=18)
     nss: str | None = Field(default=None, max_length=11)
 
-    @field_validator("curp", "nss", "referencia", mode="before")
+    @field_validator("curp", "nss", "referencia", "numero_empleado", mode="before")
     @classmethod
     def _limpiar(cls, valor):
         return _vacio_a_none(valor)
@@ -190,6 +193,8 @@ class FichaBreveOut(BaseModel):
 
     id: uuid.UUID
     numero_empleado: str
+    # T-10: `True` si el número se capturó a mano (número propio del centro).
+    numero_externo: bool = False
     nombre: str
     estado: str
     estado_texto: str
@@ -221,6 +226,7 @@ class FichaOut(FichaBreveOut):
 class TrabajadorListItem(BaseModel):
     id: uuid.UUID
     numero_empleado: str
+    numero_externo: bool = False
     nombre: str
     estado: str
     estado_texto: str

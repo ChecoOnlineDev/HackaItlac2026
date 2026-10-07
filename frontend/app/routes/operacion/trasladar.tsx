@@ -28,6 +28,7 @@ import { useEvaluar, type CuerpoTraspaso } from "~/componentes/traspasos/use-eva
 import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
 import { Cargando } from "~/componentes/ui/cargando";
+import { ObservacionRuta } from "~/componentes/traspasos/observacion-ruta";
 import { Confirmacion } from "~/componentes/ui/confirmacion";
 import { useSesionActiva } from "~/sesion/sesion";
 
@@ -99,6 +100,7 @@ export default function Trasladar() {
   const [avisoCambio, setAvisoCambio] = useState<string | null>(null);
   const [almacenCambio, setAlmacenCambio] = useState<{ mensaje: string; almacen: AlmacenResumen | null } | null>(null);
   const [errorEnvio, setErrorEnvio] = useState<ErrorEnvio>(null);
+  const [errorObservacion, setErrorObservacion] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const enviandoRef = useRef(false);
   const [descartando, setDescartando] = useState(false);
@@ -284,13 +286,16 @@ export default function Trasladar() {
     enviandoRef.current = true;
     setEnviando(true);
     setErrorEnvio(null);
+    setErrorObservacion(null);
     setAvisoCambio(null);
     try {
+      const observacion = evaluacion?.pide_observacion ? b.observacion?.trim() : undefined;
       const vale = await apiPost<ValeConfirmadoApi>("/vales", {
         tipo: "TRASPASO",
         almacen_id: b.almacenId,
         destino_almacen_id: b.destinoId,
         id_cliente: b.idCliente,
+        observacion: observacion || undefined,
         renglones: b.renglones.map((r) => ({ codigo: r.codigo, cantidad: r.cantidad })),
       });
       reproducir("ok");
@@ -333,6 +338,21 @@ export default function Trasladar() {
       setAlmacenCambio({ mensaje: causa.message, almacen });
       return;
     }
+    if (causa.codigo === "RUTA_SOLO_ADMINISTRADOR") {
+      setErrorEnvio({
+        tipo: "otro",
+        mensaje:
+          "Esta ruta no es la habitual y solo la puede hacer un administrador. Elige otro destino: el almacén del que depende este, o uno que dependa de él.",
+      });
+      return;
+    }
+    // La observación que pide la ruta poco habitual (X-03): el servidor la escribe junto al campo.
+    const detalle = Array.isArray(causa.detalles) ? (causa.detalles as { campo?: string; mensaje?: string }[]) : [];
+    const deObservacion = detalle.find((d) => d.campo === "observacion");
+    if (causa.status === 422 && deObservacion) {
+      setErrorObservacion(deObservacion.mensaje ?? "Escribe por qué se envía por esta ruta.");
+      return;
+    }
     setErrorEnvio({ tipo: "otro", mensaje: causa.message });
   };
 
@@ -347,6 +367,9 @@ export default function Trasladar() {
   // ------------------------------------------------------------------ lo que se pinta
   const almacenNombre = evaluacion?.almacen.nombre ?? sesion.almacen?.nombre ?? null;
 
+  // Una ruta que no es padre-hijo la hace solo el Administrador y pide observación (X-03).
+  const pideObservacion = Boolean(evaluacion?.pide_observacion);
+
   const razonParaNoContinuar = (): string | null => {
     if (operaTodos && !borrador.almacenId) return "Elige el almacén que operas.";
     if (!borrador.destinoId) return "Elige a qué almacén se envía.";
@@ -358,6 +381,7 @@ export default function Trasladar() {
     const rojos = evaluados.filter((r) => r.nivel === "ROJO").length;
     if (rojos > 0) return `Quita ${rojos === 1 ? "el artículo en rojo" : `los ${rojos} artículos en rojo`} para continuar.`;
     if (!evaluacion.puede_confirmar) return evaluacion.motivos.find((m) => m.nivel === "ROJO")?.mensaje ?? "Revisa la lista para continuar.";
+    if (pideObservacion && !(borrador.observacion ?? "").trim()) return "Escribe por qué se envía por esta ruta para continuar.";
     return null;
   };
 
@@ -373,6 +397,7 @@ export default function Trasladar() {
       <SelectorDestino
         origenId={borrador.almacenId}
         valor={borrador.destinoId}
+        soloHabituales={!operaTodos}
         alCambiar={(a) => actualizar((b) => ({ ...b, destinoId: a.id, destinoNombre: a.nombre }))}
       />
     </div>
@@ -453,6 +478,18 @@ export default function Trasladar() {
             ) : null}
 
             <MotivosDelVale motivos={evaluacion?.motivos ?? []} />
+
+            {pideObservacion ? (
+              <ObservacionRuta
+                valor={borrador.observacion ?? ""}
+                alCambiar={(texto) => {
+                  setErrorObservacion(null);
+                  actualizar((b) => ({ ...b, observacion: texto }));
+                }}
+                error={errorObservacion}
+                deshabilitado={enviando}
+              />
+            ) : null}
 
             {errorEnvio ? (
               <section role="alert" className="flex flex-col gap-1 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-4">

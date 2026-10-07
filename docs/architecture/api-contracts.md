@@ -34,13 +34,22 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 | 409 | `ROL_EN_USO` | Un rol con usuarios asignados no se inactiva ni se elimina (AC-11). |
 | 409 | `AUTO_BLOQUEO` | Quien administra intenta quitarle `acceso.administrar` a su propio rol o inactivarlo (AC-09). |
 | 409 | `CODIGO_REPETIDO` | El código ya identifica otra cosa. Incluye en `detalles` su `tipo`, su `ref_id` y una `descripcion` de quién es. |
-| 409 | `TRABAJADOR_EXISTE` | Al dar de alta, el número de empleado o la CURP ya existen (T-02). Incluye en `detalles.trabajador` a la persona (`id`, `numero_empleado`, `nombre`, `estado`) y en `detalles.coincide_por` el dato que coincidió, para ofrecer el reingreso. Si coincidió la CURP y quien da de alta no tiene `trabajadores.ver_datos_personales`, solo dice que ya existe (`detalles` solo trae `regla`), sin `coincide_por` ni la persona (AC-05). |
+| 409 | `TRABAJADOR_EXISTE` | Al dar de alta, la CURP ya existe, el nombre completo coincide con el de otra persona cuando el alta no trae CURP, o el número de empleado externo ya existe (T-02, T-10). Incluye en `detalles.trabajador` a la persona (`id`, `numero_empleado`, `nombre`, `estado`) y en `detalles.coincide_por` el dato que coincidió (`curp`, `nombre` o `numero_empleado`), para ofrecer el reingreso. Cuando coincide solo el `nombre`, `detalles.puede_confirmar_distinta` es `true`: se puede repetir el alta con `confirmar_distinta: true` si es otra persona (nunca con CURP ni número externo repetidos). Si coincidió la CURP y quien da de alta no tiene `trabajadores.ver_datos_personales`, solo dice que ya existe (`detalles` solo trae `regla`), sin `coincide_por` ni la persona (AC-05). |
 | 409 | `CON_PENDIENTES` | No se puede emitir el vale de no adeudo. `detalles` trae `{regla: "B-04", pendientes}`: cada pendiente con `articulo`, `codigo`, `numero_serie`, `cantidad`, `entregado_en`, `folio` y almacén (`almacen_clave`, `almacen`); sin costos. |
 | 409 | `CON_MOVIMIENTOS` | No se puede eliminar ni cambiar control o retorno. |
 | 409 | `NO_CANCELABLE` | El vale no se puede cancelar (K-03, K-04, X-14). `mensaje` explica por qué en español llano y `detalles` trae, por cada motivo, `{regla, mensaje}` (y `renglon` y `codigo` si es de un renglón). No se escribe nada. |
 | 409 | `TRANSICION_INVALIDA` | La solicitud de compra no puede pasar a ese estado desde el que tiene (SC-04). `detalles`: `{regla, estado_actual, estado_pedido, estados_permitidos}`. |
 | 409 | `ARCHIVO_REPETIDO` | La confirmación de una importación trae un archivo con la misma huella que otra ya confirmada (I-12) y no manda `confirmar_repetido: true`. `detalles: {regla: "I-12", fecha}` (UTC). No se escribe nada. |
 | 409 | `ID_CLIENTE_EN_USO` | El `id_cliente` de una solicitud de compra ya se usó con otro cuerpo o por otro usuario (SC-10). |
+| 409 | `CLAVE_REPETIDA` | Ya hay un almacén con esa clave (sin distinguir mayúsculas) (AL-02). |
+| 409 | `NOMBRE_REPETIDO` | Ya hay un almacén con ese nombre (sin distinguir mayúsculas ni acentos) (AL-02). |
+| 409 | `YA_HAY_CENTRAL` | Ya existe el almacén central; solo hay uno (AL-02). |
+| 409 | `CLAVE_CON_FOLIOS` | La clave de un almacén que ya tiene folios no se cambia (AL-05). |
+| 409 | `CON_EXISTENCIAS`, `CON_TRASPASOS_EN_TRANSITO`, `CON_HIJOS_ACTIVOS`, `CON_USUARIOS` | No se puede inactivar el almacén (AL-03). El código es el primer bloqueo y `detalles.bloqueos` los lista todos con lo que falta (ver [Almacenes y existencias](#almacenes-y-existencias)). |
+| 409 | `PADRE_CERRADO` | No se reactiva un almacén cuyo almacén padre está cerrado (AL-03). |
+| 409 | `ALMACEN_CERRADO` | El almacén está cerrado y no recibe ni envía movimientos ni solicitudes: «Ese almacén está cerrado.» `detalles: {regla: "AL-04", almacen: {id, clave, nombre}}` (AL-04). Lo dan la confirmación de vales y las solicitudes de compra nuevas; la evaluación lo trae como motivo rojo del vale. |
+| 422 | `PADRE_INVALIDO` | El almacén padre no existe, está cerrado, es el mismo almacén o uno de sus descendientes, un `CENTRAL` trae padre o un no central no lo trae (AL-02). `detalles: {regla: "AL-02", motivo}`. |
+| 403 | `RUTA_SOLO_ADMINISTRADOR` | El traspaso va por una ruta que no es padre-hijo y quien lo confirma no tiene `almacenes.todos` (X-03). `detalles: {regla: "X-03", origen, destino}`. Sin observación obligatoria el caso del Administrador es 422 `DATOS_INVALIDOS` con `regla: "X-03"`. |
 | 403 | `AUTORIZACION_PROPIA` | Quien pidió la autorización intenta autorizarla (A-05, AC-07). |
 | 409 | `AUTORIZACION_RESUELTA` | La solicitud ya se resolvió o venció; no se resuelve de nuevo. |
 | 409 | `AUTORIZACION_INVALIDA` | La autorización no sirve para este vale: no está aprobada, venció, ya se usó, es de otro almacén o trabajador, o no cubre los renglones ni la cantidad (A-03). |
@@ -114,7 +123,7 @@ Responden solo lo que el usuario puede ver: trabajadores con `trabajadores.ver`,
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
 | `GET /api/trabajadores` | `trabajadores.ver` | Lista con vigencia y situación (cada elemento trae `puesto` y `puesto_id`). Filtros: `q` (parte del nombre o del número) y `situacion` (`SIN_PENDIENTES`, `CON_PENDIENTES`, `NO_ADEUDO_EMITIDO`). Nunca trae CURP ni NSS. |
-| `POST /api/trabajadores` | `trabajadores.administrar` | Alta (T-03): `{nombre, numero_empleado, area_obra, inicio, fin}`, el puesto como `puesto_id` (del catálogo) o como texto `puesto` (al menos uno; con los dos manda `puesto_id`) y opcionales `{referencia, tallas, curp, nss}`. Con `puesto_id`, el texto del periodo queda con el nombre del puesto; un `puesto_id` que no existe o está inactivo es 422 (`detalles.campo = "puesto_id"`). Con solo texto se busca el puesto por nombre (sin importar mayúsculas ni acentos): si existe se liga y, si no, el periodo queda sin `puesto_id` (sin dotación). Responde 201 con la ficha. Si el número o la CURP ya existen responde 409 `TRABAJADOR_EXISTE` con la persona, para ofrecer el reingreso. Fin anterior a inicio: 422 con `detalles.campo = "fin"`. |
+| `POST /api/trabajadores` | `trabajadores.administrar` | Alta (T-03): `{nombre, area_obra, inicio, fin}`, el puesto como `puesto_id` (del catálogo) o como texto `puesto` (al menos uno; con los dos manda `puesto_id`) y opcionales `{referencia, tallas, curp, nss, confirmar_distinta, numero_empleado}`. **El número de empleado lo genera el servidor** (T-10, `E-000001`, desde `serie_empleado`) y la respuesta (201) lo trae en `numero_empleado` junto con `numero_externo: false`. `numero_empleado` solo se acepta con el permiso `trabajadores.numero_externo` (de inicio, el Administrador): único, de 1 a 30 caracteres, y el trabajador queda con `numero_externo: true`; sin el permiso, mandarlo es 403 `SIN_PERMISO`. **Reingreso (T-02):** si la CURP ya existe, o el alta no trae CURP y el nombre completo (sin distinguir mayúsculas ni acentos) coincide con el de otra persona, responde 409 `TRABAJADOR_EXISTE` para ofrecer el reingreso (`POST /api/trabajadores/{id}/periodos`); en la coincidencia por nombre, `confirmar_distinta: true` crea al trabajador de todos modos. `GET /api/trabajadores` y la ficha traen también `numero_externo`. Con `puesto_id`, el texto del periodo queda con el nombre del puesto; un `puesto_id` que no existe o está inactivo es 422 (`detalles.campo = "puesto_id"`). Con solo texto se busca el puesto por nombre (sin importar mayúsculas ni acentos): si existe se liga y, si no, el periodo queda sin `puesto_id` (sin dotación). Responde 201 con la ficha. Fin anterior a inicio: 422 con `detalles.campo = "fin"`. |
 | `GET /api/trabajadores/puestos` | `trabajadores.administrar` | Los puestos **activos** para elegir el del alta y el reingreso: `{elementos: [{id, nombre}], total}`. Existe porque Recursos Humanos da de alta pero no tiene `catalogo.ver` y por eso no puede usar `GET /api/puestos`. Paginado (`pagina`, `tamano`). |
 | `GET /api/trabajadores/{id}` | `trabajadores.ver` | Ficha: datos, `puesto` y `puesto_id` del periodo vigente, `periodo` vigente (con su `puesto_id`), `periodos` (todos, del más reciente al más antiguo), `vigencia` `{vigente, motivo, regla}`, `situacion`, `codigos`, `tiene_foto` y `foto_url`, `resguardo` (retornables con código, fecha de entrega, folio y almacén) y `pendientes` `{total, de_periodos_anteriores, regla}`. `curp` y `nss` solo existen en la respuesta con `trabajadores.ver_datos_personales`; sin el permiso la clave no se envía. |
 | `GET /api/trabajadores/{id}/dotacion` | `trabajadores.ver` | Lo que le falta de la dotación de su puesto (D-02): `{puesto: {id, nombre} \| null, renglones: [{articulo: {id, codigo, nombre, unidad, control}, recomendada, entregada, falta}]}`. Forma y ejemplo en [Puestos y dotación](#puestos-y-dotación). Sin puesto del catálogo o con el puesto sin dotación, `renglones` va vacío. Es el permiso de la ficha (`GET /api/trabajadores/{id}`), que el almacenista, el supervisor y RH tienen. |
@@ -177,8 +186,177 @@ Ejemplo de `GET /api/trabajadores/{id}/dotacion` (D-02). `entregada` es, en un r
 
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
-| `GET /api/almacenes` | `inventario.ver` | Lista con su red: `{id, clave, nombre, tipo, estado, padre_id, padre_clave, hijos: [{id, clave, nombre}]}`. |
+| `GET /api/almacenes?resumen=` | `inventario.ver` | Lista con su red (la forma de la respuesta no cambia; se agregan campos). Cada elemento es una **ficha de almacén** (abajo): `{id, clave, nombre, tipo, estado, padre_id, padre_clave, cerrado_en, hijos: [{id, clave, nombre, estado}]}`. Con `resumen=true` agrega `resumen`; eso solo lo puede pedir quien tiene `almacenes.administrar` (403 `SIN_PERMISO` si no, porque trae existencias de otros almacenes, AC-06). Lista todos, también los cerrados. |
+| `POST /api/almacenes` | `almacenes.administrar` | Alta (AL-01, AL-02). Cuerpo `{clave, nombre, tipo, padre_id}`. Responde 201 con la ficha. Detalle abajo. |
+| `PATCH /api/almacenes/{id}` | `almacenes.administrar` | Edita `{nombre?, padre_id?, clave?}` (omitido no es `null`; otro campo, 422). Responde la ficha. Detalle abajo. |
+| `POST /api/almacenes/{id}/cierre` | `almacenes.administrar` | Inactiva (AL-03). Cuerpo opcional `{motivo?}`. Responde la ficha. Detalle abajo. |
+| `POST /api/almacenes/{id}/reapertura` | `almacenes.administrar` | Reactiva el mismo almacén. Cuerpo opcional `{motivo?}`. Responde la ficha. |
+| `GET /api/tablero/resumen?almacen_id=` | `tablero.ver` | Tarjetas del Inicio (TB-01). Solo lectura, sin costos. Detalle en la sección «Tablero». |
+| `GET /api/tablero/consumo?desde=&hasta=&almacen_id=&categoria_id=&limite=&separar_por_almacen=` | `tablero.ver` | Ranking de lo más usado en un rango (TB-02, TB-03). Detalle en la sección «Tablero». |
 | `GET /api/almacenes/{id}/existencias` | `inventario.ver` | `{almacen, elementos, total}`: por artículo con existencia, `cantidad` y `disponible` (en piezas, solo las Aptas; I-05), con `activo` para marcar los inactivos (CF-11). Filtros: `q`, `categoria_id`, `activo`; admite `pagina` y `tamano`. Sin costos. Sin `almacenes.todos`, solo el almacén asignado: otro responde 404 `NO_ENCONTRADO`, igual que uno que no existe (AC-06). |
+
+### Administración de almacenes (FEAT-008)
+
+Reglas AL-01 a AL-05 ([reglas, 7.14](../product/reglas-de-negocio.md)). Todo cambio queda en el registro de cambios (`almacen.crear`, `almacen.editar`, `almacen.inactivar`, `almacen.reactivar`) con el antes y el después. Los cuatro endpoints de escritura piden `almacenes.administrar`: sin él, 403 `SIN_PERMISO`.
+
+**Ficha de almacén** (la respuesta de los cuatro endpoints de escritura y cada elemento de la lista):
+
+```json
+{
+  "id": "01a1…", "clave": "MID", "nombre": "Midrex", "tipo": "PROYECTO", "estado": "ACTIVO",
+  "padre_id": "01a1…", "padre_clave": "CON", "cerrado_en": null,
+  "hijos": [{ "id": "01a1…", "clave": "XYZ", "nombre": "Zona nueva", "estado": "ACTIVO" }],
+  "resumen": {
+    "existencias": { "unidades": 340, "articulos": 18 },
+    "piezas_en_resguardo": 4,
+    "usuarios": 3,
+    "traspasos_en_transito": 0,
+    "solicitudes_compra_abiertas": 1,
+    "tiene_folios": true,
+    "puede_cerrar": false,
+    "puede_reabrir": false,
+    "bloqueos_cierre": [{ "codigo": "CON_EXISTENCIAS", "mensaje": "Todavía tiene 340 unidades de 18 artículos." }]
+  }
+}
+```
+
+- `cerrado_en` es UTC o `null`. `padre_id` y `padre_clave` son `null` en el central.
+- `resumen` solo viene en `GET /api/almacenes?resumen=true`. `existencias` suma las unidades de la ubicación del almacén (cualquier estado de pieza) y cuenta los artículos con cantidad mayor a cero. `piezas_en_resguardo` son las piezas de artículos por pieza que tiene un trabajador por una entrega de ese almacén. `usuarios` son los usuarios **activos** asignados. `traspasos_en_transito` son los traspasos desde o hacia él con algo todavía En tránsito. `solicitudes_compra_abiertas` son las PENDIENTE y EN_COMPRA. `tiene_folios` es `true` si ya emitió algún folio de vale o de solicitud (AL-05).
+- `puede_cerrar` (almacén ACTIVO) es `true` si ninguna condición de AL-03 falla; si no, `bloqueos_cierre` trae `{codigo, mensaje}` por cada una, con los mismos códigos del cierre. `puede_reabrir` (almacén CERRADO) es `true` si su padre está activo (o es el central). La pantalla usa estos campos para habilitar o no los botones; el servidor vuelve a validar al ejecutar.
+
+**`POST /api/almacenes`**
+
+- Cuerpo: `clave` (2 a 10 caracteres, letras sin acento y números; el servidor la pasa a mayúsculas), `nombre` (1 a 100), `tipo` (`CENTRAL`, `SUBALMACEN` o `PROYECTO`) y `padre_id` (UUID de un almacén activo; `null` solo si el tipo es `CENTRAL`).
+- Crea el almacén **y su ubicación** en la misma transacción. Nace `ACTIVO`. Si todavía no existen, crea también las ubicaciones virtuales del sistema (proveedor, en tránsito, consumido y baja) que los movimientos necesitan: una base de producción vacía no las trae.
+- Errores: 409 `CLAVE_REPETIDA`, 409 `NOMBRE_REPETIDO`, 409 `YA_HAY_CENTRAL` (el tipo es `CENTRAL` y ya existe uno), 422 `PADRE_INVALIDO` (no existe, está cerrado, `CENTRAL` con padre o no central sin padre), 422 `DATOS_INVALIDOS` (formato de la clave, tipo desconocido). Dos altas simultáneas con la misma clave o nombre: gana una y la otra recibe el 409 (restricción única de la base).
+
+**`PATCH /api/almacenes/{id}`**
+
+- Cambia lo que viene: `nombre`, `padre_id` y `clave`. El `tipo` no se cambia (422).
+- Un almacén `CERRADO` no se edita: 409 `ALMACEN_CERRADO`. Hay que reactivarlo primero.
+- `clave`: 409 `CLAVE_CON_FOLIOS` si ya tiene folios (AL-05); 409 `CLAVE_REPETIDA` si choca.
+- `padre_id`: 422 `PADRE_INVALIDO` si crearía un ciclo, si es él mismo, si el padre está cerrado, o si es el central (que no lleva padre).
+- 404 `NO_ENCONTRADO` si el almacén no existe.
+
+**`POST /api/almacenes/{id}/cierre`**
+
+- Pasa a `CERRADO` y escribe `cerrado_en`. 200 con la ficha. Si ya estaba cerrado: 409 `CONFLICTO`.
+- Revisa las cuatro condiciones de AL-03. Si falla alguna, 409 sin cambiar nada. El `codigo` es el del primer bloqueo en este orden: `CON_TRASPASOS_EN_TRANSITO`, `CON_EXISTENCIAS`, `CON_HIJOS_ACTIVOS`, `CON_USUARIOS`. El `mensaje` dice en español llano qué falta y `detalles` lista **todos** los bloqueos:
+
+```json
+{
+  "codigo": "CON_EXISTENCIAS",
+  "mensaje": "Midrex todavía tiene 340 unidades de 18 artículos. Regrésalas por traspaso a Contratistas antes de cerrarlo.",
+  "detalles": {
+    "regla": "AL-03",
+    "bloqueos": [
+      { "codigo": "CON_EXISTENCIAS", "mensaje": "…", "unidades": 340, "total_articulos": 18,
+        "articulos": [{ "articulo_id": "01a1…", "codigo": "DISCO-4", "nombre": "Disco de corte 4 pulgadas", "cantidad": 120 }] },
+      { "codigo": "CON_USUARIOS", "mensaje": "…", "total": 3,
+        "usuarios": [{ "id": "01a1…", "nombre": "Ana Pérez", "usuario": "alm_mid" }] }
+    ]
+  }
+}
+```
+
+  Campos por bloqueo: `CON_EXISTENCIAS`: `unidades`, `total_articulos` y `articulos` (hasta 20, de mayor a menor cantidad); `CON_TRASPASOS_EN_TRANSITO`: `total` y `traspasos` (hasta 20: `{id, folio, estado, origen: {id, clave, nombre}, destino: {id, clave, nombre}}`); `CON_HIJOS_ACTIVOS`: `total` y `hijos` (`{id, clave, nombre}`); `CON_USUARIOS`: `total` y `usuarios` (hasta 20, activos: `{id, nombre, usuario}`). Las piezas en resguardo de trabajadores no bloquean (CP-05).
+
+**`POST /api/almacenes/{id}/reapertura`**
+
+- Pasa a `ACTIVO` y limpia `cerrado_en`. 200 con la ficha. Si ya estaba activo: 409 `CONFLICTO`. Si su padre está cerrado: 409 `PADRE_CERRADO` (hay que reactivar primero al padre).
+
+**Almacén cerrado en el resto de la API (AL-04).** Ver «Almacén cerrado» en [Vales](#vales) y `POST /api/solicitudes-compra`.
+
+## Tablero
+
+Parte de [FEAT-008](../features/FEAT-008-administracion-de-almacenes-y-tablero.md) (TB-01 a TB-03). Solo lectura: no escribe nada y nunca trae costos, CURP ni NSS. Los dos endpoints piden `tablero.ver`; sin él (Compras, RH), 403 `SIN_PERMISO`. El alcance lo decide el servidor (AC-06, TB-01): con `almacenes.todos`, todos los almacenes o el que indique `almacen_id`; sin él, **solo el almacén asignado** y `almacen_id` se ignora (no es error). Un `almacen_id` que no existe, con `almacenes.todos`, es 404 `NO_ENCONTRADO`; uno cerrado sí se puede pedir. Sin almacén asignado y sin `almacenes.todos`, ambos responden 200 con todo en cero y `alcance.almacen_id` en `null` y `es_todos` en `false`.
+
+### `GET /api/tablero/resumen?almacen_id=`
+
+Las tarjetas de FEAT-008 4.2.2. Respuesta (200):
+
+```json
+{
+  "alcance": { "almacen_id": null, "nombre": "Todos los almacenes", "es_todos": true, "puede_elegir": true },
+  "existencias": { "unidades": 1240, "articulos": 37 },
+  "resguardo_equipo_importante": 12,
+  "sin_existencia": 3,
+  "traspasos_en_transito": 2,
+  "entregas_hoy": 18,
+  "solicitudes_compra_abiertas": 4,
+  "inspecciones_por_vencer": 1,
+  "generado_en": "2026-10-06T16:20:00Z"
+}
+```
+
+| Campo | Qué cuenta |
+|---|---|
+| `alcance.almacen_id` | UUID del almacén que se está viendo, o `null` si son todos (o si el usuario no tiene almacén). |
+| `alcance.nombre` | «Todos los almacenes», el nombre del almacén (por ejemplo «Midrex») o «Sin almacén asignado». |
+| `alcance.es_todos` | `true` solo cuando se ven todos los almacenes. |
+| `alcance.puede_elegir` | `true` si el usuario tiene `almacenes.todos`: la interfaz muestra el selector solo en ese caso. El selector se llena con `GET /api/almacenes`. |
+| `existencias.unidades` | Suma de `existencia.cantidad` en las ubicaciones de almacén del alcance. No cuenta lo que tienen los trabajadores ni lo que está En tránsito. |
+| `existencias.articulos` | Artículos distintos con cantidad mayor a cero en el alcance. |
+| `resguardo_equipo_importante` | Piezas de artículos **por pieza** (alturas, eléctrica, alto valor) que están en manos de un trabajador (ubicación de trabajador, estado distinto de `BAJA`) y que son del alcance: se entregaron desde un almacén del alcance (AC-06, C-02). Al tocarla, la interfaz abre `/seguimiento` filtrado por `ubicacion=TRABAJADOR`. |
+| `sin_existencia` | Artículos **activos** que alguna vez tuvieron existencia en el alcance y hoy suman cero (tienen fila de `existencia` pero la suma del alcance es 0). Un artículo del catálogo que nunca entró al almacén no cuenta. |
+| `traspasos_en_transito` | Traspasos con algo aún En tránsito (`EN_TRANSITO` o `RECIBIDO_CON_DIFERENCIAS`) cuyo origen **o** destino está en el alcance: de ida y de venida. |
+| `entregas_hoy` | Vales de ENTREGA no cancelados del alcance (`vale.almacen_id`) creados hoy, del día de México (TB-03). |
+| `solicitudes_compra_abiertas` | Solicitudes de compra en estado PENDIENTE o EN_COMPRA del alcance. |
+| `inspecciones_por_vencer` | Piezas de artículos que requieren inspección, en estado `APTO`, cuya `inspeccion_vigente_hasta` cae entre hoy y hoy más 7 días (el plazo de E-11; hoy incluido), dentro del alcance de C-02. Las ya vencidas no cuentan. |
+| `generado_en` | Momento del cálculo, UTC. |
+
+Todos los números son enteros. No hay paginación.
+
+### `GET /api/tablero/consumo?desde=&hasta=&almacen_id=&categoria_id=&limite=&separar_por_almacen=`
+
+El ranking de lo más usado (FEAT-008 4.2.3, TB-02), agrupado en el servidor.
+
+| Parámetro | Valor | Por omisión |
+|---|---|---|
+| `desde`, `hasta` | `AAAA-MM-DD`, fechas de México, ambas inclusivas (el día `hasta` entra completo, TB-03). | Del día 1 del mes en curso a hoy. |
+| `almacen_id` | UUID. Solo se respeta con `almacenes.todos`; sin él se usa el del usuario. | Todos (con `almacenes.todos`) o el del usuario. |
+| `categoria_id` | UUID de una categoría. | Todas (la interfaz manda «Consumibles de trabajo» por omisión; el servidor no la elige). |
+| `limite` | Entero de 1 a 20. | 10 |
+| `separar_por_almacen` | `true` o `false`. Solo tiene efecto si el alcance es «todos los almacenes». | `false` |
+
+**Qué cuenta (TB-02).** Lo entregado en el rango, neto de cancelaciones, por artículo: para consumibles, la misma consulta de C-08 (suma los movimientos a CONSUMIDO y resta los que salen de CONSUMIDO); para retornables, las unidades de los movimientos de vales ENTREGA no cancelados. El almacén de un movimiento es el del vale. Sin renglones en cero. Se ordena de mayor a menor `total` y, en empate, por nombre.
+
+Respuesta (200):
+
+```json
+{
+  "desde": "2026-10-01",
+  "hasta": "2026-10-06",
+  "almacen": null,
+  "categoria": { "id": "01a1…", "nombre": "Consumibles de trabajo" },
+  "limite": 10,
+  "separar_por_almacen": true,
+  "barras": [
+    {
+      "articulo_id": "01a1…",
+      "articulo": "Disco de corte 4 pulgadas",
+      "categoria": { "id": "01a1…", "nombre": "Consumibles de trabajo" },
+      "unidad": "pieza",
+      "total": 120,
+      "por_almacen": [
+        { "almacen_id": "01a1…", "almacen": "Midrex", "total": 80 },
+        { "almacen_id": "01a1…", "almacen": "HYL", "total": 40 }
+      ]
+    }
+  ],
+  "otros": { "total": 35, "articulos": 6 },
+  "total_general": 155,
+  "sin_registros": false
+}
+```
+
+- `almacen` es `{id, clave, nombre}` del almacén que se usó, o `null` si son todos. `categoria` es `{id, nombre}` o `null` si son todas.
+- `barras` trae, a lo más, `limite` artículos. Cada una lleva la `categoria` de su artículo (con «todas las categorías» sirve para distinguirlas) y `unidad`.
+- `por_almacen` va vacío (`[]`) salvo con `separar_por_almacen=true` y alcance de todos los almacenes. Entonces lleva un elemento por almacén con consumo, de mayor a menor, y **su suma es el `total` de la barra**.
+- `otros` es la suma de los artículos que no entraron en `barras` (`total`) y cuántos son (`articulos`); `{total: 0, articulos: 0}` si no los hay. No tiene desglose.
+- `total_general` = suma de las barras más `otros.total`. Coincide con el total del reporte de consumo (`GET /api/reportes/consumo`) del mismo rango, almacén y categoría de consumibles.
+- `sin_registros` es `true` si no hubo consumo en el rango (`barras` vacío): la interfaz muestra «No hubo consumo en estas fechas».
+- Errores: 422 `DATOS_INVALIDOS` (fecha mal escrita, `desde` posterior a `hasta`, rango de más de 366 días, `limite` fuera de 1 a 20); 404 `NO_ENCONTRADO` (almacén o categoría que no existe); 403 `SIN_PERMISO`.
 
 ## Vales
 
@@ -218,9 +396,11 @@ Permiso y campos propios de cada tipo. El permiso se verifica por clave, según 
 | ENTREGA | `entregas.crear` | `trabajador_id`; `firma` con `modo: "PANTALLA"` e `imagen` (F-02); `condicion` por renglón (`BUENO` por defecto, E-22). `almacen_id` solo para quien tiene `almacenes.todos`. |
 | DEVOLUCION | `devoluciones.crear` | `condicion` por renglón (obligatoria, V-04); `observacion` obligatoria si es `DANADO` (V-05); `foto` opcional por renglón `DANADO` (`data:image/…;base64,…`, se guarda como adjunto `FOTO_DANO` ligado al movimiento); `trabajador_id` solo hace falta en renglones por cantidad (una pieza se abona a su titular). Sin firma: firma el almacenista con su sesión (F-08). |
 | NO_ADEUDO | `no_adeudo.emitir` | `trabajador_id`; sin renglones. Lo usual es `POST /api/trabajadores/{id}/no-adeudo`; por `POST /api/vales` con pendientes responde 409 `VALE_CAMBIO` con el motivo `B-04`. |
-| TRASPASO | `traspasos.operar` | `destino_almacen_id` (obligatorio); renglones por código de pieza, o de artículo con `cantidad`. Sin `trabajador_id`, `vale_origen_id`, `pieza` ni costos (422). Firma de sesión (F-09): no lleva `firma`. El vale queda `EN_TRANSITO`, folio `CLAVE-TRS-000001`. `almacen_id` solo para quien tiene `almacenes.todos`. `evaluar` trae en `motivos` del vale la regla X-03 (verde, amarillo o rojo) y por renglón X-02, X-04, X-09. |
+| TRASPASO | `traspasos.operar` | `destino_almacen_id` (obligatorio); renglones por código de pieza, o de artículo con `cantidad`. Sin `trabajador_id`, `vale_origen_id`, `pieza` ni costos (422). Firma de sesión (F-09): no lleva `firma`. El vale queda `EN_TRANSITO`, folio `CLAVE-TRS-000001`. `almacen_id` solo para quien tiene `almacenes.todos`. `evaluar` trae en `motivos` del vale la regla X-03 (verde, amarillo o rojo) y por renglón X-02, X-04, X-09. **Ruta que no es padre-hijo (X-03, FEAT-008):** sin `almacenes.todos`, `evaluar` la marca en rojo y confirmar responde 403 `RUTA_SOLO_ADMINISTRADOR`; con `almacenes.todos`, `evaluar` da amarillo con `pide_observacion: true` (en el vale) y confirmar exige `observacion` en el vale (sin ella, 422 `DATOS_INVALIDOS` con `detalles: [{campo: "observacion", mensaje, regla: "X-03"}]`). Un origen o destino cerrado: 409 `ALMACEN_CERRADO` (AL-04). |
 | RECEPCION | `traspasos.operar` | `vale_origen_id` (el traspaso, obligatorio); `renglones`: lo escaneado, por código de pieza o de artículo con `cantidad` (para recibir todo, todos los pendientes de `por-recibir`; sin renglones, 422). Sin `trabajador_id` ni `destino_almacen_id` (422). Firma de sesión (F-09). Folio `CLAVE-REC-000001` del almacén que recibe; al confirmar, el traspaso queda `RECIBIDO` o `RECIBIDO_CON_DIFERENCIAS` (X-13). `evaluar`: X-10 (vale y renglones, rojo), X-12 (renglón, rojo), X-13 (vale, amarillo) y, si la recepción deja algo pendiente sin `observacion` (vacía o en blanco), RG-14 (vale, rojo). Al confirmar esa recepción sin observación responde 422 con `detalles: [{campo: "observacion", mensaje, regla: "RG-14"}]` y no guarda nada; la recepción que completa lo pendiente no la pide. Un `vale_origen_id` inexistente es 404 y el de un vale que no es traspaso, 422. |
 | CANCELACION | `vales.cancelar` | `vale_origen_id` (el vale que se cancela) y `observacion` (el motivo); sin renglones: salen de los del original. Normalmente se usa `POST /api/vales/{id}/cancelacion`; `POST /api/vales` con este tipo hace lo mismo. |
+
+**Almacén cerrado (AL-04, FEAT-008).** En cualquier tipo que mueve inventario (ENTRADA, ENTREGA, DEVOLUCION, TRASPASO, RECEPCION y CANCELACION), si el almacén del vale, o el origen o el destino de un traspaso, está `CERRADO`, `evaluar` trae un motivo rojo del vale con la regla `AL-04` y `POST /api/vales` responde 409 `ALMACEN_CERRADO` sin guardar nada. Las lecturas (consulta y reportes) no cambian.
 
 Respuesta de `GET /api/traspasos/por-recibir` (sin costos; `codigo` es lo que se escanea al recibir: el de la pieza, o el del artículo si es por cantidad):
 
@@ -379,7 +559,7 @@ La solicitud de compra urgente (reglas SC-01 a SC-11, sección 7.13 de las [regl
 
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
-| `POST /api/solicitudes-compra` | `compras.solicitar` | Levanta una solicitud (SC-01, SC-02). Cuerpo abajo. 201 con la solicitud completa; 200 con la misma si el `id_cliente` ya existía con el mismo cuerpo (SC-10). El almacén sale del usuario; con `almacenes.todos` se indica `almacen_id`. |
+| `POST /api/solicitudes-compra` | `compras.solicitar` | Levanta una solicitud (SC-01, SC-02). Cuerpo abajo. 201 con la solicitud completa; 200 con la misma si el `id_cliente` ya existía con el mismo cuerpo (SC-10). El almacén sale del usuario; con `almacenes.todos` se indica `almacen_id`. Un almacén cerrado no recibe solicitudes nuevas: 409 `ALMACEN_CERRADO` (AL-04). |
 | `GET /api/solicitudes-compra` | Solicitar o atender | Lista paginada (`{elementos, total}`) de lo que el usuario ve (SC-03): con `compras.atender` o `almacenes.todos`, las de todos los almacenes; si no, las de su almacén (y nada si no tiene almacén). Filtros: `estado`, `urgencia`, `almacen_id` (con alcance restringido, pedir otro almacén no devuelve nada), `q` (folio, descripción, nombre o código del artículo y motivo; sin distinguir mayúsculas ni acentos), `desde` y `hasta` (fechas de México, `AAAA-MM-DD`; el día `hasta` entra completo; un rango invertido da 422), `mias=true` (solo las que pidió el usuario), `pagina` y `tamano`. Con `solo_contar=true` responde `{"total": n}` con los mismos filtros, para el contador del menú (por ejemplo `estado=PENDIENTE`). Orden: primero PENDIENTE, luego EN_COMPRA, COMPRADA y al final lo cerrado; en cada grupo, URGENTE antes que NORMAL y las más antiguas primero (lo cerrado, la más reciente primero). |
 | `GET /api/solicitudes-compra/{id}` | Solicitar o atender | El detalle: la solicitud y su línea de tiempo (`eventos`). Fuera del alcance del usuario, 404. |
 | `POST /api/solicitudes-compra/{id}/estado` | `compras.atender` | `{estado, nota?, vale_entrada_id?}`. Transiciones válidas (SC-04): PENDIENTE a EN_COMPRA o RECHAZADA, EN_COMPRA a COMPRADA o RECHAZADA, COMPRADA a INGRESADA. Rechazar exige `nota` (SC-05, 422). `vale_entrada_id` solo con `estado: INGRESADA`, es opcional y debe ser un vale de ENTRADA que exista, no esté cancelado y sea de un almacén en el alcance de quien lo liga (SC-06, 422). Cualquier otra transición: 409 `TRANSICION_INVALIDA`. Responde el detalle. |
@@ -663,6 +843,7 @@ Todos aceptan `formato=csv` y las listas, `pagina` y `tamano`. Las fechas (`desd
 | Feature | Endpoints | Permiso |
 |---|---|---|
 | FEAT-001 | `GET /api/publico/vales/{token}` sin sesión; `GET /api/reportes/integridad` | Público; `reportes.movimientos` |
-| FEAT-002 | `POST /api/almacenes`, `POST /api/almacenes/{id}/cierre`, `GET /api/almacenes/{id}/reporte-cierre`, `GET /api/reportes/valor-inventario` | `almacenes.administrar`; `reportes.valor_inventario` |
+| FEAT-002 | `GET /api/almacenes/{id}/reporte-cierre`, `GET /api/reportes/valor-inventario` (abrir y cerrar almacenes pasó a FEAT-008: ver [Almacenes y existencias](#almacenes-y-existencias)) | `almacenes.administrar`; `reportes.valor_inventario` |
+| FEAT-008 | `POST`, `PATCH /api/almacenes`, `POST /api/almacenes/{id}/cierre` y `/reapertura`, `GET /api/almacenes?resumen=true`, `GET /api/tablero/resumen`, `GET /api/tablero/consumo`; `POST /api/trabajadores` sin `numero_empleado` | `almacenes.administrar`; `tablero.ver`; `trabajadores.administrar` |
 | FEAT-003 | **Construido en el servidor** (ver [Puestos y dotación](#puestos-y-dotación)): `GET`, `PUT /api/puestos/{id}/dotacion`, `GET`, `POST`, `PATCH /api/puestos`, `GET /api/trabajadores/{id}/dotacion` | `catalogo.ver`; `catalogo.administrar`; `trabajadores.ver` |
 | FEAT-004 | `PUT /api/almacenes/{id}/minimos`; `POST /api/piezas/{id}/estado` admite mantenimiento y calibración | `inventario.minimos`; `piezas.inspeccionar` |

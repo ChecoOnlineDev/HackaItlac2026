@@ -87,7 +87,7 @@ La columna "Etapa" indica cuándo entra: **MVP**, **Ola 2** (features posteriore
 | Revisión | Lista de revisión, cierre sin devolución, pérdidas | Futuro |
 | Reportes | Consumo por periodo y EPP entregado por trabajador | Futuro |
 | Compras | Solicitud de compra urgente del supervisor o el almacenista | MVP |
-| Tablero | Vista general por almacén para el administrador | Futuro |
+| Tablero | Tarjetas y gráfica de lo más usado: todos los almacenes para el administrador, el propio para supervisor y almacenista ([FEAT-008](../features/FEAT-008-administracion-de-almacenes-y-tablero.md)) | Ola 2 (aprobado) |
 | Operación | Modo sin conexión con sincronización | Futuro |
 
 ## 8. Reglas de negocio

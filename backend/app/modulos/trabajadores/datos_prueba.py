@@ -89,6 +89,7 @@ def cargar(session: Session) -> None:
             trabajador = repositorio.add(
                 Trabajador(
                     numero_empleado=numero,
+                    numero_externo=True,  # números propios del centro (T-10)
                     nombre=nombre,
                     estado=estado,
                     curp=curp,

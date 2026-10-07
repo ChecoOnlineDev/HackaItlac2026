@@ -45,6 +45,8 @@ export interface BorradorTraslado {
   destinoId: string | null;
   /** Nombre del destino, para el resultado. */
   destinoNombre: string | null;
+  /** Por qué se va por una ruta poco habitual (X-03); solo la pide el servidor al Administrador. */
+  observacion?: string;
   renglones: RenglonBorrador[];
   /** El traspaso que ya emitió el servidor; con él, la pantalla muestra el resultado. */
   resultado: ValeConfirmadoApi | null;

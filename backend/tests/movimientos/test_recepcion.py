@@ -28,6 +28,7 @@ from tests.movimientos.ayudas_traspasos import (
     cuerpo_recepcion,
     en_transito,
     enviar,
+    enviar_por_ruta_inusual,
     evaluar_recepcion,
     movimientos_del_vale,
     pieza,
@@ -566,12 +567,15 @@ def test_las_existencias_de_los_dos_almacenes_antes_y_despues(
 
 
 def test_por_recibir_cada_almacen_solo_ve_los_que_vienen_hacia_el_suyo(
-    almacenista, cliente_almacen, compras, session
+    almacenista, cliente_almacen, cliente_como, compras, session
 ):
     guantes = crear_articulo(session, retornable=False)
     abastecer(compras, guantes, 20)
     a_con = enviar(almacenista, session, "CON", [renglon(guantes.codigo, 2)])
-    a_mid = enviar(almacenista, session, "MID", [renglon(guantes.codigo, 3)])  # ruta inusual
+    # Ruta inusual: solo la hace el Administrador (X-03).
+    a_mid = enviar_por_ruta_inusual(
+        cliente_como("Administrador"), session, "KEP", "MID", [renglon(guantes.codigo, 3)]
+    )
     con, mid = cliente_almacen("CON"), cliente_almacen("MID")
     lista_con = con.get(POR_RECIBIR).json()
     assert lista_con["total"] == 1 and lista_con["elementos"][0]["id"] == a_con["id"]
@@ -614,8 +618,8 @@ def test_por_recibir_quien_opera_todos_filtra_por_almacen_y_sin_filtro_ve_todos(
     guantes = crear_articulo(session, retornable=False)
     abastecer(compras, guantes, 20)
     enviar(almacenista, session, "CON", [renglon(guantes.codigo)])
-    enviar(almacenista, session, "MID", [renglon(guantes.codigo)])
     supervisor = cliente_como("Administrador")  # el único con `almacenes.todos`
+    enviar_por_ruta_inusual(supervisor, session, "KEP", "MID", [renglon(guantes.codigo)])
     assert supervisor.get(POR_RECIBIR).json()["total"] >= 2
     solo_con = supervisor.get(POR_RECIBIR, params={"almacen_id": str(almacen_id(session, "CON"))})
     assert {t["destino"]["clave"] for t in solo_con.json()["elementos"]} == {"CON"}

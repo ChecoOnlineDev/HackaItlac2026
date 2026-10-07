@@ -8,6 +8,7 @@ import {
   KeyRound,
   MapPinned,
   UserRoundCog,
+  Warehouse,
   PackageCheck,
   PackagePlus,
   Package,
@@ -55,33 +56,54 @@ export const MENU: readonly ElementoMenu[] = [
   { id: "entregar", titulo: "Entregar", ruta: "/entregar", icono: PackageCheck, permisosAlguno: ["entregas.crear"], grupo: "Operación", inicio: "flujo" },
   { id: "devolver", titulo: "Devolver", ruta: "/devolver", icono: Undo2, permisosAlguno: ["devoluciones.crear"], grupo: "Operación", inicio: "flujo" },
   { id: "trasladar", titulo: "Trasladar", ruta: "/trasladar", icono: Truck, permisosAlguno: ["traspasos.operar"], grupo: "Operación", inicio: "flujo" },
-  { id: "recibir", titulo: "Recibir", ruta: "/recibir", icono: Inbox, permisosAlguno: ["traspasos.operar"], grupo: "Operación", inicio: "flujo", contador: "porRecibir" },
+  { id: "recibir", titulo: "Recibir traspaso", ruta: "/recibir", icono: Inbox, permisosAlguno: ["traspasos.operar"], grupo: "Operación", inicio: "flujo", contador: "porRecibir" },
   { id: "pedir-compra", titulo: "Pedir compra urgente", ruta: "/compras/nueva", icono: ShoppingCart, permisosAlguno: ["compras.solicitar"], grupo: "Operación", inicio: "gestion" },
-  { id: "compras-mias", titulo: "Compras urgentes", ruta: "/compras/mias", icono: ReceiptText, permisosAlguno: ["compras.solicitar"], grupo: "Operación", inicio: "gestion" },
+  { id: "compras-mias", titulo: "Mis compras urgentes", ruta: "/compras/mias", icono: ReceiptText, permisosAlguno: ["compras.solicitar"], grupo: "Operación", inicio: "gestion" },
   { id: "consultar", titulo: "Consultar", ruta: "/consultar", icono: Search, grupo: "Consulta", inicio: "flujo" },
   { id: "mis-movimientos", titulo: "Mis movimientos de hoy", ruta: "/mis-movimientos", icono: History, permisosAlguno: ["vales.ver"], grupo: "Consulta", inicio: "gestion" },
-  { id: "solicitudes-compra", titulo: "Solicitudes de compra", ruta: "/compras", icono: ShoppingCart, permisosAlguno: ["compras.atender"], grupo: "Inventario y catálogo", inicio: "gestion", contador: "porComprar" },
+  { id: "solicitudes-compra", titulo: "Solicitudes de compra", ruta: "/compras", icono: ShoppingCart, permisosAlguno: ["compras.atender"], grupo: "Compras", inicio: "gestion", contador: "porComprar" },
   { id: "autorizaciones", titulo: "Autorizaciones", ruta: "/autorizaciones", icono: ShieldCheck, permisosAlguno: ["autorizaciones.resolver"], grupo: "Supervisión", inicio: "siempre", contador: "porAutorizar" },
   { id: "seguimiento", titulo: "Seguimiento de piezas", ruta: "/seguimiento", icono: MapPinned, permisosAlguno: ["reportes.existencias"], grupo: "Supervisión", inicio: "siempre" },
-  { id: "personal", titulo: "Personal", ruta: "/personal", icono: UserCog, permisosAlguno: ["almacenes.asignar_personal"], grupo: "Supervisión", inicio: "gestion" },
   { id: "trabajadores", titulo: "Trabajadores", ruta: "/trabajadores", icono: Users, permisosAlguno: ["trabajadores.ver"], grupo: "Personas", inicio: "gestion" },
   { id: "alta-trabajador", titulo: "Alta de trabajador", ruta: "/trabajadores/nuevo", icono: UserPlus, permisosAlguno: ["trabajadores.administrar"], grupo: "Personas", inicio: "gestion" },
-  { id: "inventario", titulo: "Inventario", ruta: "/inventario", icono: Boxes, permisosAlguno: ["inventario.ver"], grupo: "Inventario y catálogo", inicio: "gestion" },
-  { id: "entradas", titulo: "Entradas", ruta: "/entradas/nueva", icono: PackagePlus, permisosAlguno: ["inventario.entradas"], grupo: "Inventario y catálogo", inicio: "gestion" },
-  { id: "importar", titulo: "Importar", ruta: "/importar", icono: Upload, permisosAlguno: ["inventario.entradas"], grupo: "Inventario y catálogo", inicio: "gestion" },
-  { id: "categorias", titulo: "Categorías", ruta: "/catalogo/categorias", icono: FolderTree, permisosAlguno: ["catalogo.administrar"], grupo: "Inventario y catálogo", inicio: "gestion" },
-  { id: "articulos", titulo: "Artículos", ruta: "/catalogo/articulos", icono: Package, permisosAlguno: ["catalogo.administrar"], grupo: "Inventario y catálogo", inicio: "gestion" },
-  { id: "puestos", titulo: "Puestos", ruta: "/puestos", icono: BriefcaseBusiness, permisosAlguno: ["catalogo.administrar"], grupo: "Inventario y catálogo", inicio: "gestion" },
-  { id: "etiquetas", titulo: "Etiquetas", ruta: "/etiquetas", icono: Printer, permisosAlguno: ["etiquetas.imprimir"], grupo: "Inventario y catálogo", inicio: "gestion" },
+  { id: "personal", titulo: "Personal del almacén", ruta: "/personal", icono: UserCog, permisosAlguno: ["almacenes.asignar_personal"], grupo: "Personas", inicio: "gestion" },
+  { id: "inventario", titulo: "Inventario", ruta: "/inventario", icono: Boxes, permisosAlguno: ["inventario.ver"], grupo: "Inventario", inicio: "gestion" },
+  { id: "entradas", titulo: "Entrada de proveedor", ruta: "/entradas/nueva", icono: PackagePlus, permisosAlguno: ["inventario.entradas"], grupo: "Inventario", inicio: "gestion" },
+  { id: "importar", titulo: "Importar inventario", ruta: "/importar", icono: Upload, permisosAlguno: ["inventario.entradas"], grupo: "Inventario", inicio: "gestion" },
+  { id: "categorias", titulo: "Categorías", ruta: "/catalogo/categorias", icono: FolderTree, permisosAlguno: ["catalogo.administrar"], grupo: "Inventario", inicio: "gestion" },
+  { id: "articulos", titulo: "Artículos", ruta: "/catalogo/articulos", icono: Package, permisosAlguno: ["catalogo.administrar"], grupo: "Inventario", inicio: "gestion" },
+  { id: "puestos", titulo: "Puestos", ruta: "/puestos", icono: BriefcaseBusiness, permisosAlguno: ["catalogo.administrar"], grupo: "Inventario", inicio: "gestion" },
+  { id: "etiquetas", titulo: "Etiquetas", ruta: "/etiquetas", icono: Printer, permisosAlguno: ["etiquetas.imprimir"], grupo: "Inventario", inicio: "gestion" },
   { id: "rep-existencias", titulo: "Existencias", ruta: "/reportes/existencias", icono: ClipboardList, permisosAlguno: ["reportes.existencias"], grupo: "Reportes", inicio: "gestion" },
   { id: "rep-movimientos", titulo: "Movimientos", ruta: "/reportes/movimientos", icono: FileBarChart, permisosAlguno: ["reportes.movimientos"], grupo: "Reportes", inicio: "gestion" },
   { id: "rep-adeudos", titulo: "Adeudos", ruta: "/reportes/adeudos", icono: FileBarChart, permisosAlguno: ["reportes.adeudos"], grupo: "Reportes", inicio: "gestion" },
   { id: "rep-consumo", titulo: "Consumo", ruta: "/reportes/consumo", icono: FileBarChart, permisosAlguno: ["reportes.consumo"], grupo: "Reportes", inicio: "gestion" },
+  { id: "almacenes", titulo: "Almacenes", ruta: "/almacenes", icono: Warehouse, permisosAlguno: ["almacenes.administrar"], grupo: "Administración", inicio: "gestion" },
   { id: "usuarios", titulo: "Usuarios", ruta: "/usuarios", icono: UserRoundCog, permisosAlguno: ["acceso.administrar"], grupo: "Administración", inicio: "gestion" },
   { id: "roles", titulo: "Roles y permisos", ruta: "/roles", icono: KeyRound, permisosAlguno: ["acceso.administrar"], grupo: "Administración", inicio: "gestion" },
 ];
 
-const ORDEN_GRUPOS = ["Operación", "Consulta", "Supervisión", "Personas", "Inventario y catálogo", "Reportes", "Administración"];
+/**
+ * Los grupos del menú, en orden (FEAT-008, 4.3). «Inicio» no es un grupo: es una entrada fija.
+ * Todos son plegables: el de la sección actual va abierto y el resto se recuerda por persona.
+ */
+export interface GrupoMenu {
+  /** Identificador estable (sirve para recordar si está abierto y para `aria-controls`). */
+  id: string;
+  titulo: string;
+  plegable: boolean;
+}
+
+export const GRUPOS_MENU: readonly GrupoMenu[] = [
+  { id: "operacion", titulo: "Operación", plegable: true },
+  { id: "consulta", titulo: "Consulta", plegable: true },
+  { id: "personas", titulo: "Personas", plegable: true },
+  { id: "inventario", titulo: "Inventario", plegable: true },
+  { id: "compras", titulo: "Compras", plegable: true },
+  { id: "supervision", titulo: "Supervisión", plegable: true },
+  { id: "reportes", titulo: "Reportes", plegable: true },
+  { id: "administracion", titulo: "Administración", plegable: true },
+];
 
 export function menuPermitido(puedeAlguno: (permisos: readonly Permiso[]) => boolean): ElementoMenu[] {
   return MENU.filter((e) => !e.permisosAlguno || puedeAlguno(e.permisosAlguno));
@@ -103,11 +125,25 @@ export function idActivo(elementos: readonly ElementoMenu[], pathname: string): 
   return mejor?.id ?? null;
 }
 
-export function agruparMenu(elementos: readonly ElementoMenu[]): { grupo: string; elementos: ElementoMenu[] }[] {
-  return ORDEN_GRUPOS.map((grupo) => ({
-    grupo,
-    elementos: elementos.filter((e) => e.grupo === grupo),
+export interface GrupoArmado extends GrupoMenu {
+  /** Igual que `titulo`; se conserva para quien ya lee `grupo`. */
+  grupo: string;
+  elementos: ElementoMenu[];
+}
+
+/** Agrupa las entradas permitidas en el orden del menú; un grupo sin entradas visibles no se pinta. */
+export function agruparMenu(elementos: readonly ElementoMenu[]): GrupoArmado[] {
+  return GRUPOS_MENU.map((g) => ({
+    ...g,
+    grupo: g.titulo,
+    elementos: elementos.filter((e) => e.grupo === g.titulo),
   })).filter((g) => g.elementos.length > 0);
+}
+
+/** El grupo que contiene la entrada activa, o null (en Inicio o en una ruta sin entrada). */
+export function idGrupoActivo(grupos: readonly GrupoArmado[], activoId: string | null): string | null {
+  if (!activoId) return null;
+  return grupos.find((g) => g.elementos.some((e) => e.id === activoId))?.id ?? null;
 }
 
 /** Botones del inicio según los permisos. */

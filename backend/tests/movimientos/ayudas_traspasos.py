@@ -111,6 +111,21 @@ def cuerpo_recepcion(traspaso_id: str | uuid.UUID, renglones: list[dict], **extr
     } | extra
 
 
+def enviar_por_ruta_inusual(
+    admin: TestClient, session: Session, origen: str, destino: str, renglones: list[dict]
+):
+    """X-03: una ruta que no es padre-hijo solo la envía quien tiene `almacenes.todos`, con
+    observación. `admin` es el cliente del Administrador; opera sobre `origen`."""
+    return enviar(
+        admin,
+        session,
+        destino,
+        renglones,
+        almacen_id=str(almacen_id(session, origen)),
+        observacion="Ruta fuera de lo habitual (prueba)",
+    )
+
+
 def enviar(cliente: TestClient, session: Session, destino: str, renglones: list[dict], **extra):
     """Confirma un TRASPASO y devuelve su respuesta JSON (debe ser 201)."""
     r = cliente.post(VALES, json=cuerpo_traspaso(session, destino, renglones, **extra))

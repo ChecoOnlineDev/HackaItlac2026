@@ -373,7 +373,6 @@ def datos_alta(**cambios):
     n = uuid.uuid4().hex[:8]
     datos = {
         "nombre": f"Persona {n}",
-        "numero_empleado": f"PUE-{n}",
         "area_obra": "Midrex",
         "inicio": (hoy - timedelta(days=5)).isoformat(),
         "fin": (hoy + timedelta(days=200)).isoformat(),

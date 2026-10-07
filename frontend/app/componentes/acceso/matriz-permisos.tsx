@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { LockIcon, ShieldAlertIcon } from "lucide-react";
 
 import { Switch } from "~/components/ui/switch";
+import { Boton } from "~/componentes/ui/boton";
 import { Insignia } from "~/componentes/ui/insignia";
 import { AVISO_RESERVADO, agruparPermisos, type PermisoInfo } from "./tipos";
 
@@ -16,6 +17,23 @@ interface Propiedades {
   razonBloqueo: (clave: string) => string | null;
   /** Bloquea toda la matriz (por ejemplo, mientras se guarda). */
   deshabilitada?: boolean;
+  /** «Activar todos» o «Quitar todos» de un grupo: solo mueve los interruptores en pantalla, no guarda. */
+  alMoverGrupo: (grupoId: string, claves: string[], activar: boolean) => void;
+  /** «Activar todo» o «Quitar todo» de todo el rol. */
+  alMoverTodo: (activar: boolean) => void;
+  /** Lo que el último botón no pudo mover o movió de más, por grupo (`todo` para los botones de arriba). */
+  avisos: Readonly<Record<string, readonly string[]>>;
+}
+
+function Avisos({ lineas, id }: { lineas: readonly string[] | undefined; id: string }) {
+  if (!lineas || lineas.length === 0) return null;
+  return (
+    <div id={id} role="status" className="flex flex-col gap-0.5 rounded-xl bg-accent px-3 py-2 text-xs text-marino">
+      {lineas.map((t) => (
+        <p key={t}>{t}</p>
+      ))}
+    </div>
+  );
 }
 
 /**
@@ -23,22 +41,60 @@ interface Propiedades {
  * descripción del permiso en lenguaje de persona y su clave técnica en segundo plano. Los permisos
  * de información reservada llevan su advertencia; el servidor vuelve a validar todo al guardar.
  */
-export function MatrizPermisos({ catalogo, activos, guardados, alCambiar, razonBloqueo, deshabilitada }: Propiedades) {
+export function MatrizPermisos({ catalogo, activos, guardados, alCambiar, razonBloqueo, deshabilitada, alMoverGrupo, alMoverTodo, avisos }: Propiedades) {
   const grupos = agruparPermisos(catalogo);
+  const hayMovibles = catalogo.some((p) => razonBloqueo(p.clave) === null);
   return (
+    <div className="flex flex-col gap-4">
+      {hayMovibles ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Boton variante="contorno" disabled={deshabilitada} onClick={() => alMoverTodo(true)}>
+              Activar todo
+            </Boton>
+            <Boton variante="contorno" disabled={deshabilitada} onClick={() => alMoverTodo(false)}>
+              Quitar todo
+            </Boton>
+            <span className="text-xs text-muted-foreground">Solo mueve los interruptores: nada se guarda hasta que lo confirmes.</span>
+          </div>
+          <Avisos id="avisos-todo" lineas={avisos.todo} />
+        </div>
+      ) : null}
     <div className="grid gap-4 lg:grid-cols-2">
       {grupos.map((g) => {
         const encendidos = g.permisos.filter((p) => activos.has(p.clave)).length;
+        const completo = encendidos === g.permisos.length;
+        // Un grupo con todos los interruptores bloqueados no ofrece el botón.
+        const sePuedeMover = g.permisos.some((p) => razonBloqueo(p.clave) === null);
+        const claves = g.permisos.map((p) => p.clave);
         return (
           <section key={g.id} aria-labelledby={`grupo-${g.id}`} className="flex flex-col rounded-2xl border bg-card shadow-xs">
-            <header className="flex items-center justify-between gap-3 border-b px-4 py-3">
-              <h2 id={`grupo-${g.id}`} className="text-base font-semibold text-marino">
-                {g.titulo}
-              </h2>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {encendidos} de {g.permisos.length}
-              </span>
+            <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b px-4 py-3">
+              <div className="flex min-w-0 flex-col">
+                <h2 id={`grupo-${g.id}`} className="text-base font-semibold text-marino">
+                  {g.titulo}
+                </h2>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {encendidos} de {g.permisos.length} activos
+                </span>
+              </div>
+              {sePuedeMover ? (
+                <Boton
+                  variante="contorno"
+                  disabled={deshabilitada}
+                  aria-label={`${completo ? "Quitar" : "Activar"} todos los permisos de ${g.titulo}`}
+                  aria-describedby={avisos[g.id]?.length ? `avisos-${g.id}` : undefined}
+                  onClick={() => alMoverGrupo(g.id, claves, !completo)}
+                >
+                  {completo ? "Quitar todos" : "Activar todos"}
+                </Boton>
+              ) : null}
             </header>
+            {avisos[g.id]?.length ? (
+              <div className="border-b px-4 py-2">
+                <Avisos id={`avisos-${g.id}`} lineas={avisos[g.id]} />
+              </div>
+            ) : null}
             <ul className="divide-y">
               {g.permisos.map((p) => {
                 const activo = activos.has(p.clave);
@@ -97,6 +153,7 @@ export function MatrizPermisos({ catalogo, activos, guardados, alCambiar, razonB
           </section>
         );
       })}
+    </div>
     </div>
   );
 }

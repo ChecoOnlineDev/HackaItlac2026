@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     import uuid
 
     from app.modulos.acceso.models import Usuario
+    from app.modulos.almacenes.models import Almacen
     from app.modulos.movimientos.service import MovimientoService
 
 
@@ -59,6 +60,11 @@ class ManejadorTipo(ABC):
         """Gancho de la confirmación, ya con la evaluación hecha bajo bloqueo: el tipo puede
         rechazar con un 422 propio lo que `validar_cuerpo` no ve (depende de la base)."""
         return None
+
+    def almacenes_involucrados(self, ctx: ContextoVale, cuerpo: ValeIn) -> list[Almacen]:
+        """Los almacenes que el vale mueve (AL-04: ninguno puede estar cerrado). Por defecto, el
+        del vale; el traspaso suma el de destino."""
+        return [ctx.almacen]
 
     def almacen_operativo(
         self, servicio: MovimientoService, usuario: Usuario, cuerpo: ValeIn

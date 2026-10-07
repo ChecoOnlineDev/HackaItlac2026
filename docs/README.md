@@ -22,7 +22,8 @@ Regla de uso: **los documentos globales orientan, los briefs pequeños autorizan
 | 8. Roadmap | [product/roadmap.md](product/roadmap.md) | ¿En qué orden? | Escrito |
 | 9. Historias | [stories/](stories/) | ¿Qué necesidad resuelve cada fase? | Fases 1 a 7 |
 | 10. Tareas | En el roadmap (Fase 0 y Fase 7) | ¿Qué cambia en el código? | El resto se planea por historia |
-| Segunda ola | [features/](features/) | ¿Qué sigue después del núcleo? | Siete briefs |
+| Segunda ola | [features/](features/) | ¿Qué sigue después del núcleo? | Ocho briefs; [FEAT-008](features/FEAT-008-administracion-de-almacenes-y-tablero.md) (almacenes, tablero y menú) aprobado, con sus documentos al día y sin construir |
+| Red de almacenes | [product/red-de-almacenes-y-flujo.md](product/red-de-almacenes-y-flujo.md) | ¿Cómo se da de alta, surte y cierra cada almacén? | Decidido; una pregunta abierta (recibir separado de enviar) |
 | Release | [releases/mvp-checklist.md](releases/mvp-checklist.md), [changelog](releases/changelog.md), [guía del almacenista](guia-almacenista.md), [guía por rol](guia-por-rol.md) | ¿Cuándo está terminado, qué trae y cómo se usa? | Escritos; la checklist se va marcando |
 | Plantillas | [templates/](templates/) | Historias, FEAT, FIX, TECH, ADR, reporte y prompts | Listas |
 
@@ -71,7 +72,7 @@ Tomadas para poder escribir el plan; conviene confirmarlas antes de la Fase 1.
 | Categorías iniciales | Siete, editables | Reglas, sección 5.1 |
 | Qué trae cada rol inicial | Los permisos de la tabla; el Administrador, todos | Reglas, sección 8.2 |
 
-Ya decididas con el equipo: identificadores UUID y folio por contador ([ADR-006](architecture/decisions/ADR-006-identificadores-uuid-y-folio.md)), y permisos por clave con roles como datos ([ADR-007](architecture/decisions/ADR-007-permisos-por-clave.md)).
+Ya decididas con el equipo: identificadores UUID y folio por contador ([ADR-006](architecture/decisions/ADR-006-identificadores-uuid-y-folio.md)), permisos por clave con roles como datos ([ADR-007](architecture/decisions/ADR-007-permisos-por-clave.md)) y gráficas del tablero con recharts ([ADR-009](architecture/decisions/ADR-009-graficas-con-recharts.md)).
 
 ## Estado de los gates
 

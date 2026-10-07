@@ -542,11 +542,13 @@ def test_ES_15_el_minipulidor_regresa_danado_entra_no_apto_y_sin_cargo(mundo):
 
 def test_ES_19_baja_en_kepler_con_un_arnes_pendiente_en_midrex(mundo):
     m = mundo
-    # El arnés llega a Midrex (traspaso con ruta inusual: aviso, no bloqueo; X-03).
+    # El arnés llega a Midrex (ruta inusual: solo el Administrador, con observación; X-03).
     trs = confirmar(
-        m.sup_kep,  # los traspasos los opera el supervisor de cada almacén
+        m.admin,  # Kepler -> Midrex no es padre-hijo: solo el Administrador, con observación (X-03)
         {
             "tipo": "TRASPASO",
+            "almacen_id": str(m.almacen["KEP"]),
+            "observacion": "Ruta fuera de lo habitual",
             "destino_almacen_id": str(m.almacen["MID"]),
             "renglones": [{"codigo": "ALT-004"}],
         },
@@ -666,9 +668,11 @@ def test_ES_28_rastreo_por_usuario_en_la_bitacora_y_alcance_del_almacen(mundo):
     m = mundo
     # El detector llega a Midrex (Kepler -> Midrex) y alguien de Midrex lo entrega.
     trs = confirmar(
-        m.sup_kep,  # los traspasos los opera el supervisor de cada almacén
+        m.admin,  # Kepler -> Midrex no es padre-hijo: solo el Administrador, con observación (X-03)
         {
             "tipo": "TRASPASO",
+            "almacen_id": str(m.almacen["KEP"]),
+            "observacion": "Ruta fuera de lo habitual",
             "destino_almacen_id": str(m.almacen["MID"]),
             "renglones": [{"codigo": "HER-004"}, {"codigo": "CINCEL", "cantidad": 2}],
         },
@@ -696,7 +700,7 @@ def test_ES_28_rastreo_por_usuario_en_la_bitacora_y_alcance_del_almacen(mundo):
     assert [f["responsable"] for f in de_la_pieza][:3] == [
         "Almacenista Midrex",
         "Supervisor Midrex",
-        "Supervisor Kepler",
+        "Administrador de prueba",  # Kepler -> Midrex lo hizo el Administrador (X-03)
     ]
     # En la ficha de la pieza está su historial completo.
     ficha = m.admin.get(f"/api/piezas/{articulo['id']}").json()

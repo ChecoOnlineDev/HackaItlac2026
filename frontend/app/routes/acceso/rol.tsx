@@ -8,6 +8,7 @@ import { HojaRol, type ModoHojaRol } from "~/componentes/acceso/hoja-rol";
 import { MatrizPermisos } from "~/componentes/acceso/matriz-permisos";
 import {
   PERMISO_ADMINISTRAR,
+  FRASE_RESERVADO,
   PERMISO_TODOS_LOS_ALMACENES,
   textoPermisos,
   textoUsuarios,
@@ -51,6 +52,8 @@ export default function RolDetalle() {
   const [modo, setModo] = useState<ModoHojaRol | null>(null);
   const [confirmando, setConfirmando] = useState<"guardar" | "eliminar" | "estado" | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  // Lo que los botones «Activar todos» y «Quitar todos» no pudieron mover o movieron de más, por grupo.
+  const [avisosGrupo, setAvisosGrupo] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     if (consulta.datos) {
@@ -71,13 +74,21 @@ export default function RolDetalle() {
     return porClave.get(clave)?.descripcion ?? clave;
   }
 
-  /** Por qué un permiso no se puede mover ahora; el servidor valida lo mismo al guardar. */
-  function razonBloqueo(clave: string): string | null {
+  /** Lo que fija un permiso pase lo que pase (rol protegido o tu propio acceso). */
+  function bloqueoFijo(clave: string): string | null {
     if (!rol) return null;
     if (clave === PERMISO_ADMINISTRAR && rol.protegido) return "El rol Administrador siempre lleva este permiso.";
     if (clave === PERMISO_ADMINISTRAR && esMiRol && activos.has(clave)) {
       return "No puedes quitártelo a ti mismo: perderías el acceso a esta pantalla.";
     }
+    return null;
+  }
+
+  /** Por qué un permiso no se puede mover ahora; el servidor valida lo mismo al guardar. */
+  function razonBloqueo(clave: string): string | null {
+    if (!rol) return null;
+    const fijo = bloqueoFijo(clave);
+    if (fijo) return fijo;
     if (activos.has(clave)) {
       const dependientes = [...activos].filter((c) => porClave.get(c)?.requiere.includes(clave));
       if (dependientes.length > 0) {
@@ -87,7 +98,70 @@ export default function RolDetalle() {
     return null;
   }
 
+  /**
+   * «Activar todos» y «Quitar todos»: solo mueve los interruptores en pantalla (no guarda). Respeta lo que
+   * fija un permiso y las dependencias: activar enciende también los de «ver» que se necesitan; quitar uno
+   * quita los que dependen de él. `llave` es el grupo donde se escriben los avisos (`todo` para el rol entero).
+   */
+  function moverPermisos(pedidos: string[], activar: boolean, llave: string) {
+    const nuevo = new Set(activos);
+    const pedidosSet = new Set(pedidos);
+    const razones: string[] = [];
+    let sinMover = 0;
+    let deOtrosGrupos = 0;
+    for (const clave of pedidos) {
+      if (activar) {
+        if (nuevo.has(clave)) continue;
+        nuevo.add(clave);
+        for (const requerido of porClave.get(clave)?.requiere ?? []) {
+          if (!nuevo.has(requerido)) {
+            nuevo.add(requerido);
+            if (!pedidosSet.has(requerido)) deOtrosGrupos += 1;
+          }
+        }
+      } else {
+        if (!nuevo.has(clave)) continue;
+        // Con él se van los permisos que lo necesitan, y los que necesitan a esos.
+        const cascada = new Set([clave]);
+        let crece = true;
+        while (crece) {
+          crece = false;
+          for (const otro of nuevo) {
+            if (!cascada.has(otro) && porClave.get(otro)?.requiere.some((r) => cascada.has(r))) {
+              cascada.add(otro);
+              crece = true;
+            }
+          }
+        }
+        const fijo = [...cascada].map(bloqueoFijo).find((r) => r !== null);
+        if (fijo) {
+          sinMover += 1;
+          if (!razones.includes(fijo)) razones.push(fijo);
+          continue;
+        }
+        for (const quitado of cascada) {
+          nuevo.delete(quitado);
+          if (!pedidosSet.has(quitado)) deOtrosGrupos += 1;
+        }
+      }
+    }
+    const lineas: string[] = [];
+    if (sinMover > 0) {
+      lineas.push(`${sinMover === 1 ? "Un permiso se quedó" : `${sinMover} permisos se quedaron`} como estaba${sinMover === 1 ? "" : "n"}. ${razones.join(" ")}`);
+    }
+    if (deOtrosGrupos > 0) {
+      lineas.push(
+        activar
+          ? `También se ${deOtrosGrupos === 1 ? "activó 1 permiso" : `activaron ${deOtrosGrupos} permisos`} de «ver» de otros grupos, porque estos los necesitan.`
+          : `También se ${deOtrosGrupos === 1 ? "quitó 1 permiso" : `quitaron ${deOtrosGrupos} permisos`} de otros grupos que dependían de estos.`,
+      );
+    }
+    setActivos(nuevo);
+    setAvisosGrupo({ [llave]: lineas });
+  }
+
   function cambiar(clave: string, activo: boolean) {
+    setAvisosGrupo({});
     setActivos((actual) => {
       const nuevo = new Set(actual);
       if (activo) {
@@ -108,6 +182,7 @@ export default function RolDetalle() {
       const actualizado = await api<RolAcceso>(`/roles/${rol.id}/permisos`, { metodo: "PUT", cuerpo: { permisos: [...activos] } });
       setRol(actualizado);
       setActivos(new Set(actualizado.permisos));
+      setAvisosGrupo({});
       aviso({ titulo: "Los cambios ya aplican", descripcion: "Cada persona los nota en su siguiente acción.", tipo: "exito" });
       if (esMiRol) void recargarSesion();
     } catch (causa) {
@@ -194,6 +269,7 @@ export default function RolDetalle() {
     }
   }
   const reservados = agregados.filter((c) => porClave.get(c)?.es_de_informacion);
+  const frasesReservadas = reservados.map((c) => FRASE_RESERVADO[c] ?? descripcionDe(c).toLowerCase());
 
   return (
     <Pantalla
@@ -240,6 +316,9 @@ export default function RolDetalle() {
           alCambiar={cambiar}
           razonBloqueo={razonBloqueo}
           deshabilitada={ocupado}
+          alMoverGrupo={(grupoId, claves, activar) => moverPermisos(claves, activar, grupoId)}
+          alMoverTodo={(activar) => moverPermisos((catalogo.datos ?? []).map((p) => p.clave), activar, "todo")}
+          avisos={avisosGrupo}
         />
 
         <section aria-labelledby="zona-rol" className="flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-xs">
@@ -276,10 +355,21 @@ export default function RolDetalle() {
             {efectosAlmacen.map((t) => (
               <p key={t}>{t}</p>
             ))}
-            {reservados.length > 0 ? <p>Incluye información reservada: revisa que este rol deba verla.</p> : null}
+            {reservados.length > 0 ? (
+              <p className="font-semibold">
+                Incluye información reservada ({frasesReservadas.join("; ")}): revisa que este rol deba verla.
+              </p>
+            ) : null}
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Boton variante="contorno" disabled={ocupado} onClick={() => setActivos(new Set(guardados))}>
+            <Boton
+              variante="contorno"
+              disabled={ocupado}
+              onClick={() => {
+                setActivos(new Set(guardados));
+                setAvisosGrupo({});
+              }}
+            >
               Descartar
             </Boton>
             <Boton variante="normal" disabled={ocupado} onClick={() => setConfirmando("guardar")}>
@@ -293,7 +383,7 @@ export default function RolDetalle() {
         abierta={confirmando === "guardar"}
         alCambiar={(a) => !ocupado && !a && setConfirmando(null)}
         mensaje={`¿Guardar los cambios de ${rol.nombre}?`}
-        detalle={`${resumenDeCambios(agregados.length, quitados.length)}. ${rol.total_usuarios === 0 ? "Todavía nadie tiene este rol." : `Aplican en la siguiente acción de ${textoUsuarios(rol.total_usuarios).toLowerCase()}.`}`}
+        detalle={`${resumenDeCambios(agregados.length, quitados.length)}. ${reservados.length > 0 ? `Incluye información reservada: ${frasesReservadas.join("; ")}. ` : ""}${rol.total_usuarios === 0 ? "Todavía nadie tiene este rol." : `Aplican en la siguiente acción de ${textoUsuarios(rol.total_usuarios).toLowerCase()}.`}`}
         etiquetaConfirmar="Sí, guardar"
         etiquetaCancelar="Volver"
         cargando={ocupado}

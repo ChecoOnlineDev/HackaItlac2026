@@ -40,7 +40,8 @@ function leerAlmacenRecordado(): string | null {
 export default function Inventario() {
   const { sesion, puede } = useSesion();
   const puedeVerArticulo = puede("catalogo.ver");
-  const [almacenElegido, setAlmacenElegido] = useState<string | null>(null);
+  // Desde Almacenes (administración) se llega con `?almacen=<id>` ya elegido.
+  const [almacenElegido, setAlmacenElegido] = useState<string | null>(() => new URLSearchParams(window.location.search).get("almacen"));
   const [categoria, setCategoria] = useState("");
   const [texto, setTexto] = useState("");
   const q = useRetraso(texto.trim());

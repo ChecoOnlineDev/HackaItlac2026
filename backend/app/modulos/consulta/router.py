@@ -15,6 +15,7 @@ from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import P
 from app.modulos.consulta.dependencies import ConsultaServiceDep, SeguimientoServiceDep
 from app.modulos.consulta.exportacion import respuesta_csv
+from app.modulos.consulta.router_tablero import router as router_tablero
 from app.modulos.consulta.schemas import (
     AdeudoReporteItem,
     AdeudosFilters,
@@ -34,6 +35,7 @@ from app.modulos.consulta.schemas import (
 from app.modulos.consulta.schemas_seguimiento import PaginaSeguimiento, SeguimientoFilters
 
 router = APIRouter(tags=["consulta"])
+router.include_router(router_tablero)
 
 VerPieza = Annotated[Usuario, Depends(requiere_permiso(P.CATALOGO_VER))]
 VerExistencias = Annotated[Usuario, Depends(requiere_permiso(P.REPORTES_EXISTENCIAS))]

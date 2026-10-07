@@ -29,7 +29,8 @@ from app.core.paginacion import Pagina, Paginacion
 from app.core.tiempo import ZONA_MX, ahora_utc, hoy_mx
 from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.service import AccesoService
-from app.modulos.almacenes.models import UbicacionVirtual
+from app.modulos.almacenes.exceptions import AlmacenCerrado
+from app.modulos.almacenes.models import EstadoAlmacen, UbicacionVirtual
 from app.modulos.almacenes.service import AlmacenService
 from app.modulos.archivos.models import TipoAdjunto
 from app.modulos.archivos.service import ArchivoService, decodificar_data_url
@@ -50,6 +51,7 @@ from app.modulos.movimientos.contexto import (
     PlanBloqueo,
     RenglonEvaluado,
 )
+from app.modulos.movimientos.evaluador import Motivo
 from app.modulos.movimientos.exceptions import (
     ExistenciaInsuficiente,
     IdClienteEnUso,
@@ -202,7 +204,25 @@ class MovimientoService:
         normal = self._normalizar(manejador, ctx, cuerpo)
         evaluacion = manejador.evaluar(ctx, normal)
         evaluacion.admite_sin_renglones = manejador.admite_sin_renglones
+        self._avisar_almacen_cerrado(manejador, ctx, normal, evaluacion)
         return evaluacion, normal
+
+    @staticmethod
+    def _almacen_cerrado(manejador: ManejadorTipo, ctx: ContextoVale, cuerpo: ValeIn):
+        """AL-04: el primer almacén cerrado de los que mueve el vale, o `None`."""
+        for almacen in manejador.almacenes_involucrados(ctx, cuerpo):
+            if almacen.estado == EstadoAlmacen.CERRADO:
+                return almacen
+        return None
+
+    def _avisar_almacen_cerrado(
+        self, manejador: ManejadorTipo, ctx: ContextoVale, cuerpo: ValeIn, evaluacion: Evaluacion
+    ) -> None:
+        """AL-04: la evaluación de un vale con un almacén cerrado trae un motivo rojo."""
+        if self._almacen_cerrado(manejador, ctx, cuerpo) is not None:
+            evaluacion.motivos_vale.insert(
+                0, Motivo("AL-04", Nivel.ROJO, "Ese almacén está cerrado.")
+            )
 
     def evaluar_para_autorizacion(
         self,
@@ -333,7 +353,13 @@ class MovimientoService:
                 self.session.rollback()
             return self._repetido(ganador, usuario, cuerpo), False
 
-        # 3. Volver a evaluar, ya con las filas bloqueadas (RG-08).
+        # 3. AL-04: un almacén cerrado no recibe ni envía. Se mira ya con las filas bloqueadas y la
+        #    sesión limpia, así un cierre que se confirmó mientras esperábamos sí se ve.
+        cerrado = self._almacen_cerrado(manejador, ctx, normal)
+        if cerrado is not None:
+            raise AlmacenCerrado(cerrado)
+
+        # 3b. Volver a evaluar, ya con las filas bloqueadas (RG-08).
         evaluacion = manejador.evaluar(ctx, normal)
         evaluacion.admite_sin_renglones = manejador.admite_sin_renglones
         manejador.exigir_al_confirmar(normal, evaluacion)

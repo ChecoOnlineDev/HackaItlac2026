@@ -4,12 +4,35 @@ import uuid
 from dataclasses import dataclass
 
 from sqlalchemy import case, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
-from app.modulos.almacenes.models import Almacen, TipoUbicacion, Ubicacion, UbicacionVirtual
+from app.modulos.acceso.models import Usuario
+from app.modulos.almacenes.models import (
+    Almacen,
+    TipoAlmacen,
+    TipoUbicacion,
+    Ubicacion,
+    UbicacionVirtual,
+)
 from app.modulos.catalogo.models import Articulo, Categoria, Control, EstadoPieza, Pieza
-from app.modulos.movimientos.models import Existencia
+from app.modulos.movimientos.models import (
+    EstadoVale,
+    Existencia,
+    Movimiento,
+    SerieFolio,
+    TipoVale,
+    Vale,
+)
+from app.modulos.solicitudes_compra.models import (
+    EstadoSolicitud,
+    SerieSolicitudCompra,
+    SolicitudCompra,
+)
 from app.modulos.trabajadores.models import Trabajador
+
+# Un traspaso con algo todavía En tránsito: enviado y no recibido, o recibido con diferencias.
+ESTADOS_TRASPASO_EN_TRANSITO = (EstadoVale.EN_TRANSITO, EstadoVale.RECIBIDO_CON_DIFERENCIAS)
+ESTADOS_SOLICITUD_ABIERTA = (EstadoSolicitud.PENDIENTE, EstadoSolicitud.EN_COMPRA)
 
 
 @dataclass(frozen=True)
@@ -38,6 +61,24 @@ class AlmacenRepository:
     def listar(self) -> list[Almacen]:
         return list(self.session.scalars(select(Almacen).order_by(Almacen.clave)))
 
+    def get_for_update(self, almacen_id: uuid.UUID) -> Almacen | None:
+        """El almacén con su fila bloqueada: dos cambios del mismo almacén se turnan."""
+        return self.session.scalar(
+            select(Almacen)
+            .where(Almacen.id == almacen_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+
+    def get_by_nombre(self, nombre: str) -> Almacen | None:
+        return self.session.scalar(select(Almacen).where(Almacen.nombre == nombre))
+
+    def hay_central(self) -> bool:
+        consulta = (
+            select(func.count()).select_from(Almacen).where(Almacen.tipo == TipoAlmacen.CENTRAL)
+        )
+        return (self.session.scalar(consulta) or 0) > 0
+
     def add(self, almacen: Almacen) -> Almacen:
         self.session.add(almacen)
         self.session.flush()
@@ -46,6 +87,159 @@ class AlmacenRepository:
     def hijos(self, padre_id: uuid.UUID) -> list[Almacen]:
         consulta = select(Almacen).where(Almacen.padre_id == padre_id).order_by(Almacen.clave)
         return list(self.session.scalars(consulta))
+
+    # ------------------------------------------- resumen y bloqueos de cierre (solo lectura)
+    # Las tablas de otros módulos (existencia, vale, solicitud_compra, usuario) solo se leen.
+    # Cada consulta acepta un `almacen_id` para uno solo o `None` para todos.
+
+    def bloquear_existencias_de(self, almacen_id: uuid.UUID) -> None:
+        """Espera a que terminen los vales que están moviendo existencias de ese almacén."""
+        self.session.execute(
+            select(Existencia.articulo_id)
+            .join(Ubicacion, Ubicacion.id == Existencia.ubicacion_id)
+            .where(Ubicacion.almacen_id == almacen_id)
+            .with_for_update()
+        ).all()
+
+    def existencias_por_almacen(
+        self, almacen_id: uuid.UUID | None = None
+    ) -> dict[uuid.UUID, tuple[int, int]]:
+        """`{almacen_id: (unidades, artículos con cantidad mayor a cero)}`."""
+        consulta = (
+            select(
+                Ubicacion.almacen_id,
+                func.coalesce(func.sum(Existencia.cantidad), 0),
+                func.count(),
+            )
+            .join(Existencia, Existencia.ubicacion_id == Ubicacion.id)
+            .where(Ubicacion.almacen_id.is_not(None), Existencia.cantidad > 0)
+            .group_by(Ubicacion.almacen_id)
+        )
+        if almacen_id is not None:
+            consulta = consulta.where(Ubicacion.almacen_id == almacen_id)
+        return {a: (int(u), int(n)) for a, u, n in self.session.execute(consulta).all()}
+
+    def articulos_con_existencia(
+        self, almacen_id: uuid.UUID, limite: int
+    ) -> list[tuple[Articulo, int]]:
+        consulta = (
+            select(Articulo, Existencia.cantidad)
+            .join(Existencia, Existencia.articulo_id == Articulo.id)
+            .join(Ubicacion, Ubicacion.id == Existencia.ubicacion_id)
+            .where(Ubicacion.almacen_id == almacen_id, Existencia.cantidad > 0)
+            .order_by(Existencia.cantidad.desc(), Articulo.codigo)
+            .limit(limite)
+        )
+        return [(a, int(c)) for a, c in self.session.execute(consulta).all()]
+
+    def usuarios_activos_por_almacen(
+        self, almacen_id: uuid.UUID | None = None
+    ) -> dict[uuid.UUID, int]:
+        consulta = (
+            select(Usuario.almacen_id, func.count())
+            .where(Usuario.almacen_id.is_not(None), Usuario.activo.is_(True))
+            .group_by(Usuario.almacen_id)
+        )
+        if almacen_id is not None:
+            consulta = consulta.where(Usuario.almacen_id == almacen_id)
+        return {a: int(n) for a, n in self.session.execute(consulta).all()}
+
+    def usuarios_activos(self, almacen_id: uuid.UUID, limite: int) -> list[Usuario]:
+        return list(
+            self.session.scalars(
+                select(Usuario)
+                .where(Usuario.almacen_id == almacen_id, Usuario.activo.is_(True))
+                .order_by(Usuario.nombre)
+                .limit(limite)
+            )
+        )
+
+    def traspasos_en_transito_por_almacen(
+        self, almacen_id: uuid.UUID | None = None
+    ) -> dict[uuid.UUID, int]:
+        """Traspasos desde o hacia cada almacén con algo todavía En tránsito."""
+        consulta = select(Vale.id, Vale.almacen_id, Vale.destino_almacen_id).where(
+            Vale.tipo == TipoVale.TRASPASO, Vale.estado.in_(ESTADOS_TRASPASO_EN_TRANSITO)
+        )
+        cuenta: dict[uuid.UUID, int] = {}
+        for _, origen, destino in self.session.execute(consulta).all():
+            for a in {origen, destino}:
+                if a is not None and (almacen_id is None or a == almacen_id):
+                    cuenta[a] = cuenta.get(a, 0) + 1
+        return cuenta
+
+    def traspasos_en_transito(self, almacen_id: uuid.UUID, limite: int) -> list[tuple]:
+        """`(vale, origen, destino)` de los traspasos En tránsito desde o hacia el almacén."""
+        origen = aliased(Almacen)
+        destino = aliased(Almacen)
+        consulta = (
+            select(Vale, origen, destino)
+            .join(origen, origen.id == Vale.almacen_id)
+            .join(destino, destino.id == Vale.destino_almacen_id)
+            .where(
+                Vale.tipo == TipoVale.TRASPASO,
+                Vale.estado.in_(ESTADOS_TRASPASO_EN_TRANSITO),
+                (Vale.almacen_id == almacen_id) | (Vale.destino_almacen_id == almacen_id),
+            )
+            .order_by(Vale.creado_en.desc())
+            .limit(limite)
+        )
+        return list(self.session.execute(consulta).all())
+
+    def solicitudes_abiertas_por_almacen(
+        self, almacen_id: uuid.UUID | None = None
+    ) -> dict[uuid.UUID, int]:
+        consulta = (
+            select(SolicitudCompra.almacen_id, func.count())
+            .where(SolicitudCompra.estado.in_(ESTADOS_SOLICITUD_ABIERTA))
+            .group_by(SolicitudCompra.almacen_id)
+        )
+        if almacen_id is not None:
+            consulta = consulta.where(SolicitudCompra.almacen_id == almacen_id)
+        return {a: int(n) for a, n in self.session.execute(consulta).all()}
+
+    def piezas_en_resguardo_por_almacen(
+        self, almacen_id: uuid.UUID | None = None
+    ) -> dict[uuid.UUID, int]:
+        """Piezas de artículos por pieza que tiene un trabajador, por el almacén del vale de
+        la entrega que las puso en sus manos (el último movimiento hacia su ubicación)."""
+        de_entrega = (
+            select(Vale.almacen_id)
+            .join(Movimiento, Movimiento.vale_id == Vale.id)
+            .where(
+                Movimiento.pieza_id == Pieza.id,
+                Movimiento.destino_id == Pieza.ubicacion_id,
+            )
+            .order_by(Movimiento.creado_en.desc(), Movimiento.id.desc())
+            .limit(1)
+            .correlate(Pieza)
+            .scalar_subquery()
+        )
+        base = (
+            select(de_entrega.label("almacen_id"))
+            .select_from(Pieza)
+            .join(Ubicacion, Ubicacion.id == Pieza.ubicacion_id)
+            .where(Ubicacion.tipo == TipoUbicacion.TRABAJADOR)
+            .subquery()
+        )
+        consulta = (
+            select(base.c.almacen_id, func.count())
+            .where(base.c.almacen_id.is_not(None))
+            .group_by(base.c.almacen_id)
+        )
+        if almacen_id is not None:
+            consulta = consulta.where(base.c.almacen_id == almacen_id)
+        return {a: int(n) for a, n in self.session.execute(consulta).all()}
+
+    def con_folios(self, almacen_id: uuid.UUID | None = None) -> set[uuid.UUID]:
+        """Almacenes que ya emitieron algún folio de vale o de solicitud (AL-05)."""
+        ids: set[uuid.UUID] = set()
+        for columna in (SerieFolio.almacen_id, SerieSolicitudCompra.almacen_id, Vale.almacen_id):
+            consulta = select(columna).distinct()
+            if almacen_id is not None:
+                consulta = consulta.where(columna == almacen_id)
+            ids.update(self.session.scalars(consulta))
+        return ids
 
     # ------------------------------------------------- existencias (solo lectura)
     # La tabla `existencia` es de `movimientos`: aquí solo se lee.

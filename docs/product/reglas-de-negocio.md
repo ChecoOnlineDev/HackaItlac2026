@@ -255,15 +255,16 @@ Sustento (referencia, no asesoría legal; la empresa debe validarlo con su aboga
 
 | ID | Regla | Origen |
 |---|---|---|
-| T-01 | La persona se identifica por su número de empleado. La CURP o el NSS son opcionales y solo los ve RH. | Plática min 56; RG-13 |
-| T-02 | Si el número de empleado o la CURP ya existen, es un reingreso: RH registra el nuevo periodo y la misma persona se reactiva. Su historial y sus pendientes se conservan. Extender un contrato se hace igual: se registra el periodo nuevo. | Plática min 18 |
-| T-03 | Datos obligatorios: nombre, número de empleado, puesto, área u obra, y periodo del contrato (inicio y fin). Opcionales: tallas, CURP o NSS. | PDF p.3, p.5; plática min 17 y 40 |
+| T-01 | La persona se identifica por su número de empleado, que **genera el servidor** al dar de alta (T-10). La CURP o el NSS son opcionales y solo los ve RH. | Plática min 56; RG-13; decisión del usuario |
+| T-02 | Si la **CURP** ya existe, es un reingreso: RH registra el nuevo periodo y la misma persona se reactiva. Si el alta no trae CURP y el **nombre completo** (sin distinguir mayúsculas ni acentos) coincide con el de otra persona, el sistema avisa de la coincidencia y RH elige: reingresar a esa persona o confirmar que es otra. Un número de empleado externo (T-10) que ya existe también ofrece el reingreso. Su historial y sus pendientes se conservan. Extender un contrato se hace igual: se registra el periodo nuevo. | Plática min 18; decisión del usuario |
+| T-03 | Datos obligatorios: nombre, puesto, área u obra, y periodo del contrato (inicio y fin); el número de empleado lo asigna el servidor. Opcionales: tallas, CURP o NSS. | PDF p.3, p.5; plática min 17 y 40; decisión del usuario |
 | T-04 | **Pospuesta.** La carta de aceptación firmada (F-01) no es requisito del alta en el MVP: el trabajador queda Activo al guardar. Se mantiene en el plan del producto para el hackathon, sin bloquear el alta. | Decisión del equipo |
 | T-05 | La credencial que se escanea es la que emite la planta: en el alta se escanea una vez para ligarla al trabajador. Si no trae código legible, el sistema genera un QR para imprimir. También se puede teclear el número. | Plática min 17 y 57; PDF p.8 paso 1 |
 | T-06 | Estados: Activo, Baja en proceso, Inactivo. | PDF función 7; plática min 19 |
 | T-07 | Un trabajador es vigente si está Activo y hoy cae dentro de su periodo de contrato. | Plática min 17–18 |
 | T-08 | RH consulta desde su celular la situación de cada trabajador: qué tiene pendiente y si ya tiene vale de no adeudo. | Plática min 15 |
 | T-09 | En el alta, RH toma la foto del trabajador con la cámara del dispositivo o sube una imagen (F-11). Es opcional: sin foto, la ficha dice "Sin foto registrada" y la entrega continúa. RH la puede reemplazar y el cambio queda en el registro de cambios. La foto es un dato personal: solo la ve quien tiene `trabajadores.ver` y nunca aparece en un comprobante. | Decisión del equipo |
+| T-10 | **El número de empleado lo genera el servidor** y no se repite. Es un consecutivo propio con formato `E-000001`, de un contador (`serie_empleado`) que se bloquea y avanza en la misma transacción que guarda al trabajador: sin huecos ni repetidos, aunque dos personas den de alta a la vez. El formulario de alta no lo pide y la respuesta devuelve el asignado. Solo quien tiene `trabajadores.numero_externo` (de inicio, el Administrador) puede capturar a mano un número propio del centro, por ejemplo en una carga histórica: debe ser único y el trabajador queda marcado como **externo** (`numero_externo`). Quien no tiene el permiso y manda un número recibe 403. Los trabajadores que ya existían conservan su número y quedan marcados como externos. No es el código de la credencial (`TRB-XXXXXXXX`), que es lo que lleva el QR (T-05). | Decisión del usuario |
 
 ### 7.2 Entrada de inventario (Compras)
 
@@ -361,7 +362,7 @@ Caso "me devolvió una que no es": con código único por pieza, el escaneo lo d
 |---|---|---|---|
 | X-01 | El traspaso tiene dos pasos: salida y recepción. Los opera el Supervisor del almacén (`traspasos.operar`): el del origen envía y el del destino recibe; el Almacenista no. Entre ambos la existencia está En tránsito y no cuenta para ningún almacén. | — | PDF p.6 |
 | X-02 | Solo sale lo que está en el almacén de origen. | Rojo si no | PDF función 4 |
-| X-03 | El destino es otro almacén. Rutas habituales: Kepler con Contratistas, y Contratistas con las áreas, en ambos sentidos. Otra ruta se permite con aviso. | Amarillo | PDF p.6; plática min 30 |
+| X-03 | El destino es otro almacén activo. Rutas habituales: Kepler con Contratistas, y Contratistas con las áreas, en ambos sentidos (un almacén es padre del otro). **Otra ruta** (por ejemplo, Kepler directo a un proyecto) **solo la hace quien tiene `almacenes.todos`** (de inicio, el Administrador), con aviso amarillo y **observación obligatoria**. Para quien no lo tiene, es rojo. | Amarillo (habitual: verde); Rojo si no puede | PDF p.6; plática min 30; decisión del usuario (FEAT-008) |
 | X-04 | Una pieza No apta puede trasladarse (para reparación o baja). Conserva su estado. | Amarillo | Propuesta |
 | X-05 | La salida deja al origen por debajo del mínimo. | Amarillo | Plática min 47 |
 | X-06 | Se genera el folio del traspaso con QR. Estado: En tránsito. | — | PDF p.6 |
@@ -379,7 +380,7 @@ Caso "me devolvió una que no es": con código único por pieza, el escaneo lo d
 | X-13 | Si falta algo, lo no recibido sigue En tránsito, el traspaso queda "Recibido con diferencias" y entra a la lista de revisión. | Amarillo | Propuesta |
 | X-14 | Un traspaso en tránsito lo cancela el almacén de origen, con observación y solo antes de la recepción. La existencia regresa al origen. | Amarillo | Propuesta |
 
-Cómo se aplican en el servidor (salida y recepción). El destino de una salida es habitual si un almacén es el padre del otro en la red (`almacen.padre_id`); mismo almacén, un destino que no existe o uno cerrado son rojos de X-03. X-04 cubre toda pieza que no esté Apta (No apta, En mantenimiento, En calibración): se traslada con aviso y conserva su estado. X-09 solo informa (nivel verde). Una salida con un renglón en rojo no se confirma (RG-09) y un traspaso sin renglones se rechaza. En la recepción, "todo de una vez" es mandar todos los renglones pendientes del traspaso (la lista de por recibir los trae) y "renglón por renglón" es mandar los escaneados; una recepción sin renglones se rechaza. Lo pendiente de un traspaso es lo enviado menos lo recibido en todas sus recepciones: lo que no se escanea sigue En tránsito (X-13), y una recepción que deja algo pendiente exige una observación (RG-14; sin ella, rojo en la evaluación y 422 al confirmar). Cada recepción deja el traspaso en Recibido con diferencias si aún queda algo pendiente, o en Recibido si ya no queda nada; un traspaso con diferencias puede recibirse otra vez, las veces que haga falta, hasta completarse. Lo ya recibido no se recibe de nuevo ni se recibe más de lo enviado (X-12, rojo), y un traspaso cancelado no se recibe (X-14). Resolver lo que nunca llega queda fuera del MVP.
+Cómo se aplican en el servidor (salida y recepción). El destino de una salida es habitual si un almacén es el padre del otro en la red (`almacen.padre_id`); mismo almacén, un destino que no existe o uno cerrado son rojos de X-03. **Ruta que no es habitual:** quien no tiene `almacenes.todos` ve el vale en rojo con el motivo X-03 («Solo el Administrador puede enviar por una ruta que no es habitual: usa la ruta por Contratistas.») y, al confirmar, el servidor responde 403 `RUTA_SOLO_ADMINISTRADOR` sin guardar nada; quien sí lo tiene ve un aviso amarillo X-03, la evaluación trae `pide_observacion: true` y la confirmación exige una `observacion` en el vale (sin ella, 422 con `detalles: [{campo: "observacion", mensaje, regla: "X-03"}]`, como en RG-14). Lo que decide es el permiso, nunca el nombre del rol. Un traspaso que sale o llega a un almacén cerrado se rechaza por AL-04. X-04 cubre toda pieza que no esté Apta (No apta, En mantenimiento, En calibración): se traslada con aviso y conserva su estado. X-09 solo informa (nivel verde). Una salida con un renglón en rojo no se confirma (RG-09) y un traspaso sin renglones se rechaza. En la recepción, "todo de una vez" es mandar todos los renglones pendientes del traspaso (la lista de por recibir los trae) y "renglón por renglón" es mandar los escaneados; una recepción sin renglones se rechaza. Lo pendiente de un traspaso es lo enviado menos lo recibido en todas sus recepciones: lo que no se escanea sigue En tránsito (X-13), y una recepción que deja algo pendiente exige una observación (RG-14; sin ella, rojo en la evaluación y 422 al confirmar). Cada recepción deja el traspaso en Recibido con diferencias si aún queda algo pendiente, o en Recibido si ya no queda nada; un traspaso con diferencias puede recibirse otra vez, las veces que haga falta, hasta completarse. Lo ya recibido no se recibe de nuevo ni se recibe más de lo enviado (X-12, rojo), y un traspaso cancelado no se recibe (X-14). Resolver lo que nunca llega queda fuera del MVP.
 
 ### 7.7 Cierre de almacén de proyecto
 
@@ -482,6 +483,10 @@ Dónde está resuelto cada caso que se sale de lo habitual.
 | En mantenimiento o calibración | No se entrega ni cuenta como disponible. | P-06, E-05 | P1 |
 | Llega material de un artículo que ya está en el catálogo | Se importa en modo reposición: solo suma, nunca crea; un código que no existe es error. | I-10, I-11, I-13 | P1 |
 | Falta una herramienta que el almacén no tiene (por ejemplo, de medidas europeas) | El supervisor o el almacenista levanta una solicitud de compra urgente; Compras la toma, la compra y la ingresa con un vale de entrada. | I-08, SC-01 a SC-11 | P1 |
+| Falta material en un proyecto y Contratistas no lo tiene | Un traspaso por una ruta que no es padre-hijo (por ejemplo, Kepler a un proyecto) solo lo hace el Administrador, con aviso y observación; el resto usa la cadena Kepler, Contratistas, proyecto, o una compra urgente. | X-03, SC-01 | P1 |
+| Termina un mantenimiento y el almacén de proyecto deja de operar | El Administrador lo inactiva con existencias en cero, sin traspasos en tránsito, sin almacenes dependientes y sin usuarios; vuelve a operar reactivándolo. | AL-03, CP-01 a CP-05 | P1 |
+| Abre un proyecto nuevo | El Administrador da de alta el almacén y su personal; recibe su surtido por traspaso desde Contratistas. | AL-01, AL-02, X-03 | P1 |
+| Hay que dar de alta a un trabajador que ya tiene número de empleado en el centro | Solo quien tiene `trabajadores.numero_externo` lo captura; queda marcado como externo. | T-10 | P1 |
 | Quedó instalado en planta | Se cierra sin devolución y sin pendiente. | V-09 | P2 |
 | Pérdida o robo | Sigue como pendiente hasta que un supervisor lo dé por perdido. | V-13, P-05 | P2 |
 
@@ -504,6 +509,29 @@ Estados: PENDIENTE, EN_COMPRA, COMPRADA, INGRESADA, RECHAZADA y CANCELADA. Las t
 | SC-09 | El folio es `CLAVE-SOL-CONSECUTIVO` (por ejemplo `MID-SOL-000001`), por almacén del solicitante, sin huecos, de un contador propio (`serie_solicitud_compra`) que se bloquea al asignarlo; nunca sale del `id`. Se usa un contador aparte de `serie_folio` porque este lleva un CHECK con los tipos de vale y es de `movimientos`. | RG-06, ADR-006 |
 | SC-10 | La solicitud lleva un `id_cliente` que genera el dispositivo, para que un doble toque no duplique: repetir la petición con el mismo cuerpo devuelve la misma solicitud (200); con otro cuerpo, o desde otro usuario, 409 `ID_CLIENTE_EN_USO`. | RG-09 |
 | SC-11 | El módulo de solicitudes **no escribe inventario**: ni vales, ni movimientos, ni existencias (solo `movimientos` lo hace). Ingresar una solicitud no sube existencias: lo hace el vale de entrada que Compras registra aparte (I-01); la solicitud solo lo lee para ligarlo. | Reglas generales |
+
+### 7.14 Administración de almacenes y tablero
+
+Parte de [FEAT-008](../features/FEAT-008-administracion-de-almacenes-y-tablero.md). Hasta ahora los almacenes solo existían en el script de datos de prueba; estas reglas dicen cómo se dan de alta, se inactivan y se reactivan, y qué muestra el tablero de inicio. Contratos en [api-contracts.md](../architecture/api-contracts.md#almacenes-y-existencias) y [api-contracts.md](../architecture/api-contracts.md#tablero).
+
+| ID | Regla | Origen |
+|---|---|---|
+| AL-01 | Solo quien tiene `almacenes.administrar` (de inicio, el Administrador; el Supervisor no) crea, edita, inactiva y reactiva almacenes. Cada acción queda en el registro de cambios (`almacen.crear`, `almacen.editar`, `almacen.inactivar`, `almacen.reactivar`) con el antes y el después. | Decisión del usuario |
+| AL-02 | Hay **un solo almacén central** (`CENTRAL`). Los demás (`SUBALMACEN` o `PROYECTO`) dependen de otro almacén activo, sin ciclos: no pueden depender de sí mismos ni de uno de sus descendientes. La clave y el nombre son únicos. El alta crea el almacén y su ubicación en una sola transacción. | Propuesta; decisión del usuario |
+| AL-03 | Un almacén se inactiva (`CERRADO`, con `cerrado_en`) solo si: todas sus existencias están en cero, no hay traspasos en tránsito desde ni hacia él, no tiene almacenes dependientes activos y **no tiene usuarios asignados** (hay que reasignarlos primero). Lo que tienen los trabajadores no impide inactivar (CP-05). Reactivarlo devuelve el mismo almacén, con su clave y su historial, y limpia `cerrado_en`; no se crea uno nuevo. No se borran almacenes. | Decisión del usuario; CP-05 |
+| AL-04 | Un almacén `CERRADO` no recibe ni envía movimientos ni solicitudes nuevas: entregas, devoluciones, entradas, traspasos (origen o destino) y solicitudes de compra se rechazan con «Ese almacén está cerrado.» (`ALMACEN_CERRADO`). Su historial y sus reportes siguen visibles. | Decisión del usuario |
+| AL-05 | La clave de un almacén que ya tiene folios (de vales o de solicitudes) no se cambia, porque forma parte de ellos (`KEP-ENT-000123`). Sin folios se puede corregir. | Propuesta |
+| TB-01 | El tablero respeta AC-06: con `almacenes.todos` ve todos los almacenes y puede filtrar por uno; sin él, solo el almacén asignado (el parámetro `almacen_id` se ignora). Sin almacén asignado y sin `almacenes.todos`, el tablero llega vacío. Elegir un almacén en el tablero no cambia el almacén en el que se opera. | Decisión del usuario |
+| TB-02 | «Usado» es lo **entregado** en el rango, **neto de cancelaciones** y **separado por categoría**. Para los consumibles es lo que suma el reporte de consumo (C-08); para los retornables, las unidades de los vales de entrega no cancelados. Se agrupa en el servidor por artículo (y, si se pide, por almacén). | Decisión del usuario |
+| TB-03 | Las fechas del rango del tablero son fechas del centro de México y el día `hasta` entra completo, igual que en los reportes. «Hoy» (entregas de hoy) es el día en esa zona. | Propuesta |
+
+Cómo se aplican en el servidor:
+
+- **Permisos.** `almacenes.administrar` en los cuatro endpoints de escritura de almacenes y en `GET /api/almacenes?resumen=true`; `tablero.ver` en los dos endpoints del tablero (§8.2). El alcance sale del servicio, nunca del nombre del rol.
+- **Alta y edición.** Errores: `CLAVE_REPETIDA`, `NOMBRE_REPETIDO`, `YA_HAY_CENTRAL`, `PADRE_INVALIDO` (no existe, está cerrado, es sí mismo o un descendiente, o un `CENTRAL` con padre y un no central sin padre) y `CLAVE_CON_FOLIOS` (AL-05). La concurrencia de dos altas con la misma clave la resuelve la restricción única de la base.
+- **Cierre.** El servidor revisa las cuatro condiciones de AL-03 y, si falla alguna, responde 409 con el código del primer bloqueo y la lista completa de lo que falta (`CON_EXISTENCIAS`, `CON_TRASPASOS_EN_TRANSITO`, `CON_HIJOS_ACTIVOS`, `CON_USUARIOS`). Reabrir con el padre cerrado responde `PADRE_CERRADO`.
+- **Almacén cerrado (AL-04).** La evaluación de un vale de un almacén cerrado trae un motivo rojo con la regla `AL-04`; confirmar responde 409 `ALMACEN_CERRADO`. Las lecturas no cambian.
+- **Primer arranque.** `uv run python -m app.mantenimiento sembrar-almacenes` crea Kepler, Contratistas, Midrex, HYL, Laminador y Minas solo si no existe ningún almacén; repetirlo no hace nada.
 
 ---
 
@@ -559,6 +587,7 @@ A es Almacenista, S Supervisor (de almacén), C Compras y R Recursos Humanos. El
 |---|---|---|---|
 | Acceso | `acceso.administrar` | Roles, permisos y usuarios | Solo Administrador |
 | Trabajadores | `trabajadores.ver` | Ficha básica: nombre, número, puesto, vigencia y resguardo | A, S, R |
+| | `trabajadores.numero_externo` | Capturar a mano el número de empleado al dar de alta, para números propios del centro; el trabajador queda marcado como externo (T-10). Requiere `trabajadores.administrar` | Solo Administrador |
 | | `trabajadores.ver_datos_personales` | CURP y NSS | R |
 | | `trabajadores.administrar` | Alta, reingreso, credencial y cancelar una baja | R |
 | | `trabajadores.iniciar_baja` | Iniciar la baja | A, S, R |
@@ -583,13 +612,15 @@ A es Almacenista, S Supervisor (de almacén), C Compras y R Recursos Humanos. El
 | | `reportes.consumo` | Reporte de consumo | S, C |
 | Almacenes | `almacenes.todos` | Operar cualquier almacén y ver los movimientos de todos | Solo Administrador |
 | | `almacenes.asignar_personal` | Asignar personal a su almacén o liberarlo, sin tocar roles ni permisos (AC-12); entre almacenes, solo con `almacenes.todos` | S |
+| | `almacenes.administrar` | Dar de alta, editar, inactivar y reactivar almacenes, y ver el resumen de cada uno (AL-01 a AL-05); el traspaso por una ruta que no es habitual lo decide `almacenes.todos` (X-03). Requiere `inventario.ver` | Solo Administrador |
+| Tablero | `tablero.ver` | Tablero de inicio: tarjetas y gráfica de lo más usado (TB-01 a TB-03). Con `almacenes.todos`, de todos los almacenes con selector; sin él, solo el del usuario. Requiere `inventario.ver` | A, S (y Administrador) |
 | Etiquetas | `etiquetas.imprimir` | Hojas de QR | S, C, R |
 | Compras | `compras.solicitar` | Pedir una compra urgente y consultar las solicitudes de su almacén (7.13) | A, S |
 | | `compras.atender` | Atender las solicitudes de compra de todos los almacenes: tomar, rechazar, marcar comprada e ingresar (7.13) | C |
 
 Un permiso de acción incluye el de ver su módulo: quien puede entregar ve la ficha básica del trabajador y las existencias de su almacén.
 
-El Almacenista conserva lo indispensable: entregar, devolver (lo que un trabajador regresa), consultar (trabajadores por nombre, número de empleado o QR, e inventario solo de su almacén), sus movimientos de hoy, ver las existencias de su almacén (`inventario.ver`, por eso no necesita ningún permiso de reportes), inspeccionar piezas, cancelar sus vales y la baja con no adeudo. Los traspasos entre almacenes (enviar y recibir) son del Supervisor del almacén y del Administrador (X-01). No tiene reportes, etiquetas, catálogo ni puestos.
+El Almacenista conserva lo indispensable: entregar, devolver (lo que un trabajador regresa), consultar (trabajadores por nombre, número de empleado o QR, e inventario solo de su almacén), sus movimientos de hoy, ver las existencias de su almacén (`inventario.ver`, por eso no necesita ningún permiso de reportes), inspeccionar piezas, cancelar sus vales y la baja con no adeudo, y el tablero de su almacén (`tablero.ver`). Los traspasos entre almacenes (enviar y recibir) son del Supervisor del almacén y del Administrador (X-01), y por una ruta que no es habitual, solo del Administrador (X-03). No tiene reportes, etiquetas, catálogo ni puestos.
 
 Usuarios iniciales por almacén: cada almacén (Kepler, Contratistas, Midrex, HYL, Laminador y Minas) tiene su Supervisor y su Almacenista; Compras queda asignado a Kepler, donde carga el inventario; el Administrador y RH no llevan almacén. El Supervisor no da de alta trabajadores: eso es de RH (`trabajadores.administrar`).
 
@@ -597,12 +628,12 @@ Usuarios iniciales por almacén: cada almacén (Kepler, Contratistas, Midrex, HY
 
 | Llega con | Permiso | Qué permite | Roles iniciales |
 |---|---|---|---|
-| FEAT-002 | `almacenes.administrar` | Abrir, cerrar y reactivar almacenes | — (solo el Administrador, que tiene todos los permisos; FEAT-008) |
 | FEAT-002 | `reportes.valor_inventario` | Valor del inventario | C |
 | FEAT-004 | `inventario.minimos` | Fijar mínimos por almacén | C |
 | Pospuesto | `piezas.dar_de_baja` | Dar una pieza por perdida o de baja definitiva | S |
 | Pospuesto | `revision.ver` | Lista de revisión | S |
-| Pospuesto | `tablero.ver` | Tablero general por almacén | Solo Administrador |
+
+`almacenes.administrar` (declarado aquí con FEAT-002 para el Supervisor) y `tablero.ver` (pospuesto, solo Administrador) **pasaron a la tabla 8.2 con FEAT-008**: el primero es solo del Administrador y el segundo es de Administrador, Supervisor y Almacenista. `trabajadores.numero_externo` llega con la misma feature y también está en 8.2. Un permiso nuevo no llega solo a los roles de una base que ya existe: se vuelve a correr el script de datos de prueba o se activa en `/roles`.
 
 ---
 
@@ -622,6 +653,7 @@ Usuarios iniciales por almacén: cada almacén (Kepler, Contratistas, Midrex, HY
 | P0 | Surtir EPP y una herramienta por escaneo | E-01 a E-06, E-15 a E-18, E-20 a E-22, E-24, E-25, E-27, E-28, F-02 (en pantalla), F-03, F-05, F-07 (con sesión), F-12 |
 | P0 | Intentar una entrega que exceda el límite | L-01 a L-05, E-07, A-01 a A-07, F-04 |
 | P0 | Traspaso entre almacenes | X-01 a X-04, X-06 a X-13, F-09 |
+| P1 | Administración de almacenes y tablero de inicio | AL-01 a AL-05, TB-01 a TB-03, X-03 (ruta no habitual), T-10 |
 | P0 | Devolución | V-01 a V-07, V-11, V-12, V-14, F-08 |
 | P0 | Baja con pendientes y vale de no adeudo | B-01 a B-05, B-07 a B-09 |
 | P0 | Caso especial de alturas | E-05, E-06, P-01 a P-03, P-07 |
@@ -651,6 +683,7 @@ Los supuestos con los que se escribieron estas reglas, y qué pasa si resultan d
 
 ## 11. Historial
 
+- **Sin publicar (6 oct 2026).** Administración de almacenes y tablero de inicio ([FEAT-008](../features/FEAT-008-administracion-de-almacenes-y-tablero.md)): reglas nuevas AL-01 a AL-05 y TB-01 a TB-03 (sección 7.14) y T-10 (el número de empleado lo genera el servidor). Cambios: **X-03** (la ruta que no es padre-hijo solo la hace quien tiene `almacenes.todos`, con observación obligatoria; antes cualquiera con aviso), **T-01 a T-03** (reingreso por CURP o, sin CURP, por nombre completo). Permisos: `almacenes.administrar` (solo Administrador; antes se declaraba para el Supervisor), `tablero.ver` (activo: Administrador, Supervisor y Almacenista) y `trabajadores.numero_externo` (nuevo, solo Administrador), todos en la sección 8.2.
 - **Sin publicar (6 oct 2026).** Importación por modos (I-10 a I-14): alta y reposición, tope de cantidad por fila, aviso de archivo ya importado, cantidades solo enteras y categoría sugerida por la descripción. Se consolidan las filas del mismo artículo por cantidad y almacén (I-06, RG-10). Cambio de política: el alta que crea artículos exige además `catalogo.administrar` (sección 8.2). Parámetro nuevo en 5.4.
 - **Sin publicar (6 oct 2026).** Sesiones por dispositivo: token de acceso de 15 minutos y token de renovación de 7 días, renovado con el uso hasta un tope de 30 días, con rotación y detección de reutilización (AC-14 a AC-24). Salir cierra solo ese dispositivo; cambiar la contraseña o el PIN, inactivar o reactivar cierra todas. Sustituye al token único de 12 horas.
 - **Versión 8 (6 oct 2026).** Solicitud de compra urgente (I-08, sección 7.13, SC-01 a SC-11): el supervisor o el almacenista la levanta, Compras la ve de todos los almacenes, la toma, la compra y la ingresa ligándola con su vale de entrada. Permisos nuevos `compras.solicitar` (A, S) y `compras.atender` (C) en la sección 8.2. Pasa de pospuesta a incluida.

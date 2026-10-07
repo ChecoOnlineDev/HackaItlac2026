@@ -50,7 +50,8 @@ export default [
     route("reportes/movimientos", "routes/supervision/rep-movimientos.tsx"),
     route("reportes/adeudos", "routes/supervision/rep-adeudos.tsx"),
     route("reportes/consumo", "routes/supervision/rep-consumo.tsx"),
-    // administración (acceso.administrar)
+    // administración (almacenes.administrar, acceso.administrar)
+    route("almacenes", "routes/acceso/almacenes.tsx"),
     route("usuarios", "routes/acceso/usuarios.tsx"),
     route("roles", "routes/acceso/roles.tsx"),
     route("roles/:id", "routes/acceso/rol.tsx"),

@@ -5,6 +5,7 @@ existe, el resguardo y el vale de no adeudo se simulan insertando filas con los 
 """
 
 import itertools
+import re
 import uuid
 from collections.abc import Callable
 from datetime import timedelta
@@ -49,7 +50,6 @@ def payload(**cambios) -> dict:
     n = _n()
     datos = {
         "nombre": f"Trabajador de prueba {n}",
-        "numero_empleado": f"PRB-{n:05d}",
         "puesto": "Soldador",
         "area_obra": "Midrex",
         "inicio": (hoy - timedelta(days=10)).isoformat(),
@@ -232,7 +232,9 @@ def test_T_03_alta_con_los_datos_obligatorios_deja_al_trabajador_activo_y_vigent
     assert respuesta.status_code == 201, respuesta.text
     ficha = respuesta.json()
     assert ficha["nombre"] == "Pedro Páramo"
-    assert ficha["numero_empleado"] == datos["numero_empleado"]
+    # T-10: el número lo genera el servidor.
+    assert re.fullmatch(r"E-\d{6}", ficha["numero_empleado"])
+    assert ficha["numero_externo"] is False
     assert ficha["estado"] == "ACTIVO"
     assert ficha["puesto"] == "Rigger"
     assert ficha["area_obra"] == "Minas"
@@ -243,7 +245,7 @@ def test_T_03_alta_con_los_datos_obligatorios_deja_al_trabajador_activo_y_vigent
     # RH tiene el permiso de datos personales: la clave aparece (vacía si no se capturó).
     assert ficha["curp"] is None and ficha["nss"] is None
     # Al darlo de alta se le crea su ubicación (el trabajador es una ubicación).
-    trabajador = trabajador_de_prueba(session, datos["numero_empleado"])
+    trabajador = trabajador_de_prueba(session, ficha["numero_empleado"])
     assert UbicacionRepository(session).de_trabajador(trabajador.id) is not None
 
 
@@ -259,9 +261,7 @@ def test_T_03_alta_guarda_tallas_curp_y_nss_opcionales(rh: TestClient) -> None:
     assert ficha["nss"] == "12345678901"
 
 
-@pytest.mark.parametrize(
-    "falta", ["nombre", "numero_empleado", "puesto", "area_obra", "inicio", "fin"]
-)
+@pytest.mark.parametrize("falta", ["nombre", "puesto", "area_obra", "inicio", "fin"])
 def test_T_03_faltar_un_dato_obligatorio_se_rechaza(rh: TestClient, falta: str) -> None:
     datos = payload()
     del datos[falta]
@@ -281,7 +281,7 @@ def test_T_03_una_fecha_de_fin_anterior_al_inicio_se_rechaza(
     assert respuesta.status_code == 422
     assert respuesta.json()["codigo"] == "DATOS_INVALIDOS"
     assert respuesta.json()["detalles"]["campo"] == "fin"
-    assert TrabajadorRepository(session).get_by_numero(datos["numero_empleado"]) is None
+    assert TrabajadorRepository(session).get_by_nombre(datos["nombre"]) is None
 
 
 def test_T_03_un_periodo_de_un_solo_dia_es_valido(rh: TestClient) -> None:
@@ -296,17 +296,19 @@ def test_T_03_curp_y_nss_con_forma_incorrecta_se_rechazan(rh: TestClient) -> Non
 
 
 def test_T_01_un_numero_de_empleado_repetido_responde_409_con_la_persona(
-    rh: TestClient,
+    cliente_como: Callable[[str], TestClient],
 ) -> None:
-    existente = dar_de_alta(rh, nombre="Persona Original")
+    # Solo quien tiene `trabajadores.numero_externo` escribe el número (T-10).
+    admin = cliente_como("Administrador")
+    existente = dar_de_alta(admin, nombre="Persona Original", numero_empleado="EXT-T01")
     repetido = payload(numero_empleado=existente["numero_empleado"], nombre="Otra Persona")
 
-    respuesta = rh.post("/api/trabajadores", json=repetido)
+    respuesta = admin.post("/api/trabajadores", json=repetido)
 
     assert respuesta.status_code == 409
     cuerpo = respuesta.json()
     assert cuerpo["codigo"] == "TRABAJADOR_EXISTE"
-    assert cuerpo["detalles"]["regla"] == "T-02"
+    assert cuerpo["detalles"]["regla"] == "T-10"
     assert cuerpo["detalles"]["coincide_por"] == "numero_empleado"
     assert cuerpo["detalles"]["trabajador"]["id"] == existente["id"]
     assert cuerpo["detalles"]["trabajador"]["nombre"] == "Persona Original"

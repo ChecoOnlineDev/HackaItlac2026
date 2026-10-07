@@ -15,6 +15,8 @@ interface PropiedadesSelectorDestino {
   valor: string | null;
   alCambiar: (almacen: AlmacenResumen) => void;
   deshabilitado?: boolean;
+  /** Solo ofrece las rutas habituales: las demás las hace únicamente quien tiene `almacenes.todos` (X-03). */
+  soloHabituales?: boolean;
   className?: string;
 }
 
@@ -23,7 +25,7 @@ interface PropiedadesSelectorDestino {
  * en los dos sentidos) y después las demás, que el servidor avisa como poco habituales (X-03). Solo ordena la
  * lista; quien decide el nivel de la ruta es el servidor.
  */
-export function SelectorDestino({ origenId, valor, alCambiar, deshabilitado, className }: PropiedadesSelectorDestino) {
+export function SelectorDestino({ origenId, valor, alCambiar, deshabilitado, soloHabituales = false, className }: PropiedadesSelectorDestino) {
   const id = useId();
   const consulta = useConsulta((signal) => apiGet<AlmacenRedApi[]>("/almacenes", undefined, signal), "almacenes-red");
 
@@ -34,11 +36,11 @@ export function SelectorDestino({ origenId, valor, alCambiar, deshabilitado, cla
   const origen = consulta.datos.find((a) => a.id === origenId);
   const esHabitual = (a: AlmacenRedApi) => Boolean(origen) && (origen!.padre_id === a.id || a.padre_id === origen!.id);
   const habituales = activos.filter(esHabitual);
-  const otros = activos.filter((a) => !esHabitual(a));
+  const otros = soloHabituales ? [] : activos.filter((a) => !esHabitual(a));
   const opcion = (grupo: string) => (a: AlmacenRedApi) => ({ valor: a.id, texto: `${a.nombre} (${a.clave})`, grupo });
   const opciones = [
     ...habituales.map(opcion("Rutas habituales")),
-    ...otros.map(opcion("Otras rutas (se avisa antes de enviar)")),
+    ...otros.map(opcion("Otras rutas (piden una observación)")),
   ];
 
   return (

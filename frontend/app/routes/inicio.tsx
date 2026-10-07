@@ -7,6 +7,7 @@ import { ConfirmarSalida } from "~/componentes/navegacion/confirmar-salida";
 import { MenuHoja } from "~/componentes/navegacion/menu-hoja";
 import { Pantalla } from "~/componentes/pantalla";
 import { Boton } from "~/componentes/ui/boton";
+import { Tablero } from "~/componentes/tablero/tablero";
 import { EstadoVacio } from "~/componentes/ui/estado-vacio";
 import { useEsEscritorio } from "~/hooks/use-escritorio";
 import { useContadores } from "~/sesion/contadores";
@@ -59,7 +60,10 @@ export default function Inicio() {
   // Los botones azules son las operaciones del almacén; quien no opera uno (Compras, RH) ve botones suaves.
   const operaAlmacen = elementos.some((e) => e.inicio === "flujo" && e.id !== "consultar");
 
-  const cuadricula = (
+  // Con `tablero.ver` el Inicio muestra los botones de operación arriba y el tablero debajo. Sin él (Compras, RH), igual que antes.
+  const conTablero = puede("tablero.ver");
+
+  const botones = (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
       {elementos.map((e, i) => (
         <BotonInicio
@@ -73,10 +77,26 @@ export default function Inicio() {
     </div>
   );
 
+  const cuadricula = (
+    <div className="flex flex-col gap-8">
+      {conTablero && elementos.length ? (
+        <section aria-labelledby="titulo-botones" className="flex flex-col gap-3">
+          <h2 id="titulo-botones" className="text-xl font-semibold text-marino">
+            {operaAlmacen ? "Lo que haces hoy" : "Accesos"}
+          </h2>
+          {botones}
+        </section>
+      ) : (
+        botones
+      )}
+      {conTablero ? <Tablero /> : null}
+    </div>
+  );
+
   if (esEscritorio) {
     return (
       <Pantalla titulo={`Hola, ${sesion.usuario.nombre}`} descripcion={`${nombreAlmacen}. ¿Qué quieres hacer?`}>
-        {elementos.length ? cuadricula : <EstadoVacio titulo="Todavía no tienes pantallas asignadas" descripcion="Pídele a tu supervisor que revise los permisos de tu rol." />}
+        {elementos.length || conTablero ? cuadricula : <EstadoVacio titulo="Todavía no tienes pantallas asignadas" descripcion="Pídele a tu supervisor que revise los permisos de tu rol." />}
       </Pantalla>
     );
   }
@@ -98,7 +118,7 @@ export default function Inicio() {
           </Boton>
         </div>
       </header>
-      {elementos.length ? cuadricula : <EstadoVacio titulo="Todavía no tienes pantallas asignadas" descripcion="Pídele a tu supervisor que revise los permisos de tu rol." />}
+      {elementos.length || conTablero ? cuadricula : <EstadoVacio titulo="Todavía no tienes pantallas asignadas" descripcion="Pídele a tu supervisor que revise los permisos de tu rol." />}
       <MenuHoja abierta={menuAbierto} alCambiar={setMenuAbierto} />
       <ConfirmarSalida abierta={confirmandoSalida} alCambiar={setConfirmandoSalida} />
     </div>

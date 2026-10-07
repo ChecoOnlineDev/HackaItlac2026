@@ -30,6 +30,7 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.VALES_CANCELAR,
             P.PIEZAS_INSPECCIONAR,
             P.COMPRAS_SOLICITAR,
+            P.TABLERO_VER,
         }
     ),
     "Supervisor": frozenset(
@@ -56,6 +57,7 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.ALMACENES_ASIGNAR_PERSONAL,
             P.ETIQUETAS_IMPRIMIR,
             P.COMPRAS_SOLICITAR,
+            P.TABLERO_VER,
         }
     ),
     "Compras": frozenset(

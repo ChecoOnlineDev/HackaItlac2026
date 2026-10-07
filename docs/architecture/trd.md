@@ -30,7 +30,7 @@ Lo instalado hoy, según `backend/pyproject.toml` y `frontend/package.json`:
 | Construcción | Vite 8, pnpm 10 |
 | Paquetes de Python | uv |
 
-Además: `openpyxl` (leer `.xlsx` al importar), `cryptography` (la necesita PyMySQL para entrar a MySQL 8), `httpx` y `python-multipart`; `pytest` y `ruff` como dependencias de desarrollo. En la interfaz: `qrcode.react` (QR) y los componentes base de shadcn sobre `@base-ui/react`. Se retiró `pywebpush`, que no usaba nada (las notificaciones push están excluidas).
+Además: `openpyxl` (leer `.xlsx` al importar), `cryptography` (la necesita PyMySQL para entrar a MySQL 8), `httpx` y `python-multipart`; `pytest` y `ruff` como dependencias de desarrollo. En la interfaz: `qrcode.react` (QR), los componentes base de shadcn sobre `@base-ui/react` y `recharts` 3.8.0 para la gráfica del tablero de inicio ([ADR-009](decisions/ADR-009-graficas-con-recharts.md)). Se retiró `pywebpush`, que no usaba nada (las notificaciones push están excluidas).
 
 ## 3. Arquitectura general
 
@@ -110,7 +110,7 @@ Está en [security-model.md](security-model.md).
 - Registro de la aplicación a la salida estándar, visible con `docker compose logs`.
 - La bitácora de movimientos es la auditoría de inventario.
 - Una tabla de auditoría registra lo que no es movimiento: entradas al sistema, cambios de catálogo, inactivaciones y autorizaciones.
-- Sin métricas ni tablero en el MVP.
+- Sin métricas de la aplicación. El tablero de inicio (FEAT-008) no es una métrica técnica: son consultas agregadas a la base, calculadas en el servidor con el alcance del usuario, sin tablas de resumen.
 
 ## 13. Entornos, deploy y secretos
 

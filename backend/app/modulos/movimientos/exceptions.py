@@ -3,7 +3,17 @@
 Los códigos están mapeados a su estado HTTP en `app/core/handlers.py`.
 """
 
-from app.core.excepciones import AppError, Conflicto, DatosInvalidos, NoEncontrado
+from app.core.excepciones import AppError, Conflicto, DatosInvalidos, NoEncontrado, SinPermiso
+
+
+class RutaSoloAdministrador(SinPermiso):
+    """X-03: un traspaso que no es padre-hijo solo lo confirma quien tiene `almacenes.todos`."""
+
+    codigo = "RUTA_SOLO_ADMINISTRADOR"
+    mensaje_defecto = (
+        "Esa ruta no es la habitual y solo la puede hacer el Administrador. "
+        "Envía primero a Contratistas o pide ayuda al Administrador."
+    )
 
 
 class ValeNoEncontrado(NoEncontrado):

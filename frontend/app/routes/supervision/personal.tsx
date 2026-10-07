@@ -37,7 +37,8 @@ export default function PersonalPorAlmacen() {
   const { sesion, puede } = useSesionActiva();
   const [texto, setTexto] = useState("");
   const q = useRetraso(texto.trim());
-  const [almacen, setAlmacen] = useState("");
+  // Desde Almacenes (administración) se llega con `?almacen=<id>` ya filtrado.
+  const [almacen, setAlmacen] = useState(() => new URLSearchParams(window.location.search).get("almacen") ?? "");
   const [pagina, setPagina] = useState(1);
   const [editando, setEditando] = useState<PersonaAlmacen | null>(null);
 

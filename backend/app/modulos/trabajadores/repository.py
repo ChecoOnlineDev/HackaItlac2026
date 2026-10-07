@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.modulos.almacenes.models import Almacen, Ubicacion, UbicacionVirtual
 from app.modulos.catalogo.models import Articulo, Control, Pieza
 from app.modulos.movimientos.models import Existencia, Movimiento, TipoVale, Vale
-from app.modulos.trabajadores.models import PeriodoContrato, Trabajador
+from app.modulos.trabajadores.models import PeriodoContrato, SerieEmpleado, Trabajador
 from app.modulos.trabajadores.schemas import Situacion
 from app.modulos.trabajadores.tipos import FilaLista, Pendiente
 
@@ -40,6 +40,28 @@ class TrabajadorRepository:
         return self.session.scalar(
             select(Trabajador).where(Trabajador.numero_empleado == numero_empleado)
         )
+
+    def get_by_nombre(self, nombre: str) -> Trabajador | None:
+        """El primero con ese nombre completo. La colación de la base no distingue mayúsculas ni
+        acentos; los espacios de más se limpian antes de comparar (T-02)."""
+        normal = " ".join(nombre.split())
+        return self.session.scalar(
+            select(Trabajador).where(Trabajador.nombre == normal).order_by(Trabajador.creado_en)
+        )
+
+    def bloquear_serie_empleado(self) -> SerieEmpleado:
+        """El contador del número de empleado con su fila bloqueada (T-10)."""
+        serie = self.session.scalar(
+            select(SerieEmpleado)
+            .where(SerieEmpleado.id == 1)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if serie is None:  # no debería pasar: la migración la crea
+            serie = SerieEmpleado(id=1, ultimo=0)
+            self.session.add(serie)
+            self.session.flush()
+        return serie
 
     def get_by_curp(self, curp: str) -> Trabajador | None:
         return self.session.scalar(select(Trabajador).where(Trabajador.curp == curp))

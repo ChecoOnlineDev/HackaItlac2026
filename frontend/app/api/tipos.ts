@@ -7,6 +7,7 @@ export const PERMISOS = [
   "trabajadores.ver",
   "trabajadores.ver_datos_personales",
   "trabajadores.administrar",
+  "trabajadores.numero_externo",
   "trabajadores.iniciar_baja",
   "catalogo.ver",
   "catalogo.administrar",
@@ -33,6 +34,7 @@ export const PERMISOS = [
   "etiquetas.imprimir",
   "compras.solicitar",
   "compras.atender",
+  "tablero.ver",
 ] as const;
 
 export type Permiso = (typeof PERMISOS)[number];

@@ -42,7 +42,7 @@ Los títulos pueden ocupar dos líneas; nada se corta con "…", salvo el nombre
 
 ## Navegación
 
-- **Celular.** El inicio del almacenista es una cuadrícula de botones grandes: Entregar, Devolver, Trasladar, Recibir y Consultar. Arriba, el nombre del almacén y el usuario. Dentro de un flujo solo hay "Atrás" (uno solo, en la barra de arriba; en los flujos de pasos regresa un paso en vez de salir) y la acción principal, fija en la parte baja.
+- **Celular.** El inicio es «Lo que haces hoy», una cuadrícula de botones grandes arriba (Entregar, Devolver y Consultar para el almacenista; además Trasladar, Recibir y Autorizaciones para el supervisor), y debajo el tablero (tarjetas y gráfica) de quien tiene `tablero.ver`. Arriba, el nombre del almacén y el usuario. Dentro de un flujo solo hay "Atrás" (uno solo, en la barra de arriba; en los flujos de pasos regresa un paso en vez de salir) y la acción principal, fija en la parte baja.
 - **Tableta.** Igual que el celular, con la lista de renglones y el detalle lado a lado en horizontal.
 - **Computadora.** Menú lateral con las secciones que permite el rol; tablas con filtros arriba; formularios a un ancho máximo de 720 px.
 - **Sección activa del menú.** Tanto el menú lateral como la hoja "Menú" del celular remarcan dónde estás: contorno azul (`ring` del color primario), fondo suave (`bg-accent`), texto en azul marino y semibold, y `aria-current="page"`. Cuenta la subruta (`/trabajadores/<id>` marca "Trabajadores", `/recibir/<id>` marca "Recibir"); si dos opciones coinciden gana la más específica; "Inicio" solo se marca en `/`. En computadora, el cursor encima da el mismo fondo más suave. Al abrir la hoja, la opción activa se desplaza hasta quedar a la vista. La lógica vive en `idActivo` (`sesion/menu.ts`).
@@ -100,6 +100,14 @@ Los títulos pueden ocupar dos líneas; nada se corta con "…", salvo el nombre
 
 **Navegación por ancho.** Computadora desde 1024 px: menú lateral. Celular y tableta (menos de 1024 px): sin menú lateral; el inicio es la cuadrícula de botones y un botón "Menú" abre una hoja con todas las secciones permitidas. El menú y los botones del inicio salen de los permisos de la sesión, nunca del nombre del rol.
 
+**Grupo de menú plegable (FEAT-008).** El menú lateral y la hoja «Menú» del celular se agrupan por tarea (Inicio, Operación, Consulta, Personas, Inventario, Compras, Supervisión, Reportes y Administración; [app-flow.md](app-flow.md)). Cada grupo es un encabezado de 44 px que se abre y se cierra con el dedo, Enter o Espacio, con `aria-expanded` y `aria-controls`, foco visible y un icono de flecha que gira (con «reducir movimiento», sin giro). El grupo de la sección actual va abierto y su entrada activa mantiene el patrón de «Sección activa del menú»; el grupo se marca como activo aunque esté cerrado. Un grupo sin entradas visibles (por permisos) no se pinta, y Inicio es una entrada fija sin grupo. El estado abierto o cerrado de cada grupo se recuerda por persona en el navegador (`localStorage`, con `try/catch`: si falla o está vacío, se abre solo el de la sección actual). Se construye sobre el `Sidebar` y el `Collapsible` de shadcn; la lógica vive en `sesion/menu.ts` (campo `grupo` y marca de plegable).
+
+**Tarjeta de indicador (FEAT-008).** `TarjetaIndicador` (`frontend/app/componentes/tablero/`): una tarjeta `rounded-2xl` con borde sutil que ocupa una celda de una cuadrícula de una columna en celular, dos en tableta y cuatro en computadora. Lleva el **número grande** (28 px, semibold, `tabular-nums`), un **título** de 14 px («Equipo importante en resguardo») y una **línea de apoyo** de 12 px que dice qué cuenta («Piezas que están en manos de trabajadores»). El icono es de trazo y acompaña al texto; nunca comunica solo. Si navega (por ejemplo, a Seguimiento de piezas), toda la tarjeta es un enlace de 48 px o más de alto con foco visible y el borde cambia al pasar el cursor; si no navega, es un bloque de solo lectura sin aspecto de botón. No usa los colores del semáforo (reservados al nivel de un renglón o una pieza): los avisos del tablero, como «Sin existencia» o «Por vencer», van con icono y texto en el azul o el gris del sistema, y el número en cero se ve atenuado. Estados: esqueleto del tamaño de la tarjeta al cargar, y error con «Reintentar» a nivel del bloque completo (una sola petición alimenta todas las tarjetas).
+
+**Gráfica de barras con filtros (FEAT-008, [ADR-009](../architecture/decisions/ADR-009-graficas-con-recharts.md)).** `GraficaConsumo` (`frontend/app/componentes/tablero/`), sobre el componente `chart` de shadcn/ui (recharts 3.8.0), cargada bajo demanda. Barras **horizontales** (el nombre del artículo cabe entero en el eje Y, hasta dos líneas), de mayor a menor, máximo 10 más una barra gris «Otros» al final. Cada barra lleva su **nombre y su número a la vista** (el número al final de la barra), no solo en el tooltip, y el color nunca es el único canal. Tooltip al pasar el cursor o al tocar, con el artículo, la categoría, el total y la unidad; con «Separar por almacén», los segmentos llevan una leyenda con el nombre de cada almacén y el tooltip desglosa el total. Colores de la paleta de categorías de los gráficos de shadcn (variables de tema), distintos del semáforo. La barra es táctil (48 px o más de alto de zona de toque) y lleva a `/articulos/:id`. Encima de la gráfica, una fila de filtros con tres controles como máximo (Almacén, Periodo y Categoría; el selector de periodo es un `Select` con atajos Hoy, 7 días, Este mes, Mes pasado y «Elegir fechas», que abre el selector de rango de los reportes), el interruptor «Separar por almacén» (solo con todos los almacenes) y el botón «Limpiar filtros», que regresa a los valores por omisión. La gráfica **se actualiza al cambiar un filtro**: indicador de carga en línea y la gráfica anterior se queda visible (atenuada) hasta que llega la nueva. Una línea de apoyo dice qué cuenta («Unidades entregadas en el periodo, sin contar vales cancelados»). Estados: esqueleto; vacío «No hubo consumo en estas fechas» (con «Limpiar filtros»), no una gráfica vacía; error con «Reintentar». Accesibilidad: `role="img"` con un `aria-label` que resume la gráfica, y, para lectores de pantalla y teclado, una lista de texto equivalente con cada barra y su número; las barras se recorren con Tab.
+
+**Botón por grupo en la matriz de permisos (FEAT-008, sección 4.5).** En el encabezado de cada tarjeta de módulo de `/roles/:id`: a la izquierda el título y un contador («3 de 5 activos»); a la derecha un botón de contorno de 40 px que dice «Activar todos» (si el grupo está vacío o a medias) o «Quitar todos» (si está completo), con `aria-label` que nombra el grupo («Activar todos los permisos de Trabajadores»). Solo mueve los interruptores en pantalla: los renglones cambiados se resaltan como siempre («Se agrega», «Se quita») y la barra de cambios los cuenta; nada se guarda hasta confirmar. Si no pudo mover alguno (permiso protegido o dependencia), una línea de apoyo bajo el encabezado dice cuántos y por qué. Arriba de la matriz, opcionalmente, «Activar todo» y «Quitar todo» del rol completo, con el mismo comportamiento. La confirmación de guardar nombra aparte los datos reservados que se agregan. Un grupo con todos sus interruptores deshabilitados no muestra el botón.
+
 ## Pantallas
 
 ### Entrar
@@ -109,11 +117,12 @@ Los títulos pueden ocupar dos líneas; nada se corta con "…", salvo el nombre
 - **Estados:** botón deshabilitado mientras responde; error bajo el botón; bloqueo temporal con el tiempo restante.
 - **Accesibilidad:** el teclado del celular no tapa el botón; se entra con Enter.
 
-### Inicio del almacenista
+### Inicio (almacenista, supervisor y administrador)
 
-- **Objetivo:** llegar a cualquier operación con un toque.
-- **Jerarquía:** almacén actual; cinco botones grandes con icono y texto; "Recibir" muestra cuántos traspasos esperan.
-- **Estados:** sin traspasos, "Recibir" aparece sin contador.
+- **Objetivo:** llegar a cualquier operación con un toque y ver cómo está el inventario de un vistazo.
+- **Jerarquía:** almacén actual (o «Viendo: …» con el selector, para el administrador); **primero** «Lo que haces hoy» con los botones grandes del rol y icono y texto (almacenista: Entregar, Devolver y Consultar; supervisor: además Trasladar, «Recibir traspaso» con el número de traspasos que esperan y Autorizaciones con su contador); **después** las tarjetas de indicadores y, **al final**, la gráfica de lo más usado. En computadora, las tarjetas y la gráfica ocupan el ancho a la derecha del bloque de botones solo si caben; en celular, todo va en una columna, en ese orden.
+- **Estados:** sin traspasos, «Recibir traspaso» aparece sin contador; el tablero tiene sus propios estados de carga, vacío y error (patrones «Tarjeta de indicador» y «Gráfica de barras con filtros»); sin almacén asignado, el aviso «No tienes un almacén asignado».
+- **Compras y RH** no tienen tablero: su Inicio es una lista de lo suyo (solicitudes por atender; trabajadores y altas recientes).
 
 ### Entregar
 
@@ -140,7 +149,7 @@ Los títulos pueden ocupar dos líneas; nada se corta con "…", salvo el nombre
 
 ### Trasladar y Recibir
 
-- **Trasladar:** selector de destino con las rutas habituales primero; después, la misma lista de renglones de la entrega. Resultado: folio y QR del traspaso.
+- **Trasladar:** selector de destino con las rutas habituales (padre o hijo del almacén); quien tiene `almacenes.todos` ve además las demás, marcadas con un aviso amarillo y un campo de observación obligatoria (X-03); después, la misma lista de renglones de la entrega. Resultado: folio y QR del traspaso.
 - **Recibir:** lista de traspasos en tránsito hacia este almacén; al abrir uno, sus renglones con casilla de recibido, "Recibir todo" y "Confirmar recepción". Lo no marcado se indica como diferencia antes de confirmar.
 
 ### Consultar
@@ -162,7 +171,7 @@ Los títulos pueden ocupar dos líneas; nada se corta con "…", salvo el nombre
 ### Trabajadores (RH)
 
 - **Lista:** búsqueda por nombre o número; columnas: nombre, puesto, vigencia y situación (Sin pendientes, Con pendientes, No adeudo emitido).
-- **Alta:** el puesto se elige de una lista de puestos activos (si no hay, un aviso con el enlace a Puestos o la indicación de pedirlo a Compras o al supervisor); formulario corto en un solo paso; el número de empleado se valida al salir del campo y ofrece el reingreso si ya existe. Incluye la foto, opcional: se toma con la cámara o se sube una imagen.
+- **Alta:** el puesto se elige de una lista de puestos activos (si no hay, un aviso con el enlace a Puestos o la indicación de pedirlo a Compras o al supervisor); formulario corto en un solo paso; **no pide número de empleado** (lo asigna el servidor y la ficha lo muestra al guardar, T-10); la CURP, o el nombre si no hay CURP, se compara al guardar y la pantalla ofrece el reingreso con un recuadro amarillo «Ya hay una persona con ese nombre» y los botones «Reingresar a esta persona» y «Es otra persona». Quien tiene `trabajadores.numero_externo` ve además el campo «Número de empleado propio del centro». Incluye la foto, opcional: se toma con la cámara o se sube una imagen.
 - **Ficha:** datos, periodos anteriores, pendientes y acciones: Reingresar, Iniciar baja, Cancelar baja. Incluye "Dotación del puesto": por artículo, una barra sencilla con "entregado de recomendado" y una insignia "Falta N" o "Completo" (siempre con texto, no solo color).
 
 ### Inventario, entradas e importación (Compras)
@@ -197,6 +206,15 @@ Los títulos pueden ocupar dos líneas; nada se corta con "…", salvo el nombre
 - **Roles (`/roles`):** cuadrícula de tarjetas con nombre, insignia "Protegido" o "Rol inicial", descripción, número de usuarios y de permisos, y los botones "Ver permisos" y "Duplicar".
 - **Matriz de permisos (`/roles/:id`):** tarjetas por módulo ("Operación del almacén", "Trabajadores", "Catálogo"...), en una columna en celular y dos en pantallas anchas. Cada renglón: interruptor, descripción del permiso en lenguaje de persona y la clave técnica en pequeño y gris. Lo reservado (costos, CURP y NSS) lleva la insignia "Información reservada" y, activo, una frase de qué deja ver. Un renglón cambiado se resalta y dice "Se agrega" o "Se quita". Lo que no se puede cambiar queda deshabilitado con la razón debajo, con candado.
 - **Barra de cambios:** con cambios, una barra fija al pie (acción principal) dice en una frase qué cambia y lista los permisos agregados y quitados antes de "Guardar cambios" (que pide confirmación) o "Descartar".
+
+### Almacenes (administrador)
+
+- **Objetivo:** dar de alta, ordenar e inactivar los almacenes de la red sin tocar la base (FEAT-008).
+- **Jerarquía:** título y apoyo; «Nuevo almacén» arriba a la derecha (acción principal); búsqueda a la vista y «Filtros» (estado); la lista.
+- **Lista:** tabla desde 768 px (Clave y nombre, Tipo, Depende de, Estado en una insignia con icono y texto, Existencias, Usuarios y una acción «Ver») y tarjetas en celular. Los cerrados salen atenuados con su fecha. La fila abre la ficha del almacén.
+- **Ficha:** datos, resumen, vínculos (Personal del almacén, Inventario, Solicitudes de compra) y las acciones «Editar» e «Inactivar» o «Reactivar». Inactivar abre una confirmación que nombra el almacén y dice qué pasará; mientras haya bloqueos, el botón está deshabilitado y cada bloqueo se lee debajo con su enlace.
+- **Alta y edición:** una `Hoja` (inferior en celular, lateral en computadora) con clave, nombre, tipo y «De qué almacén depende». Errores del servidor junto al campo.
+- **Estados:** esqueleto al cargar; error con «Reintentar»; sin el permiso, «Tu rol no puede hacer esto».
 
 ### Detalle de un vale
 
@@ -245,5 +263,5 @@ Los títulos pueden ocupar dos líneas; nada se corta con "…", salvo el nombre
 
 - Tema oscuro y personalización de colores.
 - Ilustraciones y pantallas de bienvenida.
-- Gráficas; los reportes son tablas.
+- Gráficas fuera del tablero de inicio: los reportes son tablas. La única gráfica es «Lo más usado» (FEAT-008, [ADR-009](../architecture/decisions/ADR-009-graficas-con-recharts.md)).
 - Diseño del ticket impreso y del comprobante público ([FEAT-001](../features/FEAT-001-vale-como-prueba.md)).

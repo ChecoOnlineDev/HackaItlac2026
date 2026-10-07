@@ -19,6 +19,7 @@ import uuid
 
 from app.core.excepciones import DatosInvalidos
 from app.modulos.acceso.permisos import P
+from app.modulos.acceso.service import AccesoService
 from app.modulos.almacenes.models import Almacen, EstadoAlmacen, UbicacionVirtual
 from app.modulos.movimientos.cargador import hechos_de_articulo, hechos_de_pieza
 from app.modulos.movimientos.contexto import (
@@ -33,9 +34,11 @@ from app.modulos.movimientos.evaluador import Motivo
 from app.modulos.movimientos.evaluador_traspasos import (
     HechosAlmacen,
     HechosRenglonTraspaso,
+    es_ruta_habitual,
     evaluar_renglon_traspaso,
     regla_x03_ruta,
 )
+from app.modulos.movimientos.exceptions import RutaSoloAdministrador
 from app.modulos.movimientos.models import EstadoVale, FirmaModo, Nivel, TipoVale
 from app.modulos.movimientos.repository_traspasos import TraspasoRepository
 from app.modulos.movimientos.schemas import RenglonIn, ValeIn
@@ -64,6 +67,10 @@ def hechos_de_almacen(almacen: Almacen) -> HechosAlmacen:
         padre_id=almacen.padre_id,
         activo=almacen.estado == EstadoAlmacen.ACTIVO,
     )
+
+
+def _resumen_almacen(almacen: Almacen) -> dict[str, str]:
+    return {"id": str(almacen.id), "clave": almacen.clave, "nombre": almacen.nombre}
 
 
 def normalizar_renglones_de_traslado(ctx: ContextoVale, cuerpo: ValeIn) -> list[RenglonIn]:
@@ -121,6 +128,15 @@ class TraspasoTipo(ManejadorTipo):
     def normalizar_renglones(self, ctx: ContextoVale, cuerpo: ValeIn) -> list[RenglonIn]:
         return normalizar_renglones_de_traslado(ctx, cuerpo)
 
+    def almacenes_involucrados(self, ctx: ContextoVale, cuerpo: ValeIn) -> list[Almacen]:
+        """AL-04: ni el origen ni el destino pueden estar cerrados."""
+        almacenes = [ctx.almacen]
+        if cuerpo.destino_almacen_id is not None:
+            destino = ctx.session.get(Almacen, cuerpo.destino_almacen_id)
+            if destino is not None:
+                almacenes.append(destino)
+        return almacenes
+
     # ------------------------------------------------------------------ evaluación
 
     def evaluar(self, ctx: ContextoVale, cuerpo: ValeIn) -> Evaluacion:
@@ -133,7 +149,17 @@ class TraspasoTipo(ManejadorTipo):
         if destino is None:
             ruta = Motivo("X-03", Nivel.ROJO, "El almacén de destino no existe.")
         else:
-            ruta = regla_x03_ruta(hechos_de_almacen(ctx.almacen), hechos_de_almacen(destino))
+            origen_h, destino_h = hechos_de_almacen(ctx.almacen), hechos_de_almacen(destino)
+            # X-03: otra ruta que no es padre-hijo solo con `almacenes.todos`.
+            puede = AccesoService(ctx.session).puede_operar_todos_los_almacenes(ctx.usuario)
+            ruta = regla_x03_ruta(origen_h, destino_h, puede_ruta_excepcional=puede)
+            if destino.id != ctx.almacen.id and not es_ruta_habitual(origen_h, destino_h):
+                evaluacion.datos["ruta_no_habitual"] = {
+                    "puede": puede,
+                    "origen": _resumen_almacen(ctx.almacen),
+                    "destino": _resumen_almacen(destino),
+                }
+                evaluacion.pide_observacion_vale = puede
         evaluacion.motivos_vale = [ruta]
 
         for numero, renglon in enumerate(cuerpo.renglones, start=1):
@@ -170,6 +196,22 @@ class TraspasoTipo(ManejadorTipo):
         return evaluacion
 
     # ---------------------------------------------------------------- confirmación
+
+    def exigir_al_confirmar(self, cuerpo: ValeIn, evaluacion: Evaluacion) -> None:
+        """X-03: una ruta que no es padre-hijo la confirma solo quien tiene `almacenes.todos`
+        (403 `RUTA_SOLO_ADMINISTRADOR`) y con observación en el vale (422)."""
+        ruta = evaluacion.datos.get("ruta_no_habitual")
+        if ruta is None:
+            return
+        if not ruta["puede"]:
+            raise RutaSoloAdministrador(
+                detalles={"regla": "X-03", "origen": ruta["origen"], "destino": ruta["destino"]}
+            )
+        if not (getattr(cuerpo, "observacion", None) or "").strip():
+            mensaje = "Anota por qué se envía por una ruta que no es la habitual."
+            raise DatosInvalidos(
+                mensaje, [{"campo": "observacion", "mensaje": mensaje, "regla": "X-03"}]
+            )
 
     def bloqueos(self, ctx: ContextoVale, cuerpo: ValeIn) -> PlanBloqueo:
         carga = ctx.cargador

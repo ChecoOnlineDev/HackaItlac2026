@@ -10,7 +10,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -21,7 +20,9 @@ import {
 } from "~/components/ui/sidebar";
 import { ConfirmarSalida } from "./confirmar-salida";
 import { InstalarApp } from "./instalar-app";
-import { agruparMenu, idActivo, menuPermitido, type ElementoMenu } from "~/sesion/menu";
+import { EncabezadoGrupo, PanelGrupo } from "./grupo-menu";
+import { agruparMenu, idActivo, idGrupoActivo, menuPermitido, type ElementoMenu } from "~/sesion/menu";
+import { useGruposAbiertos } from "~/sesion/menu-estado";
 import { useContadores } from "~/sesion/contadores";
 import { useSesionActiva } from "~/sesion/sesion";
 
@@ -54,6 +55,7 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
   const grupos = agruparMenu(permitidos);
   const { pathname } = useLocation();
   const activoId = idActivo(permitidos, pathname);
+  const { abierto, alternar } = useGruposAbiertos(idGrupoActivo(grupos, activoId));
 
   return (
     <SidebarProvider>
@@ -82,21 +84,29 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-          {grupos.map(({ grupo, elementos }) => (
-            <SidebarGroup key={grupo}>
-              <SidebarGroupLabel className="text-xs font-semibold tracking-wide uppercase">{grupo}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {elementos.map((e) => (
-                    <Elemento
-                      key={e.id}
-                      elemento={e}
-                      activo={e.id === activoId}
-                      contador={e.contador ? contadores[e.contador] : undefined}
-                    />
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
+          {grupos.map(({ id, titulo, elementos }) => (
+            <SidebarGroup key={id}>
+              <EncabezadoGrupo
+                id={id}
+                titulo={titulo}
+                abierto={abierto(id)}
+                activo={elementos.some((e) => e.id === activoId)}
+                alAlternar={() => alternar(id)}
+              />
+              <PanelGrupo id={id} abierto={abierto(id)}>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {elementos.map((e) => (
+                      <Elemento
+                        key={e.id}
+                        elemento={e}
+                        activo={e.id === activoId}
+                        contador={e.contador ? contadores[e.contador] : undefined}
+                      />
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </PanelGrupo>
             </SidebarGroup>
           ))}
         </SidebarContent>

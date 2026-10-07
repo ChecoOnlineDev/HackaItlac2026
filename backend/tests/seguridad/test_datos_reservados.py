@@ -52,8 +52,16 @@ def test_AC_05_con_ver_datos_personales_la_curp_repetida_ofrece_el_reingreso(
 def test_AC_05_el_numero_de_empleado_repetido_sigue_ofreciendo_el_reingreso_sin_el_permiso(
     app, cliente_como, crear_usuario
 ):
-    existente = dar_de_alta(cliente_como("Recursos Humanos"), nombre="Persona Con Numero")
-    sin_permiso = _cliente(app, crear_usuario, P.TRABAJADORES_ADMINISTRAR, P.TRABAJADORES_VER)
+    existente = dar_de_alta(
+        cliente_como("Administrador"), nombre="Persona Con Numero", numero_empleado="EXT-AC05"
+    )
+    sin_permiso = _cliente(
+        app,
+        crear_usuario,
+        P.TRABAJADORES_ADMINISTRAR,
+        P.TRABAJADORES_VER,
+        P.TRABAJADORES_NUMERO_EXTERNO,
+    )
 
     r = sin_permiso.post(
         "/api/trabajadores", json=payload(numero_empleado=existente["numero_empleado"])

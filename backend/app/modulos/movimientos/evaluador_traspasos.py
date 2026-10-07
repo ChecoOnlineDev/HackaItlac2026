@@ -57,22 +57,29 @@ def es_ruta_habitual(origen: HechosAlmacen, destino: HechosAlmacen) -> bool:
     return origen.padre_id == destino.id or destino.padre_id == origen.id
 
 
-def regla_x03_ruta(origen: HechosAlmacen, destino: HechosAlmacen) -> Motivo:
-    """X-03: el destino es otro almacén. Ruta habitual: verde; otra ruta: aviso amarillo.
-    Mismo almacén, o un destino cerrado, es rojo."""
+def regla_x03_ruta(
+    origen: HechosAlmacen, destino: HechosAlmacen, *, puede_ruta_excepcional: bool = False
+) -> Motivo:
+    """X-03: el destino es otro almacén. Ruta habitual (padre-hijo): verde. Otra ruta: solo con
+    `almacenes.todos` (`puede_ruta_excepcional`), con aviso amarillo y observación obligatoria; sin
+    él es rojo. Mismo almacén es rojo. Un destino cerrado lo rechaza AL-04 (lo agrega el motor)."""
     if destino.id == origen.id:
         return Motivo("X-03", Nivel.ROJO, "El destino debe ser otro almacén, no el de origen.")
-    if not destino.activo:
-        return Motivo(
-            "X-03", Nivel.ROJO, f"El almacén {destino.nombre} está cerrado y no recibe traspasos."
-        )
     if es_ruta_habitual(origen, destino):
         return Motivo("X-03", Nivel.VERDE, f"Ruta habitual: de {origen.nombre} a {destino.nombre}.")
+    if puede_ruta_excepcional:
+        return Motivo(
+            "X-03",
+            Nivel.AMARILLO,
+            f"Ruta poco habitual: de {origen.nombre} a {destino.nombre}. Lo habitual es enviar "
+            "entre Kepler y Contratistas, y entre Contratistas y las áreas. Anota por qué se "
+            "salta la ruta.",
+        )
     return Motivo(
         "X-03",
-        Nivel.AMARILLO,
-        f"Ruta poco habitual: de {origen.nombre} a {destino.nombre}. Lo habitual es enviar entre "
-        "Kepler y Contratistas, y entre Contratistas y las áreas. Revisa que sea correcto.",
+        Nivel.ROJO,
+        f"De {origen.nombre} a {destino.nombre} no es una ruta habitual y solo la puede hacer el "
+        "Administrador. Envía entre Kepler y Contratistas, y entre Contratistas y las áreas.",
     )
 
 

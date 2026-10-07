@@ -33,7 +33,7 @@ Ejemplo guía: el administrador activa `trabajadores.ver_datos_personales` en el
 - Varios roles por usuario.
 - Permisos por registro, como un trabajador o un artículo en particular.
 - Crear permisos nuevos desde la pantalla: el catálogo lo define el sistema.
-- Tablero general por almacén.
+- Tablero general por almacén (lo construye [FEAT-008](FEAT-008-administracion-de-almacenes-y-tablero.md), con el permiso `tablero.ver`). El botón «Activar todos» y «Quitar todos» por grupo en la matriz de permisos también es de FEAT-008 (sección 4.5).
 - Inicio de sesión con cuentas externas.
 - Arrastrar y soltar para mover personal: el uso principal es el celular y la tableta.
 - Que un usuario vea un subconjunto de almacenes: hoy ve el suyo o todos (AC-06).

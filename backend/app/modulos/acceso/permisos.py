@@ -20,6 +20,7 @@ class P:
     TRABAJADORES_VER_DATOS_PERSONALES = "trabajadores.ver_datos_personales"
     TRABAJADORES_ADMINISTRAR = "trabajadores.administrar"
     TRABAJADORES_INICIAR_BAJA = "trabajadores.iniciar_baja"
+    TRABAJADORES_NUMERO_EXTERNO = "trabajadores.numero_externo"
     CATALOGO_VER = "catalogo.ver"
     CATALOGO_ADMINISTRAR = "catalogo.administrar"
     CATALOGO_COSTOS = "catalogo.costos"
@@ -41,17 +42,17 @@ class P:
     REPORTES_CONSUMO = "reportes.consumo"
     ALMACENES_TODOS = "almacenes.todos"
     ALMACENES_ASIGNAR_PERSONAL = "almacenes.asignar_personal"
+    ALMACENES_ADMINISTRAR = "almacenes.administrar"
+    TABLERO_VER = "tablero.ver"
     ETIQUETAS_IMPRIMIR = "etiquetas.imprimir"
     COMPRAS_SOLICITAR = "compras.solicitar"
     COMPRAS_ATENDER = "compras.atender"
 
     # --- Sección 8.3 (los agregan las features o están pospuestos) ---
-    ALMACENES_ADMINISTRAR = "almacenes.administrar"
     REPORTES_VALOR_INVENTARIO = "reportes.valor_inventario"
     INVENTARIO_MINIMOS = "inventario.minimos"
     PIEZAS_DAR_DE_BAJA = "piezas.dar_de_baja"
     REVISION_VER = "revision.ver"
-    TABLERO_VER = "tablero.ver"
 
 
 @dataclass(frozen=True)
@@ -72,6 +73,12 @@ CATALOGO: tuple[Permiso, ...] = (
     Permiso(P.TRABAJADORES_VER_DATOS_PERSONALES, "Ver CURP y NSS", True, es_de_informacion=True),
     Permiso(P.TRABAJADORES_ADMINISTRAR, "Alta, reingreso, credencial y cancelar una baja", True),
     Permiso(P.TRABAJADORES_INICIAR_BAJA, "Iniciar la baja", True),
+    Permiso(
+        P.TRABAJADORES_NUMERO_EXTERNO,
+        "Capturar a mano el número de empleado al dar de alta (número propio del centro)",
+        True,
+        "FEAT-008",
+    ),
     Permiso(P.CATALOGO_VER, "Ver categorías, artículos y piezas", True),
     Permiso(P.CATALOGO_ADMINISTRAR, "Administrar categorías, artículos y requisitos", True),
     Permiso(P.CATALOGO_COSTOS, "Ver y capturar costos", True, es_de_informacion=True),
@@ -99,15 +106,25 @@ CATALOGO: tuple[Permiso, ...] = (
         "Asignar personal a su almacén o liberarlo; entre almacenes, solo con almacenes.todos",
         True,
     ),
+    Permiso(
+        P.ALMACENES_ADMINISTRAR,
+        "Dar de alta, editar, inactivar y reactivar almacenes",
+        True,
+        "FEAT-008",
+    ),
+    Permiso(
+        P.TABLERO_VER,
+        "Tablero de inicio (todos los almacenes con almacenes.todos; si no, el suyo)",
+        True,
+        "FEAT-008",
+    ),
     Permiso(P.ETIQUETAS_IMPRIMIR, "Hojas de QR", True),
     Permiso(P.COMPRAS_SOLICITAR, "Pedir una compra urgente", True),
     Permiso(P.COMPRAS_ATENDER, "Atender las solicitudes de compra", True),
-    Permiso(P.ALMACENES_ADMINISTRAR, "Abrir y cerrar almacenes de proyecto", False, "FEAT-002"),
     Permiso(P.REPORTES_VALOR_INVENTARIO, "Valor del inventario", False, "FEAT-002", True),
     Permiso(P.INVENTARIO_MINIMOS, "Fijar mínimos por almacén", False, "FEAT-004"),
     Permiso(P.PIEZAS_DAR_DE_BAJA, "Dar una pieza por perdida o de baja", False, "Pospuesto"),
     Permiso(P.REVISION_VER, "Lista de revisión", False, "Pospuesto"),
-    Permiso(P.TABLERO_VER, "Tablero general por almacén", False, "Pospuesto"),
 )
 
 CLAVES: frozenset[str] = frozenset(p.clave for p in CATALOGO)

@@ -23,7 +23,7 @@ from tests.movimientos.ayudas_devolucion import (
 )
 from tests.movimientos.ayudas_traspasos import (
     cliente_almacen,  # noqa: F401  (fixture)
-    enviar,
+    enviar_por_ruta_inusual,
     evaluar_traspaso,
     recibir,
     reglas,
@@ -48,10 +48,12 @@ def vigencia_pieza():
 
 
 def test_E_03_una_pieza_en_transito_hacia_mi_almacen_se_explica_al_almacenista_de_destino(
-    compras, almacenista, cliente_almacen, session, trabajador
+    compras, almacenista, cliente_almacen, cliente_como, session, trabajador
 ):
     _, pieza = pieza_en_kep(compras, session, vigente_hasta=vigencia_pieza())
-    enviar(cliente_almacen("KEP"), session, "MID", [renglon(pieza.codigo)])
+    enviar_por_ruta_inusual(
+        cliente_como("Administrador"), session, "KEP", "MID", [renglon(pieza.codigo)]
+    )
     midrex = cliente_almacen("MID")
 
     ev = evaluar(midrex, trabajador, [renglon(pieza.codigo)])
@@ -62,10 +64,12 @@ def test_E_03_una_pieza_en_transito_hacia_mi_almacen_se_explica_al_almacenista_d
 
 
 def test_E_03_una_pieza_en_transito_hacia_otro_almacen_no_se_explica_al_almacenista_ajeno(
-    compras, almacenista, cliente_almacen, session, trabajador
+    compras, almacenista, cliente_almacen, cliente_como, session, trabajador
 ):
     _, pieza = pieza_en_kep(compras, session, vigente_hasta=vigencia_pieza())
-    enviar(cliente_almacen("KEP"), session, "MID", [renglon(pieza.codigo)])
+    enviar_por_ruta_inusual(
+        cliente_como("Administrador"), session, "KEP", "MID", [renglon(pieza.codigo)]
+    )
     contratistas = cliente_almacen("CON")
 
     ev = evaluar(contratistas, trabajador, [renglon(pieza.codigo)])
@@ -119,11 +123,13 @@ def test_V_02_una_pieza_que_esta_en_otro_almacen_no_dice_cual_al_intentar_devolv
 
 
 def test_X_09_recibir_un_traspaso_sigue_funcionando_para_el_almacen_de_destino(
-    compras, almacenista, cliente_almacen, session
+    compras, almacenista, cliente_almacen, cliente_como, session
 ):
     guantes = crear_articulo(session, retornable=False)
     abastecer(compras, guantes, 5)
-    traspaso = enviar(cliente_almacen("KEP"), session, "MID", [renglon(guantes.codigo, 2)])
+    traspaso = enviar_por_ruta_inusual(
+        cliente_como("Administrador"), session, "KEP", "MID", [renglon(guantes.codigo, 2)]
+    )
     midrex = cliente_almacen("MID")
 
     recibir(midrex, traspaso, [renglon(guantes.codigo, 2)])

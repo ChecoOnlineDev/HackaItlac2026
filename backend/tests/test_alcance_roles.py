@@ -63,9 +63,7 @@ def test_AC_03_el_almacenista_no_tiene_etiquetas_traspasos_reportes_ni_catalogo_
 
 def test_AC_12_el_supervisor_no_da_de_alta_trabajadores(cliente_como):
     # El alta es de RH (`trabajadores.administrar`); el Supervisor recibe 403.
-    r = cliente_como("Supervisor").post(
-        "/api/trabajadores", json={"nombre": "Pedro Gómez", "numero_empleado": "E-9001"}
-    )
+    r = cliente_como("Supervisor").post("/api/trabajadores", json={"nombre": "Pedro Gómez"})
     assert r.status_code == 403 and r.json()["codigo"] == "SIN_PERMISO"
     assert cliente_como("Recursos Humanos").post("/api/trabajadores", json={}).status_code != 403
 

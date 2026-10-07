@@ -115,7 +115,6 @@ def paso_1_rh_registra_al_trabajador(g: Guion) -> None:
     ficha = alta_trabajador(
         g.rh,
         nombre="Pedro Gutiérrez Luna",
-        numero="EMP-PDF-001",
         credencial="CRED-PDF-001",
         curp="GULP900101HCLTNR09",
         nss="12345678901",
@@ -141,12 +140,12 @@ def paso_1_rh_registra_al_trabajador(g: Guion) -> None:
     de_rh = g.rh.get(f"/api/trabajadores/{ficha['id']}").json()
     assert de_rh["tiene_foto"] is True and de_rh["codigos"] == ["CRED-PDF-001"]
 
-    # Un número de empleado repetido es reingreso, no alta (T-02): no crea a otra persona.
+    # Una CURP repetida es reingreso, no alta (T-02): no crea a otra persona.
     repetido = g.rh.post(
         "/api/trabajadores",
         json={
             "nombre": "Otro",
-            "numero_empleado": "EMP-PDF-001",
+            "curp": "GULP900101HCLTNR09",
             "puesto": "Soldador",
             "area_obra": "Midrex",
             "inicio": str(hoy),
@@ -164,10 +163,10 @@ def paso_1_rh_registra_al_trabajador(g: Guion) -> None:
         assert cuerpo["tipo"] == "TRABAJADOR" and cuerpo["id"] == ficha["id"]
         resumen = cuerpo["resumen"]
         assert resumen["nombre"] == "Pedro Gutiérrez Luna" and resumen["vigente"] is True
-        assert resumen["numero_empleado"] == "EMP-PDF-001" and resumen["pendientes"] == 0
+        assert resumen["numero_empleado"] == ficha["numero_empleado"] and resumen["pendientes"] == 0
         assert "curp" not in resumen and "nss" not in resumen
     # También por el número tecleado (E-18).
-    assert g.kep.get("/api/escaneo/EMP-PDF-001").json()["id"] == ficha["id"]
+    assert g.kep.get(f"/api/escaneo/{ficha['numero_empleado']}").json()["id"] == ficha["id"]
     # La ficha del almacenista trae foto y vigencia, pero no CURP ni NSS.
     de_almacen = g.kep.get(f"/api/trabajadores/{ficha['id']}").json()
     assert de_almacen["tiene_foto"] is True and de_almacen["vigencia"]["vigente"] is True

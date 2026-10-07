@@ -4,7 +4,15 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, Uuid
+from sqlalchemy import (
+    CheckConstraint,
+    Computed,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.ids import nuevo_id
@@ -41,6 +49,9 @@ class Almacen(Base):
     __table_args__ = (
         check_enum("tipo", TipoAlmacen),
         check_enum("estado", EstadoAlmacen),
+        # AL-02: el nombre es único (la colación no distingue mayúsculas ni acentos).
+        UniqueConstraint("nombre", name="uq_almacen_nombre"),
+        UniqueConstraint("central_unico", name="uq_almacen_un_central"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=nuevo_id)
@@ -52,6 +63,12 @@ class Almacen(Base):
     estado: Mapped[str] = mapped_column(String(10), nullable=False, default=EstadoAlmacen.ACTIVO)
     creado_en: Mapped[datetime] = mapped_column(FechaHora, nullable=False, default=ahora_utc)
     cerrado_en: Mapped[datetime | None] = mapped_column(FechaHora)
+    # AL-02: un solo CENTRAL. Vale 1 solo si `tipo = 'CENTRAL'` y si no, NULL; el índice único
+    # (MySQL no tiene índices parciales) deja pasar muchos NULL y un solo 1.
+    central_unico: Mapped[int | None] = mapped_column(
+        Integer,
+        Computed("CASE WHEN tipo = 'CENTRAL' THEN 1 ELSE NULL END", persisted=False),
+    )
 
 
 class Ubicacion(Base):

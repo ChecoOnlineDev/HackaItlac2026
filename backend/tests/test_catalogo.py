@@ -1107,7 +1107,8 @@ def test_RG_13_la_etiqueta_de_credencial_no_lleva_curp_ni_nss(cliente_como, sess
 
 
 def test_T_05_la_credencial_trae_nombre_puesto_y_numero_sin_curp_ni_nss(cliente_como, session):
-    rh = cliente_como("Recursos Humanos")
+    # Escribe el número a mano (T-10), por eso lo da de alta quien tiene `numero_externo`.
+    rh = cliente_como("Administrador")
     alta = rh.post(
         "/api/trabajadores",
         json={

@@ -1,10 +1,9 @@
 import { QrCodeIcon, RotateCcwIcon, TriangleAlertIcon } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 
 import { api, apiGet, apiPost } from "~/api/cliente";
 import { esErrorApi, mensajeDeError } from "~/api/errores";
-import type { Pagina } from "~/api/tipos";
 import { VistaCredencial } from "~/componentes/dominio/credencial";
 import { SelectorFoto } from "~/componentes/personas/foto";
 import { cuerpoDePuesto, SelectorPuesto } from "~/componentes/puestos/selector-puesto";
@@ -12,7 +11,7 @@ import { fechaCorta, hoyMx } from "~/componentes/personas/formato";
 import { InsigniaSituacion, InsigniaVigencia } from "~/componentes/personas/insignias";
 import { ListaPendientes } from "~/componentes/personas/pendientes";
 import { TALLAS } from "~/componentes/personas/tallas";
-import type { CodigoLigado, ElementoLista, Ficha } from "~/componentes/personas/tipos";
+import type { CodigoLigado, Ficha } from "~/componentes/personas/tipos";
 import { AccionPrincipal, Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
 import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
@@ -44,6 +43,8 @@ export default function AltaTrabajador() {
   const verDatosPersonales = puede("trabajadores.ver_datos_personales");
   const navegar = useNavigate();
 
+  // El número de empleado lo asigna el servidor (T-10). Solo quien tiene `trabajadores.numero_externo` puede escribir uno propio.
+  const puedeNumeroPropio = puede("trabajadores.numero_externo");
   const [numero, setNumero] = useState("");
   const [nombre, setNombre] = useState("");
   // Puesto: `puestoId` del catálogo y su nombre (`puesto`). Sin permiso para ver el catálogo, solo el texto.
@@ -68,14 +69,17 @@ export default function AltaTrabajador() {
   const [credencialLista, setCredencialLista] = useState(false);
   const [codigoLigado, setCodigoLigado] = useState<string | null>(null);
   // Alta terminada: si quien la hizo puede imprimir etiquetas, se le ofrece la credencial antes de ir a la ficha.
-  const [terminado, setTerminado] = useState<{ id: string; codigo: string } | null>(null);
+  const [terminado, setTerminado] = useState<{ id: string; codigo: string; numero: string } | null>(null);
   const [fotoLista, setFotoLista] = useState(false);
 
-  // Número de empleado que ya existe: se ofrece el reingreso.
+  // El número que asignó el servidor al guardar.
+  const [numeroAsignado, setNumeroAsignado] = useState<string | null>(null);
+
+  // La persona ya existe (por CURP, nombre o número propio): se ofrece el reingreso.
   const [existente, setExistente] = useState<Ficha | null>(null);
-  const [porCurp, setPorCurp] = useState(false);
-  const [revisandoNumero, setRevisandoNumero] = useState(false);
-  const verificacion = useRef<AbortController | null>(null);
+  const [coincidePor, setCoincidePor] = useState<"curp" | "nombre" | "numero_empleado" | null>(null);
+  // Cuando solo coincide el nombre, RH puede confirmar que es otra persona.
+  const [puedeConfirmarDistinta, setPuedeConfirmarDistinta] = useState(false);
 
   // Datos del reingreso.
   const [reInicio, setReInicio] = useState(hoyMx());
@@ -83,8 +87,6 @@ export default function AltaTrabajador() {
   const [rePuestoId, setRePuestoId] = useState("");
   const [rePuesto, setRePuesto] = useState("");
   const [reArea, setReArea] = useState("");
-
-  useEffect(() => () => verificacion.current?.abort(), []);
 
   function limpiar(campo: string) {
     setErrores((e) => {
@@ -106,28 +108,6 @@ export default function AltaTrabajador() {
     setErrores({});
   }
 
-  /** Al salir del campo: ¿ya existe ese número? */
-  async function revisarNumero() {
-    const buscado = numero.trim();
-    if (!buscado || creadoId) return;
-    verificacion.current?.abort();
-    const control = new AbortController();
-    verificacion.current = control;
-    setRevisandoNumero(true);
-    try {
-      const pagina = await apiGet<Pagina<ElementoLista>>("/trabajadores", { q: buscado, tamano: 50 }, control.signal);
-      const coincide = pagina.elementos.find((t) => t.numero_empleado.toLowerCase() === buscado.toLowerCase());
-      setPorCurp(false);
-      if (coincide) await cargarExistente(coincide.id);
-      else setExistente(null);
-    } catch (causa) {
-      if (causa instanceof DOMException && causa.name === "AbortError") return;
-      // Si no se pudo revisar, el servidor lo vuelve a validar al guardar.
-    } finally {
-      if (verificacion.current === control) setRevisandoNumero(false);
-    }
-  }
-
   function cambiarNumero(valor: string) {
     setNumero(valor);
     limpiar("numero_empleado");
@@ -136,7 +116,6 @@ export default function AltaTrabajador() {
 
   function validarLocal(): Errores {
     const e: Errores = {};
-    if (!numero.trim()) e.numero_empleado = "Escribe el número de empleado.";
     if (!nombre.trim()) e.nombre = "Escribe el nombre completo.";
     if (!puestoId && !puesto.trim()) e.puesto = "Elige el puesto.";
     if (!area.trim()) e.area_obra = "Escribe el área o la obra.";
@@ -148,8 +127,8 @@ export default function AltaTrabajador() {
     return e;
   }
 
-  async function guardar(evento: FormEvent) {
-    evento.preventDefault();
+  async function guardar(evento?: FormEvent, confirmarDistinta = false) {
+    evento?.preventDefault();
     if (guardando) return;
     const locales = creadoId ? {} : validarLocal();
     if (Object.keys(locales).length > 0) {
@@ -162,6 +141,7 @@ export default function AltaTrabajador() {
 
     let id = creadoId;
     let codigoFinal = codigoLigado; // el estado no se actualiza dentro de esta misma función
+    let numeroFinal: string | null = numeroAsignado;
     try {
       // 1. Alta.
       if (!id) {
@@ -169,7 +149,8 @@ export default function AltaTrabajador() {
         try {
           const ficha = await apiPost<Ficha>("/trabajadores", {
             nombre: nombre.trim(),
-            numero_empleado: numero.trim(),
+            numero_empleado: puedeNumeroPropio && numero.trim() ? numero.trim() : undefined,
+            confirmar_distinta: confirmarDistinta ? true : undefined,
             ...cuerpoDePuesto(puestoId, puesto),
             area_obra: area.trim(),
             inicio,
@@ -180,13 +161,22 @@ export default function AltaTrabajador() {
           });
           id = ficha.id;
           setCreadoId(id);
+          setNumeroAsignado(ficha.numero_empleado);
+          numeroFinal = ficha.numero_empleado;
         } catch (causa) {
           if (esErrorApi(causa) && causa.codigo === "TRABAJADOR_EXISTE") {
-            const detalles = causa.detalles as { coincide_por?: string; trabajador?: { id?: string } } | null;
+            const detalles = causa.detalles as {
+              coincide_por?: string;
+              puede_confirmar_distinta?: boolean;
+              trabajador?: { id?: string };
+            } | null;
             const persona = detalles?.trabajador;
-            setPorCurp(detalles?.coincide_por === "curp");
+            const por = detalles?.coincide_por;
+            setCoincidePor(por === "curp" || por === "nombre" || por === "numero_empleado" ? por : null);
+            setPuedeConfirmarDistinta(detalles?.puede_confirmar_distinta === true);
             if (persona?.id) await cargarExistente(persona.id);
-            else setErrores({ numero_empleado: causa.message });
+            // Sin permiso para ver datos personales el servidor solo dice que ya existe: no hay a quién reingresar.
+            else setErrorGeneral(causa.message);
             return;
           }
           const { campo, mensaje } = errorDeCampo(causa, {});
@@ -228,8 +218,13 @@ export default function AltaTrabajador() {
         }
       }
 
-      aviso({ titulo: `Se registró a ${nombre.trim()}`, tipo: "exito" });
-      if (codigoFinal && puede("etiquetas.imprimir")) setTerminado({ id, codigo: codigoFinal });
+      aviso({
+        titulo: `Se registró a ${nombre.trim()}`,
+        descripcion: numeroAsignado || numeroFinal ? `Número de empleado: ${numeroFinal ?? numeroAsignado}` : undefined,
+        tipo: "exito",
+        duracionMs: 7000,
+      });
+      if (codigoFinal && puede("etiquetas.imprimir")) setTerminado({ id, codigo: codigoFinal, numero: numeroFinal ?? "" });
       else void navegar(`/trabajadores/${id}`);
     } finally {
       setGuardando(false);
@@ -269,9 +264,9 @@ export default function AltaTrabajador() {
 
   if (terminado) {
     return (
-      <Pantalla titulo="Trabajador registrado" descripcion={`${nombre.trim()} ya quedó en el sistema. Imprime su credencial o solo el código QR.`} ancho="formulario">
+      <Pantalla titulo="Trabajador registrado" descripcion={`${nombre.trim()} ya quedó en el sistema${terminado.numero ? ` con el número de empleado ${terminado.numero}` : ""}. Imprime su credencial o solo el código QR.`} ancho="formulario">
         <div className="flex flex-col gap-5">
-          <VistaCredencial datos={{ codigo: terminado.codigo, nombre: nombre.trim(), puesto: puesto.trim(), numero_empleado: numero.trim() }} />
+          <VistaCredencial datos={{ codigo: terminado.codigo, nombre: nombre.trim(), puesto: puesto.trim(), numero_empleado: terminado.numero }} />
           <Boton variante="principal" onClick={() => navegar(`/trabajadores/${terminado.id}`)}>
             Ir a su ficha
           </Boton>
@@ -282,26 +277,26 @@ export default function AltaTrabajador() {
 
   return (
     <Pantalla titulo="Alta de trabajador" descripcion="Registra a una persona nueva o reingresa a una anterior." ancho="formulario">
-      <form onSubmit={guardar} noValidate className="flex flex-col gap-5 pb-28 lg:pb-0">
-        <Campo
-          etiqueta="Número de empleado"
-          value={numero}
-          onChange={(e) => cambiarNumero(e.target.value)}
-          onBlur={() => void revisarNumero()}
-          error={errores.numero_empleado}
-          ayuda={revisandoNumero ? "Revisando si ya existe…" : undefined}
-          disabled={yaRegistrado || guardando}
-          autoComplete="off"
-          autoCapitalize="characters"
-        />
+      <form onSubmit={(e) => void guardar(e)} noValidate className="flex flex-col gap-5 pb-28 lg:pb-0">
+        {yaRegistrado && numeroAsignado ? (
+          <p role="status" className="rounded-xl border bg-accent p-3 text-base text-marino">
+            Número de empleado asignado: <span className="font-bold">{numeroAsignado}</span>
+          </p>
+        ) : null}
 
         {existente ? (
           <section aria-live="polite" className="flex flex-col gap-4 rounded-xl border-2 border-primary p-4">
             <div className="flex items-start gap-3">
               <RotateCcwIcon aria-hidden="true" className="mt-1 size-5 shrink-0 text-primary" />
               <div className="flex flex-col gap-1">
-                <h2 className="text-lg font-bold text-marino">{porCurp ? "Esa CURP" : "Ese número"} ya es de {existente.nombre}</h2>
-                <p className="text-base">¿Quieres reingresarlo? Se le registra un nuevo periodo y conserva su historial.</p>
+                <h2 className="text-lg font-bold text-marino">
+                  {coincidePor === "curp" ? "Esa CURP ya es de " : coincidePor === "numero_empleado" ? "Ese número ya es de " : "Ya hay alguien con ese nombre: "}
+                  {existente.nombre}
+                </h2>
+                <p className="text-base">
+                  ¿Quieres reingresarlo? Se le registra un nuevo periodo y conserva su historial.
+                  {puedeConfirmarDistinta ? " Si es otra persona con el mismo nombre, puedes registrarla de todos modos." : ""}
+                </p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -353,14 +348,30 @@ export default function AltaTrabajador() {
               <Boton type="button" variante="contorno" disabled={guardando} onClick={() => navegar(`/trabajadores/${existente.id}`)}>
                 Ver su ficha
               </Boton>
-              <Boton type="button" variante="texto" disabled={guardando} onClick={() => (porCurp ? setExistente(null) : cambiarNumero(""))}>
-                {porCurp ? "Corregir los datos" : "Usar otro número"}
+              {puedeConfirmarDistinta ? (
+                <Boton
+                  type="button"
+                  variante="contorno"
+                  disabled={guardando}
+                  onClick={() => {
+                    setExistente(null);
+                    void guardar(undefined, true);
+                  }}
+                >
+                  Es otra persona: registrarla
+                </Boton>
+              ) : null}
+              <Boton type="button" variante="texto" disabled={guardando} onClick={() => (coincidePor === "numero_empleado" ? cambiarNumero("") : setExistente(null))}>
+                {coincidePor === "numero_empleado" ? "Usar otro número" : "Corregir los datos"}
               </Boton>
             </div>
           </section>
         ) : (
           <>
             <Seccion titulo="Datos del trabajador">
+              <p className="rounded-xl bg-muted p-3 text-base">
+                El número de empleado se asigna solo al guardar y lo verás en cuanto termine el registro.
+              </p>
               <Campo etiqueta="Nombre completo" value={nombre} onChange={(e) => { setNombre(e.target.value); limpiar("nombre"); }} error={errores.nombre} disabled={yaRegistrado || guardando} autoComplete="off" />
               <div className="grid gap-4 sm:grid-cols-2">
                 <SelectorPuesto
@@ -379,6 +390,22 @@ export default function AltaTrabajador() {
                 <CampoFecha etiqueta="Fin del contrato" value={fin} alCambiar={(v) => { setFin(v); limpiar("fin"); }} error={errores.fin ?? (fin && inicio && fin < inicio ? "La fecha de fin no puede ser anterior a la de inicio." : undefined)} disabled={yaRegistrado || guardando} />
               </div>
             </Seccion>
+
+            {puedeNumeroPropio ? (
+              <Seccion titulo="Número de empleado propio (opcional)">
+                <Campo
+                  etiqueta="Número de empleado del centro"
+                  value={numero}
+                  onChange={(e) => cambiarNumero(e.target.value)}
+                  error={errores.numero_empleado}
+                  ayuda="Solo para cargar personal que ya tiene número. Déjalo vacío para que el sistema asigne uno."
+                  disabled={yaRegistrado || guardando}
+                  maxLength={30}
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                />
+              </Seccion>
+            ) : null}
 
             <Seccion titulo="Tallas (opcional)">
               <div className="grid grid-cols-2 gap-4">

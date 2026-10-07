@@ -38,6 +38,7 @@ Corresponde a la prioridad P0 de las [reglas de negocio](reglas-de-negocio.md).
 - **Baja.** Pendientes del trabajador, vale de no adeudo y paso a inactivo.
 - **Consulta y reportes.** Escaneo universal, búsqueda por texto, historial de pieza; reportes de existencias, movimientos, adeudos y consumo, con descarga en CSV.
 - **Solicitud de compra urgente.** Cuando falta un equipo o herramienta para un trabajo, el supervisor o el almacenista levanta una solicitud; Compras ve la cola de todos los almacenes (sin ver su inventario), la toma, la compra y la ingresa, y la liga con el vale de entrada que ella misma registra; pendiente, en compra, comprada, ingresada (o rechazada o cancelada). No es una orden de compra: no lleva proveedor, precio ni factura, y no mueve existencias (reglas SC-01 a SC-11).
+- **Administración de almacenes y tablero de inicio ([FEAT-008](../features/FEAT-008-administracion-de-almacenes-y-tablero.md)).** El Administrador da de alta, edita, inactiva y reactiva almacenes desde `/almacenes` (AL-01 a AL-05; un comando de mantenimiento siembra los seis iniciales en una base vacía). El Inicio pasa a ser un tablero con tarjetas y una gráfica de lo más usado (recharts, [ADR-009](../architecture/decisions/ADR-009-graficas-con-recharts.md)): el Administrador ve todos los almacenes con selector; el Supervisor y el Almacenista, solo el suyo (`tablero.ver`, TB-01 a TB-03). El menú se reorganiza en grupos plegables por tarea y la matriz de roles gana un botón por grupo. El número de empleado lo genera el servidor (T-10). La ruta de traspaso que no es padre-hijo la hace solo el Administrador, con observación (X-03). Esto **amplía el alcance** y lo aprobó el usuario el 6 de octubre de 2026.
 - **Corrección.** Cancelación de un vale con sus movimientos inversos, con motivo; cancelar y rehacer con los mismos renglones; y la lista de los movimientos del día de cada usuario.
 - **Aplicación instalable (PWA) sin modo sin conexión.** Se puede instalar en el celular y en la computadora (por HTTPS). Solo guarda en el dispositivo los archivos estáticos de la interfaz y una pantalla de «sin conexión»; la API y los datos de negocio nunca se guardan. El modo sin conexión sigue excluido (ver abajo).
 
@@ -65,7 +66,8 @@ Aparte está [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md),
 - Impresión directa a impresoras térmicas; se imprime desde el navegador.
 - Niveles del semáforo configurables por regla.
 - Límites sumados por categoría.
-- Rutas de traspaso obligatorias; una ruta inusual solo avisa.
+- Rutas de traspaso obligatorias para todos: una ruta que no es padre-hijo no se prohíbe del todo, pero solo la hace quien tiene `almacenes.todos` (el Administrador), con aviso y observación (X-03, FEAT-008).
+- Más gráficas que la de «Lo más usado» del tablero de inicio, y un generador de reportes o gráficas a gusto del usuario.
 - Tema oscuro, varios idiomas y personalización visual.
 - Ubicación dentro del almacén, como estante o pasillo: la ubicación llega hasta el almacén o el trabajador.
 
@@ -81,7 +83,8 @@ Probable en fases posteriores; hoy no tiene brief.
 - Habilitaciones del trabajador, como la capacitación de alturas.
 - Carta de aceptación como requisito del alta.
 - Importación de trabajadores desde Excel.
-- Tablero general para el administrador, con una pestaña por almacén: Kepler, Contratistas y los almacenes de área.
+- Periodo por apertura de un almacén de proyecto (ciclos al reactivar, con fecha de apertura y de cierre): mientras tanto el reporte de cierre se pide por rango de fechas ([red-de-almacenes-y-flujo.md](red-de-almacenes-y-flujo.md), sección 12.2).
+- Tablero con pestañas por almacén, mínimos y alertas de stock (FEAT-004) y valor del inventario (FEAT-002) dentro del tablero. El tablero básico ya entró con FEAT-008.
 - Entrega de turno entre almacenistas, con conteo y firma de los dos.
 - Solicitud de surtido de un almacén a otro.
 - Aviso de que a un almacén le falta cobertura de turnos. Los almacenes operan las 24 horas con varios almacenistas, cada uno con su cuenta y su dispositivo, pero el MVP no vigila que estén cubiertos.

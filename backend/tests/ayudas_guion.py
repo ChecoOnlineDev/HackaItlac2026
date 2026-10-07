@@ -72,7 +72,6 @@ def alta_trabajador(
     hoy = hoy_mx()
     cuerpo = {
         "nombre": nombre or f"Trabajador {numero}",
-        "numero_empleado": numero,
         "puesto": "Soldador",
         "area_obra": "Midrex",
         "inicio": str(hoy + timedelta(days=inicio_dias)),

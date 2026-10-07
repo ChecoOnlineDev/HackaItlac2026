@@ -81,6 +81,10 @@ Resumen en lenguaje de persona, según la tabla 8.2 de las reglas (entre parént
 | Reporte de consumo | Sí | Sí | No | Sí | No |
 | Operar cualquier almacén (`almacenes.todos`) | Sí | No | No | No | No |
 | Asignar personal a su almacén o liberarlo (`almacenes.asignar_personal`) | Sí (y entre almacenes) | Sí (solo su almacén) | No | No | No |
+| Dar de alta, editar, inactivar y reactivar almacenes (`almacenes.administrar`; FEAT-008) | Sí | No | No | No | No |
+| Ver el tablero de inicio (`tablero.ver`; FEAT-008) | Sí (todos los almacenes) | Sí (su almacén) | Sí (su almacén) | No | No |
+| Capturar a mano el número de empleado (`trabajadores.numero_externo`; FEAT-008) | Sí | No | No | No | No |
+| Traspasar por una ruta que no es padre-hijo (X-03: lo decide `almacenes.todos`) | Sí, con observación | No | No | No | No |
 | Imprimir hojas de QR y credenciales (`etiquetas.imprimir`) | Sí | Sí | No | Sí | Sí |
 | Pedir una compra urgente (`compras.solicitar`) | Sí | Sí | Sí | No | No |
 | Atender las solicitudes de compra de todos los almacenes (`compras.atender`) | Sí | No | No | Sí | No |
@@ -90,15 +94,17 @@ Cuatro cosas **ningún rol** puede hacer, ni el Administrador, porque no son per
 
 Todo permiso de acción incluye ver su propio módulo: quien puede entregar ve la ficha básica del trabajador y las existencias de su almacén. Todo lo que opera o ve un rol que no sea el Administrador se limita a su almacén asignado (AC-06).
 
-**Menú final de cada rol** (se arma por permisos; «Consultar» lo ve cualquiera con sesión):
+**Menú final de cada rol** (se arma por permisos; «Consultar» lo ve cualquiera con sesión). **Desde FEAT-008** el menú se agrupa por tarea en grupos plegables y algunas entradas cambian de nombre; esta tabla ya usa los nombres nuevos (FEAT-008 está aprobado y documentado, pero todavía no construido: hasta entonces la interfaz muestra el menú anterior, sin grupos). Los nombres nuevos son: «Entrada de proveedor» (antes Entradas), «Recibir traspaso» (antes Recibir), «Mis compras urgentes» (antes Compras urgentes) e «Importar inventario» (antes Importar).
 
-| Rol | Entradas del menú |
+| Rol | Grupos y entradas del menú |
 |---|---|
-| Administrador | Entregar, Devolver, Trasladar, Recibir, Consultar, Mis movimientos de hoy, Pedir compra urgente, Compras urgentes, Solicitudes de compra, Autorizaciones, Personal, Trabajadores, Alta de trabajador, Inventario, Entradas, Importar, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Adeudos, Consumo) |
-| Supervisor | Entregar, Devolver, Trasladar, Recibir, Pedir compra urgente, Compras urgentes, Consultar, Mis movimientos de hoy, Autorizaciones, Personal, Trabajadores, Inventario, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Adeudos, Consumo) |
-| Almacenista | Entregar, Devolver, Pedir compra urgente, Compras urgentes, Consultar, Mis movimientos de hoy, Trabajadores, Inventario |
-| Compras | Consultar, Mis movimientos de hoy, Solicitudes de compra, Inventario, Entradas, Importar, Categorías, Artículos, Puestos, Etiquetas, Reportes (Existencias, Movimientos, Consumo) |
-| Recursos Humanos | Consultar, Trabajadores, Alta de trabajador, Etiquetas, Reportes (Adeudos) |
+| Administrador | **Inicio** (tablero de todos los almacenes, con «Lo que haces hoy» arriba); **Operación**: Entregar, Devolver, Trasladar, Recibir traspaso, Pedir compra urgente, Mis compras urgentes (para él, «Solicitudes de compra» de su almacén); **Consulta**: Consultar, Mis movimientos de hoy; **Personas**: Trabajadores, Alta de trabajador, Personal del almacén; **Inventario**: Inventario, Entradas de proveedor, Importar inventario, Categorías, Artículos, Puestos, Etiquetas; **Compras**: Solicitudes de compra; **Supervisión**: Autorizaciones, Seguimiento de piezas; **Reportes**: Existencias, Movimientos, Adeudos, Consumo; **Administración**: Almacenes, Usuarios, Roles y permisos |
+| Supervisor | **Inicio** (tablero de su almacén); **Operación**: Entregar, Devolver, Trasladar, Recibir traspaso, Pedir compra urgente, Mis compras urgentes; **Consulta**: Consultar, Mis movimientos de hoy; **Personas**: Trabajadores, Personal del almacén; **Inventario**: Inventario, Categorías, Artículos, Puestos, Etiquetas; **Supervisión**: Autorizaciones, Seguimiento de piezas; **Reportes**: Existencias, Movimientos, Adeudos, Consumo |
+| Almacenista | **Inicio** (tablero de su almacén); **Operación**: Entregar, Devolver, Pedir compra urgente, Mis compras urgentes; **Consulta**: Consultar, Mis movimientos de hoy; **Personas**: Trabajadores; **Inventario**: Inventario |
+| Compras | **Consulta**: Consultar, Mis movimientos de hoy; **Inventario**: Inventario, Entradas de proveedor, Importar inventario, Categorías, Artículos, Puestos, Etiquetas; **Compras**: Solicitudes de compra; **Reportes**: Existencias, Movimientos, Consumo. Sin tablero: su Inicio muestra solicitudes por atender y entradas pendientes |
+| Recursos Humanos | **Consulta**: Consultar; **Personas**: Trabajadores, Alta de trabajador; **Inventario**: Etiquetas; **Reportes**: Adeudos. Sin tablero: su Inicio muestra trabajadores y altas recientes |
+
+El administrador puede esconder o mostrar entradas quitando o dando permisos al rol en **Roles y permisos**; las entradas que comparten un permiso (Categorías, Artículos y Puestos, por `catalogo.administrar`) se esconden juntas.
 
 El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así que no necesita ningún permiso de reportes. Categorías, Artículos y Puestos se muestran por `catalogo.administrar`, no por `catalogo.ver`: el Almacenista conserva `catalogo.ver` para buscar y escanear, y no tiene etiquetas ni credenciales.
 
@@ -108,7 +114,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 **Perfil.** Es quien configura el sistema y decide qué puede hacer cada rol. Tiene todos los permisos, así que ve todos los menús y puede hacer cualquier operación, pero no es quien opera el día a día.
 
-**Qué ve al entrar.** Todo el menú: Operación (Entregar, Devolver, Trasladar, Recibir, Pedir compra urgente y Compras urgentes, que para él se llama «Solicitudes de compra» y trae las de todos los almacenes), Consulta, Supervisión (Autorizaciones, Personal), Personas, Inventario y catálogo, y Reportes. Es el único rol sin almacén fijo (`almacenes.todos`): ve las autorizaciones y el personal de todos los almacenes, y en las operaciones elige el almacén. Cubre la función de «supervisor general», que no existe como rol.
+**Qué ve al entrar.** Todo el menú: Operación (Entregar, Devolver, Trasladar, Recibir, Pedir compra urgente y Compras urgentes, que para él se llama «Solicitudes de compra» y trae las de todos los almacenes), Consulta, Supervisión (Autorizaciones, Seguimiento de piezas), Personas (Trabajadores, Alta, Personal del almacén), Inventario y catálogo, Reportes y Administración (Almacenes, Usuarios, Roles y permisos). Es el menú agrupado de FEAT-008; el grupo de Administración y el tablero llegan con esa feature. Es el único rol sin almacén fijo (`almacenes.todos`): ve las autorizaciones y el personal de todos los almacenes, y en las operaciones elige el almacén. Cubre la función de «supervisor general», que no existe como rol.
 
 **Qué existe y qué no (verificado).**
 
@@ -119,7 +125,9 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 | Asignar o mover personal entre almacenes (de cualquier almacén) | Sí, en **Personal** (`/personal`) |
 | Crear roles, duplicarlos y activar o quitar permisos desde la matriz | Sí, en **Roles y permisos** (`/roles`), con el rol Administrador protegido (AC-09) |
 | Seguimiento de piezas: dónde está o quién tiene cada pieza, desde cuándo y con qué vale | Sí, en **Seguimiento de piezas** (`/seguimiento`), de todos los almacenes (C-13) |
-| Tablero general por almacén | Pospuesto |
+| Almacenes: alta, edición, inactivar y reactivar | Documentado en FEAT-008 (aprobado, aún no construido): **Administración → Almacenes** (`/almacenes`) |
+| Tablero de inicio: tarjetas y gráfica de lo más usado, de todos los almacenes con selector | Documentado en FEAT-008 (aprobado, aún no construido) |
+| Número de empleado propio del centro (carga histórica) | Documentado en FEAT-008: solo el Administrador, marcado como externo (T-10) |
 
 **Funcionalidades clave.**
 - Administrar usuarios (alta, cambio de rol, baja lógica, restablecer contraseña y PIN) por el servidor.
@@ -128,6 +136,11 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 - Seguir cada pieza: en **Seguimiento de piezas** (menú, Supervisión) busca "minipulidor" y ve todas sus piezas, cada una con "En resguardo de…", "En Kepler", "En tránsito a…" o "No apta", desde cuándo y con qué vale; al tocar una pieza abre su ficha con la inspección y el historial completo. Puede filtrar por almacén, estado y lugar, y descargar el CSV.
 - Atender las solicitudes de compra de todos los almacenes, igual que Compras (**Solicitudes de compra**, `/compras`), y pedir una por su cuenta, eligiendo el almacén. En el menú aparecen dos entradas distintas: **Solicitudes de compra** (la cola de todos los almacenes, con su contador de pendientes) y **Compras urgentes** (las de su almacén, para pedir una nueva). Cancela cualquier solicitud pendiente (SC-07).
 - Garantizar que siempre exista al menos un administrador activo (AC-09).
+- *(FEAT-008, aprobado, aún no construido)* **Administrar los almacenes** en **Administración → Almacenes**: dar de alta uno (clave, nombre, tipo y de cuál depende), editarlo (la clave solo si no tiene folios, AL-05), **inactivarlo** al terminar un mantenimiento (solo con existencias en cero, sin traspasos en tránsito, sin almacenes que dependan de él y **sin usuarios asignados**: hay que reasignarlos antes, AL-03) y **reactivarlo** si el proyecto vuelve (el mismo almacén, con su clave y su historial). Un almacén inactivo no recibe ni envía movimientos pero sigue en los reportes (AL-04). En una base vacía, el comando `uv run python -m app.mantenimiento sembrar-almacenes` crea de una vez los seis almacenes del reto.
+- *(FEAT-008)* **Traspasar por una ruta que no es habitual** (por ejemplo, de Kepler directo a un proyecto): solo él (quien tiene `almacenes.todos`), con aviso amarillo y observación obligatoria que explique por qué se saltó Contratistas (X-03). El supervisor y el almacenista no pueden.
+- *(FEAT-008)* **Ver el tablero de todos los almacenes** en el Inicio, con selector «Viendo: …» (que no cambia el almacén en el que opera) y filtros de periodo y categoría en la gráfica de lo más usado (TB-01 a TB-03).
+- *(FEAT-008)* **Armar un rol más rápido**: en `/roles/:id`, cada grupo de permisos trae «Activar todos» o «Quitar todos», que solo mueven los interruptores hasta que confirma el guardado; el permiso protegido del rol Administrador no se mueve.
+- *(FEAT-008)* **Dar de alta con un número de empleado propio del centro** (carga histórica): es el único rol que ve ese campo; el trabajador queda marcado como externo (T-10).
 
 **Flujo principal (puesta en marcha de un equipo nuevo).**
 1. Se carga el script de datos de prueba: queda cada rol con sus permisos y un usuario por rol.
@@ -150,7 +163,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 - Como usuario del sistema, quiero entrar y ver solo lo que permite mi rol, para trabajar sin acceso a lo que no me toca (**US-ACC-001**).
 - Como administrador, quiero dar de alta usuarios y asignarles rol y almacén, para que cada persona tenga su propia cuenta (FEAT-006; pantalla **Usuarios**).
 - Como administrador, quiero crear roles y activar o quitar permisos desde una matriz, para ajustar el sistema sin un programador (**FEAT-006**; pantalla **Roles y permisos**).
-- Como administrador, quiero ver un tablero con una pestaña por almacén, para vigilar la operación (pospuesta, sin brief).
+- Como administrador, quiero crear un almacén y decir de cuál depende; inactivarlo y reactivarlo sin borrar su historial; ver el estado general y lo más consumido de todos los almacenes con filtros; y activar o quitar de una vez los permisos de un grupo al armar un rol (**FEAT-008**).
 - *Propuesta:* Como administrador, quiero ver un registro de los cambios de permisos y de almacén, para saber quién cambió qué (AC-10, AC-13 lo garantizan en el servidor; no hay pantalla).
 
 **Por qué tiene este flujo.** El PDF pide perfiles con permisos distintos, y el equipo decidió que los roles son datos y no código (ADR-007), para que cambiar lo que puede un rol no requiera programar. El Administrador es el único con `acceso.administrar` para que nadie más se dé permisos a sí mismo. En el MVP solo se entrega la base (permisos por clave, verificados en el servidor en cada endpoint), y se acepta como riesgo que usuarios y roles se manejen por script o por el servidor, sin pantalla.
@@ -161,7 +174,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 **Perfil.** Está en el mostrador del almacén (celular o tableta, con cámara o pistola lectora). Necesita entregar y devolver en segundos, y saber qué debe cada trabajador, sin capacitación previa. Opera **un solo almacén**, el que tiene asignado. Los almacenes trabajan las 24 horas con varios almacenistas, cada uno con su cuenta.
 
-**Qué ve al entrar.** Arriba, el nombre de su almacén y su usuario; abajo, tres botones grandes: **Entregar, Devolver** y **Consultar**. Con **Menú** llega a lo demás: Pedir compra urgente, Compras urgentes (las solicitudes de su almacén), Mis movimientos de hoy, Trabajadores e Inventario (solo el de su almacén). Pedir una compra no ocupa un botón del inicio. No ve traspasos, reportes, etiquetas, catálogo ni puestos, ni costos, CURP, NSS, entradas de inventario o autorizaciones; tampoco ve nada de otros almacenes.
+**Qué ve al entrar.** Arriba, el nombre de su almacén y su usuario; abajo, tres botones grandes: **Entregar, Devolver** y **Consultar**. Con **Menú** llega a lo demás: Pedir compra urgente, Compras urgentes (las solicitudes de su almacén), Mis movimientos de hoy, Trabajadores e Inventario (solo el de su almacén). Pedir una compra no ocupa un botón del inicio. *(Con FEAT-008, aún no construido: debajo de esos botones, «Lo que haces hoy», ve el tablero de su almacén —existencias, equipo importante en resguardo, entregas de hoy y lo más usado—, sin selector y sin datos de otros almacenes, TB-01.)* No ve traspasos, reportes, etiquetas, catálogo ni puestos, ni costos, CURP, NSS, entradas de inventario o autorizaciones; tampoco ve nada de otros almacenes.
 
 **Funcionalidades clave.**
 - Entregar por escaneo con semáforo (verde, amarillo, naranja, rojo) y firma del trabajador en pantalla.
@@ -246,7 +259,8 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 **Funcionalidades clave.**
 - Autorizar o rechazar excedentes y entregas restringidas **de su almacén**, desde su celular o con su PIN en el mostrador. Las solicitudes de otro almacén no las ve ni las puede resolver (A-01); si da su PIN en el mostrador de otro almacén, se rechaza.
-- Enviar y recibir traspasos de su almacén (el del origen envía y el del destino recibe).
+- Enviar y recibir traspasos de su almacén (el del origen envía y el del destino recibe), **solo por la ruta habitual**: a su almacén padre o hijo (Kepler con Contratistas, Contratistas con un proyecto). Una ruta que se salta a Contratistas la hace solo el Administrador, con observación (X-03); si un supervisor la intenta, la pantalla la marca en rojo y el servidor la rechaza.
+- Ver el tablero de su almacén en el Inicio (FEAT-008, aún no construido; `tablero.ver`).
 - Operar solo su almacén asignado (no elige otro).
 - Administrar el catálogo (categorías, artículos, requisitos, límites, inactivar).
 - Crear puestos y armar su dotación recomendada, en **Puestos**: **Nuevo puesto** → nombre → se abre la dotación → buscar artículos activos y poner la cantidad recomendada (no puede pasar del límite del artículo, D-04) → revisar el resumen de cambios → **Guardar dotación**. Sirve para que, al entregar fuera de lo recomendado, el almacén reciba un aviso sin bloqueo (E-09), y para que la ficha de cada trabajador diga qué le falta (D-02).
@@ -374,15 +388,15 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 **Flujo principal: dar de alta a un trabajador.**
 1. Entra con `rh` y su contraseña; va a **Alta de trabajador**.
-2. Escribe el número de empleado.
-3. Si ya existe, el sistema muestra a la persona y sus pendientes y ofrece **Reingresar** (T-02). Si no existe, captura nombre, puesto, área u obra y periodo del contrato (inicio y fin, T-03); opcional, tallas, CURP o NSS.
+2. Captura nombre, puesto, área u obra y periodo del contrato (inicio y fin, T-03); opcional, tallas, CURP o NSS. **Desde FEAT-008 (aún no construido) no escribe el número de empleado:** lo asigna el servidor (`E-000001`, T-10) y la ficha lo muestra al guardar.
+3. Si la CURP ya existe, el sistema muestra a la persona y sus pendientes y ofrece **Reingresar** (T-02). Si no se capturó CURP y el nombre completo coincide con el de otra persona, avisa de la coincidencia y deja elegir **Reingresar a esa persona** o **Es otra persona**.
 4. Liga la credencial: escanea la de la planta o genera un QR propio para imprimir (T-05).
 5. Opcionalmente toma la foto con la cámara o sube una imagen (T-09).
 6. Guarda: el trabajador queda Activo y vigente (T-07). Se abre su ficha.
 7. Como tiene permiso de etiquetas y la credencial está ligada, puede imprimirla o descargarla en PNG (completa o solo QR).
 
 **Otros flujos frecuentes.**
-- *Reingreso.* Mismo número de empleado: se registra el nuevo periodo, la persona se reactiva y conserva historial y pendientes (T-02, US-TRB-002).
+- *Reingreso.* Misma CURP (o, sin CURP, mismo nombre completo): se registra el nuevo periodo, la persona se reactiva y conserva historial y pendientes (T-02, US-TRB-002).
 - *Baja.* Ficha → **Iniciar baja**: el trabajador pasa a Baja en proceso y el sistema muestra sus pendientes de todos los almacenes. Cuando el almacén emite el vale de no adeudo, RH ve «No adeudo emitido» y puede finiquitar (B-09). RH puede cancelar una baja en proceso (B-07).
 - *Consultar situación.* Ficha o reporte de Adeudos (T-08).
 
@@ -390,7 +404,8 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 | Situación | Qué hace el sistema | Regla |
 |---|---|---|
-| Número de empleado repetido | Muestra a la persona y ofrece reingreso | T-02 |
+| CURP repetida, o nombre completo coincidente si no hay CURP | Muestra a la persona y ofrece reingreso (con el nombre, también «Es otra persona») | T-02 |
+| RH intenta capturar un número de empleado | No puede: lo genera el servidor y solo `trabajadores.numero_externo` lo captura | T-10 |
 | Fin de periodo anterior al inicio | Lo rechaza con el campo marcado | Flujo 2 |
 | Credencial ya ligada a otra persona | Lo rechaza y dice de quién es | Flujo 2 |
 | Sin foto | Aviso «Sin foto registrada»; no impide entregar | T-09 |
@@ -422,7 +437,7 @@ Es la prueba que describe el PDF (p. 2) y que el [alcance del MVP](product/mvp-s
 | 4 | `almacenista` (Kepler) | Intenta una entrega que excede el límite de un artículo y pide autorización con un motivo | Renglón **naranja**; la entrega queda bloqueada hasta que el supervisor responda | E-07, L-04, A-02 |
 | 5 | `supervisor` (Kepler) | Autoriza con su PIN en el celular del almacenista, o desde **Autorizaciones** en su propio celular | La autorización queda ligada a ese vale; el renglón pasa a autorizado; el vale muestra «Validó» | A-01, A-03, A-04 |
 | 6 | `almacenista` (Kepler) | Termina la entrega con la firma del trabajador | Vale emitido con el excedente autorizado | SM-03, F-02 |
-| 7 | `supervisor` (Kepler) | **Trasladar** a Contratistas (ruta habitual) escaneando los artículos | Vale de traspaso con folio y QR; el material queda En tránsito y sale de Kepler | X-01, X-03, X-06 |
+| 7 | `supervisor` (Kepler) | **Trasladar** a Contratistas (ruta habitual: padre-hijo, sin aviso) escaneando los artículos | Vale de traspaso con folio y QR; el material queda En tránsito y sale de Kepler. Si intentara Kepler a Midrex, lo rechazaría (X-03) | X-01, X-03, X-06 |
 | 8 | `sup_con` | **Recibir**: abre el traspaso o escanea su QR, marca lo recibido y confirma | Existencias entran a Contratistas; el traspaso queda Recibido; si falta algo, queda «con diferencias» | X-10, X-11, X-13 |
 | 9 | `rh` | Abre la ficha del trabajador y toca **Iniciar baja** (o lo hace el almacenista al pedir su no adeudo) | El trabajador pasa a Baja en proceso y ya no recibe entregas | B-01 |
 | 10 | `almacenista` (Kepler) | Ve los pendientes de todos los almacenes e intenta **Emitir vale de no adeudo** | Lista de pendientes (retornables en resguardo); no lo emite mientras haya algo | B-02, B-03 |
@@ -454,7 +469,7 @@ Para no confundir a quien pruebe. Fuente: [mvp-scope.md](product/mvp-scope.md).
 - Tema oscuro, varios idiomas, personalización visual.
 - Ubicación dentro del almacén (estante o pasillo): llega hasta el almacén o el trabajador.
 
-**Pospuesto (sin brief):** lista de revisión del supervisor, cierre sin devolución y equipo perdido, reporte de EPP por trabajador, subconjuntos de almacenes por usuario, habilitaciones del trabajador, carta de aceptación en el alta, importación de trabajadores desde Excel, tablero general, entrega de turno entre almacenistas, solicitud de surtido entre almacenes y aviso de falta de cobertura de turnos.
+**Pospuesto (sin brief):** lista de revisión del supervisor, cierre sin devolución y equipo perdido, reporte de EPP por trabajador, subconjuntos de almacenes por usuario, habilitaciones del trabajador, carta de aceptación en el alta, importación de trabajadores desde Excel, periodo por apertura de un almacén de proyecto (el tablero ya entró con FEAT-008), entrega de turno entre almacenistas, solicitud de surtido entre almacenes y aviso de falta de cobertura de turnos.
 
 **Segunda ola (con brief, aún no construida según el alcance):** vale como prueba (comprobante público por QR, ticket y firma en papel), cierre de almacén de proyecto y valor del inventario, mínimos y estados de pieza. La dotación por puesto (FEAT-003) ya tiene su servidor y las pantallas de administración; los avisos en la entrega son del otro frente de esa función.
 

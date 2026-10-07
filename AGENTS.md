@@ -105,6 +105,7 @@ Backend, dentro de `backend/` (comprobados en la Fase 0). Copiar antes `.env.exa
 | Formato | `uv run ruff format .` |
 | Verificar consistencia de la base (solo lectura; sale 0 si cuadra, 1 si no) | `uv run python -m app.mantenimiento verificar` |
 | Existencias que deberían valer según la bitácora (no escribe) | `uv run python -m app.mantenimiento reconstruir-existencias --simular` |
+| Crear la red inicial (Kepler, Contratistas, Midrex, HYL, Laminador y Minas) solo si no hay ningún almacén; seguro de repetir | `uv run python -m app.mantenimiento sembrar-almacenes` |
 
 Puertos: MySQL en el host `21001` (`MYSQL_PUERTO`), servidor de desarrollo `21002`; la aplicación desplegada `21040`; el resto desde `21003` está reservado. Las pruebas usan la base `{MYSQL_DATABASE}_test_{TEST_DB_SUFFIX}`: quien corra pruebas en paralelo contra el mismo MySQL usa un `TEST_DB_SUFFIX` distinto.
 

@@ -29,6 +29,8 @@ from app.core.tiempo import ZONA_MX, ahora_utc
 from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import P
 from app.modulos.acceso.service import AccesoService
+from app.modulos.almacenes.exceptions import AlmacenCerrado
+from app.modulos.almacenes.models import EstadoAlmacen
 from app.modulos.catalogo.service import CatalogoService
 from app.modulos.movimientos.models import EstadoVale, TipoVale, Vale
 from app.modulos.solicitudes_compra.exceptions import (
@@ -234,6 +236,8 @@ class SolicitudCompraService:
         assert descripcion is not None  # el schema exige artículo o descripción
 
         almacen = self.repository.almacen(almacen_id)
+        if almacen.estado == EstadoAlmacen.CERRADO:  # AL-04: sin solicitudes nuevas
+            raise AlmacenCerrado(almacen)
         serie = self.repository.bloquear_serie(almacen_id)
         serie.ultimo += 1
         self.session.flush()

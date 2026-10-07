@@ -1,7 +1,7 @@
 # FEAT-008: Administración de almacenes, tablero de inicio y menú reorganizado
 
-> **Estado:** propuesta para revisión. Nada de esto está construido. Antes de escribir código hay que aprobar este brief y actualizar los documentos de la sección 12.
-> **Flujo de la red de almacenes:** el recorrido de alta, surtido, entrega de EPP y cierre está en [red-de-almacenes-y-flujo.md](../product/red-de-almacenes-y-flujo.md); las preguntas abiertas de ese flujo pueden cambiar este brief.
+> **Estado:** aprobado para implementar (6 de octubre de 2026). Las decisiones de la sección 10 están tomadas y los documentos globales de la sección 12 ya se actualizaron; nada de esto está construido todavía. Los contratos de API (esquemas de respuesta y errores) están en [api-contracts.md](../architecture/api-contracts.md#almacenes-y-existencias) y [api-contracts.md](../architecture/api-contracts.md#tablero); si al construir cambian, se corrigen allí en el mismo cambio.
+> **Flujo de la red de almacenes:** el recorrido de alta, surtido, entrega de EPP y cierre está en [red-de-almacenes-y-flujo.md](../product/red-de-almacenes-y-flujo.md). Una pregunta de ese flujo sigue abierta (permiso de recibir separado del de enviar, sección 10 de ese documento) y no afecta a este brief.
 > **Relación con otros briefs:** extiende a [FEAT-002](FEAT-002-cierre-de-almacen.md) (cierre de almacén y valor del inventario). Si algo de aquí se solapa con FEAT-002, manda este documento y FEAT-002 se ajusta en el mismo cambio.
 
 ## 1. Problema u oportunidad
@@ -18,6 +18,7 @@
 - Que cada persona vea **un resumen gráfico de lo que le toca**: el administrador, todo el inventario con filtro por almacén; el almacenista y el supervisor, solo su almacén.
 - Que el menú sea **corto y por tarea**, con Operación agrupada y plegable.
 - Que el número de empleado **se genere solo**.
+- Que el traspaso por una ruta fuera de lo habitual (por ejemplo, de Kepler directo a un proyecto) sea una **excepción del Administrador**, con aviso y observación (X-03).
 - Que armar un rol en **Roles y permisos** sea rápido: un botón por grupo que active o quite todos los permisos de ese bloque.
 
 ## 3. Historias de usuario
@@ -37,18 +38,19 @@
 | Pieza | Qué hace |
 |---|---|
 | **Pantalla Almacenes** (`/almacenes`, grupo Administración) | Lista todos los almacenes con clave, nombre, tipo, depende de, estado y un resumen (existencias y piezas en resguardo). Solo para quien tiene `almacenes.administrar`. |
-| **Alta** | Formulario: clave (única, hasta 10 caracteres, en mayúsculas), nombre, tipo (`CENTRAL`, `SUBALMACEN` o `PROYECTO`) y **de qué almacén depende** (obligatorio salvo para el central). El servidor crea el almacén **y su ubicación** en la misma transacción. |
-| **Editar** | Nombre y de qué almacén depende. La clave **no se cambia** una vez que el almacén tiene folios, porque forma parte de ellos (`KEP-ENT-000123`). |
+| **Alta** | Formulario: clave (única, de 2 a 10 caracteres, letras sin acento y números, en mayúsculas), nombre, tipo (`CENTRAL`, `SUBALMACEN` o `PROYECTO`; se conservan los tres) y **de qué almacén depende** (obligatorio salvo para el central). El servidor crea el almacén **y su ubicación** en la misma transacción. El tipo no se cambia después. |
+| **Editar** | Nombre y de qué almacén depende. La clave **no se cambia** una vez que el almacén tiene folios, porque forma parte de ellos (`KEP-ENT-000123`); mientras no los tenga, sí se puede corregir. Un almacén `CERRADO` no se edita: primero se reactiva. |
 | **Inactivar** | Pasa a `CERRADO` y registra `cerrado_en`. Solo con las condiciones de la sección 4.1.2. No borra nada. |
 | **Reactivar** | Vuelve a `ACTIVO` y limpia `cerrado_en`. Queda en la auditoría. **Decidido:** un proyecto que vuelve se reactiva (mismo almacén y misma clave); no se crea otro. |
 | **Vínculos** | Desde la ficha del almacén se ven y se gestionan sus usuarios (ya existe `/usuarios` y `/personal`), su inventario y sus solicitudes de compra. No se duplican pantallas: se enlazan. |
 
-#### 4.1.1 Reglas de la jerarquía (propuestas)
+#### 4.1.1 Reglas de la jerarquía
 
-- Hay **un solo almacén central**. Los demás dependen de otro.
-- El flujo habitual es Central → Contratistas → áreas o proyectos (Midrex, HYL, Laminador, Minas). Un destino de traspaso es "habitual" si uno es padre del otro (regla de traspasos ya existente).
+- Hay **un solo almacén central** (AL-02). Los demás dependen de otro almacén **activo**.
+- El flujo habitual es Central → Contratistas → áreas o proyectos (Midrex, HYL, Laminador, Minas). Un destino de traspaso es "habitual" si uno es padre del otro; cualquier otra ruta solo la hace quien tiene `almacenes.todos`, con aviso y observación (X-03).
 - Un almacén no puede depender de sí mismo ni de uno de sus descendientes.
 - La clave y el nombre son únicos entre los almacenes.
+- El servidor no obliga a que cierto tipo dependa de cierto tipo (por ejemplo, un `PROYECTO` de un `SUBALMACEN`): el tipo describe al almacén y la red la arma quien lo da de alta.
 
 #### 4.1.2 Condiciones para inactivar
 
@@ -59,7 +61,7 @@ Un almacén solo se inactiva si se cumplen **las dos** condiciones de FEAT-002:
 
 Además:
 - No se inactiva un almacén con **hijos activos**: primero se inactivan o se reasignan.
-- Si tiene **usuarios asignados**, la pantalla avisa cuántos son. No bloquea, pero esos usuarios ya no pueden operar. Mi propuesta es **bloquear** hasta reasignarlos, porque dejar usuarios sin almacén activo les quita el acceso sin aviso. Se decide en la sección 10.
+- Si tiene **usuarios asignados**, **bloquea** hasta reasignarlos (`CON_USUARIOS`), porque dejar usuarios sin almacén activo les quita el acceso sin aviso. La pantalla dice cuántos son y quiénes, con el enlace a Personal. Decidido (sección 10, decisión 1).
 - Las piezas en resguardo de trabajadores **no impiden** inactivar (CP-05): una pieza es del almacén de su última entrega y su historial se conserva.
 - Un almacén inactivo **sigue apareciendo en los reportes** y en el historial, pero no recibe ni envía movimientos.
 
@@ -73,7 +75,7 @@ Hoy solo se rechaza en traspasos, en el alta de usuarios y en la importación. E
 |---|---|
 | `almacen` | En el alta. |
 | `ubicacion` del almacén | En el alta, en la misma transacción (`UbicacionRepository.crear_de_almacen`). |
-| `serie_folio` y `serie_solicitud_compra` | **Verificar** si se crean al primer vale (perezoso) o hay que crearlas en el alta. Si son perezosas, no se hace nada. |
+| `serie_folio` y `serie_solicitud_compra` | Las dos son perezosas: `serie_folio` se crea en la primera confirmación de cada almacén y tipo ([data-model.md](../architecture/data-model.md)) y `serie_solicitud_compra` con `INSERT ... ON DUPLICATE KEY UPDATE` al primer folio. El alta no hace nada. |
 | Usuarios y personal | No se crean solos: se asignan después desde `/usuarios` y `/personal`. |
 | Inventario | Llega después, por entrada de proveedor o por la importación de Excel (FEAT-007), eligiendo ese almacén. |
 
@@ -82,11 +84,11 @@ Hoy solo se rechaza en traspasos, en el alta de usuarios y en la importación. E
 Un mecanismo para que una base nueva no quede vacía:
 
 - **Pantalla de alta** (lo de arriba) como camino normal.
-- **Opcional:** un comando `uv run python -m app.mantenimiento sembrar-almacenes` que cree los seis almacenes iniciales **solo si no existe ninguno**, para no depender de las pantallas el primer día. Es seguro de repetir. Se decide en la sección 10.
+- **Comando de mantenimiento:** `uv run python -m app.mantenimiento sembrar-almacenes` crea los seis almacenes iniciales (Kepler `CENTRAL`; Contratistas `SUBALMACEN`, que depende de Kepler; y Midrex, HYL, Laminador y Minas, `PROYECTO`, que dependen de Contratistas) **solo si no existe ningún almacén**, para no depender de las pantallas el primer día. Si ya hay alguno, no hace nada y lo dice. Crea también sus ubicaciones y deja constancia en la auditoría; es seguro de repetir. Decidido (sección 10, decisión 2). El comando deja la red completa del reto; los proyectos que todavía no operan se pueden inactivar desde la pantalla, y los futuros se dan de alta ahí (4.1).
 
 ### 4.2 Tablero de inicio
 
-El Inicio pasa a ser un **resumen** con tarjetas y gráficas. Los botones de operación no desaparecen: pasan a un bloque "Lo que haces hoy" arriba o a un lado, según el rol.
+El Inicio pasa a ser un **resumen** con tarjetas y gráficas. Los botones de operación no desaparecen: van **arriba del tablero**, grandes, en un bloque "Lo que haces hoy" (decisión 9: es lo que más usa el almacenista). El tablero queda debajo y se recorre con el desplazamiento.
 
 #### 4.2.1 Quién ve qué
 
@@ -101,7 +103,7 @@ El alcance sale de AC-06: lo decide el **servidor** con el almacén de la sesió
 
 #### 4.2.2 Tarjetas (indicadores)
 
-Todas se calculan en el servidor con los datos que ya existen. Cada una dice en pocas palabras qué cuenta.
+Todas se calculan en el servidor con los datos que ya existen. Cada una dice en pocas palabras qué cuenta. La definición exacta de cada cifra y la forma de la respuesta están en [api-contracts.md](../architecture/api-contracts.md#tablero) (`GET /api/tablero/resumen`).
 
 | Tarjeta | Qué cuenta |
 |---|---|
@@ -117,9 +119,9 @@ Las que dependen de reglas aún no construidas (mínimos y alertas de FEAT-004, 
 
 #### 4.2.3 Gráfica principal: lo más usado
 
-Una **gráfica de barras horizontales** con los 10 artículos más usados.
+Una **gráfica de barras horizontales** con los 10 artículos más usados, dibujada con **recharts** por medio del componente `chart` de shadcn/ui ([ADR-009](../architecture/decisions/ADR-009-graficas-con-recharts.md)). Tiene tooltip al pasar o tocar una barra y leyenda cuando se separa por almacén. Cada barra lleva además su nombre y su número a la vista: la gráfica nunca es el único canal.
 
-**Qué es "usado":** unidades **entregadas** en el rango. Para los consumibles es lo que sale del almacén y se consume; para las herramientas y el EPP retornable, cada entrega cuenta una vez. Se muestran **separados** por categoría para no mezclar 800 discos con 3 taladros: el filtro de categoría los distingue, y por omisión se muestran los consumibles.
+**Qué es "usado" (TB-02):** lo **entregado** en el rango, **neto de cancelaciones**, y **separado por categoría**. Un vale cancelado no cuenta. Para los consumibles es exactamente lo que suma el reporte de consumo (C-08); para las herramientas y el EPP retornable cuentan las unidades de los vales de entrega no cancelados (una pieza por serie es una unidad). Se muestran **separados** por categoría para no mezclar 800 discos con 3 taladros: el filtro de categoría los distingue, y por omisión se muestran los consumibles. Con «Todas las categorías» cada barra dice su categoría.
 
 **Filtros** (máximo tres, para no abrumar):
 
@@ -133,7 +135,8 @@ Una **gráfica de barras horizontales** con los 10 artículos más usados.
 - Un botón **«Limpiar filtros»** vuelve a los valores por omisión.
 - Cada barra es tocable: lleva al detalle del artículo con los mismos filtros.
 - Una barra solo con texto y número visible, además del color (accesibilidad).
-- Con el administrador en "Todos los almacenes", un interruptor **«Separar por almacén»** reparte cada barra por colores. Es el único control extra y es opcional.
+- Con el administrador en "Todos los almacenes", un interruptor **«Separar por almacén»** reparte cada barra por colores y la leyenda dice a qué almacén corresponde cada uno. Es el único control extra y es opcional.
+- Los 10 principales se piden al servidor (`limite`); el resto llega agrupado en «Otros» (una sola barra gris al final, sin desglose).
 
 **Estados vacíos y de error:** sin movimientos en el rango, «No hubo consumo en estas fechas». Si falla la carga, el aviso de siempre con «Reintentar».
 
@@ -143,7 +146,7 @@ Consumo por día en el rango, como línea o barras finas, para ver picos. Se dej
 
 ### 4.3 Menú reorganizado
 
-#### 4.3.1 Estructura propuesta
+#### 4.3.1 Estructura del menú
 
 Un **grupo plegable por tarea**, con el grupo de la sección actual abierto. En celular, el mismo orden dentro de la hoja del menú.
 
@@ -175,15 +178,15 @@ Cada entrada **se muestra solo si el usuario tiene su permiso**; el menú se arm
 #### 4.3.3 Qué cambia en el código
 
 - `menu.ts`: el elemento del menú gana un campo `grupo` jerárquico y una marca de "plegable". Ya existe `grupo`; hace falta añadir el comportamiento.
-- `armazon-escritorio.tsx` y `menu-hoja.tsx`: pintar los grupos como secciones plegables (el `Sidebar` de shadcn ya soporta grupos colapsables). El estado abierto/cerrado se recuerda por persona en el navegador, con respaldo si el almacenamiento falla.
+- `armazon-escritorio.tsx` y `menu-hoja.tsx`: pintar los grupos como secciones plegables (el `Sidebar` de shadcn ya soporta grupos colapsables). Patrón en [ui-ux.md](../product/ui-ux.md) («Grupo de menú plegable»). El estado abierto/cerrado se recuerda por persona en el navegador, con respaldo si el almacenamiento falla.
 - Táctil de 44 px, foco visible y `aria-expanded` en cada grupo.
 
 ### 4.4 Número de empleado automático
 
 - El servidor **genera** el número de empleado al dar de alta: un consecutivo propio, con formato `E-000001`, que no se repite aunque se borren registros de trabajo.
 - RH **ya no lo escribe**. El formulario deja de pedirlo y, al guardar, muestra el número asignado.
-- **Reingreso (T-02):** hoy se detecta con el número de empleado repetido. Pasa a detectarse por **CURP** (único si existe) o por nombre y fecha de ingreso, con el aviso de siempre. Hay que decidir el criterio (sección 10).
-- **Importación de trabajadores o carga histórica:** si el centro ya tiene números propios, el alta puede aceptar uno **solo con un permiso de administración** y marcarlo como externo. Se decide en la sección 10.
+- **Reingreso (T-02):** hoy se detecta con el número de empleado repetido. Pasa a detectarse por **CURP** (única si existe). Si el alta **no trae CURP**, se compara el **nombre completo** (sin distinguir mayúsculas ni acentos) y, si coincide con el de otra persona, el sistema avisa y RH elige: reingresar a esa persona o confirmar que es otra (`confirmar_distinta`). Decidido (decisión 5). Detalle del contrato en [api-contracts.md](../architecture/api-contracts.md#trabajadores).
+- **Número propio del centro (carga histórica):** el alta acepta un número de empleado escrito a mano **solo con el permiso `trabajadores.numero_externo`** (nuevo; de inicio solo el Administrador) y el trabajador queda marcado con `numero_externo = true`. RH no lo tiene: quien no lo tiene y manda `numero_empleado` recibe 403. Decidido (decisión 6). Los trabajadores que ya existen conservan su número y quedan marcados como externos.
 - Se mantiene el **código de la credencial** (`TRB-XXXXXXXX`): es lo que lleva el QR y lo que se escanea para identificar al trabajador. **No es el número de empleado.** El número de empleado es de RH y se imprime en la credencial; el código del QR es para el escáner.
 
 ### 4.5 Roles y permisos: botón por grupo
@@ -224,6 +227,9 @@ Mejora a la pantalla de un rol (`/roles/:id`, FEAT-006). Hoy cada permiso es un 
 | `almacenes.administrar` | Declarado para el Supervisor, pendiente | **Pasa al Administrador solamente**. El supervisor no crea ni inactiva almacenes (hoy la tabla 8.3 se lo asignaba; se corrige en la sección 8). |
 | `almacenes.todos` | Existe | Sin cambio. Marca quién ve todos los almacenes. |
 | `tablero.ver` | Pospuesto, solo administrador | **Se activa y se reparte:** administrador, supervisor y almacenista. El alcance lo da `almacenes.todos`: con él, todos y con selector; sin él, solo el almacén asignado. Compras y RH **no** lo tienen. |
+| `trabajadores.numero_externo` | Nuevo | Capturar a mano el número de empleado al dar de alta (4.4). Solo el Administrador; requiere `trabajadores.administrar`. RH **no** lo tiene. |
+
+Los tres quedan en el catálogo de la sección 8.2 de las [reglas](../product/reglas-de-negocio.md). Los roles que ya existen en una base no los reciben solos: hay que volver a correr el script de datos de prueba o activarlos en `/roles`.
 
 Cada endpoint declara su permiso y el servicio aplica el alcance de AC-06. **Nunca se compara el nombre del rol.** Las rutas del menú y del Inicio se esconden o se muestran según los permisos que ya entrega la sesión.
 
@@ -231,8 +237,8 @@ Cada endpoint declara su permiso y el servicio aplica el alcance de AC-06. **Nun
 
 ### 7.1 Datos
 
-- **Sin tablas nuevas** para almacenes. Se usan los campos ya existentes (`estado`, `cerrado_en`, `padre_id`).
-- **Número de empleado:** una tabla de contador, por ejemplo `serie_empleado` (una fila), o reutilizar el patrón de `serie_folio`. Requiere **migración de Alembic** y actualizar `data-model.md`. Los trabajadores existentes **conservan** su número actual.
+- **Sin tablas nuevas** para almacenes. Se usan los campos ya existentes (`estado`, `cerrado_en`, `padre_id`); `cerrado_en` pasa a escribirse al inactivar y a limpiarse al reactivar. La migración `0007` agrega las restricciones que hoy faltan: nombre único (`uq_almacen_nombre`) y un solo almacén central (`uq_almacen_un_central`, con una columna generada que vale 1 solo cuando `tipo = 'CENTRAL'`). Si la base ya trae nombres repetidos o dos centrales, la migración falla y avisa; los datos de prueba no los tienen.
+- **Número de empleado:** tabla `serie_empleado` (una sola fila, `ultimo`) y columna `trabajador.numero_externo` (booleano). La misma migración de Alembic (`0007`, la siguiente) las crea; los trabajadores existentes **conservan** su número y quedan con `numero_externo = true`. Ver [data-model.md](../architecture/data-model.md).
 - **Auditoría:** acciones nuevas `almacen.crear`, `almacen.editar`, `almacen.inactivar` y `almacen.reactivar`, con el antes y el después.
 
 ### 7.2 API
@@ -240,41 +246,48 @@ Cada endpoint declara su permiso y el servicio aplica el alcance de AC-06. **Nun
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
 | `POST /api/almacenes` | `almacenes.administrar` | Crea el almacén y su ubicación. Errores: `CLAVE_REPETIDA`, `NOMBRE_REPETIDO`, `PADRE_INVALIDO`, `YA_HAY_CENTRAL`. |
-| `PATCH /api/almacenes/{id}` | `almacenes.administrar` | Edita nombre y de quién depende. |
+| `PATCH /api/almacenes/{id}` | `almacenes.administrar` | Edita nombre, de quién depende y, sin folios, la clave. Error propio: `CLAVE_CON_FOLIOS`. |
 | `POST /api/almacenes/{id}/cierre` | `almacenes.administrar` | Inactiva con las condiciones de 4.1.2. Errores: `CON_EXISTENCIAS`, `CON_TRASPASOS_EN_TRANSITO`, `CON_HIJOS_ACTIVOS`, `CON_USUARIOS`. Cada uno trae el detalle de qué falta. |
-| `POST /api/almacenes/{id}/reapertura` | `almacenes.administrar` | Reactiva. |
-| `GET /api/almacenes` | `inventario.ver` (ya existe) | Se amplía: incluye `cerrado_en` y un resumen opcional (`?resumen=true`). |
+| `POST /api/almacenes/{id}/reapertura` | `almacenes.administrar` | Reactiva. Error propio: `PADRE_CERRADO`. |
+| `GET /api/almacenes` | `inventario.ver` (ya existe) | Se amplía: incluye `cerrado_en` y un resumen opcional (`?resumen=true`, solo con `almacenes.administrar`). |
 | `GET /api/tablero/resumen?almacen_id=` | `tablero.ver` | Las tarjetas de 4.2.2. Sin `almacenes.todos` ignora `almacen_id` y usa el de la sesión. |
-| `GET /api/tablero/consumo?desde=&hasta=&almacen_id=&categoria_id=&limite=` | `tablero.ver` | El ranking de 4.2.3, **agrupado en el servidor** (por artículo y, si se pide, por almacén). Hoy el reporte de consumo da el total por artículo, pero hay que llamarlo una vez por almacén y no cubre las herramientas retornables. Este endpoint se construye sobre la misma consulta. |
-| `POST /api/trabajadores` | `trabajadores.administrar` | Ya no recibe `numero_empleado`; lo devuelve generado. |
+| `GET /api/tablero/consumo?desde=&hasta=&almacen_id=&categoria_id=&limite=&separar_por_almacen=` | `tablero.ver` | El ranking de 4.2.3, **agrupado en el servidor** (por artículo y, si se pide, por almacén). Hoy el reporte de consumo da el total por artículo, pero hay que llamarlo una vez por almacén y no cubre las herramientas retornables. Este endpoint se construye sobre la misma consulta. |
+| `POST /api/trabajadores` | `trabajadores.administrar` | Ya no recibe `numero_empleado` (salvo con `trabajadores.numero_externo`); lo devuelve generado. Reingreso por CURP o, sin CURP, por nombre completo. |
+| `POST /api/vales` y `POST /api/vales/evaluar` (traspaso) | `traspasos.operar` | La ruta que no es padre-hijo: solo con `almacenes.todos`, con aviso y observación obligatoria (X-03). Error: `RUTA_SOLO_ADMINISTRADOR`. |
 
-Todo cambio en el contrato se documenta en `api-contracts.md` en el mismo cambio.
+Los esquemas de respuesta, los parámetros y todos los errores están en [api-contracts.md](../architecture/api-contracts.md) (secciones «Almacenes y existencias», «Tablero», «Trabajadores» y la fila TRASPASO de «Vales»). Si al construir hay que cambiar algo, se corrige allí en el mismo cambio.
 
-## 8. Reglas de negocio nuevas (IDs tentativos)
+## 8. Reglas de negocio
+
+Ya están en [reglas-de-negocio.md](../product/reglas-de-negocio.md) (sección 7.14 y los ajustes de X-03, T-01 y T-02); aquí va el resumen.
 
 | ID | Regla |
 |---|---|
 | **AL-01** | Solo `almacenes.administrar` crea, edita, inactiva y reactiva almacenes. |
 | **AL-02** | Hay un solo almacén central. Los demás dependen de otro, sin ciclos. La clave y el nombre son únicos. |
-| **AL-03** | Un almacén se inactiva solo con existencias en cero, sin traspasos en tránsito y sin hijos activos. Los usuarios asignados lo bloquean hasta reasignarlos (decisión pendiente, sección 10). |
+| **AL-03** | Un almacén se inactiva solo con existencias en cero, sin traspasos en tránsito, sin hijos activos y sin usuarios asignados (bloquean hasta reasignarlos). |
 | **AL-04** | Un almacén `CERRADO` no recibe ni envía movimientos ni solicitudes nuevas. Conserva su historial y aparece en los reportes. |
 | **AL-05** | La clave de un almacén con folios no se cambia. |
 | **TB-01** | El tablero respeta AC-06: sin `almacenes.todos`, solo el almacén de la sesión. |
 | **TB-02** | «Usado» es lo entregado en el rango, neto de cancelaciones, y se separa por categoría. |
 | **TB-03** | Las fechas del rango se interpretan en la hora del centro de México. |
-| **T-10** | El número de empleado lo genera el servidor y no se repite (ajusta T-01 y T-02). |
+| **T-10** | El número de empleado lo genera el servidor y no se repite (ajusta T-01 y T-02). Solo `trabajadores.numero_externo` captura uno a mano, y queda marcado como externo. |
+| **X-03** (ajustada) | Otra ruta que no sea padre-hijo solo la hace quien tiene `almacenes.todos` (de inicio, el Administrador), con aviso amarillo y observación obligatoria; para los demás es rojo (`RUTA_SOLO_ADMINISTRADOR`). |
 
-Se ajusta también la tabla 8.3: `almacenes.administrar` pasa de Supervisor a Administrador.
+La tabla 8.3 pierde `almacenes.administrar` y `tablero.ver`, que pasan a la tabla 8.2 ya activos: `almacenes.administrar` es solo del Administrador (antes se declaraba para el Supervisor) y `tablero.ver` es de Administrador, Supervisor y Almacenista.
 
 ## 9. Criterios de aceptación
 
 **Almacenes**
 - Dado un administrador, cuando crea el almacén `PRY` dependiente de Contratistas, entonces aparece en la lista, tiene su ubicación y se puede asignar personal y recibir una entrada.
 - Dado un almacén con existencias, cuando se intenta inactivar, entonces el servidor responde `CON_EXISTENCIAS` y dice cuántas unidades y de qué artículos.
+- Dado un almacén con usuarios asignados, existencias en cero y sin traspasos, cuando se intenta inactivar, entonces el servidor responde `CON_USUARIOS` con cuántos son y quiénes, y no cambia nada.
 - Dado un almacén inactivo, cuando alguien intenta entregar desde él, entonces recibe «Ese almacén está cerrado.»
+- Dado un supervisor de Kepler, cuando intenta un traspaso de Kepler a Midrex (no son padre e hijo), entonces la evaluación lo marca en rojo y el servidor responde 403 `RUTA_SOLO_ADMINISTRADOR` al confirmar; con el Administrador, sale en amarillo, exige observación y se confirma con ella (X-03).
+- Dado un almacén sin folios, cuando el Administrador corrige su clave, entonces se guarda; con folios, responde `CLAVE_CON_FOLIOS` (AL-05).
 - Dado un almacén inactivo, entonces su historial y sus reportes siguen visibles.
 - Dado un supervisor, cuando abre `/almacenes`, entonces no existe para él (404 o ausente en el menú) y `POST /api/almacenes` responde 403.
-- Dado un almacén recién creado, cuando se importa un Excel de alta hacia él, entonces el vale de entrada sale con el folio `PRY-ENT-000001`.
+- Dado un almacén recién creado, cuando se importa un Excel de alta hacia él, entonces el vale de entrada sale con el folio `PRY-ING-000001`.
 
 **Tablero**
 - Dado el administrador en "Todos", entonces ve las tarjetas con el total de todos los almacenes, y al elegir Midrex todo se recalcula solo para Midrex.
@@ -282,7 +295,9 @@ Se ajusta también la tabla 8.3: `almacenes.administrar` pasa de Supervisor a Ad
 - Dado Compras o RH, entonces no ven el tablero y `GET /api/tablero/resumen` responde 403.
 - Dado el filtro Midrex, Este mes y Consumibles, entonces la gráfica muestra el consumible más usado ahí, y al cambiar el almacén o el periodo se actualiza sin recargar la pantalla.
 - Dado un rango sin movimientos, entonces se muestra el estado vacío y no una gráfica vacía.
-- La suma de la gráfica coincide con el reporte de consumo del mismo rango y almacén.
+- La suma de la gráfica (barras más «Otros») coincide con el reporte de consumo del mismo rango, almacén y categoría de consumibles (`total_general`).
+- Dada una entrega que se cancela dentro del rango, entonces no suma en la gráfica.
+- Dado el administrador en «Todos», cuando activa «Separar por almacén», entonces cada barra se reparte por almacén y la suma de sus partes es el total de la barra.
 
 **Menú**
 - Cada rol ve solo los grupos y las entradas que su permiso permite, y ninguno ve más de 7 grupos.
@@ -297,20 +312,26 @@ Se ajusta también la tabla 8.3: `almacenes.administrar` pasa de Supervisor a Ad
 
 **Número de empleado**
 - Dado RH, cuando da de alta a un trabajador, entonces el formulario no pide número de empleado y la ficha muestra el asignado, único y consecutivo.
+- Dado RH, cuando manda un `numero_empleado` en el alta, entonces el servidor responde 403 (no tiene `trabajadores.numero_externo`); con el Administrador, se acepta y el trabajador queda marcado como externo.
+- Dado un alta con la CURP de una persona que ya existe, entonces el servidor ofrece el reingreso; sin CURP y con el mismo nombre completo, avisa de la coincidencia y deja confirmar que es otra persona.
 
-## 10. Decisiones pendientes (necesito tu respuesta)
+## 10. Decisiones (tomadas el 6 de octubre de 2026)
 
-| # | Pregunta | Mi recomendación |
-|---|---|---|
-| 1 | **Inactivar con usuarios asignados:** ¿bloquear hasta reasignarlos o solo avisar? | Bloquear. |
-| 2 | **Sembrar los seis almacenes** con un comando de mantenimiento para el primer arranque, además de la pantalla. | Sí, solo si no hay ninguno. |
-| 3 | **Tipos de almacén:** hoy son `CENTRAL`, `SUBALMACEN` y `PROYECTO`. ¿Se conservan los tres? | Sí. Contratistas es `SUBALMACEN`; Midrex, HYL, Laminador y Minas son `PROYECTO`. |
-| 4 | **Gráficas:** ¿se usa una librería nueva (hay que aprobarla y escribir un ADR) o barras hechas con HTML y CSS, sin dependencias? | Sin dependencias para la primera entrega: barras horizontales con CSS y SVG. Una librería solo si luego se piden gráficas más complejas. |
-| 5 | **Reingreso de un trabajador** al ya no tener número de empleado capturado: ¿por CURP, o por nombre y fecha? | Por CURP cuando exista; si no, por nombre completo con aviso de coincidencia. |
-| 6 | **Números de empleado propios del centro:** ¿se aceptan al dar de alta solo con permiso de administración? | Sí, marcados como externos. |
-| 7 | **Qué cuenta como «usado» para las herramientas:** ¿entregas o unidades? | Entregas (cada entrega una vez), separadas de los consumibles. |
-| 8 | **Contratistas:** ¿maneja herramienta o solo EPP? | **Resuelta con la plática** (min 35): maneja las dos cosas. Ver [red-de-almacenes-y-flujo.md](../product/red-de-almacenes-y-flujo.md). |
-| 9 | **Ubicación de los botones de operación en el Inicio** del almacenista: ¿arriba del tablero o a un lado? | Arriba y grandes: es lo que más usa. |
+Todas se resolvieron; cada una dice qué se decidió y dónde quedó escrita.
+
+| # | Tema | Decisión | Dónde quedó |
+|---|---|---|---|
+| 1 | **Inactivar con usuarios asignados** | **Decidido: bloquea** hasta reasignarlos. Error `CON_USUARIOS`. | 4.1.2, AL-03 |
+| 2 | **Sembrar los seis almacenes** | **Decidido: sí.** Comando `uv run python -m app.mantenimiento sembrar-almacenes`: crea Kepler, Contratistas, Midrex, HYL, Laminador y Minas solo si no existe ningún almacén. | 4.1.5, AGENTS.md (comandos) |
+| 3 | **Tipos de almacén** | **Decidido: se conservan los tres** (`CENTRAL`, `SUBALMACEN`, `PROYECTO`). Contratistas es `SUBALMACEN`; Midrex, HYL, Laminador y Minas son `PROYECTO`. | 4.1, 4.1.5 |
+| 4 | **Gráficas** | **Decidido: librería, recharts 3.8.0**, por medio del componente `chart` de shadcn/ui. ADR nuevo. | 4.2.3, [ADR-009](../architecture/decisions/ADR-009-graficas-con-recharts.md), etapa 4 |
+| 5 | **Reingreso al no capturar número de empleado** | **Decidido:** por CURP; si no hay CURP, por nombre completo con aviso de coincidencia. | 4.4, T-02 |
+| 6 | **Números de empleado propios del centro** | **Decidido:** se aceptan solo con permiso de administración (`trabajadores.numero_externo`, nuevo) y quedan marcados como externos. | 4.4, 6, T-10 |
+| 7 | **Qué cuenta como «usado»** | **Decidido:** entregas netas de cancelaciones, separadas por categoría. | 4.2.3, TB-02 |
+| 8 | **Contratistas** | **Decidido** (con la plática, min 35): maneja herramienta y EPP. Ver [red-de-almacenes-y-flujo.md](../product/red-de-almacenes-y-flujo.md). | red de almacenes |
+| 9 | **Botones de operación en el Inicio** | **Decidido: arriba del tablero**, grandes. | 4.2 |
+
+Sigue **abierta** una pregunta de otro documento que no bloquea este brief: si el permiso de recibir traspasos se separa del de enviarlos ([red-de-almacenes-y-flujo.md](../product/red-de-almacenes-y-flujo.md), pendiente 6). Mientras no se decida, X-01 no cambia: el Supervisor opera los traspasos.
 
 ## 11. Riesgos
 
@@ -326,31 +347,37 @@ Se ajusta también la tabla 8.3: `almacenes.administrar` pasa de Supervisor a Ad
 
 ## 12. Documentos que se actualizan en el mismo cambio
 
-| Documento | Qué cambia |
+**Hecho el 6 de octubre de 2026**, antes de escribir código. Si al construir cambia algo, se corrige en el documento que corresponda en el mismo cambio.
+
+| Documento | Qué cambió |
 |---|---|
-| `docs/product/mvp-scope.md` | El tablero sale de «Pospuesto». Es una ampliación de alcance y **requiere tu aprobación explícita**. |
-| `docs/product/reglas-de-negocio.md` | Reglas AL-01 a AL-05, TB-01 a TB-03 y T-10; ajuste de T-01 y T-02; permisos `almacenes.administrar` y `tablero.ver` en la sección 8 y la tabla 8.3. |
-| `docs/architecture/data-model.md` | Contador del número de empleado y `cerrado_en`. |
-| `docs/architecture/api-contracts.md` | Endpoints de la sección 7.2. |
-| `docs/product/app-flow.md` | Rutas `/almacenes` y el Inicio por rol. |
-| `docs/product/ui-ux.md` | Patrones: grupo de menú plegable, tarjetas de indicadores, gráfica de barras con filtros y botón por grupo en la matriz de permisos. |
-| `docs/architecture/decisions/` | Un ADR **solo si** se elige una librería de gráficas. |
-| `docs/guia-por-rol.md` | Menú nuevo y tablero. |
-| `docs/features/FEAT-002-cierre-de-almacen.md` | Referencia a este brief para el cierre y el valor del inventario. |
+| `docs/product/mvp-scope.md` | El tablero sale de «Pospuesto» y entra en el alcance por FEAT-008; el periodo por apertura queda en «Pospuesto»; la ruta no habitual de traspaso deja de ser solo un aviso. El usuario aprobó el cambio de alcance. |
+| `docs/product/reglas-de-negocio.md` | Reglas AL-01 a AL-05, TB-01 a TB-03 y T-10 (sección 7.14); ajuste de X-03, T-01 y T-02; permisos `almacenes.administrar`, `tablero.ver` y `trabajadores.numero_externo` en la sección 8.2; historial. |
+| `docs/architecture/data-model.md` | `serie_empleado`, `trabajador.numero_externo` y `cerrado_en`. |
+| `docs/architecture/api-contracts.md` | Endpoints de la sección 7.2, con esquemas y errores; la fila TRASPASO de «Vales». |
+| `docs/product/app-flow.md` | Ruta `/almacenes`, el Inicio por rol, el menú nuevo y el flujo de puesta en marcha. |
+| `docs/product/ui-ux.md` | Patrones: grupo de menú plegable, tarjeta de indicador, gráfica de barras con filtros y botón por grupo en la matriz de permisos. |
+| `docs/architecture/decisions/ADR-009-graficas-con-recharts.md` | ADR nuevo: por qué recharts. |
+| `docs/guia-por-rol.md` | Menú nuevo, tablero, almacenes y X-03. |
+| `docs/features/FEAT-002-cierre-de-almacen.md` | Referencia a este brief para abrir, cerrar y reactivar almacenes. |
+| `docs/product/red-de-almacenes-y-flujo.md` | Decisiones (sembrar, X-03 ya escrito en las reglas). |
+| `AGENTS.md` | El comando `sembrar-almacenes` (el agente que lo construya lo agrega a la tabla de comandos). |
 
 ## 13. Plan de trabajo por etapas
 
 Cada etapa se prueba y se puede entregar sola.
 
-**Etapa 0: aprobación.** Responder las decisiones de la sección 10 y aprobar el cambio de alcance. Actualizar los documentos de la sección 12.
+**Etapa 0: aprobación. Hecha.** Las decisiones de la sección 10 están tomadas, el cambio de alcance está aprobado y los documentos de la sección 12 ya están actualizados.
 
 **Etapa 1: administración de almacenes (backend).**
 1. Servicio y repositorio: crear, editar, inactivar y reactivar, con las reglas AL-01 a AL-05 y auditoría.
 2. Endpoints de 7.2 con su permiso.
-3. Extender el rechazo de almacén `CERRADO` a entregas, devoluciones, entradas y solicitudes de compra (4.1.3).
-4. Verificar si `serie_folio` es perezosa.
-5. Comando de mantenimiento para sembrar (si se aprueba).
-6. Pruebas: una por regla con su ID en el nombre, una de permisos por endpoint y una de concurrencia en el alta.
+3. Extender el rechazo de almacén `CERRADO` (`ALMACEN_CERRADO`, regla AL-04) a entregas, devoluciones, entradas, traspasos y solicitudes de compra (4.1.3).
+4. Migración `0007`: restricciones de almacén que hoy no existen (nombre único y un solo central, ver 7.1). Los contadores de folio son perezosos y no requieren cambio.
+5. Comando `sembrar-almacenes` en `app.mantenimiento` (decisión 2) y su línea en la tabla de comandos de `AGENTS.md`.
+6. X-03: la ruta que no es padre-hijo solo para quien tiene `almacenes.todos`, con observación obligatoria (`RUTA_SOLO_ADMINISTRADOR`).
+7. Los permisos nuevos (`almacenes.administrar`, `tablero.ver`, `trabajadores.numero_externo`) en el catálogo y en los roles iniciales.
+8. Pruebas: una por regla con su ID en el nombre, una de permisos por endpoint y una de concurrencia en el alta.
 
 **Etapa 2: administración de almacenes (interfaz).**
 1. Pantalla `/almacenes` con lista, alta, edición y la acción de inactivar con confirmación.
@@ -363,10 +390,10 @@ Cada etapa se prueba y se puede entregar sola.
 3. Pruebas: el alcance por usuario, que la suma coincide con el reporte de consumo y que Compras y RH reciben 403.
 
 **Etapa 4: tablero (interfaz).**
-1. Tarjetas y gráfica de barras con filtros (sin dependencias nuevas, salvo decisión contraria).
+1. Tarjetas y gráfica de barras con filtros, con recharts 3.8.0 a través del componente `chart` de shadcn/ui ([ADR-009](../architecture/decisions/ADR-009-graficas-con-recharts.md)), cargada bajo demanda.
 2. Selector de almacén solo para `almacenes.todos`, con «Viendo: …».
 3. Estados de carga, vacío y error; accesible y táctil.
-4. El Inicio por rol: tablero más «Lo que haces hoy».
+4. El Inicio por rol: «Lo que haces hoy» arriba y el tablero debajo.
 
 **Etapa 5: menú.**
 1. Grupos plegables en escritorio y celular, con el estado recordado.
@@ -375,8 +402,8 @@ Cada etapa se prueba y se puede entregar sola.
 4. Botón por grupo en la matriz de permisos de `/roles/:id` (sección 4.5), con pruebas de interfaz de las dependencias y los permisos protegidos.
 
 **Etapa 6: número de empleado automático.**
-1. Migración del contador y servicio de alta sin número capturado.
-2. Reingreso por el criterio elegido.
+1. Migración `0007` (contador `serie_empleado` y `numero_externo`) y servicio de alta sin número capturado; número propio solo con `trabajadores.numero_externo`.
+2. Reingreso por CURP o, sin CURP, por nombre completo con `confirmar_distinta`.
 3. Formulario de alta de RH sin ese campo.
 4. Pruebas de unicidad bajo concurrencia.
 

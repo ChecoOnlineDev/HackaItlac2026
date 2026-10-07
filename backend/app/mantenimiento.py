@@ -3,6 +3,7 @@
     uv run python -m app.mantenimiento verificar
     uv run python -m app.mantenimiento reconstruir-existencias --simular
     uv run python -m app.mantenimiento reconstruir-existencias --aplicar
+    uv run python -m app.mantenimiento sembrar-almacenes
 
 `verificar` es de SOLO LECTURA. Compara la base real con las invariantes de
 `docs/architecture/data-model.md` y sale con código 0 si todo cuadra, o con 1 listando las
@@ -33,6 +34,11 @@ la bitácora es la verdad y las existencias son su suma guardada (ADR-001). Por 
   - deja un renglón en `auditoria` (`mantenimiento.reconstruir_existencias`) con lo que cambió,
     en la misma transacción.
 
+`sembrar-almacenes` (FEAT-008, 4.1.5) crea la red inicial del reto (Kepler, Contratistas, Midrex,
+HYL, Laminador y Minas) SOLO si no existe ningún almacén, con sus ubicaciones, las ubicaciones
+virtuales que falten y su renglón de auditoría (`almacen.crear`), todo en una transacción. Si ya
+hay alguno, no hace nada y lo dice: es seguro de repetir.
+
 Este módulo está aislado: no importa servicios de otros módulos, solo sus modelos.
 """
 
@@ -48,7 +54,13 @@ from sqlalchemy.orm import Session
 
 import app.modelos_registro  # noqa: F401
 from app.db import get_sessionmaker
-from app.modulos.almacenes.models import Almacen, Ubicacion, UbicacionVirtual
+from app.modulos.almacenes.models import (
+    Almacen,
+    TipoAlmacen,
+    TipoUbicacion,
+    Ubicacion,
+    UbicacionVirtual,
+)
 from app.modulos.auditoria.models import Auditoria
 from app.modulos.catalogo.models import Articulo, Codigo, Control, Pieza, TipoCodigo
 from app.modulos.movimientos.models import (
@@ -517,6 +529,69 @@ def _nombre_regla(regla: str) -> str:
     return "Folios (RG-06)" if regla == "RG-06" else f"Invariante {regla}"
 
 
+# (clave, nombre, tipo, clave del padre). Kepler surte a Contratistas; Contratistas, a las áreas.
+RED_INICIAL = (
+    ("KEP", "Kepler", TipoAlmacen.CENTRAL, None),
+    ("CON", "Contratistas", TipoAlmacen.SUBALMACEN, "KEP"),
+    ("MID", "Midrex", TipoAlmacen.PROYECTO, "CON"),
+    ("HYL", "HYL", TipoAlmacen.PROYECTO, "CON"),
+    ("LAM", "Laminador", TipoAlmacen.PROYECTO, "CON"),
+    ("MIN", "Minas", TipoAlmacen.PROYECTO, "CON"),
+)
+
+
+def sembrar_almacenes(session: Session) -> list[str]:
+    """Crea la red inicial si no hay ningún almacén y devuelve las claves creadas; con alguno ya
+    existente no escribe nada y devuelve `[]`. Hace `flush`, no `commit`."""
+    if session.scalar(select(func.count()).select_from(Almacen)):
+        return []
+    creados: dict[str, Almacen] = {}
+    for clave, nombre, tipo, clave_padre in RED_INICIAL:
+        padre = creados[clave_padre] if clave_padre else None
+        almacen = Almacen(
+            clave=clave, nombre=nombre, tipo=tipo, padre_id=padre.id if padre else None
+        )
+        session.add(almacen)
+        session.flush()
+        session.add(Ubicacion(tipo=TipoUbicacion.ALMACEN, almacen_id=almacen.id))
+        session.add(
+            Auditoria(
+                usuario_id=None,
+                accion="almacen.crear",
+                entidad="almacen",
+                entidad_id=str(almacen.id),
+                antes=None,
+                despues={
+                    "codigo": clave,
+                    "nombre": nombre,
+                    "tipo": str(tipo),
+                    "padre_id": str(padre.id) if padre else None,
+                    "origen": "mantenimiento.sembrar-almacenes",
+                },
+            )
+        )
+        creados[clave] = almacen
+    # Las ubicaciones virtuales (proveedor, en tránsito, consumido y baja) también hacen falta.
+    existentes = set(
+        session.scalars(select(Ubicacion.virtual).where(Ubicacion.virtual.is_not(None)))
+    )
+    for virtual in UbicacionVirtual:
+        if virtual.value not in existentes:
+            session.add(Ubicacion(tipo=TipoUbicacion.VIRTUAL, virtual=virtual.value))
+    session.flush()
+    return list(creados)
+
+
+def _comando_sembrar(session: Session, salida: Callable[[str], None]) -> int:
+    creados = sembrar_almacenes(session)
+    if not creados:
+        salida("Ya hay almacenes: no se creó nada.")
+        return 0
+    session.commit()
+    salida(f"Listo: se crearon {len(creados)} almacenes ({', '.join(creados)}).")
+    return 0
+
+
 def _comando_verificar(session: Session, salida: Callable[[str], None]) -> int:
     diferencias = verificar(session)
     if not diferencias:
@@ -591,6 +666,10 @@ def main(
     rec = sub.add_parser(
         "reconstruir-existencias", help="Recalcula las existencias desde la bitácora."
     )
+    sub.add_parser(
+        "sembrar-almacenes",
+        help="Crea Kepler, Contratistas, Midrex, HYL, Laminador y Minas si no hay ningún almacén.",
+    )
     grupo = rec.add_mutually_exclusive_group(required=True)
     grupo.add_argument(
         "--simular", action="store_true", help="Muestra las diferencias; no escribe."
@@ -604,6 +683,8 @@ def main(
     def correr(s: Session) -> int:
         if args.comando == "verificar":
             return _comando_verificar(s, salida)
+        if args.comando == "sembrar-almacenes":
+            return _comando_sembrar(s, salida)
         return _comando_reconstruir(
             s, aplicar=args.aplicar, salida=salida, pedir=pedir, interactivo=interactivo
         )

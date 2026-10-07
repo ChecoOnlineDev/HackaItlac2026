@@ -80,6 +80,10 @@ class Evaluacion:
     autorizacion_error: str | None = None
     # Lo fija el motor según el tipo: el vale de no adeudo no lleva renglones.
     admite_sin_renglones: bool = False
+    # El vale mismo pide una observación (X-03: ruta no habitual del Administrador).
+    pide_observacion_vale: bool = False
+    # Datos internos que el tipo le deja al motor (nunca salen al cliente).
+    datos: dict[str, Any] = field(default_factory=dict)
 
     @property
     def nivel(self) -> Nivel:
@@ -89,6 +93,8 @@ class Evaluacion:
     @property
     def pide_observacion(self) -> bool:
         """Algún renglón pide observación (E-09 en la entrega); uno en rojo no cuenta."""
+        if self.pide_observacion_vale and self.nivel != Nivel.ROJO:
+            return True
         return any(r.pide_observacion and r.nivel != Nivel.ROJO for r in self.renglones)
 
     @property

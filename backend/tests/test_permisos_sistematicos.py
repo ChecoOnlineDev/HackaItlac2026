@@ -334,6 +334,10 @@ ROLES_8_2: dict[str, str] = {
     P.ETIQUETAS_IMPRIMIR: "SCR",
     P.COMPRAS_SOLICITAR: "AS",
     P.COMPRAS_ATENDER: "C",
+    # FEAT-008
+    P.TRABAJADORES_NUMERO_EXTERNO: "",
+    P.ALMACENES_ADMINISTRAR: "",
+    P.TABLERO_VER: "AS",
 }
 LETRA_DE_ROL = {
     "Almacenista": "A",
@@ -348,6 +352,10 @@ assert set(ROLES_8_2) == CLAVES_MVP, "la tabla de 8.2 debe cubrir los permisos d
 # además por sus propias reglas). Todos son inofensivos: ids falsos o cuerpos vacíos. El «sin el
 # permiso» de la prueba de roles es 403; el «con él» solo cuenta si el rol trae también los extras.
 MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
+    P.TABLERO_VER: [
+        ("GET", "/api/tablero/resumen", None, set()),
+        ("GET", "/api/tablero/consumo", None, set()),
+    ],
     P.ACCESO_ADMINISTRAR: [
         ("GET", "/api/roles", None, set()),
         ("GET", "/api/usuarios", None, set()),
@@ -491,6 +499,13 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
     P.COMPRAS_ATENDER: [
         ("POST", f"/api/solicitudes-compra/{UUID_FALSO}/estado", {"estado": "EN_COMPRA"}, set()),
     ],
+    # FEAT-008. El `resumen=true` de la lista se prueba en tests/test_almacenes_administracion.py.
+    P.ALMACENES_ADMINISTRAR: [
+        ("POST", "/api/almacenes", {}, set()),
+        ("PATCH", f"/api/almacenes/{UUID_FALSO}", {"nombre": "x"}, set()),
+        ("POST", f"/api/almacenes/{UUID_FALSO}/cierre", None, set()),
+        ("POST", f"/api/almacenes/{UUID_FALSO}/reapertura", None, set()),
+    ],
 }
 # Permisos del catálogo sin endpoint propio que devuelva 403 (se prueban por comportamiento):
 # `trabajadores.ver_datos_personales` y `catalogo.costos` (datos reservados, sección d),
@@ -500,6 +515,8 @@ SIN_MUESTRA = {
     P.CATALOGO_COSTOS,
     P.VALES_CANCELAR_TODOS,
     P.ALMACENES_TODOS,
+    # `trabajadores.numero_externo` cambia lo que acepta el alta (test_trabajadores_numero.py).
+    P.TRABAJADORES_NUMERO_EXTERNO,
 }
 
 

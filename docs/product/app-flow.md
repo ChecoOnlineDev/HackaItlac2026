@@ -10,18 +10,36 @@ Son los cinco roles iniciales. Lo que puede cada uno sale de sus permisos (secci
 - **Supervisor**: autoriza y administra el catálogo; también puede operar un almacén, eligiéndolo.
 - **Compras**: inventario, entradas, importación, catálogo, reportes y la cola de solicitudes de compra urgente de todos los almacenes.
 - **RH**: trabajadores y bajas.
-- **Administrador**: tiene todos los permisos, así que ve todos los menús. Tiene además sus pantallas de administración: Personal por almacén (`/personal`), Usuarios (`/usuarios`) y Roles y permisos (`/roles`, `/roles/:id`; [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md)). Solo aparecen con `acceso.administrar`.
+- **Administrador**: tiene todos los permisos, así que ve todos los menús. Tiene además sus pantallas de administración: Almacenes (`/almacenes`; [FEAT-008](../features/FEAT-008-administracion-de-almacenes-y-tablero.md)), Usuarios (`/usuarios`) y Roles y permisos (`/roles`, `/roles/:id`; [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md)). Solo aparecen con `almacenes.administrar` y `acceso.administrar`.
 
 ## Navegación global
 
+El Inicio es el **tablero** para quien tiene `tablero.ver`, con los botones de operación **arriba** («Lo que haces hoy», FEAT-008). El menú se arma por permisos y se agrupa por tarea ([ui-ux.md](ui-ux.md), «Grupo de menú plegable»).
+
 ```
 Entrar
-  -> Almacenista   -> Inicio de almacén: Entregar | Devolver | Trasladar | Recibir (n) | Consultar (en el menú: Pedir compra urgente | Compras urgentes)
-  -> Supervisor    -> Autorizaciones (n) | Personal | Operar un almacén | Catálogo | Reportes (en el menú: Pedir compra urgente | Compras urgentes)
-  -> Compras       -> Solicitudes de compra (n) | Inventario | Entradas | Importar | Catálogo | Etiquetas | Reportes
-  -> RH            -> Trabajadores | Alta | Bajas
-  -> Administrador -> todos los menús anteriores | Administración: Usuarios | Roles y permisos
+  -> Almacenista   -> Inicio: Lo que haces hoy (Entregar | Devolver | Consultar) + tablero de su almacén
+  -> Supervisor    -> Inicio: Lo que haces hoy (Entregar | Devolver | Trasladar | Recibir (n) | Autorizaciones (n) | Consultar) + tablero de su almacén
+  -> Compras       -> Inicio: Solicitudes de compra (n) | Entradas pendientes (sin tablero)
+  -> RH            -> Inicio: Trabajadores | Altas recientes (sin tablero)
+  -> Administrador -> Inicio: Lo que haces hoy + tablero de todos los almacenes con selector
 ```
+
+Menú (un grupo plegable por tarea; cada entrada aparece solo con su permiso y un grupo sin entradas visibles no se pinta; el grupo de la sección actual va abierto):
+
+| Grupo | Entradas |
+|---|---|
+| **Inicio** | Resumen |
+| **Operación** | Entregar · Devolver · Trasladar · Recibir traspaso · Pedir compra urgente · Mis compras urgentes |
+| **Consulta** | Consultar · Mis movimientos de hoy |
+| **Personas** | Trabajadores · Alta de trabajador · Personal del almacén |
+| **Inventario** | Inventario · Entradas de proveedor · Importar inventario · Categorías · Artículos · Puestos · Etiquetas |
+| **Compras** | Solicitudes de compra |
+| **Supervisión** | Autorizaciones · Seguimiento de piezas |
+| **Reportes** | Existencias · Movimientos · Adeudos · Consumo |
+| **Administración** | Almacenes · Usuarios · Roles y permisos |
+
+Los nombres nuevos (decididos en FEAT-008): «Entrada de proveedor» (antes Entradas), «Recibir traspaso» (antes Recibir), «Mis compras urgentes» (antes Compras urgentes) e «Importar inventario» (antes Importar). Las rutas no cambian. Ocultar un módulo a un rol se hace quitándole el permiso en Roles y permisos; las entradas que comparten un permiso (por ejemplo Categorías, Artículos y Puestos, `catalogo.administrar`) se ocultan juntas.
 
 "Consultar" y la búsqueda están disponibles para todos; cada usuario ve solo lo que permiten los permisos de su rol (AC-05).
 
@@ -42,9 +60,12 @@ Entrar
 - **Pasos:**
 
 ```
-Capturar número de empleado
-  -> ya existe -> mostrar a la persona y sus pendientes -> Reingresar (T-02)
-  -> no existe -> capturar nombre, puesto, área u obra y periodo (T-03)
+Capturar nombre, puesto, área u obra y periodo (T-03); opcionales: tallas, CURP o NSS
+  (el número de empleado NO se captura: lo asigna el servidor, T-10)
+Guardar -> el servidor compara
+  -> la CURP ya existe -> mostrar a la persona y sus pendientes -> Reingresar (T-02)
+  -> sin CURP y el nombre completo coincide con otra persona -> aviso de coincidencia -> Reingresar a esa persona | "Es otra persona" (confirmar_distinta)
+  -> no coincide -> alta; la ficha y la confirmación muestran el número asignado (E-000001)
 Ligar credencial (T-05)
   -> escanear la credencial de la planta
   -> o generar un QR propio para imprimir
@@ -53,7 +74,8 @@ Guardar -> con `etiquetas.imprimir` y credencial ligada: imprimir o descargar la
        -> si no, ficha del trabajador
 ```
 
-- **Decisiones:** número repetido; periodo con fin anterior al inicio; credencial ya ligada a otra persona.
+- **Orden real de la pantalla.** El servidor compara al guardar; la pantalla puede avisar antes, al salir del campo CURP o nombre, con la misma consulta de coincidencias. Solo quien tiene `trabajadores.numero_externo` (el Administrador) ve el campo opcional «Número de empleado propio del centro»; RH no lo ve (T-10).
+- **Decisiones:** CURP repetida o nombre completo coincidente (reingreso); periodo con fin anterior al inicio; credencial ya ligada a otra persona.
 - **Éxito:** trabajador Activo y vigente; su credencial lo identifica en cualquier almacén.
 - **Error:** dato obligatorio faltante marcado en el campo; código de credencial repetido indica de quién es.
 - **Cancelación:** salir sin guardar no crea nada.
@@ -214,7 +236,8 @@ Confirmar -> vale de devolución con folio (V-11)
 - **Pasos:**
 
 ```
-Elegir almacén de destino (se sugieren las rutas habituales, X-03)
+Elegir almacén de destino (se ofrecen las rutas habituales: padre o hijo del almacén, X-03)
+  -> otra ruta: solo con `almacenes.todos`; aviso amarillo y observación obligatoria (X-03). Para los demás, ni se ofrece; si el servidor la recibe, la marca en rojo (`RUTA_SOLO_ADMINISTRADOR`)
 Escanear artículos -> renglones con nivel (X-02, X-04)
 Confirmar -> vale de traspaso con folio y QR; estado En tránsito (X-06)
 ```
@@ -313,13 +336,14 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 - **Entrada:** Menú -> Administración -> Usuarios (`/usuarios`) o Roles y permisos (`/roles`); permiso `acceso.administrar` (AC-08).
 - **Usuarios:** búsqueda por nombre o usuario a la vista y filtros de rol, almacén y estado en "Filtros". "Nuevo usuario" abre una hoja (nombre, usuario, rol, almacén, contraseña y, si el rol autoriza, PIN opcional). El almacén solo se pide si el rol no tiene `almacenes.todos` (RG-07). "Editar" cambia nombre, rol y almacén; "Contraseña" abre una hoja con confirmación (se cierran las sesiones abiertas y se quitan los bloqueos); "Inactivar" o "Reactivar" piden confirmación. Nadie puede inactivarse a sí mismo desde la pantalla, y el servidor rechaza inactivar o cambiar de rol al último administrador (`ULTIMO_ADMINISTRADOR`, AC-09).
 - **Roles:** tarjetas con nombre, descripción, número de usuarios y de permisos; "Nuevo rol" crea uno sin permisos y "Duplicar" copia los permisos de otro. "Ver permisos" abre `/roles/:id`: la matriz de permisos agrupada por módulo, con un interruptor por permiso, su descripción en lenguaje de persona y la clave técnica en segundo plano. Los permisos de información reservada (costos, CURP y NSS) llevan su advertencia. Activar un permiso de acción activa también los de ver que necesita. Los que no se pueden cambiar quedan deshabilitados con su razón: el Administrador siempre lleva `acceso.administrar`, nadie se lo quita a su propio rol, y no se quita un permiso de ver mientras otro lo necesita.
+- **Botón por grupo (FEAT-008, 4.5):** cada grupo de la matriz trae un contador («3 de 5 activos») y un botón: «Activar todos» si está vacío o a medias, «Quitar todos» si está completo. Arriba de la matriz, opcionalmente, «Activar todo» y «Quitar todo». El botón **solo mueve los interruptores en pantalla** (no guarda): los cambios se revisan en la barra de abajo y se pueden descartar. Respeta lo que bloquea un interruptor (el permiso protegido se queda como está y el botón avisa cuántos no pudo mover y por qué) y las dependencias (activar enciende el permiso de ver que necesita; quitar un permiso de ver quita los que dependen de él). Al guardar, la confirmación nombra aparte los datos reservados que se agregan («incluye ver costos y datos personales»). La API no cambia: `PUT /api/roles/{id}/permisos` con la lista final.
 - **Guardar:** con cambios aparece una barra con "Se agregan 2 permisos y se quitan 1" y qué cambia exactamente (también si el rol recibe o pierde `almacenes.todos` y qué le pasa a sus usuarios). "Guardar cambios" pide confirmación; el cambio aplica en la siguiente acción de cada persona (AC-10) y la sesión de quien se edita su propio rol se actualiza al instante.
 - **Estado del rol:** "Inactivar rol" y "Eliminar rol" quedan deshabilitados, con la razón escrita debajo, si el rol es el Administrador, es uno de los cinco iniciales (solo la eliminación) o tiene usuarios (AC-11).
 - **Sin permiso:** "Tu rol no puede hacer esto".
 
 ## Flujo 17: Personal por almacén (supervisor y administrador)
 
-- **Entrada:** Menú -> Supervisión -> Personal (`/personal`, permiso `almacenes.asignar_personal`; AC-12, AC-13).
+- **Entrada:** Menú -> Personas -> Personal del almacén (`/personal`, permiso `almacenes.asignar_personal`; AC-12, AC-13). Antes colgaba del grupo Supervisión; FEAT-008 lo pasa a Personas.
 - **Pasos:** buscar por nombre o usuario, o filtrar por almacén o "Sin almacén" -> "Cambiar almacén" en la persona -> elegir el almacén (o "Sin almacén") -> la hoja dice en una frase qué cambiará ("Ana pasará de Kepler a Contratistas") -> Guardar -> aviso de éxito y la lista se actualiza.
 - **Quiénes aparecen:** solo quienes operan un almacén (los que no tienen `almacenes.todos`). El servidor decide si el cambio procede; si lo rechaza (422), la hoja muestra su mensaje junto a la lista desplegable.
 - **Efecto:** aplica en cuanto la persona vuelve a usar el sistema; no toca vales ni movimientos ya hechos.
@@ -354,6 +378,45 @@ La solicitud de compra urgente (reglas SC-01 a SC-11). Quien pide la levanta des
 - **Errores:** los del servidor se escriben dentro de la misma ventana, junto a lo que falló: un vale que no sirve (422, SC-06) bajo la lista de vales; una solicitud que otra persona ya cambió (409, SC-04) como aviso en la ventana y el detalle se recarga.
 - **Vacío y error:** "No hay solicitudes de compra" (con filtros, "No hay solicitudes con ese filtro" y "Quitar filtros"); si no carga, mensaje y Reintentar. Sin el permiso, "Tu rol no puede hacer esto".
 
+## Flujo 21: Administración de almacenes (administrador)
+
+Parte de [FEAT-008](../features/FEAT-008-administracion-de-almacenes-y-tablero.md) (AL-01 a AL-05).
+
+- **Entrada:** Menú -> Administración -> Almacenes (`/almacenes`, permiso `almacenes.administrar`). Sin el permiso, la entrada no existe en el menú y la ruta dice «Tu rol no puede hacer esto».
+- **Lista:** una fila por almacén (tabla en computadora y tableta, tarjetas en celular) con clave, nombre, tipo, de cuál depende, estado en una insignia (Activo o Cerrado) y el resumen (existencias, piezas en resguardo, usuarios). Los cerrados salen atenuados. Búsqueda a la vista y estado en «Filtros». Los números salen de `GET /api/almacenes?resumen=true`.
+- **Alta:** «Nuevo almacén» abre una hoja con clave, nombre, tipo y «De qué almacén depende» (obligatorio salvo el central; solo se ofrecen los activos). Errores del servidor junto al campo: clave o nombre repetidos, ya hay central, padre inválido. Al guardar, aviso y el almacén aparece en la lista.
+- **Editar:** nombre y de qué depende; la clave solo mientras el almacén no tenga folios (si los tiene, el campo sale bloqueado con la razón). Un almacén cerrado no se edita.
+- **Inactivar:** el botón está en la ficha del almacén. Una confirmación nombra el almacén y dice en una frase qué pasará. El botón «Inactivar» queda deshabilitado mientras `puede_cerrar` sea falso y, debajo, cada bloqueo se explica con su enlace: existencias (qué artículos y cuántas; «Regrésalas por traspaso a …»), traspasos en tránsito (con los folios), almacenes que dependen de él, y usuarios (quiénes, con enlace a Personal del almacén para reasignarlos). Las piezas en manos de trabajadores no bloquean y se avisan. Si el servidor responde un bloqueo (409), la ventana lo escribe junto al botón y la ficha se actualiza.
+- **Reactivar:** «Reactivar» en un almacén cerrado, con confirmación; vuelve a operar con su clave y su historial. Si su padre está cerrado, el botón dice por qué no puede.
+- **Vínculos:** desde la ficha, enlaces a sus usuarios (`/personal`), su inventario (`/inventario` filtrado) y sus solicitudes de compra. No se duplican pantallas.
+- **Puesta en marcha de la red (base vacía):**
+
+```
+1. Administrador -> Almacenes -> Kepler (CENTRAL)
+   (o el comando `sembrar-almacenes`, que crea los seis de una vez)
+2. Contratistas (SUBALMACEN, depende de Kepler)
+3. Asignar personal a cada almacén: un supervisor y los almacenistas (Usuarios y Personal del almacén)
+4. Compras carga el inventario de Kepler (Importar inventario, modo Alta, o Entrada de proveedor)
+5. Supervisor de Kepler -> Trasladar a Contratistas
+6. Al empezar un mantenimiento: Administrador -> Nuevo almacén (PROYECTO, depende de Contratistas) y su personal
+7. Supervisor de Contratistas -> Trasladar al proyecto
+```
+
+- **Cierre de un proyecto:** el supervisor devuelve el sobrante por traspaso a Contratistas, registra faltantes y revisa el reporte de cierre ([FEAT-002](../features/FEAT-002-cierre-de-almacen.md)); el Administrador reasigna a su personal y lo inactiva. La puesta en marcha y el cierre completos, con sus reglas, están en [red-de-almacenes-y-flujo.md](red-de-almacenes-y-flujo.md).
+- **Estados:** esqueleto al cargar; error con «Reintentar».
+
+## Flujo 22: Inicio y tablero (almacenista, supervisor y administrador)
+
+Parte de FEAT-008 (TB-01 a TB-03).
+
+- **Entrada:** `/` con sesión. El Inicio depende de los permisos, nunca del nombre del rol.
+- **Orden de la pantalla:** primero «Lo que haces hoy» (los botones de operación del rol, grandes), debajo las tarjetas y, al final, la gráfica de lo más usado.
+- **Quién ve el tablero:** quien tiene `tablero.ver` (Administrador, Supervisor y Almacenista de inicio). Con `almacenes.todos` (Administrador) ve todos los almacenes y un selector «Viendo: Todos los almacenes» con la lista de almacenes; el rótulo «Viendo: Midrex» avisa que el selector solo cambia lo que se mira, no el almacén en el que se opera. Sin `almacenes.todos`, ve solo su almacén, sin selector. Compras y RH no tienen tablero: su Inicio muestra lo suyo (solicitudes por atender, trabajadores y altas recientes).
+- **Tarjetas** (de `GET /api/tablero/resumen`): Existencias, Equipo importante en resguardo, Sin existencia, Traspasos en tránsito, Entregas de hoy, Solicitudes de compra abiertas e Inspecciones por vencer. Cada una dice en una línea qué cuenta. Tocar «Equipo importante en resguardo» abre `/seguimiento` con las piezas en manos de trabajadores; «Traspasos en tránsito», `/recibir`; «Solicitudes de compra abiertas», `/compras` o `/compras/mias` según el permiso. Las demás no navegan.
+- **Gráfica «Lo más usado»** (de `GET /api/tablero/consumo`): filtros Almacén (solo con `almacenes.todos`), Periodo (Hoy, 7 días, Este mes, Mes pasado, Elegir fechas; por omisión Este mes) y Categoría (por omisión Consumibles de trabajo); «Limpiar filtros»; interruptor «Separar por almacén» solo con todos los almacenes. Se actualiza al cambiar cualquier filtro, con indicador de carga y sin borrar la anterior hasta que llega la nueva. Cada barra se toca y abre el artículo (`/articulos/:id`).
+- **Estados:** sin consumo en el rango, «No hubo consumo en estas fechas»; error con «Reintentar»; sin almacén asignado, el aviso «No tienes un almacén asignado» y las tarjetas en cero.
+- **Sin permiso:** quien no tiene `tablero.ver` no ve el tablero y `GET /api/tablero/*` responde 403.
+
 ## Estados transversales
 
 | Estado | Comportamiento |
@@ -370,7 +433,8 @@ La solicitud de compra urgente (reglas SC-01 a SC-11). Quien pide la levanta des
 | Ruta | Pantalla | Roles iniciales |
 |---|---|---|
 | `/entrar` | Entrar | Todos |
-| `/` | Inicio según el rol | Todos |
+| `/` | Inicio según el rol: «Lo que haces hoy» y, con `tablero.ver`, el tablero (flujo 22) | Todos; el tablero, Administrador, supervisor y almacenista |
+| `/almacenes` | Administración de almacenes: lista, alta, edición, inactivar y reactivar (flujo 21) | Administrador (`almacenes.administrar`) |
 | `/entregar` | Entrega | Almacenista, supervisor |
 | `/devolver` | Devolución | Almacenista, supervisor |
 | `/trasladar` | Traspaso, salida | Almacenista, supervisor |
@@ -402,4 +466,4 @@ La solicitud de compra urgente (reglas SC-01 a SC-11). Quien pide la levanta des
 - Cierre de almacén de proyecto ([FEAT-002](../features/FEAT-002-cierre-de-almacen.md)).
 - Cierre sin devolución y equipo dado por perdido.
 - Lista de revisión del supervisor.
-- Tablero general por almacén.
+- Periodo por apertura de un almacén de proyecto (ciclos al reactivar): mientras tanto el reporte de cierre se pide por rango de fechas.
