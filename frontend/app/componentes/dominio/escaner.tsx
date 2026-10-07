@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { CameraIcon, CameraOffIcon, CornerDownLeftIcon, InfoIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 
+import { practicaActiva } from "~/api/practica";
 import { Boton } from "~/componentes/ui/boton";
 import { Campo } from "~/componentes/ui/campo";
 import { prepararSonido, reproducir } from "./sonido";
@@ -31,6 +32,9 @@ const FORMATOS = ["qr_code", "code_128", "code_39", "ean_13", "ean_8", "upc_a", 
 
 /** Con qué entrada llegó el código. Las tres entregan lo mismo. */
 export type OrigenLectura = "camara" | "pistola" | "teclado";
+
+/** Evento con el que el tutorial entrega un código de ejemplo a un escáner con `ancla`. */
+export const EVENTO_ESCANEO_SIMULADO = "tutorial:escanear";
 
 /** Mismo código leído en menos de este tiempo: se ignora. */
 export const VENTANA_REPETIDO_MS = 1500;
@@ -62,6 +66,11 @@ export interface PropiedadesEscaner {
   etiquetaCampo?: string;
   placeholderCampo?: string;
   className?: string;
+  /**
+   * Valor de `data-tutorial` de este escáner (FEAT-010). El tutorial puede «escanear un ejemplo»
+   * mandando el evento `tutorial:escanear` con `{ ancla, codigo }`.
+   */
+  ancla?: string;
   /**
    * Mensaje que la pantalla quiere mostrar junto al campo tras una lectura (por ejemplo un código que no
    * corresponde). Cambia `n` para mostrarlo de nuevo; se oculta solo a los 5 s. Opcional.
@@ -98,6 +107,7 @@ export function Escaner({
   etiquetaCampo = "Escribir código o buscar",
   placeholderCampo = "Código, número o nombre",
   className,
+  ancla,
   retroalimentacion = null,
   ref,
 }: PropiedadesEscaner) {
@@ -174,6 +184,17 @@ export function Escaner({
       window.removeEventListener("keydown", preparar, { capture: true });
     };
   }, []);
+
+  // ------------------------------------------------------------------ escaneo simulado del tutorial (TU-06)
+  useEffect(() => {
+    if (!ancla) return;
+    const alSimular = (e: Event) => {
+      const d = (e as CustomEvent<{ ancla: string; codigo: string }>).detail;
+      if (d?.ancla === ancla && d.codigo) procesar(d.codigo, "teclado");
+    };
+    window.addEventListener(EVENTO_ESCANEO_SIMULADO, alSimular);
+    return () => window.removeEventListener(EVENTO_ESCANEO_SIMULADO, alSimular);
+  }, [ancla, procesar]);
 
   // ------------------------------------------------------------------ pistola
   useEffect(() => {
@@ -253,7 +274,8 @@ export function Escaner({
   }, [activo, mantenerPantalla]);
 
   // ------------------------------------------------------------------ cámara
-  const camaraEncendida = quiereCamara && activo && soportaCamara === true;
+  // En práctica (TU-06) la cámara nunca se enciende.
+  const camaraEncendida = quiereCamara && activo && soportaCamara === true && !practicaActiva();
   useEffect(() => {
     if (!camaraEncendida) {
       setCamara("cerrada");
@@ -359,7 +381,7 @@ export function Escaner({
   const camaraVisible = camaraEncendida;
 
   return (
-    <div className={cn("flex flex-col gap-3", className)} data-slot="escaner">
+    <div className={cn("flex flex-col gap-3", className)} data-slot="escaner" data-tutorial={ancla}>
       <div className="flex flex-col gap-3">
         {camaraVisible ? (
           <div className="relative overflow-hidden rounded-2xl border-2 border-primary bg-black">

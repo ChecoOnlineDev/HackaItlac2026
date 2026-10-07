@@ -43,6 +43,8 @@ Los nombres nuevos (decididos en FEAT-008): «Entrada de proveedor» (antes Entr
 
 "Consultar" y la búsqueda están disponibles para todos; cada usuario ve solo lo que permiten los permisos de su rol (AC-05).
 
+El interruptor **«Tutorial»** (FEAT-010) está en el pie del menú lateral, en la hoja «Menú» del celular y en el encabezado móvil dentro de los flujos; lo ve cualquier usuario con sesión y se describe en el Flujo 23.
+
 ## Flujo 1: Entrar
 
 - **Entrada:** cualquier ruta sin sesión.
@@ -465,6 +467,27 @@ Parte de FEAT-008 (TB-01 a TB-03).
 - **Gráfica «Lo más usado»** (de `GET /api/tablero/consumo`): filtros Almacén (solo con `almacenes.todos`), Periodo (Hoy, 7 días, Este mes, Mes pasado, Elegir fechas; por omisión Este mes) y Categoría (por omisión Consumibles de trabajo); «Limpiar filtros»; interruptor «Separar por almacén» solo con todos los almacenes. Se actualiza al cambiar cualquier filtro, con indicador de carga y sin borrar la anterior hasta que llega la nueva. Cada barra se toca y abre el artículo (`/articulos/:id`).
 - **Estados:** sin consumo en el rango, «No hubo consumo en estas fechas»; error con «Reintentar»; sin almacén asignado, el aviso «No tienes un almacén asignado» y las tarjetas en cero.
 - **Sin permiso:** quien no tiene `tablero.ver` no ve el tablero y `GET /api/tablero/*` responde 403.
+
+## Flujo 23: Tutorial guiado de práctica (cualquier usuario con sesión)
+
+Parte de FEAT-010 (TU-01 a TU-10). Es solo de interfaz: no usa la API ni cambia datos.
+
+- **Entrada:** el interruptor «Tutorial». Al encenderlo aparece la lista de recorridos que los permisos de la sesión permiten, y una banda fija «Práctica: nada de esto se guarda». No hay pantalla de bienvenida.
+- **Recorridos** (cada uno solo con su permiso, nunca por el nombre del rol):
+
+| Recorrido | Permiso | Pasos que se resaltan |
+|---|---|---|
+| Entregar | `entregas.crear` | Escanear o escribir el trabajador → «Continuar» → escanear artículos y leer el semáforo → «Continuar» → firma → «Confirmar entrega» → folio de práctica |
+| Devolver | `devoluciones.crear` | Escanear la pieza → elegir la condición (Bueno, Desgaste por uso o Dañado) → «Confirmar devolución» → folio de práctica |
+| Consultar | ninguno | Escanear o escribir → leer la ficha → atajo a la acción siguiente |
+| Recibir un traspaso | `traspasos.recibir` | Abrir el traspaso → «Recibir todo» o marcar por renglón → «Confirmar recepción» |
+
+- **Cada paso:** la pantalla se oscurece y se bloquea; solo el elemento del paso actúa, rodeado por un círculo y una flecha, con un globo de una o dos frases. Un paso de lectura trae «Siguiente»; «Salir» y `Escape` terminan siempre.
+- **Escaneo en práctica:** no se enciende la cámara; el globo ofrece «Escanear un ejemplo». El campo de texto acepta los códigos de ejemplo.
+- **Datos:** un trabajador y unos artículos ficticios. La confirmación muestra un folio de práctica. No se crea ningún vale, movimiento ni auditoría, no se escribe ningún borrador y «Mis movimientos de hoy» no cambia.
+- **Salida:** al salir o al terminar, se quita la banda y la pantalla vuelve a operar con datos reales. El recorrido terminado se marca en el dispositivo (`localStorage`) y puede repetirse.
+- **Estados:** si el ancla de un paso no existe en la pantalla, el paso se omite; sin permiso para ningún recorrido, el interruptor muestra «No hay recorridos para tu usuario».
+- **Fuera del recorrido:** Trasladar (enviar), Autorización, reportes, RH, Compras y administración.
 
 ## Estados transversales
 

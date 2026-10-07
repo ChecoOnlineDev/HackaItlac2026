@@ -18,6 +18,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "~/components/ui/sidebar";
+import { InterruptorTutorial } from "~/componentes/tutorial/interruptor-tutorial";
 import { ConfirmarSalida } from "./confirmar-salida";
 import { InstalarApp } from "./instalar-app";
 import { EncabezadoGrupo, PanelGrupo } from "./grupo-menu";
@@ -119,6 +120,7 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <InstalarApp />
+          <InterruptorTutorial />
           <Boton variante="contorno" onClick={() => setConfirmandoSalida(true)}>
             <LogOutIcon aria-hidden="true" />
             Salir

@@ -46,6 +46,8 @@ interface PropiedadesFichaTrabajador {
   /** Abre la lista de la dotación ("Ver dotación"). */
   alVerDotacion?: () => void;
   className?: string;
+  /** Valor de `data-tutorial` (FEAT-010). */
+  ancla?: string;
 }
 
 function textoResguardo(n: number): string {
@@ -60,7 +62,7 @@ function textoResguardo(n: number): string {
  * <FichaTrabajador trabajador={ficha} variante="completa" />
  * ```
  */
-export function FichaTrabajador({ trabajador, variante = "completa", dotacion = null, alVerDotacion, className }: PropiedadesFichaTrabajador) {
+export function FichaTrabajador({ trabajador, variante = "completa", dotacion = null, alVerDotacion, className, ancla }: PropiedadesFichaTrabajador) {
   const { vigencia, periodo } = trabajador;
   const vigente = vigencia.vigente;
   const subtitulo = [trabajador.puesto, trabajador.area_obra].filter(Boolean).join(" · ");
@@ -131,7 +133,7 @@ export function FichaTrabajador({ trabajador, variante = "completa", dotacion = 
 
   if (variante === "reducida") {
     return (
-      <section aria-label={`Trabajador ${trabajador.nombre}`} className={contenedor}>
+      <section aria-label={`Trabajador ${trabajador.nombre}`} className={contenedor} data-tutorial={ancla}>
         {bandaRoja}
         {cabecera}
       </section>
@@ -139,7 +141,7 @@ export function FichaTrabajador({ trabajador, variante = "completa", dotacion = 
   }
 
   return (
-    <section aria-label={`Trabajador ${trabajador.nombre}`} className={contenedor}>
+    <section aria-label={`Trabajador ${trabajador.nombre}`} className={contenedor} data-tutorial={ancla}>
       {bandaRoja}
       {cabecera}
       {dotacion && vigente ? (

@@ -57,7 +57,7 @@ export function PasoFirma({ renglones, firma, alCambiarFirma, observacion, desha
         <p className="rounded-xl bg-muted p-4 text-sm leading-relaxed">{LEYENDA_RESPONSABILIDAD}</p>
       </section>
 
-      <section aria-label="Firma del trabajador" className="flex flex-col gap-2">
+      <section aria-label="Firma del trabajador" data-tutorial="entrega-firma" className="flex flex-col gap-2">
         {restaurada && firma ? (
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2">

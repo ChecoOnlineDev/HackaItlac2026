@@ -119,6 +119,10 @@ Si falta una herramienta o un equipo para un trabajo y tu almacén no lo tiene (
 - **Ver cómo va.** Menú → **Compras urgentes**: las solicitudes de tu almacén, incluidas las de tus compañeros (así sabes si ya se pidió). Cada una dice su estado: **Pendiente** (Compras aún no la toma), **En compra**, **Comprada** e **Ingresada al almacén** (ya llegó y se puede entregar); o **Rechazada**, y entonces ahí mismo lees la nota de Compras con la razón. Busca por folio, artículo o motivo, o filtra por estado o urgencia.
 - **Cancelar.** Solo mientras sigue **Pendiente**: toca **Cancelar** en esa solicitud, confirma con **Sí, cancelarla** y, si quieres, deja una nota. Cancelas las que tú pediste; tu supervisor puede cancelar cualquiera de tu almacén. Si Compras ya la tomó, no se cancela: pídele a Compras que la rechace.
 
+## Practicar con el tutorial
+
+Si quieres practicar sin registrar nada de verdad, enciende **Tutorial** (abajo en el menú; en el celular, dentro de **Menú**). Elige un recorrido: **Entregar**, **Devolver**, **Consultar** o **Recibir un traspaso** (solo ves los que tu usuario puede hacer). La pantalla se oscurece y te marca con un círculo y una flecha dónde tocar; el globo te dice qué hacer. En los pasos de escanear, toca **Escanear un ejemplo**. Arriba verás «Práctica: nada de esto se guarda»: no se crea ningún vale ni cambia el inventario. Para salir en cualquier momento, toca **Salir** o la tecla Escape.
+
 ## 10. Si se va la red o algo falla
 
 - **El sistema está ocupado.** Si al confirmar dice que el sistema está ocupado, espera unos segundos y toca **Reintentar**; el vale no se guarda dos veces.

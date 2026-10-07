@@ -683,7 +683,9 @@ export default function Devolver() {
   let accion: React.ReactNode;
 
   if (borrador.resultado) {
-    contenido = <ResultadoEntrega vale={borrador.resultado} titulo="Devolución guardada" nombreVale="Vale de devolución" />;
+    contenido = (
+      <ResultadoEntrega vale={borrador.resultado} titulo="Devolución guardada" nombreVale="Vale de devolución" ancla="devolver-resultado" />
+    );
     accion = (
       <AccionPrincipal>
         <Boton variante="principal" onClick={empezarDeNuevo}>
@@ -809,6 +811,7 @@ export default function Devolver() {
 
           <div className="order-1 flex flex-col gap-3 md:sticky md:top-4 md:order-2">
             <Escaner
+              ancla="devolver-escaner"
               activo={!observando && !cantidadDe && !resultadosBusqueda && !descartando && !enviando}
               sonidoAlLeer={false}
               onCodigo={(codigo, origen) => void alLeer(codigo, origen)}
@@ -859,7 +862,7 @@ export default function Devolver() {
     );
     accion = (
       <AccionPrincipal nota={razon}>
-        <Boton variante="principal" cargando={enviando} disabled={!listo && !reintento} onClick={() => void confirmar()}>
+        <Boton variante="principal" data-tutorial="devolver-confirmar" cargando={enviando} disabled={!listo && !reintento} onClick={() => void confirmar()}>
           {reintento ? "Reintentar" : "Confirmar devolución"}
         </Boton>
       </AccionPrincipal>

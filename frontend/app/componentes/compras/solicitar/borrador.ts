@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { practicaActiva } from "~/api/practica";
 import { nuevoId } from "~/componentes/entradas/tipos";
 import type { ArticuloElegido, Urgencia } from "./tipos";
 
@@ -46,6 +47,7 @@ export function nuevoBorradorCompra(usuarioId: string, almacenId = ""): Borrador
 }
 
 function leer(usuarioId: string): BorradorCompra | null {
+  if (practicaActiva()) return null; // TU-07
   try {
     const texto = window.localStorage.getItem(CLAVE);
     if (!texto) return null;
@@ -59,6 +61,7 @@ function leer(usuarioId: string): BorradorCompra | null {
 }
 
 function guardar(borrador: BorradorCompra) {
+  if (practicaActiva()) return; // TU-07
   try {
     window.localStorage.setItem(CLAVE, JSON.stringify(borrador));
   } catch {
@@ -67,6 +70,7 @@ function guardar(borrador: BorradorCompra) {
 }
 
 export function borrarBorradorCompra() {
+  if (practicaActiva()) return; // TU-07
   try {
     window.localStorage.removeItem(CLAVE);
   } catch {

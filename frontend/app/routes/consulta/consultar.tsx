@@ -105,7 +105,7 @@ export default function Consultar() {
     >
       {!conResultado ? (
         <>
-          <Escaner onCodigo={(c, o) => void consultar(c, o)} activo={!buscando} />
+          <Escaner ancla="consultar-escaner" onCodigo={(c, o) => void consultar(c, o)} activo={!buscando} />
           {resultado?.tipo === "aviso" ? (
             <p role="alert" className="rounded-2xl border bg-muted p-3 text-sm font-medium">
               {resultado.mensaje}

@@ -19,15 +19,17 @@ interface PropiedadesControlCondicion {
   /** Texto que nombra el grupo para quien usa lector de pantalla. */
   etiqueta?: string;
   className?: string;
+  /** Valor de `data-tutorial` (FEAT-010). */
+  ancla?: string;
 }
 
 /**
  * Los tres botones grandes de cómo regresa lo devuelto: Bueno, Desgaste por uso y Dañado (V-04).
  * La elegida lleva palomita y color de relleno, no solo color. No usa los colores del semáforo.
  */
-export function ControlCondicion({ valor, alCambiar, deshabilitado = false, etiqueta = "Cómo regresa", className }: PropiedadesControlCondicion) {
+export function ControlCondicion({ valor, alCambiar, deshabilitado = false, etiqueta = "Cómo regresa", className, ancla }: PropiedadesControlCondicion) {
   return (
-    <div role="group" aria-label={etiqueta} className={cn("grid grid-cols-3 gap-2", className)}>
+    <div role="group" aria-label={etiqueta} data-tutorial={ancla} className={cn("grid grid-cols-3 gap-2", className)}>
       {ORDEN.map((condicion) => {
         const Icono = ICONO[condicion];
         const elegida = valor === condicion;

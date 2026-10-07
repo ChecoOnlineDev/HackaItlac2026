@@ -2,12 +2,14 @@
 // servidor confirma: sobreviven a una recarga o a un corte de red y nada se da por guardado antes de la
 // respuesta del servidor (E-28, ES-10). Comparten helpers con el borrador de la entrega.
 
+import { practicaActiva } from "~/api/practica";
 import { nuevoIdCliente, type RenglonBorrador } from "~/componentes/entrega/borrador";
 import type { ValeConfirmadoApi } from "~/componentes/entrega/tipos";
 
 export { claveDeCodigo, nuevoIdCliente } from "~/componentes/entrega/borrador";
 
 function leer<T>(clave: string): T | null {
+  if (practicaActiva()) return null; // TU-07: en práctica no se lee ni se escribe nada
   try {
     const texto = window.localStorage.getItem(clave);
     return texto ? (JSON.parse(texto) as T) : null;
@@ -16,6 +18,7 @@ function leer<T>(clave: string): T | null {
   }
 }
 function guardar(clave: string, valor: unknown): boolean {
+  if (practicaActiva()) return true; // TU-07
   try {
     window.localStorage.setItem(clave, JSON.stringify(valor));
     return true;
@@ -24,6 +27,7 @@ function guardar(clave: string, valor: unknown): boolean {
   }
 }
 function borrar(clave: string) {
+  if (practicaActiva()) return; // TU-07
   try {
     window.localStorage.removeItem(clave);
   } catch {

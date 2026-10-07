@@ -3,6 +3,7 @@
 // de la respuesta del servidor (E-28, ES-10). Otras pantallas de captura (devolver, trasladar)
 // pueden reutilizar `RenglonBorrador`, `nuevoIdCliente`, `leerBorrador` y `guardarBorrador`.
 
+import { practicaActiva } from "~/api/practica";
 import type { FichaTrabajadorApi, FirmaCapturada, ValeConfirmadoApi } from "./tipos";
 
 /** Un renglón capturado: solo el código, la cantidad y, si se pidió, la observación. */
@@ -86,6 +87,7 @@ export function claveDeCodigo(codigo: string): string {
 
 /** El borrador guardado de este usuario, o null (nada guardado, otro usuario o datos dañados). */
 export function leerBorrador(usuarioId: string): BorradorEntrega | null {
+  if (practicaActiva()) return null; // TU-07: en práctica no se lee ni se escribe nada
   try {
     const texto = window.localStorage.getItem(CLAVE);
     if (!texto) return null;
@@ -102,6 +104,7 @@ export function leerBorrador(usuarioId: string): BorradorEntrega | null {
 
 /** Guarda el borrador. Devuelve `false` si el dispositivo no deja guardar (la captura sigue en pantalla). */
 export function guardarBorrador(borrador: BorradorEntrega): boolean {
+  if (practicaActiva()) return true; // TU-07
   if (borrador.paso === "resultado") {
     borrarBorrador();
     return true;
@@ -115,6 +118,7 @@ export function guardarBorrador(borrador: BorradorEntrega): boolean {
 }
 
 export function borrarBorrador(): void {
+  if (practicaActiva()) return; // TU-07: no se toca el borrador real
   try {
     window.localStorage.removeItem(CLAVE);
   } catch {

@@ -33,13 +33,15 @@ interface PropiedadesPasoTrabajador {
   alIdentificar: (ficha: FichaTrabajadorApi) => void;
   /** Apaga el escáner (por ejemplo mientras no se ha elegido almacén). */
   activo?: boolean;
+  /** `data-tutorial` del escáner y de la ficha (FEAT-010). */
+  anclas?: { escaner: string; ficha: string };
 }
 
 /**
  * Paso 1 de la entrega: identificar al trabajador con la credencial (cámara o pistola), su número de
  * empleado o su nombre. Al identificarlo aparece su ficha; si no es vigente, toda en rojo (E-02).
  */
-export function PasoTrabajador({ trabajador, alIdentificar, activo = true }: PropiedadesPasoTrabajador) {
+export function PasoTrabajador({ trabajador, alIdentificar, activo = true, anclas }: PropiedadesPasoTrabajador) {
   const [buscando, setBuscando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [candidatos, setCandidatos] = useState<CandidatoApi[] | null>(null);
@@ -128,6 +130,7 @@ export function PasoTrabajador({ trabajador, alIdentificar, activo = true }: Pro
         <h2>Confirma que es la persona correcta</h2>
         <FichaTrabajador
           trabajador={trabajador}
+          ancla={anclas?.ficha}
           variante="completa"
           dotacion={resumenDeDotacion(dotacion)}
           alVerDotacion={() => setViendoDotacion(true)}
@@ -144,6 +147,7 @@ export function PasoTrabajador({ trabajador, alIdentificar, activo = true }: Pro
         <p className="text-sm text-muted-foreground">Si no la tiene a la mano, escribe su número o su nombre.</p>
       </div>
       <Escaner
+        ancla={anclas?.escaner}
         activo={activo && !buscando}
         onCodigo={(codigo, origen) => void alCodigo(codigo, origen)}
         etiquetaCampo="Escribir número o nombre"

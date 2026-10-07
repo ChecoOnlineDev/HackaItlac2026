@@ -20,6 +20,8 @@ interface PropiedadesConfirmacion {
   /** Pinta el botón de confirmar como acción que no se deshace. */
   peligro?: boolean;
   cargando?: boolean;
+  /** Valor de `data-tutorial` del botón de confirmar (FEAT-010). */
+  ancla?: string;
   alConfirmar: () => void;
 }
 
@@ -33,6 +35,7 @@ export function Confirmacion({
   etiquetaCancelar = "Corregir",
   peligro = false,
   cargando = false,
+  ancla,
   alConfirmar,
 }: PropiedadesConfirmacion) {
   return (
@@ -46,7 +49,7 @@ export function Confirmacion({
           <AlertDialogCancel render={<Boton variante="contorno" />} disabled={cargando}>
             {etiquetaCancelar}
           </AlertDialogCancel>
-          <Boton variante={peligro ? "peligro" : "normal"} cargando={cargando} onClick={alConfirmar}>
+          <Boton variante={peligro ? "peligro" : "normal"} cargando={cargando} data-tutorial={ancla} onClick={alConfirmar}>
             {etiquetaConfirmar}
           </Boton>
         </AlertDialogFooter>

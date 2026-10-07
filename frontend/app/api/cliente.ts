@@ -4,6 +4,7 @@ import {
   ErrorApi,
   type CuerpoError,
 } from "./errores";
+import { practicaActiva, recordarSesionPractica, responderPractica } from "./practica";
 import { marcarConexion } from "./red";
 import type { Sesion } from "./tipos";
 
@@ -103,6 +104,13 @@ async function pedir(ruta: string, opciones: OpcionesApi, yaRenovo = false): Pro
   }
 
   let respuesta: Response;
+  // Práctica (FEAT-010, TU-02): responde la capa de práctica y NUNCA llama a la red. La respuesta sigue el
+  // mismo camino que una real (errores incluidos), sin tocar el estado de la conexión.
+  if (practicaActiva()) {
+    respuesta = responderPractica(ruta, opciones);
+    if (!respuesta.ok) throw await leerError(respuesta);
+    return respuesta;
+  }
   try {
     respuesta = await fetch(construirUrl(ruta, parametros), {
       method: metodo,
@@ -176,7 +184,12 @@ export async function api<T = unknown>(ruta: string, opciones: OpcionesApi = {})
   const respuesta = await pedir(ruta, opciones);
   if (respuesta.status === 204) return undefined as T;
   try {
-    return (await respuesta.json()) as T;
+    const datos = (await respuesta.json()) as T;
+    // La sesión se recuerda en memoria para poder responderla sin red durante la práctica.
+    if (/^(\/api)?\/sesion(\/refresh)?$/.test(ruta) && datos && typeof datos === "object" && "permisos" in datos) {
+      recordarSesionPractica(datos as unknown as Sesion);
+    }
+    return datos;
   } catch {
     throw new ErrorApi(respuesta.status, {
       codigo: CODIGO_RESPUESTA_INVALIDA,

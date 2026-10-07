@@ -629,6 +629,7 @@ export default function Entregar() {
       <div className="flex flex-col gap-4">
         {selector}
         <PasoTrabajador
+          anclas={{ escaner: "entrega-escaner-trabajador", ficha: "entrega-ficha-trabajador" }}
           trabajador={borrador.trabajador}
           alIdentificar={(f) =>
             actualizar((b) => ({ ...b, trabajador: f, autorizacion: b.trabajador?.id === f.id ? b.autorizacion : null }))
@@ -638,7 +639,7 @@ export default function Entregar() {
     );
     accion = (
       <AccionPrincipal nota={razon}>
-        <Boton variante="principal" disabled={razon !== null} onClick={() => irA("articulos")}>
+        <Boton variante="principal" data-tutorial="entrega-continuar" disabled={razon !== null} onClick={() => irA("articulos")}>
           Continuar
         </Boton>
         {borrador.trabajador ? (
@@ -691,6 +692,7 @@ export default function Entregar() {
               </p>
             ) : null}
 
+            <div data-tutorial="entrega-lista">
             <ListaRenglones
               key={String(inicial.retomado && !evaluacion)}
               renglones={evaluados}
@@ -717,6 +719,7 @@ export default function Entregar() {
                 ) : null
               }
             />
+            </div>
             {sinEvaluar.length > 0 ? (
               <ul aria-label="Artículos por revisar" className="flex flex-col gap-2">
                 {sinEvaluar.map((b) => (
@@ -742,6 +745,7 @@ export default function Entregar() {
 
           <div className="order-1 flex flex-col gap-3 md:sticky md:top-4 md:order-2">
             <Escaner
+              ancla="entrega-escaner-articulos"
               activo={!pidiendoAutorizacion && !eligiendoDotacion && !porConfirmar && !resultadosBusqueda && !descartando && !enviando}
               sonidoAlLeer={false}
               onCodigo={(codigo, origen) => void alLeerArticulo(codigo, origen)}
@@ -817,7 +821,7 @@ export default function Entregar() {
     );
     accion = (
       <AccionPrincipal nota={razon}>
-        <Boton variante="principal" disabled={razon !== null} onClick={() => irA("firma")}>
+        <Boton variante="principal" data-tutorial="entrega-continuar" disabled={razon !== null} onClick={() => irA("firma")}>
           Continuar
         </Boton>
       </AccionPrincipal>
@@ -866,14 +870,14 @@ export default function Entregar() {
     );
     accion = (
       <AccionPrincipal nota={razon}>
-        <Boton variante="principal" cargando={enviando} disabled={!listo && !reintento} onClick={() => void confirmar()}>
+        <Boton variante="principal" data-tutorial="entrega-confirmar" cargando={enviando} disabled={!listo && !reintento} onClick={() => void confirmar()}>
           {reintento ? "Reintentar" : "Confirmar entrega"}
         </Boton>
       </AccionPrincipal>
     );
   } else {
     contenido = borrador.resultado ? (
-      <ResultadoEntrega vale={borrador.resultado} firmaImagen={borrador.firma?.imagen} />
+      <ResultadoEntrega vale={borrador.resultado} firmaImagen={borrador.firma?.imagen} ancla="entrega-resultado" />
     ) : (
       <Cargando variante="en-linea" />
     );

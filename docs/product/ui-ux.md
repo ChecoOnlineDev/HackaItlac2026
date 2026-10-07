@@ -116,6 +116,8 @@ Los títulos pueden ocupar dos líneas; nada se corta con "…", salvo el nombre
 
 **Botón por grupo en la matriz de permisos (FEAT-008, sección 4.5).** En el encabezado de cada tarjeta de módulo de `/roles/:id`: a la izquierda el título y un contador («3 de 5 activos»); a la derecha un botón de contorno de 40 px que dice «Activar todos» (si el grupo está vacío o a medias) o «Quitar todos» (si está completo), con `aria-label` que nombra el grupo («Activar todos los permisos de Trabajadores»). Solo mueve los interruptores en pantalla: los renglones cambiados se resaltan como siempre («Se agrega», «Se quita») y la barra de cambios los cuenta; nada se guarda hasta confirmar. Si no pudo mover alguno (permiso protegido o dependencia), una línea de apoyo bajo el encabezado dice cuántos y por qué. Arriba de la matriz, opcionalmente, «Activar todo» y «Quitar todo» del rol completo, con el mismo comportamiento. La confirmación de guardar nombra aparte los datos reservados que se agregan. Un grupo con todos sus interruptores deshabilitados no muestra el botón.
 
+**Tutorial guiado (FEAT-010).** `componentes/tutorial/`: una capa de práctica sobre las pantallas reales. Se enciende con un interruptor «Tutorial» (pie del menú lateral, hoja «Menú» y encabezado móvil) y deja fija la banda «Práctica: nada de esto se guarda». Cada paso oscurece el resto de la pantalla con un velo (negro al 60 %) y deja solo un hueco con el **elemento del paso**, que lleva un **círculo** de contorno azul marino y una **flecha** que apunta a él; el velo bloquea el toque y el teclado fuera del hueco. Un **globo** de una o dos frases (14 px, `bg-popover`, `rounded-xl`) se coloca arriba o abajo del elemento según haya espacio (si el elemento es muy alto y no cabe, queda pegado al pie y puede rozar su borde), y trae «Siguiente» solo en pasos de lectura y «Salir» siempre. Va en un portal propio por encima de todo (hojas, diálogos, avisos y la banda de sin conexión). El elemento se localiza por `data-tutorial` y el círculo lo sigue al girar, redimensionar o hacer scroll. Accesibilidad: el globo es `aria-live="polite"`, el foco queda dentro de la capa, `Escape` sale y los botones miden 48 px. La transición del círculo es de 150 ms como máximo y, con «reducir movimiento», no hay. No usa los colores del semáforo. Es un patrón de ayuda breve, no una pantalla de bienvenida: no lleva ilustraciones.
+
 ## Pantallas
 
 ### Entrar
@@ -271,6 +273,6 @@ Los títulos pueden ocupar dos líneas; nada se corta con "…", salvo el nombre
 ## Elementos fuera de alcance
 
 - Tema oscuro y personalización de colores.
-- Ilustraciones y pantallas de bienvenida.
+- Ilustraciones y pantallas de bienvenida. El tutorial guiado ([FEAT-010](../features/FEAT-010-tutorial-guiado.md)) no es una pantalla de bienvenida: resalta elementos de las pantallas reales, sin ilustraciones.
 - Gráficas fuera del tablero de inicio: los reportes son tablas. La única gráfica es «Lo más usado» (FEAT-008, [ADR-009](../architecture/decisions/ADR-009-graficas-con-recharts.md)).
 - Diseño del ticket impreso y del comprobante público ([FEAT-001](../features/FEAT-001-vale-como-prueba.md)).

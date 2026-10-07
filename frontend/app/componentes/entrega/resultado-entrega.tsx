@@ -17,13 +17,15 @@ interface PropiedadesResultadoEntrega {
   /** Qué se guardó, para el título y el pie del QR. Por omisión una entrega. */
   titulo?: string;
   nombreVale?: string;
+  /** Valor de `data-tutorial` de la ficha del folio (FEAT-010). */
+  ancla?: string;
 }
 
 /**
  * Resultado de una entrega ya guardada por el servidor: folio en grande, QR del vale, "Imprimir" y
  * debajo el vale tal como saldrá en papel. "Nueva entrega" va en la acción principal de la pantalla.
  */
-export function ResultadoEntrega({ vale, firmaImagen, titulo = "Entrega guardada", nombreVale = "Vale de entrega" }: PropiedadesResultadoEntrega) {
+export function ResultadoEntrega({ vale, firmaImagen, titulo = "Entrega guardada", nombreVale = "Vale de entrega", ancla }: PropiedadesResultadoEntrega) {
   const [detalle, setDetalle] = useState<ValeDetalleApi | null>(null);
   const [fallo, setFallo] = useState(false);
 
@@ -43,7 +45,7 @@ export function ResultadoEntrega({ vale, firmaImagen, titulo = "Entrega guardada
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[22rem_1fr] lg:items-start">
-      <section aria-label={titulo} className="flex flex-col items-center gap-4 rounded-2xl border bg-card p-6">
+      <section aria-label={titulo} data-tutorial={ancla} className="flex flex-col items-center gap-4 rounded-2xl border bg-card p-6">
         <p role="status" className="flex items-center gap-2 text-base font-semibold text-semaforo-verde">
           <CircleCheckIcon aria-hidden="true" className="size-6" strokeWidth={3} />
           <span className="text-foreground">{titulo}</span>

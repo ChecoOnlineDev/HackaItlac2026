@@ -3,6 +3,7 @@ import { HomeIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router";
 
+import { InterruptorTutorial } from "~/componentes/tutorial/interruptor-tutorial";
 import { Hoja } from "~/componentes/ui/hoja";
 import { agruparMenu, idActivo, idGrupoActivo, menuPermitido } from "~/sesion/menu";
 import { useGruposAbiertos } from "~/sesion/menu-estado";
@@ -81,6 +82,7 @@ export function MenuHoja({ abierta, alCambiar }: { abierta: boolean; alCambiar: 
         ))}
       </nav>
       <InstalarApp className="mt-5" />
+      <InterruptorTutorial className="mt-3" alIniciar={() => alCambiar(false)} />
     </Hoja>
   );
 }

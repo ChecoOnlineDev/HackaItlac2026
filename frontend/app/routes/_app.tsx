@@ -5,6 +5,8 @@ import { ArmazonEscritorio } from "~/componentes/navegacion/armazon-escritorio";
 import { ProveedorAtras } from "~/componentes/navegacion/atras";
 import { ArmazonMovil } from "~/componentes/navegacion/armazon-movil";
 import { manejadorDe } from "~/componentes/pantalla";
+import { CapaTutorial } from "~/componentes/tutorial/capa-tutorial";
+import { ProveedorTutorial } from "~/componentes/tutorial/proveedor";
 import { Cargando } from "~/componentes/ui/cargando";
 import { useEsEscritorio } from "~/hooks/use-escritorio";
 import { ContadoresProvider } from "~/sesion/contadores";
@@ -40,9 +42,12 @@ export default function LayoutApp() {
 
   return (
     <ContadoresProvider>
-      <ProveedorAtras>
-        {esEscritorio ? <ArmazonEscritorio>{contenido}</ArmazonEscritorio> : <ArmazonMovil contenido={contenido} />}
-      </ProveedorAtras>
+      <ProveedorTutorial>
+        <ProveedorAtras>
+          {esEscritorio ? <ArmazonEscritorio>{contenido}</ArmazonEscritorio> : <ArmazonMovil contenido={contenido} />}
+        </ProveedorAtras>
+        <CapaTutorial />
+      </ProveedorTutorial>
     </ContadoresProvider>
   );
 }

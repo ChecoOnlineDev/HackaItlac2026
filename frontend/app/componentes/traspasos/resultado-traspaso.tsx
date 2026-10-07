@@ -18,6 +18,8 @@ interface PropiedadesResultadoTraspaso {
   texto: string;
   /** Lo que sigue (por ejemplo "Lo que no marcaste sigue en camino"). */
   nota?: ReactNode;
+  /** Valor de `data-tutorial` de la ficha del folio (FEAT-010). */
+  ancla?: string;
 }
 
 /**
@@ -25,7 +27,7 @@ interface PropiedadesResultadoTraspaso {
  * debajo el vale tal como saldrá en papel (el vale viaja con la carga). "Nuevo traspaso" va en la acción
  * principal de la pantalla.
  */
-export function ResultadoTraspaso({ vale, titulo, texto, nota }: PropiedadesResultadoTraspaso) {
+export function ResultadoTraspaso({ vale, titulo, texto, nota, ancla }: PropiedadesResultadoTraspaso) {
   const [detalle, setDetalle] = useState<ValeDetalleApi | null>(null);
   const [fallo, setFallo] = useState(false);
 
@@ -45,7 +47,7 @@ export function ResultadoTraspaso({ vale, titulo, texto, nota }: PropiedadesResu
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[22rem_1fr] lg:items-start">
-      <section aria-label={titulo} className="flex flex-col items-center gap-4 rounded-2xl border bg-card p-6 print:hidden">
+      <section aria-label={titulo} data-tutorial={ancla} className="flex flex-col items-center gap-4 rounded-2xl border bg-card p-6 print:hidden">
         <p role="status" className="flex items-center gap-2 text-base font-semibold text-semaforo-verde">
           <CircleCheckIcon aria-hidden="true" className="size-6" strokeWidth={3} />
           <span className="text-foreground">{titulo}</span>

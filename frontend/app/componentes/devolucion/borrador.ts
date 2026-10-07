@@ -2,6 +2,7 @@
 // distinta de la de la entrega: sobrevive a una recarga o a un corte de red y nada se da por guardado
 // antes de la respuesta del servidor (E-28, ES-10). Reutiliza `nuevoIdCliente` del borrador de la entrega.
 
+import { practicaActiva } from "~/api/practica";
 import type { Condicion } from "~/componentes/dominio/tipos";
 import { nuevoIdCliente } from "~/componentes/entrega/borrador";
 import type { ValeConfirmadoApi } from "~/componentes/entrega/tipos";
@@ -67,6 +68,7 @@ export function nuevoRenglonDevolucion(
 }
 
 export function leerBorradorDevolucion(usuarioId: string): BorradorDevolucion | null {
+  if (practicaActiva()) return null; // TU-07
   try {
     const texto = window.localStorage.getItem(CLAVE);
     if (!texto) return null;
@@ -82,6 +84,7 @@ export function leerBorradorDevolucion(usuarioId: string): BorradorDevolucion | 
 
 /** Guarda el borrador. Devuelve `false` si el dispositivo no deja guardar todo (la captura sigue en pantalla). */
 export function guardarBorradorDevolucion(borrador: BorradorDevolucion): boolean {
+  if (practicaActiva()) return true; // TU-07
   if (borrador.resultado) {
     borrarBorradorDevolucion();
     return true;
@@ -102,6 +105,7 @@ export function guardarBorradorDevolucion(borrador: BorradorDevolucion): boolean
 }
 
 export function borrarBorradorDevolucion(): void {
+  if (practicaActiva()) return; // TU-07
   try {
     window.localStorage.removeItem(CLAVE);
   } catch {

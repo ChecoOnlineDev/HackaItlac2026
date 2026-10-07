@@ -103,7 +103,7 @@ export function RenglonDevolucion({
       />
       {conMovimiento ? (
         <div className="flex flex-col gap-3 rounded-b-xl border border-t-0 bg-card p-3">
-          <ControlCondicion valor={local.condicion} alCambiar={alCondicion} deshabilitado={deshabilitado} />
+          <ControlCondicion ancla="devolver-condicion" valor={local.condicion} alCambiar={alCondicion} deshabilitado={deshabilitado} />
           {danado ? (
             <div className="flex flex-col gap-2">
               {local.foto ? (

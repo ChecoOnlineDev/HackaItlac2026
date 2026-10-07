@@ -121,7 +121,7 @@ export default function Recibir() {
               {lista.length === 0 ? (
                 <p className="rounded-2xl border border-dashed p-4 text-base text-muted-foreground">Ningún traspaso coincide con tu búsqueda.</p>
               ) : (
-                <ul aria-label="Traspasos en camino" className="flex flex-col gap-3">
+                <ul aria-label="Traspasos en camino" data-tutorial="recibir-lista" className="flex flex-col gap-3">
                   {lista.map((t) => (
                     <TarjetaTraspaso key={t.id} traspaso={t} mostrarDestino={operaTodos} />
                   ))}

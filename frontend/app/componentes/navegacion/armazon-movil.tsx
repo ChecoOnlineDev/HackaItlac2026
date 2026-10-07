@@ -1,6 +1,7 @@
 import { ArrowLeftIcon } from "lucide-react";
 import { Outlet, useLocation, useNavigate } from "react-router";
 
+import { InterruptorTutorialCompacto } from "~/componentes/tutorial/interruptor-tutorial";
 import { Boton } from "~/componentes/ui/boton";
 import { useSesionActiva } from "~/sesion/sesion";
 import { useManejadorAtras } from "./atras";
@@ -31,7 +32,9 @@ export function ArmazonMovil({ contenido }: { contenido?: React.ReactNode }) {
             <ArrowLeftIcon aria-hidden="true" />
             Atrás
           </Boton>
-          <span className="ml-auto pr-2 text-right text-sm leading-tight text-muted-foreground">
+          <span className="ml-auto" />
+          <InterruptorTutorialCompacto />
+          <span className="pr-2 text-right text-sm leading-tight text-muted-foreground">
             {sesion.almacen?.nombre ?? sesion.usuario.nombre}
           </span>
         </header>

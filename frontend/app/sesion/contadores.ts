@@ -1,6 +1,7 @@
 import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from "react";
 
 import { apiGet } from "~/api/cliente";
+import { practicaActiva } from "~/api/practica";
 import { useSesion } from "./sesion";
 
 export interface Contadores {
@@ -47,6 +48,7 @@ const EVENTO_CONTADORES = "imhotep:contadores";
 
 /** Pide al inicio y al menú volver a contar ya (por ejemplo, tras confirmar una recepción). */
 export function refrescarContadores(): void {
+  if (practicaActiva()) return; // TU-07: la práctica no mueve los contadores
   if (typeof window !== "undefined") window.dispatchEvent(new Event(EVENTO_CONTADORES));
 }
 
@@ -64,6 +66,7 @@ function useCargarContadores(): Contadores {
   useEffect(() => {
     const control = new AbortController();
     const cargar = async () => {
+      if (practicaActiva()) return; // TU-07: en práctica se quedan como estaban
       const [porRecibir, porAutorizar, porComprar] = await Promise.all([
         verTraspasos
           ? contarCompartido("por-recibir", () => apiGet("/traspasos/por-recibir", { solo_contar: true }))

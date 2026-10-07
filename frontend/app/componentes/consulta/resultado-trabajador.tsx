@@ -21,9 +21,9 @@ export function ResultadoTrabajador({ id }: { id: string }) {
   const piezas = datos.resguardo.filter((r) => r.pieza_id);
   return (
     <div className="flex flex-col gap-4">
-      <FichaTrabajador trabajador={datos} variante="completa" />
+      <FichaTrabajador trabajador={datos} variante="completa" ancla="consultar-ficha" />
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" data-tutorial="consultar-atajos">
         {puede("entregas.crear") && datos.vigencia.vigente ? (
           <Boton variante="normal" nativeButton={false} render={<Link to="/entregar" />}>
             <PackageCheckIcon aria-hidden="true" />

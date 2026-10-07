@@ -114,6 +114,7 @@ export default function RecibirDetalle() {
     return (
       <Pantalla titulo="Recibir traspaso">
         <ResultadoTraspaso
+          ancla="recibir-resultado"
           vale={recibido.vale}
           titulo="Recepción guardada"
           texto={`Recepción del traspaso ${recibido.traspasoFolio}`}
@@ -652,7 +653,7 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_20rem] md:items-start">
         <div className="order-2 flex min-w-0 flex-col gap-4 md:order-1">
           <div className="flex flex-wrap gap-2">
-            <Boton variante="secundario" onClick={pedirRecibirTodo} disabled={enviando || pendientes.length === 0}>
+            <Boton variante="secundario" data-tutorial="recibir-todo" onClick={pedirRecibirTodo} disabled={enviando || pendientes.length === 0}>
               <ListChecksIcon aria-hidden="true" />
               Recibir todo
             </Boton>
@@ -796,7 +797,7 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
       </div>
 
       <AccionPrincipal nota={razon}>
-        <Boton variante="principal" cargando={enviando} disabled={razon !== null && !reintento} onClick={pedirConfirmacion}>
+        <Boton variante="principal" data-tutorial="recibir-confirmar" cargando={enviando} disabled={razon !== null && !reintento} onClick={pedirConfirmacion}>
           {reintento ? "Reintentar" : faltantes.length > 0 && totalMarcado > 0 ? "Confirmar recepción con diferencias" : "Confirmar recepción"}
         </Boton>
       </AccionPrincipal>
@@ -807,6 +808,7 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
         mensaje={`¿Marcar ${textoRenglones(pendientes.length)} como recibidos?`}
         detalle="Se marca como llegado todo lo que falta por recibir, con su cantidad completa. Después puedes quitar o cambiar lo que no llegó."
         etiquetaConfirmar="Sí, recibir todo"
+        ancla="recibir-todo-confirmar"
         alConfirmar={() => {
           setConfirmandoTodo(false);
           recibirTodo();
