@@ -597,7 +597,7 @@ Usuarios iniciales por almacén: cada almacén (Kepler, Contratistas, Midrex, HY
 
 | Llega con | Permiso | Qué permite | Roles iniciales |
 |---|---|---|---|
-| FEAT-002 | `almacenes.administrar` | Abrir y cerrar almacenes de proyecto | S |
+| FEAT-002 | `almacenes.administrar` | Abrir, cerrar y reactivar almacenes | — (solo el Administrador, que tiene todos los permisos; FEAT-008) |
 | FEAT-002 | `reportes.valor_inventario` | Valor del inventario | C |
 | FEAT-004 | `inventario.minimos` | Fijar mínimos por almacén | C |
 | Pospuesto | `piezas.dar_de_baja` | Dar una pieza por perdida o de baja definitiva | S |

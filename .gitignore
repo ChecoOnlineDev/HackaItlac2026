@@ -61,3 +61,7 @@ respaldos/
 
 # --- Credenciales de prueba en local (no se suben) ---
 docs/*.local.md
+
+# --- Archivos de bloqueo de LibreOffice/Excel ---
+.~lock.*#
+~$*

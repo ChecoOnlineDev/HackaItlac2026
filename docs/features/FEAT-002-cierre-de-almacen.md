@@ -18,8 +18,8 @@ Como Compras, quiero ver el valor del inventario por almacén, para saber cuánt
 
 - **Reporte de cierre** por almacén: por artículo, lo recibido por traspaso, lo consumido, lo regresado, lo que sigue en resguardo de trabajadores con su nombre, y los faltantes.
 - **Faltante.** Lo que el sistema dice que hay y no aparece se registra con un vale de ajuste, con observación obligatoria, a nombre del almacén.
-- **Cerrar almacén.** Con existencias en cero y sin traspasos en tránsito, el supervisor lo marca como cerrado; deja de aparecer para operar.
-- **Abrir almacén.** El supervisor crea un almacén de proyecto con su almacén padre.
+- **Cerrar almacén.** Con existencias en cero y sin traspasos en tránsito, el administrador lo marca como cerrado (inactivo); deja de aparecer para operar. El supervisor del proyecto ve su reporte de cierre.
+- **Abrir almacén.** El administrador crea un almacén de proyecto con su almacén padre. Ver [FEAT-008](FEAT-008-administracion-de-almacenes-y-tablero.md).
 - **Valor del inventario.** Existencias por costo unitario, por almacén y por categoría. Solo Compras.
 
 ## Fuera de alcance
