@@ -7,7 +7,7 @@ import uuid
 from datetime import date
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 
 from app.modulos.catalogo.models import EstadoPieza
 from app.modulos.consulta.schemas import FechaUtc, FormatoReporte, PaginaReporte
@@ -34,6 +34,8 @@ class SeguimientoFilters(BaseModel):
     almacen_id: uuid.UUID | None = None
     estado: EstadoPieza | None = None
     ubicacion: UbicacionSeguimiento | None = None
+    # E-29: `true` deja las piezas sin número de serie; `false`, las que ya lo tienen.
+    serie_pendiente: bool | None = None
     formato: FormatoReporte = FormatoReporte.JSON
 
 
@@ -86,6 +88,12 @@ class PiezaSeguimientoItem(BaseModel):
     desde: FechaUtc | None
     # El vale de ese movimiento; `null` si es de un almacén fuera del alcance del usuario (AC-06).
     vale: ValeSeguimientoOut | None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def serie_pendiente(self) -> bool:
+        """Derivado de `numero_serie` nulo (E-29, I-02)."""
+        return not self.numero_serie
 
 
 class ResumenSeguimiento(BaseModel):

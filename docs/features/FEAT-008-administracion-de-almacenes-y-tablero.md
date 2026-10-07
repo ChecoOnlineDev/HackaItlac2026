@@ -300,7 +300,7 @@ La tabla 8.3 pierde `almacenes.administrar` y `tablero.ver`, que pasan a la tabl
 - Dado el administrador en «Todos», cuando activa «Separar por almacén», entonces cada barra se reparte por almacén y la suma de sus partes es el total de la barra.
 
 **Menú**
-- Cada rol ve solo los grupos y las entradas que su permiso permite, y ninguno ve más de 7 grupos.
+- Cada rol ve solo los grupos y las entradas que su permiso permite, y ve todos los grupos que su permiso permite (el Administrador, ocho más Inicio).
 - Operación se abre y se cierra con el teclado y el dedo, y recuerda su estado entre visitas.
 
 **Roles y permisos**

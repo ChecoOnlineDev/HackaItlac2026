@@ -318,6 +318,8 @@ ROLES_8_2: dict[str, str] = {
     P.ENTREGAS_CREAR: "AS",
     P.DEVOLUCIONES_CREAR: "AS",
     P.TRASPASOS_OPERAR: "S",
+    P.TRASPASOS_RECIBIR: "S",
+    P.PIEZAS_REGISTRAR_SERIE: "SC",
     P.NO_ADEUDO_EMITIR: "AS",
     P.VALES_VER: "ASC",
     P.VALES_CANCELAR: "ASC",
@@ -414,13 +416,18 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
         ("POST", "/api/vales/evaluar", {"tipo": "DEVOLUCION", "renglones": []}, set())
     ],
     P.TRASPASOS_OPERAR: [
-        ("GET", "/api/traspasos/por-recibir", None, set()),
         (
             "POST",
             "/api/vales/evaluar",
             {"tipo": "TRASPASO", "destino_almacen_id": UUID_FALSO, "renglones": []},
             set(),
         ),
+    ],
+    P.PIEZAS_REGISTRAR_SERIE: [
+        ("POST", f"/api/piezas/{UUID_FALSO}/serie", {"numero_serie": "SIN-PERMISO"}, set()),
+    ],
+    P.TRASPASOS_RECIBIR: [
+        ("GET", "/api/traspasos/por-recibir", None, set()),
         (
             "POST",
             "/api/vales/evaluar",
@@ -620,7 +627,7 @@ def test_AC_01_las_rutas_solo_sesion_no_dan_403_a_quien_no_tiene_ningun_permiso(
         ("ENTREGA", P.ENTREGAS_CREAR),
         ("DEVOLUCION", P.DEVOLUCIONES_CREAR),
         ("TRASPASO", P.TRASPASOS_OPERAR),
-        ("RECEPCION", P.TRASPASOS_OPERAR),
+        ("RECEPCION", P.TRASPASOS_RECIBIR),
         ("NO_ADEUDO", P.NO_ADEUDO_EMITIR),
         ("CANCELACION", P.VALES_CANCELAR),
     ],

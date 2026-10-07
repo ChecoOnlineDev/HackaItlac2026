@@ -56,7 +56,7 @@ export const MENU: readonly ElementoMenu[] = [
   { id: "entregar", titulo: "Entregar", ruta: "/entregar", icono: PackageCheck, permisosAlguno: ["entregas.crear"], grupo: "Operación", inicio: "flujo" },
   { id: "devolver", titulo: "Devolver", ruta: "/devolver", icono: Undo2, permisosAlguno: ["devoluciones.crear"], grupo: "Operación", inicio: "flujo" },
   { id: "trasladar", titulo: "Trasladar", ruta: "/trasladar", icono: Truck, permisosAlguno: ["traspasos.operar"], grupo: "Operación", inicio: "flujo" },
-  { id: "recibir", titulo: "Recibir traspaso", ruta: "/recibir", icono: Inbox, permisosAlguno: ["traspasos.operar"], grupo: "Operación", inicio: "flujo", contador: "porRecibir" },
+  { id: "recibir", titulo: "Recibir traspaso", ruta: "/recibir", icono: Inbox, permisosAlguno: ["traspasos.recibir"], grupo: "Operación", inicio: "flujo", contador: "porRecibir" },
   { id: "pedir-compra", titulo: "Pedir compra urgente", ruta: "/compras/nueva", icono: ShoppingCart, permisosAlguno: ["compras.solicitar"], grupo: "Operación", inicio: "gestion" },
   { id: "compras-mias", titulo: "Mis compras urgentes", ruta: "/compras/mias", icono: ReceiptText, permisosAlguno: ["compras.solicitar"], grupo: "Operación", inicio: "gestion" },
   { id: "consultar", titulo: "Consultar", ruta: "/consultar", icono: Search, grupo: "Consulta", inicio: "flujo" },

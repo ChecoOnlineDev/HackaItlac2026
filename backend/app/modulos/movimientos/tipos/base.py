@@ -130,7 +130,7 @@ class ManejadorTipo(ABC):
         solo_contar: bool = False,
         almacen_id: uuid.UUID | None = None,
     ) -> Any:
-        """`GET /api/traspasos/por-recibir` (permiso `traspasos.operar`). Solo RECEPCION.
+        """`GET /api/traspasos/por-recibir` (permiso `traspasos.recibir`). Solo RECEPCION.
         `solo_contar` devuelve solo `{total}`; `almacen_id` lo usa quien tiene `almacenes.todos`."""
         raise TipoNoImplementado()
 

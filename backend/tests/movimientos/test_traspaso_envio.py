@@ -386,7 +386,7 @@ def test_un_traspaso_pide_el_permiso_traspasos_operar(cliente_como, compras, ses
     guantes = crear_articulo(session, retornable=False)
     abastecer(compras, guantes, 5)
     cuerpo = cuerpo_traspaso(session, "CON", [renglon(guantes.codigo)])
-    # Ninguno tiene `traspasos.operar` (tabla 8.2: es del Supervisor; el almacenista no).
+    # Ninguno tiene `traspasos.operar` (tabla 8.2: enviar es del Supervisor; el almacenista no).
     for rol in ("Recursos Humanos", "Compras", "Almacenista"):
         c = cliente_como(rol)
         assert c.post("/api/vales/evaluar", json=cuerpo).status_code == 403, rol

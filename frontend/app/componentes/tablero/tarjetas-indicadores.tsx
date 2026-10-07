@@ -47,7 +47,7 @@ interface PropiedadesTarjetas {
   puedeVerSeguimiento: boolean;
 }
 
-/** Los siete indicadores del tablero (FEAT-008 4.2.2). Todas las cifras las calcula el servidor. */
+/** Los indicadores del tablero (FEAT-008 4.2.2). Todas las cifras las calcula el servidor. */
 export function TarjetasIndicadores({ resumen, puedeVerSeguimiento }: PropiedadesTarjetas) {
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
@@ -66,6 +66,14 @@ export function TarjetasIndicadores({ resumen, puedeVerSeguimiento }: Propiedade
       <TarjetaIndicador titulo="Traspasos en tránsito" valor={resumen.traspasos_en_transito} detalle="enviados y sin recibir" />
       <TarjetaIndicador titulo="Entregas de hoy" valor={resumen.entregas_hoy} detalle="vales de entrega del día" />
       <TarjetaIndicador titulo="Solicitudes de compra abiertas" valor={resumen.solicitudes_compra_abiertas} detalle="pendientes o en compra" />
+      {typeof resumen.piezas_serie_pendiente === "number" ? (
+        <TarjetaIndicador
+          titulo="Piezas con serie pendiente"
+          valor={resumen.piezas_serie_pendiente}
+          detalle="piezas sin número de serie"
+          ruta={puedeVerSeguimiento ? "/seguimiento?serie_pendiente=true" : undefined}
+        />
+      ) : null}
       <TarjetaIndicador titulo="Inspecciones por vencer" valor={resumen.inspecciones_por_vencer} detalle="en los próximos 7 días" atencion />
     </div>
   );

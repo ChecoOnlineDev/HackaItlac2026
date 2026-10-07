@@ -6,6 +6,7 @@ import { apiGet, descargarCsv } from "~/api/cliente";
 import { mensajeDeError } from "~/api/errores";
 import { Paginador } from "~/componentes/catalogo/campos";
 import { useConsulta, useRetraso } from "~/componentes/catalogo/usar-consulta";
+import { Checkbox } from "~/components/ui/checkbox";
 import { Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
 import { FiltroLista, NotaAlcance, textoDeOpcion, useAlcance } from "~/componentes/reportes/filtros-comunes";
 import { useAlmacenesFiltro, useEtiqueta } from "~/componentes/reportes/listas";
@@ -29,7 +30,7 @@ import { useSesion } from "~/sesion/sesion";
 
 export const handle: ManejadorRuta = { permiso: "reportes.existencias" };
 
-const CLAVES = ["q", "articulo", "almacen", "estado", "ubicacion"] as const;
+const CLAVES = ["q", "articulo", "almacen", "estado", "ubicacion", "serie_pendiente"] as const;
 const MINIMO_BUSQUEDA = 2;
 
 /** Qué tarjeta del resumen corresponde a los filtros de la dirección. */
@@ -65,6 +66,7 @@ export default function SeguimientoDePiezas() {
     almacen_id: alcance.todos ? valores.almacen : "",
     estado: valores.estado,
     ubicacion: valores.ubicacion,
+    serie_pendiente: valores.serie_pendiente === "true" ? true : undefined,
   };
   const consulta = useConsulta(
     (signal) => apiGet<PaginaSeguimiento>("/seguimiento/piezas", { ...parametros, pagina, tamano: TAMANO_SEGUIMIENTO }, signal),
@@ -109,6 +111,7 @@ export default function SeguimientoDePiezas() {
   }
   if (valores.estado) chips.push({ clave: "estado", texto: `Estado: ${textoDeOpcion(OPCIONES_ESTADO.map(({ valor, texto }) => ({ valor, texto })), valores.estado) ?? valores.estado}` });
   if (valores.ubicacion) chips.push({ clave: "ubicacion", texto: `Lugar: ${textoDeOpcion(OPCIONES_UBICACION, valores.ubicacion) ?? valores.ubicacion}` });
+  if (valores.serie_pendiente === "true") chips.push({ clave: "serie_pendiente", texto: "Con serie pendiente" });
   const hayFiltros = chips.length > 0 || buscaConTexto !== "";
 
   let contenido;
@@ -166,10 +169,10 @@ export default function SeguimientoDePiezas() {
             className="h-12 rounded-xl text-base"
           />
           <HojaFiltros
-            valores={{ estado: valores.estado, ubicacion: valores.ubicacion, almacen: valores.almacen }}
-            activos={[valores.estado, valores.ubicacion, alcance.todos ? valores.almacen : ""].filter(Boolean).length}
-            alAplicar={(v) => cambiar({ estado: v.estado, ubicacion: v.ubicacion, almacen: alcance.todos ? v.almacen : null })}
-            alLimpiar={() => cambiar({ estado: null, ubicacion: null, almacen: null })}
+            valores={{ estado: valores.estado, ubicacion: valores.ubicacion, almacen: valores.almacen, serie_pendiente: valores.serie_pendiente }}
+            activos={[valores.estado, valores.ubicacion, alcance.todos ? valores.almacen : "", valores.serie_pendiente].filter(Boolean).length}
+            alAplicar={(v) => cambiar({ estado: v.estado, ubicacion: v.ubicacion, almacen: alcance.todos ? v.almacen : null, serie_pendiente: v.serie_pendiente === "true" ? "true" : null })}
+            alLimpiar={() => cambiar({ estado: null, ubicacion: null, almacen: null, serie_pendiente: null })}
           >
             {(borrador, cambiarBorrador) => (
               <>
@@ -196,6 +199,13 @@ export default function SeguimientoDePiezas() {
                   opciones={OPCIONES_UBICACION}
                   alCambiar={(v) => cambiarBorrador({ ubicacion: v })}
                 />
+                <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border bg-card px-3 text-base font-medium">
+                  <Checkbox
+                    checked={borrador.serie_pendiente === "true"}
+                    onCheckedChange={(v) => cambiarBorrador({ serie_pendiente: v === true ? "true" : "" })}
+                  />
+                  Con serie pendiente
+                </label>
               </>
             )}
           </HojaFiltros>

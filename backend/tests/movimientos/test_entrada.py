@@ -153,7 +153,7 @@ def test_I_02_el_mismo_codigo_dos_veces_en_el_vale_se_rechaza(compras, session):
     assert r.json()["renglones"][0]["nivel"] == "VERDE"
 
 
-def test_I_02_cada_pieza_lleva_codigo_y_serie(compras, session):
+def test_I_02_cada_pieza_lleva_codigo_y_la_serie_es_opcional(compras, session):
     arnes = crear_articulo(session, control="PIEZA")
     sin_pieza = {"tipo": "ENTRADA", "renglones": [{"codigo": arnes.codigo}]}
     r = compras.post("/api/vales/evaluar", json=sin_pieza)
@@ -163,7 +163,11 @@ def test_I_02_cada_pieza_lleva_codigo_y_serie(compras, session):
         "renglones": [{"codigo": arnes.codigo, "pieza": {"codigo": unico("P")}}],
     }
     r = compras.post("/api/vales/evaluar", json=sin_serie)
-    assert "serie" in r.json()["renglones"][0]["motivos"][0]["mensaje"]
+    # I-02/I-17: la serie es opcional; sin ella la pieza entra con serie pendiente (sin rojo).
+    renglon = r.json()["renglones"][0]
+    assert renglon["nivel"] != "ROJO" and r.json()["puede_confirmar"] is True
+    assert "serie" not in " ".join(m["mensaje"] for m in renglon["motivos"])
+    assert renglon["pieza"]["serie_pendiente"] is True
 
 
 def test_RG_05_una_pieza_entra_de_una_en_una(compras, session):

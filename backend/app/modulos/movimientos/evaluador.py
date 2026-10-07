@@ -36,6 +36,8 @@ class Motivo:
     regla: str
     nivel: Nivel
     mensaje: str
+    # Código estable para la interfaz (por ejemplo `SERIE_PENDIENTE`); la mayoría no lo lleva.
+    codigo: str | None = None
 
 
 def peor_nivel(motivos: list[Motivo]) -> Nivel:
@@ -440,6 +442,18 @@ class ResultadoRenglon:
         return peor_nivel(self.motivos)
 
 
+def regla_e29_serie_pendiente(h: HechosRenglonEntrega) -> Motivo | None:
+    """E-29: la pieza que se entrega no tiene número de serie registrado. Aviso, no bloquea."""
+    if h.pieza is None or h.pieza.numero_serie:
+        return None
+    return Motivo(
+        "E-29",
+        Nivel.AMARILLO,
+        "Esta pieza no tiene número de serie registrado.",
+        codigo="SERIE_PENDIENTE",
+    )
+
+
 def evaluar_renglon_entrega(
     h: HechosRenglonEntrega, hoy: date, motivo_trabajador: Motivo | None = None
 ) -> ResultadoRenglon:
@@ -468,6 +482,7 @@ def evaluar_renglon_entrega(
     agregar(e09)
     agregar(regla_e10_talla(h))
     agregar(regla_e11_inspeccion_por_vencer(h, hoy))
+    agregar(regla_e29_serie_pendiente(h))
     aviso = regla_e27_cantidad_inusual(h)
     agregar(aviso)
     resultado = ResultadoRenglon(motivos, requiere_confirmacion=aviso is not None)
@@ -484,7 +499,8 @@ def evaluar_renglon_entrada(h: HechosRenglonEntrada, hoy: date) -> ResultadoReng
 
     - E-01: el código del artículo no existe.
     - I-09: un artículo inactivo no recibe entradas.
-    - I-02: cada pieza entra con su código único y su número de serie.
+    - I-02: cada pieza entra con su código único; el número de serie es opcional (queda
+      pendiente) y, si viene, no puede repetirse en el artículo.
     - I-03: una pieza que requiere inspección entra con su inspección inicial; sin ella queda
       pendiente (aviso amarillo; no se puede entregar).
     """
@@ -533,9 +549,9 @@ def evaluar_renglon_entrada(h: HechosRenglonEntrada, hoy: date) -> ResultadoReng
         motivos.append(
             Motivo("I-02", Nivel.ROJO, f"El código {codigo_pieza} está repetido en este vale.")
         )
-    if not serie:
-        motivos.append(Motivo("I-02", Nivel.ROJO, "Captura el número de serie de la pieza."))
-    elif h.serie_en_uso:
+    # I-02/I-17: la serie es opcional; sin ella la pieza entra con serie pendiente. Una serie que
+    # sí viene y ya existe en el artículo sigue siendo rojo.
+    if serie and h.serie_en_uso:
         motivos.append(
             Motivo(
                 "I-02",

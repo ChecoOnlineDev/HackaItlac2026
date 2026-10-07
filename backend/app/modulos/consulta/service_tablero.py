@@ -105,6 +105,7 @@ class TableroService:
                 entregas_hoy=0,
                 solicitudes_compra_abiertas=0,
                 inspecciones_por_vencer=0,
+                piezas_serie_pendiente=0,
                 generado_en=generado,
             )
         x = alcance.almacen_id
@@ -122,6 +123,7 @@ class TableroService:
             inspecciones_por_vencer=self.tablero.inspecciones_por_vencer(
                 x, hoy, hoy + timedelta(days=DIAS_INSPECCION_POR_VENCER)
             ),
+            piezas_serie_pendiente=self.tablero.piezas_serie_pendiente(x),
             generado_en=generado,
         )
 

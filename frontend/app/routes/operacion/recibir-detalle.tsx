@@ -5,10 +5,10 @@ import { Link, useNavigate, useParams } from "react-router";
 import { apiGet, apiPost } from "~/api/cliente";
 import { esErrorApi, mensajeDeError } from "~/api/errores";
 import { useEnLinea } from "~/api/red";
-import { useConsulta } from "~/componentes/catalogo/usar-consulta";
+import { useConsulta, useRetraso } from "~/componentes/catalogo/usar-consulta";
 import { Escaner } from "~/componentes/dominio/escaner";
 import { HojaObservacion } from "~/componentes/dominio/hoja-observacion";
-import { reproducir } from "~/componentes/dominio/sonido";
+import type { MotivoRegla, NivelSemaforo } from "~/componentes/dominio/tipos";
 import type { EvaluacionApi, ValeConfirmadoApi, ValeDetalleApi } from "~/componentes/entrega/tipos";
 import { AccionPrincipal, Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
 import {
@@ -23,18 +23,29 @@ import { idDeTraspasoPorToken } from "~/componentes/traspasos/buscar-traspaso";
 import { desdeCuando, textoRenglones, tokenDeLectura } from "~/componentes/traspasos/formato";
 import { MotivosDelVale } from "~/componentes/traspasos/motivos-vale";
 import { RenglonRecepcion } from "~/componentes/traspasos/renglon-recepcion";
+import { vibrarError, vibrarOk } from "~/componentes/traspasos/retroalimentacion";
 import { ResultadoTraspaso } from "~/componentes/traspasos/resultado-traspaso";
 import type { PorRecibirApi, RenglonPorRecibirApi, TraspasoPorRecibirApi } from "~/componentes/traspasos/tipos";
 import { useEvaluar, type CuerpoTraspaso } from "~/componentes/traspasos/use-evaluar";
 import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
+import { CampoBusqueda } from "~/componentes/ui/campo-busqueda";
+import { Confirmacion } from "~/componentes/ui/confirmacion";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { Insignia } from "~/componentes/ui/insignia";
 import { refrescarContadores } from "~/sesion/contadores";
 import { useSesionActiva } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "traspasos.operar" };
+export const handle: ManejadorRuta = { permiso: "traspasos.recibir" };
+
+/** Renglones que se dibujan de una vez; el resto se carga al pedirlo. */
+const TRAMO = 60;
+
+/** Minúsculas y sin acentos, para buscar sin importar cómo se escribió. */
+function normalizar(texto: string): string {
+  return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-MX").trim();
+}
 
 /** Lo que se sabe del traspaso: en camino hacia este almacén, o solo el vale (de otro almacén o ya recibido). */
 type Cargado = { modo: "en-camino"; traspaso: TraspasoPorRecibirApi } | { modo: "otro"; vale: ValeDetalleApi | null };
@@ -272,14 +283,35 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
   // RG-14: con diferencias la observación es obligatoria. Se pide en la hoja y se conserva para un reintento.
   const observacionRef = useRef<string | null>(null);
   const [abriendo, setAbriendo] = useState(false);
-  const sonidoPendiente = useRef<Set<string>>(new Set());
 
-  // Solo cuentan las marcas de renglones que todavía tienen algo pendiente.
+  // Búsqueda, filtro y carga incremental: con 100 a 500 renglones solo se dibuja un tramo.
+  const [busqueda, setBusqueda] = useState("");
+  const buscar = useRetraso(busqueda, 200);
+  const [filtro, setFiltro] = useState<"todos" | "pendientes" | "marcados">("todos");
+  const [limite, setLimite] = useState(TRAMO);
+  const [destello, setDestello] = useState<{ renglon: number; n: number } | null>(null);
+  const [mensajeEscaner, setMensajeEscaner] = useState<{ tipo: "error" | "ok"; texto: string; n: number } | null>(null);
+  const [confirmandoTodo, setConfirmandoTodo] = useState(false);
+  const contadorLecturas = useRef(0);
+
+  // Búsqueda por mapa: cada código o serie apunta a su renglón sin recorrer la lista.
   const lineas = traspaso.renglones;
-  const lineaDe = useCallback(
-    (codigo: string) => lineas.find((l) => claveDeCodigo(l.codigo) === claveDeCodigo(codigo) || (l.numero_serie && claveDeCodigo(l.numero_serie) === claveDeCodigo(codigo))),
+  const mapaCodigos = useMemo(() => {
+    const m = new Map<string, RenglonPorRecibirApi>();
+    for (const l of lineas) {
+      m.set(claveDeCodigo(l.codigo), l);
+      if (l.numero_serie) m.set(claveDeCodigo(l.numero_serie), l);
+    }
+    return m;
+  }, [lineas]);
+  const mapaRef = useRef(mapaCodigos);
+  mapaRef.current = mapaCodigos;
+  const textos = useMemo(
+    () => lineas.map((l) => normalizar(`${l.articulo} ${l.marca ?? ""} ${l.modelo ?? ""} ${l.codigo} ${l.numero_serie ?? ""}`)),
     [lineas],
   );
+
+  // Solo cuentan las marcas de renglones que todavía tienen algo pendiente.
   const marcas = useMemo(() => {
     const salida: Record<string, number> = {};
     for (const l of lineas) {
@@ -295,6 +327,20 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
   const faltantes = pendientes.filter((l) => (marcas[claveDeCodigo(l.codigo)] ?? 0) < l.cantidad_pendiente);
   const unidadesQueFaltan = faltantes.reduce((s, l) => s + l.cantidad_pendiente - (marcas[claveDeCodigo(l.codigo)] ?? 0), 0);
 
+  const textoBuscado = normalizar(buscar);
+  const visibles = useMemo(
+    () =>
+      lineas.filter((l, i) => {
+        const marcada = (marcas[claveDeCodigo(l.codigo)] ?? 0) > 0;
+        if (filtro === "pendientes" && (marcada || l.cantidad_pendiente <= 0)) return false;
+        if (filtro === "marcados" && !marcada) return false;
+        return !textoBuscado || textos[i].includes(textoBuscado);
+      }),
+    [lineas, marcas, filtro, textoBuscado, textos],
+  );
+  const tramo = useMemo(() => visibles.slice(0, limite), [visibles, limite]);
+  const porcentaje = pendientes.length > 0 ? Math.round((totalMarcado / pendientes.length) * 100) : 100;
+
   // ------------------------------------------------------------------ evaluación
   const cuerpo = useMemo<CuerpoTraspaso>(
     () => ({
@@ -309,23 +355,37 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
     }),
     [operaTodos, traspaso.destino.id, traspaso.id, almacenSesionId, borrador.idCliente, lineas, marcas, borrador.extras],
   );
-  const ev = useEvaluar(cuerpo);
+  // Con listas largas el cuerpo es grande: se espera más para no reenviarlo en cada marca de una ráfaga.
+  const ev = useEvaluar(cuerpo, lineas.length > 40 ? 450 : 150);
   const evaluacion: EvaluacionApi | null = ev.evaluacion;
-  const evaluadoDe = useCallback(
-    (codigo: string) => evaluacion?.renglones.find((r) => claveDeCodigo(r.codigo) === claveDeCodigo(codigo)),
-    [evaluacion],
-  );
+  const mapaEvaluado = useMemo(() => {
+    const m = new Map<string, EvaluacionApi["renglones"][number]>();
+    for (const r of evaluacion?.renglones ?? []) m.set(claveDeCodigo(r.codigo), r);
+    return m;
+  }, [evaluacion]);
+  const evaluadoDe = useCallback((codigo: string) => mapaEvaluado.get(claveDeCodigo(codigo)), [mapaEvaluado]);
 
-  // Sonido de lo que no es del traspaso, cuando el servidor lo evalúa.
-  useEffect(() => {
-    if (!ev.actual || sonidoPendiente.current.size === 0) return;
-    for (const clave of [...sonidoPendiente.current]) {
-      const r = evaluacion?.renglones.find((x) => claveDeCodigo(x.codigo) === clave);
-      if (!r) continue;
-      sonidoPendiente.current.delete(clave);
-      reproducir(r.nivel === "ROJO" ? "bloqueo" : "ok");
+  // Lo que dijo el servidor de cada renglón, con las mismas referencias si no cambió (así el renglón no se redibuja).
+  const cacheEstado = useRef(new Map<string, { firma: string; nivel: NivelSemaforo | undefined; motivos: MotivoRegla[] }>());
+  const estadoDe = useMemo(() => {
+    const salida = new Map<string, { nivel: NivelSemaforo | undefined; motivos: MotivoRegla[] }>();
+    for (const l of lineas) {
+      const clave = claveDeCodigo(l.codigo);
+      const r = (marcas[clave] ?? 0) > 0 ? mapaEvaluado.get(clave) : undefined;
+      const nivel = r && r.nivel !== "VERDE" ? r.nivel : undefined;
+      const motivos = r ? r.motivos.filter((m) => m.nivel !== "VERDE") : [];
+      if (!nivel && motivos.length === 0) continue;
+      const firma = JSON.stringify([nivel, motivos.map((m) => [m.nivel, m.mensaje])]);
+      const previo = cacheEstado.current.get(clave);
+      if (previo && previo.firma === firma) salida.set(clave, previo);
+      else {
+        const nuevo = { firma, nivel, motivos };
+        cacheEstado.current.set(clave, nuevo);
+        salida.set(clave, nuevo);
+      }
     }
-  }, [ev.actual, evaluacion]);
+    return salida;
+  }, [lineas, marcas, mapaEvaluado]);
 
   const errorAlmacen = ev.error?.codigo === "ALMACEN_CAMBIO" ? ev.error : null;
 
@@ -334,33 +394,46 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
     setAvisoCambio(null);
     setBorrador(cambio);
   }, []);
-  const marcar = (l: RenglonPorRecibirApi, cantidad: number) => {
-    const clave = claveDeCodigo(l.codigo);
+  /** Estable: lo usan todos los renglones (React.memo). La clave es la del código del renglón. */
+  const marcar = useCallback(
+    (clave: string, cantidad: number) => {
+    const l = mapaRef.current.get(clave);
+    if (!l) return;
     cambiar((b) => {
       const copia = { ...b.marcas };
       if (cantidad > 0) copia[clave] = Math.min(cantidad, l.cantidad_pendiente);
       else delete copia[clave];
       return { ...b, marcas: copia };
     });
-  };
+    },
+    [cambiar],
+  );
   const recibirTodo = () => {
     cambiar((b) => ({ ...b, marcas: Object.fromEntries(pendientes.map((l) => [claveDeCodigo(l.codigo), l.cantidad_pendiente])) }));
-    reproducir("ok");
+    vibrarOk();
+  };
+  const pedirRecibirTodo = () => {
+    if (pendientes.length > 10) setConfirmandoTodo(true);
+    else recibirTodo();
   };
   const quitarMarcas = () => cambiar((b) => ({ ...b, marcas: {}, extras: [] }));
   const quitarExtra = (codigo: string) => cambiar((b) => ({ ...b, extras: b.extras.filter((c) => claveDeCodigo(c) !== claveDeCodigo(codigo)) }));
 
+  const decir = (tipo: "error" | "ok", texto: string) => {
+    contadorLecturas.current += 1;
+    setMensajeEscaner({ tipo, texto, n: contadorLecturas.current });
+  };
   const alLeer = async (lectura: string) => {
     const token = tokenDeLectura(lectura);
     if (token) {
       if (token === traspaso.token) {
-        reproducir("aviso");
-        aviso({ titulo: "Ese es el código del traspaso", descripcion: "Escanea cada pieza o artículo que llegó.", tipo: "aviso" });
+        vibrarError();
+        decir("error", "Ese es el código del traspaso. Escanea cada pieza o artículo que llegó.");
         return;
       }
       if (totalMarcado > 0 || hayExtras) {
-        reproducir("aviso");
-        aviso({ titulo: "Termina esta recepción antes de abrir otro traspaso", tipo: "aviso" });
+        vibrarError();
+        decir("error", "Termina esta recepción antes de abrir otro traspaso.");
         return;
       }
       setAbriendo(true);
@@ -377,34 +450,57 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
     }
 
     const codigo = lectura.trim();
-    const linea = lineaDe(codigo);
+    const linea = mapaCodigos.get(claveDeCodigo(codigo));
     if (!linea) {
+      vibrarError();
       if (borrador.extras.some((c) => claveDeCodigo(c) === claveDeCodigo(codigo))) {
-        reproducir("aviso");
-        aviso({ titulo: "Ya lo leíste", descripcion: codigo, tipo: "aviso", duracionMs: 2500 });
+        decir("error", `Ya leíste ${codigo}, y no es de este traspaso.`);
         return;
       }
       // Lo que no es del traspaso lo evalúa el servidor y lo marca en rojo (X-12).
-      sonidoPendiente.current.add(claveDeCodigo(codigo));
+      decir("error", `${codigo} no es de este traspaso. No se recibe; quedó en la lista de abajo.`);
       cambiar((b) => ({ ...b, extras: [...b.extras, codigo] }));
       return;
     }
     const clave = claveDeCodigo(linea.codigo);
     const actual = marcas[clave] ?? 0;
     if (linea.cantidad_pendiente <= 0) {
-      reproducir("aviso");
-      aviso({ titulo: "Ya se recibió", descripcion: linea.articulo, tipo: "aviso", duracionMs: 2500 });
+      vibrarError();
+      decir("error", `${linea.articulo} ya se recibió completo.`);
     } else if (linea.pieza_id !== null && actual > 0) {
-      reproducir("aviso");
-      aviso({ titulo: "Ya está marcada", descripcion: linea.articulo, tipo: "aviso", duracionMs: 2500 });
+      vibrarError();
+      decir("error", `${linea.articulo} ya está marcada.`);
     } else if (actual >= linea.cantidad_pendiente) {
-      reproducir("aviso");
-      aviso({ titulo: "Ya marcaste todo lo que se envió", descripcion: linea.articulo, tipo: "aviso", duracionMs: 2500 });
+      vibrarError();
+      decir("error", `Ya marcaste todo lo que se envió de ${linea.articulo}.`);
     } else {
-      reproducir("ok");
-      marcar(linea, actual + 1);
+      vibrarOk();
+      decir("ok", `Marcado: ${linea.articulo}`);
+      marcar(clave, actual + 1);
+      // Se asegura que el renglón se vea (sin búsqueda que lo oculte ni fuera del tramo dibujado) y se le da un destello.
+      if (busqueda) setBusqueda("");
+      if (filtro === "pendientes") setFiltro("todos");
+      setLimite((n) => Math.max(n, lineas.indexOf(linea) + 1));
+      setDestello((d) => ({ renglon: linea.renglon, n: (d?.n ?? 0) + 1 }));
     }
   };
+
+  // Lleva la vista al renglón recién escaneado.
+  useEffect(() => {
+    if (!destello) return;
+    const id = window.setTimeout(() => {
+      const el = document.getElementById(`rec-${destello.renglon}`);
+      if (!el) return;
+      let suave = true;
+      try {
+        suave = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      } catch {
+        suave = true;
+      }
+      el.scrollIntoView({ block: "center", behavior: suave ? "smooth" : "auto" });
+    }, 40);
+    return () => window.clearTimeout(id);
+  }, [destello]);
 
   // ------------------------------------------------------------------ confirmar
   const confirmar = async () => {
@@ -418,11 +514,11 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
     try {
       const observacion = faltaron > 0 ? observacionRef.current : null;
       const vale = await apiPost<ValeConfirmadoApi>("/vales", { ...cuerpo, id_cliente: b.idCliente, ...(observacion ? { observacion } : {}) });
-      reproducir("ok");
+      vibrarOk();
       borrarBorradorRecepcion();
       alRecibir({ vale, traspasoFolio: traspaso.folio, faltaron });
     } catch (causa) {
-      reproducir("bloqueo");
+      vibrarError();
       if (!esErrorApi(causa)) {
         setErrorEnvio({ tipo: "otro", mensaje: mensajeDeError(causa) });
       } else if (causa.sinConexion) {
@@ -529,7 +625,7 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
         </section>
       ) : null}
 
-      <MotivosDelVale motivos={(evaluacion?.motivos ?? []).filter((m) => m.regla !== "X-13" && m.regla !== "RG-14")} />
+      <MotivosDelVale sinRegla motivos={(evaluacion?.motivos ?? []).filter((m) => m.regla !== "X-13" && m.regla !== "RG-14")} />
 
       {errorEnvio && errorEnvio.tipo !== "almacen" ? (
         <section role="alert" className="flex flex-col gap-1 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-4">
@@ -541,10 +637,22 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
         </section>
       ) : null}
 
+      {pendientes.length > 0 ? (
+        <div className="sticky top-12 z-20 -mx-1 flex flex-col gap-1.5 rounded-2xl border bg-background/95 px-3 py-2 shadow-sm backdrop-blur lg:top-0">
+          <p aria-live="polite" role="status" className="text-base font-semibold">
+            Recibidos {totalMarcado} de {pendientes.length}
+            {hayExtras ? <span className="font-normal text-muted-foreground"> · {hayExtras ? borrador.extras.length : 0} código(s) que no son de este traspaso</span> : null}
+          </p>
+          <div role="progressbar" aria-label="Avance de la recepción" aria-valuemin={0} aria-valuemax={pendientes.length} aria-valuenow={totalMarcado} className="h-2.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-semaforo-verde transition-[width] duration-200 motion-reduce:transition-none" style={{ width: `${porcentaje}%` }} />
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_20rem] md:items-start">
         <div className="order-2 flex min-w-0 flex-col gap-4 md:order-1">
           <div className="flex flex-wrap gap-2">
-            <Boton variante="secundario" onClick={recibirTodo} disabled={enviando || pendientes.length === 0}>
+            <Boton variante="secundario" onClick={pedirRecibirTodo} disabled={enviando || pendientes.length === 0}>
               <ListChecksIcon aria-hidden="true" />
               Recibir todo
             </Boton>
@@ -554,24 +662,66 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
             </Boton>
           </div>
 
+          {lineas.length > 8 ? (
+            <div className="flex flex-col gap-2">
+              <CampoBusqueda etiqueta="Buscar en los renglones por nombre, código o serie" placeholder="Buscar por nombre, código o serie" value={busqueda} alCambiar={setBusqueda} />
+              <div role="group" aria-label="Filtrar renglones" className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ["todos", `Todos (${lineas.length})`],
+                    ["pendientes", `Pendientes (${pendientes.length - totalMarcado})`],
+                    ["marcados", `Marcados (${totalMarcado})`],
+                  ] as const
+                ).map(([valor, texto]) => (
+                  <Boton
+                    key={valor}
+                    variante={filtro === valor ? "normal" : "contorno"}
+                    aria-pressed={filtro === valor}
+                    className="min-h-11"
+                    onClick={() => {
+                      setFiltro(valor);
+                      setLimite(TRAMO);
+                    }}
+                  >
+                    {texto}
+                  </Boton>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {visibles.length === 0 ? (
+            <p className="rounded-2xl border border-dashed p-4 text-base text-muted-foreground">
+              {buscar || filtro !== "todos" ? "Ningún renglón coincide. Cambia la búsqueda o el filtro." : "Este traspaso no tiene renglones."}
+            </p>
+          ) : null}
+
           <ul aria-label="Renglones del traspaso" className="flex flex-col gap-3">
-            {lineas.map((l) => {
+            {tramo.map((l) => {
               const clave = claveDeCodigo(l.codigo);
-              const r = evaluadoDe(l.codigo);
+              const estado = estadoDe.get(clave);
               return (
-                <li key={`${l.renglon}-${l.codigo}`}>
+                <li key={`${l.renglon}-${l.codigo}`} id={`rec-${l.renglon}`} className="scroll-mt-40">
                   <RenglonRecepcion
                     renglon={l}
+                    clave={clave}
                     marcado={marcas[clave] ?? 0}
-                    alMarcar={(c) => marcar(l, c)}
-                    nivel={r && (marcas[clave] ?? 0) > 0 && r.nivel !== "VERDE" ? r.nivel : undefined}
-                    motivos={r && (marcas[clave] ?? 0) > 0 ? r.motivos.filter((m) => m.nivel !== "VERDE") : []}
+                    alMarcar={marcar}
+                    nivel={estado?.nivel}
+                    motivos={estado?.motivos}
                     deshabilitado={enviando}
+                    destello={destello?.renglon === l.renglon ? destello.n : 0}
                   />
                 </li>
               );
             })}
           </ul>
+
+          {visibles.length > tramo.length ? (
+            <Boton variante="contorno" className="min-h-11 self-center" onClick={() => setLimite((n) => n + TRAMO)}>
+              Mostrar más ({visibles.length - tramo.length} restantes)
+            </Boton>
+          ) : null}
 
           {hayExtras ? (
             <section aria-label="Códigos que no son de este traspaso" className="flex flex-col gap-2">
@@ -590,7 +740,7 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
                               <XIcon aria-hidden="true" strokeWidth={3} className="mt-1 size-4 shrink-0 text-semaforo-rojo" />
                               <span>
                                 <span className="sr-only">No se puede recibir: </span>
-                                {m.mensaje} <span className="text-xs font-medium whitespace-nowrap text-muted-foreground">({m.regla})</span>
+                                {m.mensaje}
                               </span>
                             </li>
                           ))}
@@ -635,8 +785,9 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
           <Escaner
             activo={!confirmandoDiferencias && !enviando && !abriendo}
             sonidoAlLeer={false}
+            retroalimentacion={mensajeEscaner}
             onCodigo={(codigo) => void alLeer(codigo)}
-            onRepetido={() => reproducir("aviso")}
+            onRepetido={() => vibrarError()}
             etiquetaCampo="Escribir código"
             placeholderCampo="Código o serie"
           />
@@ -650,12 +801,23 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
         </Boton>
       </AccionPrincipal>
 
+      <Confirmacion
+        abierta={confirmandoTodo}
+        alCambiar={setConfirmandoTodo}
+        mensaje={`¿Marcar ${textoRenglones(pendientes.length)} como recibidos?`}
+        detalle="Se marca como llegado todo lo que falta por recibir, con su cantidad completa. Después puedes quitar o cambiar lo que no llegó."
+        etiquetaConfirmar="Sí, recibir todo"
+        alConfirmar={() => {
+          setConfirmandoTodo(false);
+          recibirTodo();
+        }}
+      />
+
       <HojaObservacion
         abierta={confirmandoDiferencias}
         alCambiar={setConfirmandoDiferencias}
         titulo="Recepción con diferencias"
         motivo={`Faltan ${textoRenglones(faltantes.length)}. Seguirán en camino y el traspaso quedará como “Recibido con diferencias”. Anota qué pasó con lo que falta.`}
-        regla="RG-14"
         valorInicial={observacionRef.current ?? ""}
         respuestasRapidas={["Faltó en el contenedor", "Llegó dañado", "Se quedó en el origen", "Lo recibirá otro turno"]}
         etiquetaGuardar="Confirmar recepción con diferencias"

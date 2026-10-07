@@ -17,9 +17,14 @@ _ALTA = (
     ("Marca", "Truper", "Opcional."),
     ("Categoría", "Herramienta manual", "Si la dejas vacía, el sistema sugiere una."),
     ("Cantidad", 12, "Número entero, hasta el tope por fila."),
+    ("Unidad", "pieza", "Opcional, hasta 20 caracteres. Solo se usa al crear el artículo."),
     ("Almacén", "KEP", "Clave o nombre del almacén. Vacío: el almacén por omisión."),
-    ("Serie", "", "Solo para artículos por pieza."),
-    ("Código de la pieza", "", "Solo para artículos por pieza: una fila por pieza."),
+    ("Serie", "", "Solo para artículos por pieza. Vacía: la serie queda pendiente."),
+    (
+        "Código de la pieza",
+        "",
+        "Solo para artículos por pieza. Vacío: el sistema lo genera al confirmar.",
+    ),
 )
 _COSTO = ("Costo", 85.5, "Costo unitario del artículo nuevo. Solo con permiso de costos.")
 _REPOSICION = (
@@ -34,6 +39,7 @@ _NOTAS = {
     "ALTA": (
         "Alta: crea los artículos nuevos y suma a los que ya existen.",
         "Las filas del mismo artículo y almacén se unen en una.",
+        "Sin serie, la pieza entra con la serie pendiente; sin código de pieza, se genera.",
         "La cantidad es un número entero: en lugar de 0.25 kilos, escribe 250 gramos.",
         "Una fila cuya descripción dice SERVICIO no es un artículo y se excluye.",
     ),
@@ -50,7 +56,7 @@ def generar_plantilla(modo: str, *, con_costo: bool) -> bytes:
     """El archivo de ejemplo de ese modo, en bytes."""
     columnas = list(_REPOSICION if modo == "REPOSICION" else _ALTA)
     if modo != "REPOSICION" and con_costo:
-        columnas.insert(5, _COSTO)  # junto a la cantidad
+        columnas.insert(6, _COSTO)  # junto a la cantidad
     libro = Workbook()
     hoja = libro.active
     assert hoja is not None

@@ -152,6 +152,15 @@ class PiezaRepository:
     def get(self, pieza_id: uuid.UUID) -> Pieza | None:
         return self.session.get(Pieza, pieza_id)
 
+    def bloquear(self, pieza_id: uuid.UUID) -> Pieza | None:
+        """La pieza con bloqueo de escritura hasta cerrar la transacción."""
+        return self.session.scalar(
+            select(Pieza)
+            .where(Pieza.id == pieza_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+
     def get_by_serie(self, articulo_id: uuid.UUID, numero_serie: str) -> Pieza | None:
         return self.session.scalar(
             select(Pieza).where(

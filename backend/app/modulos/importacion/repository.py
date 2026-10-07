@@ -100,6 +100,47 @@ class ImportacionRepository:
         )
         return {v: (int(r), int(p), int(u)) for v, r, p, u in self.session.execute(consulta)}
 
+    def piezas_por_codigo(self, codigos: Iterable[str]) -> list[tuple[Pieza, Articulo]]:
+        """Las piezas con esos codigos, con su articulo."""
+        encontradas: list[tuple[Pieza, Articulo]] = []
+        for bloque in _en_bloques(sorted(set(codigos))):
+            consulta = (
+                select(Pieza, Articulo)
+                .join(Articulo, Articulo.id == Pieza.articulo_id)
+                .where(Pieza.codigo.in_(bloque))
+            )
+            encontradas.extend((p, a) for p, a in self.session.execute(consulta))
+        return encontradas
+
+    def piezas_de_vales(self, vale_ids: Iterable[uuid.UUID]) -> list[tuple[Pieza, Articulo, Vale]]:
+        """Las piezas que entraron en esos vales, con su articulo y el vale (para su almacen)."""
+        ids = list(vale_ids)
+        if not ids:
+            return []
+        consulta = (
+            select(Pieza, Articulo, Vale)
+            .join(Movimiento, Movimiento.pieza_id == Pieza.id)
+            .join(Articulo, Articulo.id == Pieza.articulo_id)
+            .join(Vale, Vale.id == Movimiento.vale_id)
+            .where(Movimiento.vale_id.in_(ids))
+            .order_by(Vale.folio, Movimiento.renglon)
+        )
+        return [(p, a, v) for p, a, v in self.session.execute(consulta)]
+
+    def codigos_de_piezas_generados(self, id_lote: uuid.UUID) -> set[str]:
+        """Codigos de pieza que el servidor genero en la confirmacion de ese lote (auditoria)."""
+        despues = self.session.scalar(
+            select(Auditoria.despues)
+            .where(
+                Auditoria.accion == "importacion.confirmar",
+                Auditoria.entidad_id == str(id_lote),
+            )
+            .limit(1)
+        )
+        if not isinstance(despues, dict):
+            return set()
+        return set(despues.get("codigos_pieza_generados", []))
+
     def articulos_por_nombre(self, nombres: Iterable[str]) -> list[Articulo]:
         """Articulos cuyo nombre coincide (la base compara sin acentos ni mayusculas)."""
         encontrados: list[Articulo] = []

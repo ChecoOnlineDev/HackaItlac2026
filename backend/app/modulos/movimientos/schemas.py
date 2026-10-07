@@ -14,6 +14,7 @@ from pydantic import (
     ConfigDict,
     Field,
     PlainSerializer,
+    computed_field,
     field_validator,
     model_validator,
 )
@@ -191,6 +192,7 @@ class MotivoOut(BaseModel):
     regla: str
     nivel: Nivel
     mensaje: str
+    codigo: str | None = None
 
 
 class ArticuloEvaluadoOut(BaseModel):
@@ -216,6 +218,12 @@ class PiezaEvaluadaOut(BaseModel):
     estado: str | None
     inspeccion_vigente_hasta: date | None
     pendiente_inspeccion: bool = False
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def serie_pendiente(self) -> bool:
+        """Derivado de `numero_serie` nulo (E-29, I-02)."""
+        return not self.numero_serie
 
 
 class TitularOut(BaseModel):

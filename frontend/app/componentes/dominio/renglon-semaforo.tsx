@@ -1,9 +1,10 @@
 import { cn } from "cn";
-import { CheckIcon, LockIcon, MinusIcon, PlusIcon, TrashIcon, TriangleAlertIcon, XIcon, MessageSquareTextIcon } from "lucide-react";
+import { CheckIcon, ClipboardCheckIcon, LockIcon, MinusIcon, PlusIcon, TrashIcon, TriangleAlertIcon, XIcon, MessageSquareTextIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Boton } from "~/componentes/ui/boton";
 import { Insignia } from "~/componentes/ui/insignia";
+import { InsigniaSeriePendiente } from "./insignia-serie-pendiente";
 import { TecladoNumerico } from "./teclado-numerico";
 import type { MotivoRegla, NivelSemaforo, RenglonEvaluado, TitularPieza } from "./tipos";
 
@@ -58,6 +59,8 @@ export interface PropiedadesRenglonSemaforo {
   onQuitar?: () => void;
   /** Muestra "Pedir autorización" en un renglón naranja que se puede autorizar. */
   onPedirAutorizacion?: () => void;
+  /** Muestra "Inspeccionar" en un renglón rojo por inspección vencida o pieza no apta (E-05, E-06). */
+  onInspeccionar?: () => void;
   /** Muestra "Agregar observación" cuando el servidor la pide (`pide_observacion`). */
   onObservacion?: () => void;
   /** Observación ya capturada, para mostrarla. */
@@ -85,7 +88,6 @@ function Motivo({ motivo, textos }: { motivo: MotivoRegla; textos?: PropiedadesR
       <span className="min-w-0 flex-1">
         <span className="sr-only">{textos?.[motivo.nivel] ?? TEXTO_NIVEL[motivo.nivel]}: </span>
         {motivo.mensaje}
-        {motivo.regla ? <span className="ml-1.5 text-xs font-medium whitespace-nowrap text-muted-foreground">({motivo.regla})</span> : null}
       </span>
     </li>
   );
@@ -106,6 +108,7 @@ export function RenglonSemaforo({
   onQuitar,
   onPedirAutorizacion,
   onObservacion,
+  onInspeccionar,
   observacion,
   estadoAutorizacion = null,
   resaltado = false,
@@ -127,6 +130,8 @@ export function RenglonSemaforo({
   const enEspera = nivel === "NARANJA" && estadoAutorizacion === "en_espera";
   const puedePedir = nivel === "NARANJA" && renglon.autorizable && !autorizado && !enEspera && onPedirAutorizacion;
   const editable = porCantidad && Boolean(onCantidad);
+  const puedeInspeccionar =
+    nivel === "ROJO" && Boolean(onInspeccionar) && Boolean(pieza?.id) && renglon.motivos.some((m) => m.nivel === "ROJO" && (m.regla === "E-05" || m.regla === "E-06"));
 
   return (
     <div
@@ -165,6 +170,7 @@ export function RenglonSemaforo({
           <span className={cn(nivel === "ROJO" && "text-semaforo-rojo")}>{textoNivel}</span>
           {autorizado ? <Insignia estado="verde">Autorizado</Insignia> : null}
           {enEspera ? <Insignia estado="neutra">Esperando al supervisor</Insignia> : null}
+          {pieza?.serie_pendiente || renglon.motivos.some((m) => m.regla === "E-29") ? <InsigniaSeriePendiente /> : null}
         </p>
 
         {renglon.motivos.length > 0 ? (
@@ -229,6 +235,12 @@ export function RenglonSemaforo({
               <Boton variante="secundario" disabled={deshabilitado} onClick={onObservacion}>
                 <MessageSquareTextIcon aria-hidden="true" />
                 {observacion ? "Cambiar observación" : "Agregar observación"}
+              </Boton>
+            ) : null}
+            {puedeInspeccionar ? (
+              <Boton variante="secundario" disabled={deshabilitado} onClick={onInspeccionar}>
+                <ClipboardCheckIcon aria-hidden="true" />
+                Inspeccionar
               </Boton>
             ) : null}
             {puedePedir ? (

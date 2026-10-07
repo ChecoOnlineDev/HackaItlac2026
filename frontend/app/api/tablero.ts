@@ -19,6 +19,8 @@ export interface ResumenTablero {
   entregas_hoy: number;
   solicitudes_compra_abiertas: number;
   inspecciones_por_vencer: number;
+  /** Puede faltar si el servidor es anterior a ADR-010. */
+  piezas_serie_pendiente?: number;
   generado_en: string;
 }
 

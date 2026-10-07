@@ -1,5 +1,7 @@
 # FEAT-007: Importación con reposición y categoría sugerida
 
+> **Relación.** [FEAT-009](FEAT-009-traspasos-por-lista-de-excel.md) (propuesta) reutiliza la lectura del `.xlsx` y la vista previa en tabla de esta importación para armar la salida de un traspaso. El traspaso **no** es un tercer modo de `/api/importacion` (que sigue con `ALTA` y `REPOSICION` y el permiso `inventario.entradas`): tiene endpoints propios con `traspasos.operar`, y quien escribe el vale es `movimientos`.
+
 ## Problema u oportunidad
 
 La importación de inventario (US-IMP-001) sirve para la carga inicial, pero una lista real de la planta trae cientos de renglones sin categoría ni código, con la misma herramienta repetida en varias filas, con servicios mezclados y con cantidades como `0.25`. Y cuando llega material de artículos que ya existen, importar la misma tabla en modo «alta» podría crear duplicados por un error de captura. Hace falta separar la carga inicial de la reposición, ayudar a clasificar sin decidir por la persona y cerrar los huecos de seguridad de una tabla ajena.

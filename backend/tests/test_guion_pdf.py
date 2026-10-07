@@ -545,7 +545,7 @@ def paso_5_traspasos_y_recepciones(g: Guion) -> None:
         g, "CON", [{"codigo": "ALT-001"}, {"codigo": "CINCEL", "cantidad": 5}]
     )
     # El traspaso entre almacenes lo envía el supervisor del origen y lo recibe el del destino
-    # (`traspasos.operar` es del Supervisor; el almacenista no lo opera).
+    # (`traspasos.operar` envía y `traspasos.recibir` recibe; el Supervisor tiene los dos).
     ev = evaluar(g.sup, cuerpo)
     assert ev["puede_confirmar"] is True and ev["nivel"] in ("VERDE", "AMARILLO")
     folio = siguiente_folio(session, "KEP", "TRS")

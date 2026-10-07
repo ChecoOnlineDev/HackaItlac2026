@@ -67,6 +67,7 @@ def test_I_01_un_vale_de_entrada_por_almacen_con_folios_consecutivos_y_existenci
         "vales": 2,
         "piezas": 0,
         "unidades": 21,
+        "series_pendientes": 0,
     }
     assert existencia(session, "KEP", articulo(session, a)) == 10
     assert existencia(session, "KEP", articulo(session, b)) == 4

@@ -31,6 +31,7 @@ CAMPOS = (
     "serie",
     "costo",
     "codigo_pieza",
+    "unidad",
 )
 
 
@@ -41,7 +42,8 @@ class _Estricto(BaseModel):
 class ColumnasIn(_Estricto):
     """Indice (desde 0) de la columna de cada dato.
 
-    `codigo` es el del articulo; `codigo_pieza` es el de cada pieza en articulos por pieza. Que
+    `codigo` es el del articulo; `codigo_pieza` es el de cada pieza en articulos por pieza
+    (opcional: si falta se genera, I-15); `unidad` es opcional (I-16). Que
     columnas hacen falta depende del modo (I-10) y lo revisa el servicio: en `REPOSICION` el
     `codigo`; en `ALTA`, el `codigo` o el `nombre`.
     """
@@ -55,6 +57,7 @@ class ColumnasIn(_Estricto):
     serie: int | None = Field(default=None, ge=0, lt=MAX_COLUMNAS)
     costo: int | None = Field(default=None, ge=0, lt=MAX_COLUMNAS)
     codigo_pieza: int | None = Field(default=None, ge=0, lt=MAX_COLUMNAS)
+    unidad: int | None = Field(default=None, ge=0, lt=MAX_COLUMNAS)
 
     @model_validator(mode="after")
     def _sin_columnas_repetidas(self) -> ColumnasIn:
@@ -161,12 +164,17 @@ class FilaValidaOut(BaseModel):
     control: str
     articulo_nuevo: bool
     cantidad: int
+    unidad: str
     saldo_antes: int
     saldo_despues: int
     unida_de: list[int]
     almacen: AlmacenRefOut
+    # Provisional si `codigo_pieza_generado`: el definitivo se asigna al confirmar (I-15).
     codigo_pieza: str | None
+    codigo_pieza_generado: bool = False
     numero_serie: str | None
+    # Pieza sin numero de serie (I-17): entra con aviso.
+    serie_pendiente: bool = False
     # Solo con `catalogo.costos` (RG-12); sin el permiso la clave no aparece.
     costo: Decimal | None = None
     avisos: list[str] = Field(default_factory=list)
@@ -201,6 +209,7 @@ class ArticuloNuevoOut(BaseModel):
     categoria: CategoriaRefOut | None
     control: str
     filas: int
+    unidad: str = "pieza"
     costo: Decimal | None = None
 
 
@@ -224,6 +233,7 @@ class ResumenVistaPreviaOut(BaseModel):
     piezas: int
     unidades: int
     almacenes: int
+    series_pendientes: int = 0
 
 
 class ArchivoRepetidoOut(BaseModel):
@@ -258,13 +268,32 @@ class ArchivoOut(BaseModel):
     vista_previa: VistaPreviaOut | None
 
 
+class ArticuloRefOut(BaseModel):
+    id: uuid.UUID
+    codigo: str
+    nombre: str
+
+
 class ArticuloCreadoOut(BaseModel):
     id: uuid.UUID
     codigo: str
     codigo_generado: bool
     nombre: str
+    unidad: str = "pieza"
     categoria: str
     control: str
+
+
+class PiezaCreadaOut(BaseModel):
+    """Una pieza que entro, con su codigo definitivo, para imprimir su etiqueta (I-15)."""
+
+    id: uuid.UUID
+    codigo: str
+    codigo_generado: bool
+    articulo: ArticuloRefOut
+    numero_serie: str | None
+    serie_pendiente: bool
+    almacen: AlmacenRefOut
 
 
 class ValeImportadoOut(BaseModel):
@@ -286,6 +315,7 @@ class ResumenImportacionOut(BaseModel):
     vales: int
     piezas: int
     unidades: int
+    series_pendientes: int = 0
 
 
 class ImportacionOut(BaseModel):
@@ -296,6 +326,7 @@ class ImportacionOut(BaseModel):
     repetida: bool
     resumen: ResumenImportacionOut
     articulos_creados: list[ArticuloCreadoOut]
+    piezas_creadas: list[PiezaCreadaOut] = Field(default_factory=list)
     vales: list[ValeImportadoOut]
     # Las filas que no entraron (solo en la primera confirmacion; al repetirla va vacia).
     filas_error: list[FilaErrorOut]

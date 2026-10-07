@@ -448,12 +448,12 @@ def test_una_recepcion_sin_renglones_o_sin_traspaso_se_rechaza(
     assert r.status_code == 422
 
 
-def test_una_recepcion_pide_el_permiso_traspasos_operar(
+def test_X_10_una_recepcion_pide_el_permiso_traspasos_recibir(
     almacenista, cliente_como, compras, session
 ):
     traspaso, guantes, _ = traspaso_mixto(almacenista, compras, session)
     cuerpo = cuerpo_recepcion(traspaso["id"], [renglon(guantes.codigo)])
-    for rol in ("Recursos Humanos", "Compras", "Almacenista"):  # el almacenista no opera traspasos
+    for rol in ("Recursos Humanos", "Compras", "Almacenista"):  # ninguno tiene `traspasos.recibir`
         c = cliente_como(rol)
         assert c.post("/api/vales/evaluar", json=cuerpo).status_code == 403, rol
         assert c.post(VALES, json=cuerpo).status_code == 403, rol

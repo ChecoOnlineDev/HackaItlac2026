@@ -62,6 +62,11 @@ export interface PropiedadesEscaner {
   etiquetaCampo?: string;
   placeholderCampo?: string;
   className?: string;
+  /**
+   * Mensaje que la pantalla quiere mostrar junto al campo tras una lectura (por ejemplo un código que no
+   * corresponde). Cambia `n` para mostrarlo de nuevo; se oculta solo a los 5 s. Opcional.
+   */
+  retroalimentacion?: { tipo: "error" | "ok"; texto: string; n: number } | null;
   ref?: Ref<ManejadorEscaner>;
 }
 
@@ -93,6 +98,7 @@ export function Escaner({
   etiquetaCampo = "Escribir código o buscar",
   placeholderCampo = "Código, número o nombre",
   className,
+  retroalimentacion = null,
   ref,
 }: PropiedadesEscaner) {
   const [soportaCamara, setSoportaCamara] = useState<boolean | null>(null);
@@ -101,6 +107,18 @@ export function Escaner({
   const [errorCamara, setErrorCamara] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [ultimo, setUltimo] = useState<{ codigo: string; n: number } | null>(null);
+
+  const [mensajeVisible, setMensajeVisible] = useState(false);
+  const mensajeN = retroalimentacion?.n;
+  useEffect(() => {
+    if (mensajeN === undefined) {
+      setMensajeVisible(false);
+      return;
+    }
+    setMensajeVisible(true);
+    const t = window.setTimeout(() => setMensajeVisible(false), 5000);
+    return () => window.clearTimeout(t);
+  }, [mensajeN]);
 
   const video = useRef<HTMLVideoElement>(null);
   const campo = useRef<HTMLInputElement>(null);
@@ -426,6 +444,23 @@ export function Escaner({
           <span className="max-sm:sr-only">Agregar</span>
         </Boton>
       </form>
+
+      {retroalimentacion && mensajeVisible ? (
+        <p
+          role={retroalimentacion.tipo === "error" ? "alert" : "status"}
+          className={cn(
+            "flex items-start gap-2 rounded-2xl border-2 p-3 text-base font-semibold",
+            retroalimentacion.tipo === "error"
+              ? "border-semaforo-rojo bg-semaforo-rojo/10"
+              : "border-semaforo-verde bg-semaforo-verde/10",
+          )}
+        >
+          {retroalimentacion.tipo === "error" ? (
+            <XIcon aria-hidden="true" strokeWidth={3} className="mt-1 size-4 shrink-0 text-semaforo-rojo" />
+          ) : null}
+          <span>{retroalimentacion.texto}</span>
+        </p>
+      ) : null}
 
       <p className="text-xs text-muted-foreground">Con pistola lectora: apunta y dispara, sin tocar ningún campo.</p>
 

@@ -56,6 +56,8 @@ Estado: es el contrato acordado para construir. Si al implementar cambia, se act
 | 403 | `AJUSTE_PROPIO` | Quien registró la inspección intenta ajustar su vigencia (P-07). |
 | 409 | `AJUSTE_NO_PERMITIDO` | La pieza está No apta o no tiene inspección Apta: no hay vigencia que ajustar (P-07). |
 | 422 | `VIGENCIA_EXCEDIDA` | La fecha pasa de la inspección más la vigencia del artículo (P-07). |
+| 409 | `SERIE_YA_REGISTRADA` | La pieza ya tiene número de serie: `POST /api/piezas/{id}/serie` solo pone la serie a una pieza que no la tiene; cambiar una registrada no entra en esta etapa (P-08). `detalles: {regla: "P-08"}`. |
+| 409 | `SERIE_REPETIDA` | La serie que se quiere registrar ya existe en ese artículo (I-02). `detalles: {regla: "I-02", pieza: {id, codigo}}` con la pieza que ya la tiene (solo si está en el alcance del usuario). Se eligió 409 y no 422 porque choca con un dato existente, igual que `CODIGO_REPETIDO`. En la importación, `SERIE_REPETIDA` sigue siendo un motivo de fila, no un error de la petición. |
 | 422 | `RENGLON_NO_AUTORIZABLE` | Un renglón que no es naranja en la evaluación del servidor no se envía a autorización: uno en rojo (A-06) o uno verde o amarillo que no la necesita. |
 | 422 | `DATOS_INVALIDOS` | Falta un dato o tiene forma incorrecta. Incluye el campo. |
 | 413 | `CUERPO_MUY_GRANDE` | El cuerpo de la petición pasa del límite de su ruta, por `Content-Length` o contando los bytes cuando viaja por trozos. Se responde sin leerlo completo. `detalles.limite_bytes` dice el límite. Límites (en `config.py`): 1 MB de JSON en general; 12 MB en `POST /api/vales` y `/api/vales/evaluar` (puede llevar la firma y fotos de daño); 3 MB en `POST /api/trabajadores/{id}/foto`; 6 MB en `/api/importacion*`. |
@@ -149,9 +151,10 @@ La emisión del vale de no adeudo (B-04, B-08) es de `movimientos`, en `POST /ap
 | `POST /api/articulos/{id}/inactivacion` | `catalogo.administrar` | Inactiva con `{motivo}` (CF-10). Responde el artículo. 409 si ya estaba inactivo. |
 | `DELETE /api/articulos/{id}/inactivacion` | `catalogo.administrar` | Reactiva (CF-13). Responde el artículo. 409 si ya estaba activo. |
 | `DELETE /api/articulos/{id}` | `catalogo.administrar` | Elimina solo si no tiene movimientos (CF-12); responde 204, o 409 `CON_MOVIMIENTOS`. Libera su código. |
-| `GET /api/piezas/{id}` | `catalogo.ver` | Ficha (C-02): artículo, estado, `inspeccion_vigente_hasta` e `inspeccion_vigente`, `ultima_inspeccion`, `ubicacion` (almacén, trabajador o virtual) e `historial`: movimientos, inspecciones, cambios de estado y ajustes de vigencia en una sola lista, del más reciente al más antiguo (`tipo`, `fecha` UTC, `titulo`, `detalle`, `usuario` y los campos propios de cada tipo). Sin costos. Sin `almacenes.todos`, una pieza fuera del alcance (no está en su almacén, ni la tiene un trabajador, ni va en tránsito desde o hacia él) responde 404 `NO_ENCONTRADO`, igual que una que no existe; de su historial, los movimientos de un vale de otro almacén solo se muestran si pasan por un trabajador, con el almacén como «Otro almacén» y sin `folio`, `vale_id` ni responsable (AC-06). |
+| `GET /api/piezas/{id}` | `catalogo.ver` | Ficha (C-02): artículo, `numero_serie` (nulo si está pendiente), `serie_pendiente` (booleano derivado: `true` si `numero_serie` es nulo), estado, `inspeccion_vigente_hasta` e `inspeccion_vigente`, `ultima_inspeccion`, `ubicacion` (almacén, trabajador o virtual) e `historial`: movimientos, inspecciones, cambios de estado y ajustes de vigencia en una sola lista, del más reciente al más antiguo (`tipo`, `fecha` UTC, `titulo`, `detalle`, `usuario` y los campos propios de cada tipo). Sin costos. Sin `almacenes.todos`, una pieza fuera del alcance (no está en su almacén, ni la tiene un trabajador, ni va en tránsito desde o hacia él) responde 404 `NO_ENCONTRADO`, igual que una que no existe; de su historial, los movimientos de un vale de otro almacén solo se muestran si pasan por un trabajador, con el almacén como «Otro almacén» y sin `folio`, `vale_id` ni responsable (AC-06). |
 | `POST /api/piezas/{id}/inspecciones` | `piezas.inspeccionar` | Registra una inspección (P-01) con `{resultado, puntos?, observacion?}`; `puntos` admite `etiquetas`, `costuras`, `cintas`, `herrajes` y `conectores` (booleanos). Responde 201 con la inspección y `pieza: {id, estado, inspeccion_vigente_hasta}`. Apto deja la pieza Apta y vigente hasta hoy más la vigencia de su artículo; No apto exige observación (422) y la deja No apta. Sirve para cualquier pieza de su almacén, también la que está con un trabajador (es del almacén de su última entrega); sin `almacenes.todos`, una pieza de otro almacén da 404 (AC-06, H11); una en baja da 409. |
 | `POST /api/piezas/{id}/estado` | `piezas.inspeccionar` | Marca No apta con `{estado: "NO_APTO", observacion}` (P-03); la observación es obligatoria (422). Responde 200 con `{evento_id, estado_anterior, pieza}`. Si ya está No apta o en baja, 409. |
+| `POST /api/piezas/{id}/serie` | `piezas.registrar_serie` | Completa la serie de una pieza que entró con serie pendiente (P-08, I-02). Cuerpo `{numero_serie}` (texto de 1 a 80 caracteres (el largo de la columna), sin espacios al inicio ni al final). Solo se **pone** una serie a una pieza que no la tiene: si ya tiene, 409 `SERIE_YA_REGISTRADA`; si la serie ya existe en otra pieza del mismo artículo, 409 `SERIE_REPETIDA`; una pieza en baja da 409 `CONFLICTO`. Sin `almacenes.todos`, una pieza fuera del alcance del usuario da 404 `NO_ENCONTRADO`, igual que en `GET /api/piezas/{id}` (AC-06). No cambia el estado ni la ubicación de la pieza y no genera movimiento. Deja un renglón de auditoría `pieza.registrar_serie` con el antes (`numero_serie: null`) y el después. Responde 200 con la ficha de la pieza (la de `GET /api/piezas/{id}`, con `serie_pendiente: false`). Cambiar una serie ya registrada no entra en esta etapa. |
 | `POST /api/piezas/{id}/ajuste-vigencia` | `piezas.ajustar_vigencia` | Cambia la fecha hasta la que vale la inspección vigente, con `{vigente_hasta, motivo}` (P-07). No cambia el resultado de la inspección. Responde 201 con el ajuste y la pieza. Se rechaza si la pieza está No apta o no tiene una inspección Apta (409 `AJUSTE_NO_PERMITIDO`), si la fecha pasa de la inspección más la vigencia del artículo (422 `VIGENCIA_EXCEDIDA`), si la fecha no cambia (422) o si quien la pide registró esa inspección (403 `AJUSTE_PROPIO`). |
 
 ## Puestos y dotación
@@ -285,6 +288,7 @@ Las tarjetas de FEAT-008 4.2.2. Respuesta (200):
   "entregas_hoy": 18,
   "solicitudes_compra_abiertas": 4,
   "inspecciones_por_vencer": 1,
+  "piezas_serie_pendiente": 5,
   "generado_en": "2026-10-06T16:20:00Z"
 }
 ```
@@ -303,6 +307,7 @@ Las tarjetas de FEAT-008 4.2.2. Respuesta (200):
 | `entregas_hoy` | Vales de ENTREGA no cancelados del alcance (`vale.almacen_id`) creados hoy, del día de México (TB-03). |
 | `solicitudes_compra_abiertas` | Solicitudes de compra en estado PENDIENTE o EN_COMPRA del alcance. |
 | `inspecciones_por_vencer` | Piezas de artículos que requieren inspección, en estado `APTO`, cuya `inspeccion_vigente_hasta` cae entre hoy y hoy más 7 días (el plazo de E-11; hoy incluido), dentro del alcance de C-02. Las ya vencidas no cuentan. |
+| `piezas_serie_pendiente` | Piezas sin número de serie (`numero_serie` nulo, derivado) que no están de baja, dentro del alcance de C-02. Al tocar la tarjeta, la interfaz abre `/seguimiento` con `serie_pendiente=true`. |
 | `generado_en` | Momento del cálculo, UTC. |
 
 Todos los números son enteros. No hay paginación.
@@ -384,7 +389,7 @@ El cuerpo de `POST /api/vales` puede traer `almacen_id`: el almacén en el que s
 | `GET /api/vales/{id}/firma` | `vales.ver` | La imagen de la firma del trabajador (PNG), con la misma visibilidad que el vale (AC-06). 404 si el vale no tiene firma en pantalla. Sirve para el detalle y la impresión: `tiene_firma` del detalle dice si existe. |
 | `GET /api/vales/por-token/{token}` | `vales.ver` | El vale que abre su QR (mismo detalle). |
 | `GET /api/vales?tipo=&almacen_id=&desde=&hasta=&trabajador_id=&usuario_id=` | `vales.ver` | Lista paginada, del más nuevo al más viejo. Sin `almacenes.todos`, solo los del almacén asignado, también si filtra por otro almacén o usuario. `desde` y `hasta` son fechas del centro de México, ambas inclusivas. Con el `usuario_id` de la sesión y las fechas de hoy resuelve "Mis movimientos de hoy" (C-12). |
-| `GET /api/traspasos/por-recibir?solo_contar=&almacen_id=` | `traspasos.operar` | Traspasos con algo En tránsito (estado `EN_TRANSITO` o `RECIBIDO_CON_DIFERENCIAS`) hacia el almacén de la sesión, del más antiguo al más nuevo, con sus renglones y lo ya recibido (forma abajo). Sin `almacenes.todos`, solo los del almacén asignado (un `almacen_id` distinto es 409 `ALMACEN_CAMBIO`); con él, `almacen_id` filtra y sin él trae los de todos los almacenes. Con `solo_contar=true` responde solo `{"total": n}`: es la consulta ligera del contador del inicio (cada 30 s). |
+| `GET /api/traspasos/por-recibir?solo_contar=&almacen_id=` | `traspasos.recibir` | Traspasos con algo En tránsito (estado `EN_TRANSITO` o `RECIBIDO_CON_DIFERENCIAS`) hacia el almacén de la sesión, del más antiguo al más nuevo, con sus renglones y lo ya recibido (forma abajo). Sin `almacenes.todos`, solo los del almacén asignado (un `almacen_id` distinto es 409 `ALMACEN_CAMBIO`); con él, `almacen_id` filtra y sin él trae los de todos los almacenes. Con `solo_contar=true` responde solo `{"total": n}`: es la consulta ligera del contador del inicio (cada 30 s). |
 | `POST /api/trabajadores/{id}/no-adeudo` | `no_adeudo.emitir` | Emite el vale de no adeudo (B-04). Cuerpo `{id_cliente, observacion, almacen_id}`; `almacen_id` solo lo indica quien tiene `almacenes.todos` (AC-06). Si el trabajador está Activo, inicia su baja (B-01: queda en Baja en proceso, aunque después responda 409) y para eso exige además `trabajadores.iniciar_baja` (403 si falta; con la baja ya en proceso no se pide). Responde 409 `CON_PENDIENTES` con la lista si los hay; 409 si el trabajador ya está Inactivo. Sin pendientes responde 201 con `{id, folio, token, creado_en, renglones: [], trabajador: {id, numero_empleado, nombre, estado, estado_texto}}` (folio `…-NAD-…`, el trabajador queda Inactivo, B-08; `renglones` va vacío); 200 con el mismo cuerpo si el `id_cliente` ya existía. |
 | `POST /api/vales/{id}/cancelacion` | `vales.cancelar` | Cancela con `{motivo, id_cliente, rehacer}` y genera los movimientos inversos (K-01 a K-04). Con `rehacer: true` la respuesta trae además un `borrador` con los renglones del vale original, sin firma ni autorización, para corregirlos y confirmar de nuevo (K-05). Con `vales.cancelar` solo los propios; con `vales.cancelar_todos`, los de cualquiera. Responde 409 `NO_CANCELABLE` si no procede. Forma exacta abajo, en "Cancelación". |
 
@@ -397,8 +402,12 @@ Permiso y campos propios de cada tipo. El permiso se verifica por clave, según 
 | DEVOLUCION | `devoluciones.crear` | `condicion` por renglón (obligatoria, V-04); `observacion` obligatoria si es `DANADO` (V-05); `foto` opcional por renglón `DANADO` (`data:image/…;base64,…`, se guarda como adjunto `FOTO_DANO` ligado al movimiento); `trabajador_id` solo hace falta en renglones por cantidad (una pieza se abona a su titular). Sin firma: firma el almacenista con su sesión (F-08). |
 | NO_ADEUDO | `no_adeudo.emitir` | `trabajador_id`; sin renglones. Lo usual es `POST /api/trabajadores/{id}/no-adeudo`; por `POST /api/vales` con pendientes responde 409 `VALE_CAMBIO` con el motivo `B-04`. |
 | TRASPASO | `traspasos.operar` | `destino_almacen_id` (obligatorio); renglones por código de pieza, o de artículo con `cantidad`. Sin `trabajador_id`, `vale_origen_id`, `pieza` ni costos (422). Firma de sesión (F-09): no lleva `firma`. El vale queda `EN_TRANSITO`, folio `CLAVE-TRS-000001`. `almacen_id` solo para quien tiene `almacenes.todos`. `evaluar` trae en `motivos` del vale la regla X-03 (verde, amarillo o rojo) y por renglón X-02, X-04, X-09. **Ruta que no es padre-hijo (X-03, FEAT-008):** sin `almacenes.todos`, `evaluar` la marca en rojo y confirmar responde 403 `RUTA_SOLO_ADMINISTRADOR`; con `almacenes.todos`, `evaluar` da amarillo con `pide_observacion: true` (en el vale) y confirmar exige `observacion` en el vale (sin ella, 422 `DATOS_INVALIDOS` con `detalles: [{campo: "observacion", mensaje, regla: "X-03"}]`). Un origen o destino cerrado: 409 `ALMACEN_CERRADO` (AL-04). |
-| RECEPCION | `traspasos.operar` | `vale_origen_id` (el traspaso, obligatorio); `renglones`: lo escaneado, por código de pieza o de artículo con `cantidad` (para recibir todo, todos los pendientes de `por-recibir`; sin renglones, 422). Sin `trabajador_id` ni `destino_almacen_id` (422). Firma de sesión (F-09). Folio `CLAVE-REC-000001` del almacén que recibe; al confirmar, el traspaso queda `RECIBIDO` o `RECIBIDO_CON_DIFERENCIAS` (X-13). `evaluar`: X-10 (vale y renglones, rojo), X-12 (renglón, rojo), X-13 (vale, amarillo) y, si la recepción deja algo pendiente sin `observacion` (vacía o en blanco), RG-14 (vale, rojo). Al confirmar esa recepción sin observación responde 422 con `detalles: [{campo: "observacion", mensaje, regla: "RG-14"}]` y no guarda nada; la recepción que completa lo pendiente no la pide. Un `vale_origen_id` inexistente es 404 y el de un vale que no es traspaso, 422. |
+| RECEPCION | `traspasos.recibir` | `vale_origen_id` (el traspaso, obligatorio); `renglones`: lo escaneado, por código de pieza o de artículo con `cantidad` (para recibir todo, todos los pendientes de `por-recibir`; sin renglones, 422). Sin `trabajador_id` ni `destino_almacen_id` (422). Firma de sesión (F-09). Folio `CLAVE-REC-000001` del almacén que recibe; al confirmar, el traspaso queda `RECIBIDO` o `RECIBIDO_CON_DIFERENCIAS` (X-13). `evaluar`: X-10 (vale y renglones, rojo), X-12 (renglón, rojo), X-13 (vale, amarillo) y, si la recepción deja algo pendiente sin `observacion` (vacía o en blanco), RG-14 (vale, rojo). Al confirmar esa recepción sin observación responde 422 con `detalles: [{campo: "observacion", mensaje, regla: "RG-14"}]` y no guarda nada; la recepción que completa lo pendiente no la pide. Un `vale_origen_id` inexistente es 404 y el de un vale que no es traspaso, 422. |
 | CANCELACION | `vales.cancelar` | `vale_origen_id` (el vale que se cancela) y `observacion` (el motivo); sin renglones: salen de los del original. Normalmente se usa `POST /api/vales/{id}/cancelacion`; `POST /api/vales` con este tipo hace lo mismo. |
+
+**Enviar y recibir son dos permisos distintos.** `traspasos.operar` es solo para **enviar** (tipo TRASPASO, incluido el traspaso por lista de Excel); `traspasos.recibir` es para **recibir** (tipo RECEPCION y `GET /api/traspasos/por-recibir`). Como `POST /api/vales/evaluar` y `POST /api/vales` solo exigen sesión en el router, el servicio verifica la clave según el `tipo` del cuerpo: `traspasos.operar` para TRASPASO y `traspasos.recibir` para RECEPCION (403 `SIN_PERMISO` si falta). Un rol puede tener uno, el otro o los dos: de inicio el Supervisor trae los dos y el Administrador, todos; el Almacenista no recibe de inicio, pero un administrador puede darle `traspasos.recibir` desde Roles y permisos (sección 8.2 de las reglas). La interfaz de la recepción se muestra a quien tiene `traspasos.recibir`, no al rol. `GET /api/traspasos/por-recibir` ya declara su permiso en el router (no es una de las rutas que se verifican en el servicio).
+
+**Pieza con serie pendiente en la ENTREGA (E-29).** Si un renglón entrega una pieza cuyo `numero_serie` es nulo, la evaluación le agrega el motivo `{regla: "E-29", codigo: "SERIE_PENDIENTE", nivel: "AMARILLO", mensaje: "Esta pieza no tiene número de serie registrado."}`. **No bloquea**: `puede_confirmar` no cambia y no pide observación. El renglón trae `pieza.serie_pendiente: true` para que la interfaz ofrezca capturar la serie. Traspaso, recepción y devolución no miran la serie.
 
 **Almacén cerrado (AL-04, FEAT-008).** En cualquier tipo que mueve inventario (ENTRADA, ENTREGA, DEVOLUCION, TRASPASO, RECEPCION y CANCELACION), si el almacén del vale, o el origen o el destino de un traspaso, está `CERRADO`, `evaluar` trae un motivo rojo del vale con la regla `AL-04` y `POST /api/vales` responde 409 `ALMACEN_CERRADO` sin guardar nada. Las lecturas (consulta y reportes) no cambian.
 
@@ -650,9 +659,9 @@ La tabla se lee en el navegador (pegada desde Excel, o un `.xlsx` leído allá);
 ```json
 {
   "modo": "ALTA",
-  "filas": [["MART-01", "Martillo", "Truper", "Herramienta manual", "12", "Kepler", "", "85.50", ""]],
+  "filas": [["MART-01", "Martillo", "Truper", "Herramienta manual", "12", "Kepler", "", "85.50", "", "pieza"]],
   "columnas": {"codigo": 0, "nombre": 1, "marca": 2, "categoria": 3, "cantidad": 4,
-               "almacen": 5, "serie": 6, "costo": 7, "codigo_pieza": 8},
+               "almacen": 5, "serie": 6, "costo": 7, "codigo_pieza": 8, "unidad": 9},
   "primera_fila": 2,
   "categoria_por_defecto_id": null,
   "mapa_categorias": {"Cosas raras": "<categoria_id>"},
@@ -664,7 +673,7 @@ La tabla se lee en el navegador (pegada desde Excel, o un `.xlsx` leído allá);
 ```
 
 - `modo` es `"ALTA"` o `"REPOSICION"`; si falta, `ALTA`. Otro valor da 422.
-- `filas` son solo las de datos (máximo 5 000, 30 columnas, 500 caracteres por celda); cada celda es texto, número o vacía. `columnas` da el índice (desde 0) de cada dato y una columna no puede ser dos datos. Sin `columnas`, se acepta `encabezados` (el nombre de cada columna) y el servidor las propone. `codigo` es el del artículo; `codigo_pieza`, el de cada pieza en artículos por pieza.
+- `filas` son solo las de datos (máximo 5 000, 30 columnas, 500 caracteres por celda); cada celda es texto, número o vacía. `columnas` da el índice (desde 0) de cada dato y una columna no puede ser dos datos. Sin `columnas`, se acepta `encabezados` (el nombre de cada columna) y el servidor las propone. `codigo` es el del artículo; `codigo_pieza`, el de cada pieza en artículos por pieza (opcional: si falta, el servidor lo genera al confirmar, ver «Código de pieza generado»). `unidad` (opcional, solo `ALTA`; el servidor reconoce los encabezados «unidad», «u.m.» y «medida») es la unidad de un artículo **nuevo** (texto de hasta 20 caracteres; vacía, «pieza»). En `REPOSICION` se ignora con un aviso.
   - **`REPOSICION`:** solo se leen `codigo`, `cantidad`, `almacen` y, en artículos por pieza, `codigo_pieza` y `serie`. `codigo` es obligatorio; sin esa columna, 422. Si vienen `nombre`, `marca`, `categoria` o `costo`, se ignoran con un aviso.
   - **`ALTA`:** son obligatorias `cantidad` y al menos una de `codigo` o `nombre`. Sin código en una fila de un artículo nuevo, el servidor lo genera (`PREFIJO-NNNN`, regla I-10 y sección «Código generado»).
 - `primera_fila` es el número que tiene la primera fila de `filas` en la hoja (2 si la hoja traía encabezados; por defecto 1): los errores se reportan con ese número.
@@ -685,15 +694,17 @@ La tabla se lee en el navegador (pegada desde Excel, o un `.xlsx` leído allá);
 | CF-02 | Categoría desconocida o vacía en un artículo nuevo (`CATEGORIA_DESCONOCIDA`): se elige una con `categoria_por_fila`, `categoria_por_defecto_id` o `mapa_categorias`. Si la sugerencia (I-14) no coincide con nada, la fila queda «por revisar» con este mismo motivo y no entra hasta elegir una. El artículo nuevo copia la plantilla de su categoría. |
 | I-09 | Artículo inactivo. |
 | RG-10 | Código de artículo que ya identifica una pieza, un trabajador o un vale; código de pieza igual al de un artículo. (El mismo artículo por cantidad en el mismo almacén ya no es error: se consolida, ver abajo.) |
-| I-02 | Pieza sin código de pieza o sin número de serie; código de pieza ya usado (en la base o antes en la tabla); serie repetida del mismo artículo. Cada fila de un artículo por pieza es una pieza (cantidad 1). Sin inspección inicial la pieza entra pendiente (I-03, se avisa). |
+| I-02 | Código de pieza ya usado (en la base o antes en la tabla, `CODIGO_REPETIDO`); serie repetida del mismo artículo (`SERIE_REPETIDA`, en la base o antes en la tabla). **Ya no son error** la pieza sin código de pieza (el servidor lo genera) ni la pieza sin número de serie (entra con serie pendiente, aviso amarillo `SERIE_PENDIENTE`). Una serie vacía nunca cuenta como repetida. Cada fila de un artículo por pieza es una pieza (cantidad 1). Sin inspección inicial la pieza entra pendiente (I-03, se avisa). |
 | RG-05 | Una pieza con cantidad distinta de 1. |
 | I-04 / RG-12 | `ALTA`, con `catalogo.costos`: un costo inválido (no es un número ≥ 0) rechaza la fila; el costo solo se guarda en artículos nuevos (en uno que ya existe se avisa que no cambia). Sin `catalogo.costos`: la columna de costo se ignora con un aviso, las filas entran y el costo nunca vuelve en las respuestas (ni en `datos` de una fila con error). `REPOSICION`: el costo nunca cambia. Ningún vale lleva costos. |
 
 **Consolidación (I-06).** En un artículo por cantidad, las filas del mismo artículo y el mismo almacén se suman en una sola; la fila resultante lleva la primera de las filas en `fila`, sus compañeras en `unida_de` y el aviso «Unido: filas 2, 5, 9». Una fila sin código se une con otra del mismo nombre y marca, comparados sin acentos ni mayúsculas ni espacios de más. Lo repetido sí es error en artículos por pieza: un `codigo_pieza` o una serie repetidos (`CODIGO_REPETIDO`, `SERIE_REPETIDA`).
 
-**Otros avisos por fila** (no bloquean): un artículo que ya existe cuyo nombre, marca o categoría del archivo no coincide con el registrado («El nombre del archivo es distinto del registrado; no se cambia»), siempre sin actualizar nada; una pieza sin inspección inicial (I-03). Una fila cuya descripción dice SERVICIO (`\bSERVICIO\b`, sin acentos ni mayúsculas) se **excluye** con un aviso: no se importa y no cuenta como error; va en `filas_excluidas`.
+**Otros avisos por fila** (no bloquean): un artículo que ya existe cuyo nombre, marca o categoría del archivo no coincide con el registrado («El nombre del archivo es distinto del registrado; no se cambia»), siempre sin actualizar nada; una pieza sin inspección inicial (I-03); una pieza sin número de serie (`SERIE_PENDIENTE`, amarillo, la fila entra y la serie se completa después con `POST /api/piezas/{id}/serie`); en `ALTA`, un artículo que ya existe cuya `unidad` del archivo es distinta de la registrada («La unidad del archivo es distinta de la registrada; no se cambia»). Una fila cuya descripción dice SERVICIO (`\bSERVICIO\b`, sin acentos ni mayúsculas) se **excluye** con un aviso: no se importa y no cuenta como error; va en `filas_excluidas`.
 
 **Código generado.** En `ALTA`, una fila de un artículo nuevo sin código recibe `PREFIJO-NNNN`: EPB (EPP básico), EPD (EPP de dotación), ALT (Equipo de alturas), HMA (Herramienta manual), HEL (Herramienta eléctrica), EAV (Equipo de alto valor) y CON (Consumibles de trabajo), con un consecutivo por categoría. En la vista previa el código se muestra como provisional (`codigo_generado: true`); el número definitivo se asigna al confirmar, **dentro de la misma transacción** y con la categoría bloqueada, de modo que dos lotes simultáneos nunca reciben el mismo. Una categoría sin prefijo (creada por la empresa) no genera código: la fila pide el suyo (`FALTA_CODIGO`).
+
+**Código de pieza generado.** En `ALTA`, una fila de un artículo por pieza sin `codigo_pieza` recibe `CÓDIGO-DEL-ARTÍCULO-NNN` (por ejemplo `HEL-0003-001`, `HEL-0003-002`): un tercer segmento sobre el código del artículo, con consecutivo por artículo. El código que sí viene en el archivo se respeta tal cual (RG-10). Se genera **al confirmar**, dentro de la misma transacción y con el artículo bloqueado, y es único contra el registro de códigos (`codigo`): si el candidato ya existe, toma el siguiente. En la vista previa la fila trae `codigo_pieza_generado: true` y `codigo_pieza` queda `null` o provisional (el número definitivo se asigna al confirmar). Un artículo nuevo sin código también recibe el suyo al confirmar; el código de pieza se arma sobre ese. Las etiquetas de las piezas con código generado no existen todavía físicamente: la respuesta de la confirmación las lista en `piezas_creadas` para imprimirlas. No hay generador en la entrada manual por vale: ahí se captura el código.
 
 Las filas vacías se ignoran (cuentan en `vacias`). Un artículo que ya existe solo recibe la entrada (su nombre, marca y categoría del archivo no lo cambian). Las filas con error no se importan y se listan con su motivo; las buenas sí entran, sin esperar a las malas.
 
@@ -707,15 +718,18 @@ Las filas vacías se ignoran (cuentan en `vacias`). Un artículo que ya existe s
   "archivo_repetido": null,
   "resumen": {"total": 6, "validas": 4, "con_error": 1, "vacias": 0,
               "articulos_nuevos": 2, "existentes": 1, "unidos": 1, "excluidas": 1,
-              "por_revisar": 0, "piezas": 1, "unidades": 15, "almacenes": 2},
+              "por_revisar": 0, "piezas": 1, "unidades": 15, "almacenes": 2,
+              "series_pendientes": 1},
   "filas_validas": [{"fila": 2, "estado": "NUEVO", "codigo": "MART-01", "codigo_generado": false,
                      "nombre": "Martillo", "marca": "Truper",
                      "categoria": {"id": "...", "nombre": "Herramienta manual"},
                      "categoria_sugerida": null, "motivo_sugerencia": null,
                      "control": "CANTIDAD", "articulo_nuevo": true, "cantidad": 12,
+                     "unidad": "pieza",
                      "saldo_antes": 0, "saldo_despues": 12, "unida_de": [],
                      "almacen": {"id": "...", "clave": "KEP", "nombre": "Kepler"},
-                     "codigo_pieza": null, "numero_serie": null,
+                     "codigo_pieza": null, "codigo_pieza_generado": false,
+                     "numero_serie": null, "serie_pendiente": false,
                      "costo": "85.50", "avisos": []},
                     {"fila": 4, "estado": "UNIDO", "codigo": "CON-0001", "codigo_generado": true,
                      "nombre": "Disco de corte", "marca": null,
@@ -741,12 +755,15 @@ Las filas vacías se ignoran (cuentan en `vacias`). Un artículo que ya existe s
 
 - `estado` de una fila: `NUEVO` (crea el artículo), `EXISTENTE` (suma a uno que ya existe), `UNIDO` (varias filas sumadas en una; `unida_de` lista las demás) o `ERROR` (solo en `filas_error`).
 - `saldo_antes` y `saldo_despues` son lo que hay del artículo en ese almacén antes y después de la fila (en un artículo por pieza, el número de piezas). En un artículo nuevo, `saldo_antes` es 0.
+- `unidad` es la unidad del artículo: la del archivo en un artículo nuevo (o «pieza» si no la trae) y la registrada en uno existente. Es solo informativa: el servidor no convierte ni redondea (I-13); quien trae kilos con decimales los pasa antes a la unidad menor y la declara en esta columna.
+- En una fila de artículo por pieza, `codigo_pieza_generado: true` marca un código provisional (`codigo_pieza` puede ir `null`: se asigna al confirmar) y `serie_pendiente: true` marca que no trae número de serie (con el aviso `SERIE_PENDIENTE`). `resumen.series_pendientes` cuenta esas filas.
 - `categoria_sugerida` y `motivo_sugerencia` vienen solo en `ALTA`, en filas de artículo nuevo sin categoría en el archivo (I-14); son `null` si el archivo trae categoría o si ninguna regla coincidió (la fila queda «por revisar» y va en `filas_error` con `CATEGORIA_DESCONOCIDA`, contada en `resumen.por_revisar`).
 - **Sugerencia pendiente.** En la vista previa, una fila de artículo nuevo con sugerencia (I-14) y sin categoría elegida vuelve en `filas_validas` con `categoria: null` y `categoria_sugerida` puesta (no como error). Al confirmar, sin esa fila en `categoria_por_fila` no entra (`CATEGORIA_DESCONOCIDA`): la sugerencia nunca se aplica sola. Con `categoria_por_fila`, la fila vuelve con `categoria` puesta. Las filas de `filas_error` que tenían sugerencia la traen en `categoria_sugerida` y `motivo_sugerencia` (opcionales).
 - Columnas: `codigo` ya no es obligatorio en el cuerpo; en `ALTA` basta `codigo` o `nombre`, en `REPOSICION` hace falta `codigo` (422 si no). `cantidad` no se exige como columna: sin ella, cada fila de un artículo por cantidad sale con `FALTA_CANTIDAD`.
 - Las marcas conocidas del anexo de FEAT-007 aún no se usan; la clave UNSPSC del archivo no es un dato del contrato (el respaldo 15 del diccionario existe en el código pero la API no lo recibe).
+- `motivos` trae los motivos que valen para todo el archivo y no para una fila: hoy, `AL-04` (`ALMACEN_CERRADO`) si el origen o el destino está cerrado (al confirmar, 409 `ALMACEN_CERRADO`). `puede_confirmar` es verdadero solo si se puede confirmar tal cual: sin filas en rojo, sin motivos del archivo, con ruta que no es roja, con al menos una fila y sin pasar de 500 renglones.
 - `archivo_repetido` es `null` o `{"fecha": "<UTC>"}`, la fecha de la importación anterior con la misma huella (I-12). La interfaz lo muestra como aviso, no como error.
-- `costo` (en filas válidas y artículos nuevos) solo aparece con `catalogo.costos` y si la fila lo trae. `codigo` de los motivos: `FALTA_CODIGO`, `FALTA_NOMBRE`, `CODIGO_REPETIDO`, `ARTICULO_REPETIDO`, `ARTICULO_INACTIVO`, `ARTICULO_NO_EXISTE`, `SIN_PERMISO_CREAR`, `CATEGORIA_DESCONOCIDA`, `ALMACEN_DESCONOCIDO`, `ALMACEN_CERRADO`, `ALMACEN_AJENO`, `FALTA_ALMACEN`, `FALTA_CANTIDAD`, `CANTIDAD_INVALIDA`, `CANTIDAD_NO_ENTERA`, `CANTIDAD_EXCESIVA`, `FALTA_CODIGO_PIEZA`, `FALTA_SERIE`, `SERIE_REPETIDA`, `COSTO_INVALIDO`, `DEMASIADO_LARGO`.
+- `costo` (en filas válidas y artículos nuevos) solo aparece con `catalogo.costos` y si la fila lo trae. `codigo` de los motivos: `FALTA_CODIGO`, `FALTA_NOMBRE`, `CODIGO_REPETIDO`, `ARTICULO_REPETIDO`, `ARTICULO_INACTIVO`, `ARTICULO_NO_EXISTE`, `SIN_PERMISO_CREAR`, `CATEGORIA_DESCONOCIDA`, `ALMACEN_DESCONOCIDO`, `ALMACEN_CERRADO`, `ALMACEN_AJENO`, `FALTA_ALMACEN`, `FALTA_CANTIDAD`, `CANTIDAD_INVALIDA`, `CANTIDAD_NO_ENTERA`, `CANTIDAD_EXCESIVA`, `SERIE_REPETIDA`, `COSTO_INVALIDO`, `DEMASIADO_LARGO`. `FALTA_CODIGO_PIEZA` y `FALTA_SERIE` ya no existen como error de la importación de entradas (el código se genera y la serie queda pendiente); la serie pendiente sale como aviso con el motivo `SERIE_PENDIENTE` (amarillo, en `avisos` de la fila, con la regla I-17). (`FALTA_CODIGO_PIEZA` sigue existiendo en la importación de traspasos, donde no se crean piezas.)
 
 **Respuesta de `POST /archivo`** (200): `{hoja, encabezados, columnas, primera_fila, filas, vista_previa}`. `filas` son las de datos (texto, ya separadas en columnas); `columnas` es la relación propuesta por el nombre de cada encabezado (sin acentos ni mayúsculas); `vista_previa` es la de arriba, o `null` si no se encontró la columna del código (en `ALTA`, tampoco la del nombre). El archivo se lee en memoria: solo `.xlsx` sin macros (se rechazan `.xlsm`, `.xls`, `.csv` y lo que no sea un `.xlsx` válido por su contenido), hasta 5 MB, 5 000 filas, 30 columnas, 500 caracteres por celda y 50 MB descomprimido (zip bomb). Una fórmula nunca se ejecuta: se lee el último valor que Excel guardó (o queda vacía). Un archivo malo da 422 `DATOS_INVALIDOS` con un mensaje en español, nunca un 500. Se lee la primera hoja; las filas vacías de arriba se saltan (el primer renglón con datos son los encabezados).
 
@@ -759,10 +776,14 @@ Si la huella del archivo ya está en una importación anterior (I-12) y el cuerp
   "modo": "ALTA", "id_lote": "<uuid>", "repetida": false,
   "resumen": {"filas_importadas": 3, "filas_con_error": 1, "articulos_creados": 2,
               "existentes": 1, "unidos": 1, "excluidas": 0,
-              "vales": 2, "piezas": 1, "unidades": 15},
+              "vales": 2, "piezas": 1, "unidades": 15, "series_pendientes": 1},
   "articulos_creados": [{"id": "...", "codigo": "MART-01", "codigo_generado": false,
-                         "nombre": "Martillo",
+                         "nombre": "Martillo", "unidad": "pieza",
                          "categoria": "Herramienta manual", "control": "CANTIDAD"}],
+  "piezas_creadas": [{"id": "...", "codigo": "HEL-0003-001", "codigo_generado": true,
+                      "articulo": {"id": "...", "codigo": "HEL-0003", "nombre": "Taladro"},
+                      "numero_serie": null, "serie_pendiente": true,
+                      "almacen": {"id": "...", "clave": "KEP", "nombre": "Kepler"}}],
   "vales": [{"id": "...", "folio": "KEP-ING-000012",
              "almacen": {"id": "...", "clave": "KEP", "nombre": "Kepler"},
              "renglones": 2, "piezas": 0, "unidades": 14}],
@@ -771,13 +792,113 @@ Si la huella del archivo ya está en una importación anterior (I-12) y el cuerp
 }
 ```
 
-`filas_error` tiene la misma forma que en la vista previa. **Idempotencia:** el `id_cliente` de cada vale es determinista por (`id_lote`, almacén, parte). Confirmar de nuevo el mismo `id_lote` responde **200** con `repetida: true`, los mismos vales (con sus folios) y `articulos_creados: []`, sin crear nada; el `id_lote` de otra persona da 409. Un lote nuevo con las mismas filas no duplica artículos (los existentes solo reciben otra entrada) y rechaza como error las piezas cuyo código o serie ya existen. La interfaz genera un `id_lote` por importación y lo reutiliza si el usuario reintenta.
+`filas_error` tiene la misma forma que en la vista previa. `piezas_creadas` lista **todas** las piezas que entraron (no solo las de código generado), con su código definitivo y `codigo_generado`, para que la interfaz ofrezca imprimir sus etiquetas (`GET /api/etiquetas?tipo=piezas` sigue siendo la fuente de la impresión); va vacía si el lote no trae piezas. **Idempotencia:** el `id_cliente` de cada vale es determinista por (`id_lote`, almacén, parte). Confirmar de nuevo el mismo `id_lote` responde **200** con `repetida: true`, los mismos vales (con sus folios) y `articulos_creados: []` y los mismos `piezas_creadas`, sin crear nada; el `id_lote` de otra persona da 409. Un lote nuevo con las mismas filas no duplica artículos (los existentes solo reciben otra entrada) y rechaza como error las piezas cuyo código o serie ya existen. La interfaz genera un `id_lote` por importación y lo reutiliza si el usuario reintenta.
 
 **Concurrencia entre lotes.** Dos confirmaciones al mismo tiempo (de lotes distintos) con los mismos artículos nuevos o las mismas piezas no duplican nada: el servidor bloquea lo que va a crear (la categoría para el consecutivo de códigos, el código del artículo y el de cada pieza) dentro de la transacción. El que llega segundo ve el artículo ya creado y le suma, o recibe 409 sin guardar nada; las existencias quedan iguales a la suma de los movimientos. Es un criterio de aceptación de US-IMP-001 y US-IMP-002.
 
 **Auditoría.** Cada confirmación deja un renglón `importacion.confirmar`; su `despues` lleva, además del resumen, el `modo` y la `huella` (sha256 en hexadecimal) que usa I-12. No hay tabla ni migración para eso. Con `confirmar_repetido: true` se guarda también `repetido: true`.
 
 **Descarga de filas con error.** La interfaz ofrece las filas con error en un CSV (con acentos para Excel). Toda celda que empiece con `=`, `+`, `-`, `@`, tabulador o retorno de carro se escribe con un apóstrofo al principio, para que Excel no la tome por una fórmula; los datos del archivo son ajenos y no se confía en ellos.
+
+## Importación de traspasos
+
+FEAT-009 («Traspasos por lista de Excel»; reglas TR-01 a TR-10): una lista de Excel con artículos y cantidades, o con piezas, se convierte en **un traspaso** del almacén de origen a un destino. La importación **no escribe vales ni existencias**: confirma llamando al servicio de movimientos con el tipo `TRASPASO`, así que el resultado es el mismo vale que la captura manual (folio `CLAVE-TRS-…`, QR, estado `EN_TRANSITO`, reglas X-01 a X-14 y firma de sesión F-09). Todas las rutas piden `traspasos.operar` (no piden `inventario.entradas`) y respetan el alcance de almacén (AC-06). El router declara el permiso: no hay excepción a la lista de rutas que lo verifican en el servicio.
+
+| Método y ruta | Permiso | Qué hace |
+|---|---|---|
+| `GET /api/importacion/traspasos/plantilla` | `traspasos.operar` | Descarga un `.xlsx` de ejemplo con las columnas `codigo`, `cantidad`, `codigo pieza` y `serie`, una fila de ejemplo y una hoja de instrucciones. No lee ni escribe datos. |
+| `POST /api/importacion/traspasos/archivo` | `traspasos.operar` | Recibe un `.xlsx` (multipart: `archivo`, `destino_almacen_id` y, solo con `almacenes.todos`, `almacen_id` como origen), lo separa en columnas y responde `{hoja, encabezados, columnas, primera_fila, filas, vista_previa}`. No escribe ni guarda el archivo. |
+| `POST /api/importacion/traspasos/vista-previa` | `traspasos.operar` | Recibe `{filas, columnas, primera_fila, destino_almacen_id, almacen_id?}` y devuelve la vista previa de abajo. No escribe. |
+| `POST /api/importacion/traspasos` | `traspasos.operar` | Confirma: crea el vale de traspaso con las filas buenas. 201 con el vale; con un `id_lote` ya confirmado, 200 con `repetida: true`. |
+
+La descarga de la lista de un traspaso, `GET /api/traspasos/{id}/lista?formato=xlsx` (la ve el origen o el destino, X-10: quien tiene `traspasos.operar` en el origen o `traspasos.recibir` en el destino; el servicio verifica cuál según el almacén, así que al construirla también se agrega a la lista de rutas que lo verifican en el servicio, en `AGENTS.md`), es la segunda entrega de TR-10. Mientras no exista en el código no lleva fila en la tabla de rutas, porque la prueba `test_AC_01_los_permisos_del_codigo_coinciden_con_el_contrato_de_api` exige que cada ruta documentada exista; al construirla se agrega su fila a la tabla de arriba.
+
+La **recepción no cambia**: el traspaso importado se recibe con `POST /api/vales` tipo `RECEPCION` y `GET /api/traspasos/por-recibir`, igual que uno capturado a mano. Esas dos rutas piden `traspasos.recibir`, no `traspasos.operar`: quien arma y envía la lista no es necesariamente quien recibe.
+
+**Cuerpo** (vista previa y confirmación; `POST /archivo` manda `destino_almacen_id` y `almacen_id` como campos del formulario):
+
+```json
+{
+  "filas": [["GUA-001", "6", "", ""], ["ALT-024", "", "ALT-024-0007", "SN-5521"]],
+  "columnas": {"codigo": 0, "cantidad": 1, "codigo_pieza": 2, "serie": 3},
+  "primera_fila": 2,
+  "destino_almacen_id": "01a1…",
+  "almacen_id": null,
+  "id_lote": "<uuid>",
+  "observacion": null,
+  "dejar_fuera_errores": false,
+  "confirmar_repetido": false
+}
+```
+
+- `filas`, `columnas` y `primera_fila` se entienden como en la importación de entradas (máximo 5 000 filas, 30 columnas, 500 caracteres por celda; los errores se reportan con el número de la hoja). `codigo` es el del artículo y `codigo_pieza`, el de la pieza. Una fila de artículo por cantidad lleva `codigo` y `cantidad`; una de artículo por pieza lleva `codigo_pieza` (la cantidad es 1; `serie` es opcional y solo ayuda a identificar).
+- `destino_almacen_id` es obligatorio. `almacen_id` es el origen y solo lo manda quien tiene `almacenes.todos`; los demás parten del almacén de la sesión (un `almacen_id` ajeno es 409 `ALMACEN_CAMBIO`). Destino igual al origen: 422 `DATOS_INVALIDOS`.
+- `id_lote`, `observacion`, `dejar_fuera_errores` y `confirmar_repetido` solo cuentan al confirmar; la vista previa los ignora. `id_lote` (UUID del cliente) es obligatorio. `observacion` se guarda en el vale y es obligatoria cuando la ruta pide observación (X-03). `dejar_fuera_errores` (por omisión `false`) confirma solo las filas buenas y deja fuera las rojas. `confirmar_repetido` (por omisión `false`) autoriza confirmar un archivo ya importado.
+
+**Respuesta de la vista previa** (200). Es la evaluación del traspaso por fila, con el mismo semáforo del vale:
+
+```json
+{
+  "origen": {"id": "01a1…", "clave": "KEP", "nombre": "Kepler"},
+  "destino": {"id": "01a1…", "clave": "CON", "nombre": "Contratistas"},
+  "ruta": {"habitual": true, "nivel": "VERDE", "pide_observacion": false, "mensaje": "Ruta habitual."},
+  "motivos": [],
+  "puede_confirmar": false,
+  "archivo_repetido": null,
+  "resumen": {"total": 3, "ok": 1, "avisos": 1, "errores": 1,
+              "unidades": 7, "piezas": 1, "excedido": false},
+  "filas": [
+    {"fila": 2, "codigo": "GUA-001", "articulo": "Guante", "pieza": null,
+     "cantidad": 6, "disponible_en_origen": 40, "nivel": "VERDE", "unida_de": [], "motivos": []},
+    {"fila": 3, "codigo": "ALT-024", "articulo": "Arnés poliéster",
+     "pieza": {"id": "01a1…", "codigo": "ALT-024-0007", "numero_serie": "SN-5521"},
+     "cantidad": 1, "disponible_en_origen": 1, "nivel": "AMARILLO", "unida_de": [],
+     "motivos": [{"regla": "X-04", "codigo": "PIEZA_NO_APTA", "mensaje": "La pieza no está apta."}]},
+    {"fila": 4, "codigo": "TOR-9", "articulo": null, "pieza": null,
+     "cantidad": 2, "disponible_en_origen": 0, "nivel": "ROJO", "unida_de": [],
+     "motivos": [{"regla": "X-02", "codigo": "SIN_EXISTENCIA_EN_ORIGEN", "mensaje": "No hay existencia en el origen."}]}
+  ],
+  "avisos": ["Unido: filas 2, 5"]
+}
+```
+
+- `ruta` es la regla X-03 de la ruta entre origen y destino: `habitual` es verdadero si es padre-hijo (`VERDE`); otra ruta con `almacenes.todos` es `AMARILLO` con `pide_observacion: true`; otra ruta sin `almacenes.todos` es `ROJO` (se puede ver, no confirmar: 403 `RUTA_SOLO_ADMINISTRADOR`). `mensaje` va en español llano.
+- `archivo_repetido` es `null` o `{"fecha": "<UTC>"}`: la importación anterior con la misma huella. Es aviso, no error.
+- `resumen`: `total` de filas con datos; `ok` (verde), `avisos` (amarillo) y `errores` (rojo) suman `total`; `unidades` y `piezas` son lo que se traspasaría con las filas confirmables; `excedido` es verdadero si pasa de 500 renglones (al confirmar, 422 `TRASPASO_MUY_GRANDE`).
+- Cada fila trae `nivel` (el más grave de sus `motivos`), `disponible_en_origen` (lo que el origen tiene del artículo; 1 o 0 en una pieza), `pieza` (solo en artículos por pieza) y `unida_de`: como en la importación de entradas, las filas repetidas de un artículo por cantidad se suman; la primera lleva en `unida_de` a sus compañeras y se avisa en `avisos`. Nada trae costos (F-12).
+- `codigo` de los motivos por fila: `ARTICULO_NO_EXISTE`, `CANTIDAD_NO_ENTERA`, `CANTIDAD_INVALIDA`, `SIN_EXISTENCIA_EN_ORIGEN` (X-02), `PIEZA_NO_ESTA_EN_ORIGEN` (X-02), `PIEZA_REPETIDA`, `FALTA_CODIGO_PIEZA` y `SERIE_NO_COINCIDE` (la `serie` del archivo no es la de la pieza; rojos, no se confirman) y `PIEZA_NO_APTA` (X-04, amarillo, no bloquea).
+
+**Respuesta de `POST /archivo`** (200): como la de la importación de entradas, con `vista_previa` (la de arriba) o `null` si no se encontró ni la columna `codigo` ni la `codigo pieza`. Mismas restricciones de archivo (solo `.xlsx` sin macros, 5 MB, 5 000 filas, 30 columnas; un archivo malo da 422 `DATOS_INVALIDOS` en español, nunca un 500).
+
+**Confirmación** (`POST /api/importacion/traspasos`). El servidor vuelve a evaluar el cuerpo con la misma revisión de la vista previa y llama al servicio de movimientos con un vale de tipo `TRASPASO` (renglones por código de pieza, o de artículo con `cantidad`), todo en una transacción (RG-09): el vale, sus movimientos y las existencias se guardan juntos o no se guarda nada. Responde 201:
+
+```json
+{
+  "id_lote": "<uuid>", "repetida": false,
+  "vale": {"id": "01a1…", "folio": "KEP-TRS-000013", "token": "…", "estado": "EN_TRANSITO",
+           "origen": {"id": "01a1…", "clave": "KEP", "nombre": "Kepler"},
+           "destino": {"id": "01a1…", "clave": "CON", "nombre": "Contratistas"},
+           "renglones": 2, "piezas": 1, "unidades": 7},
+  "resumen": {"filas_importadas": 2, "filas_dejadas_fuera": 1, "unidades": 7, "piezas": 1},
+  "filas_dejadas_fuera": [{"fila": 4, "motivos": [{"regla": "X-02", "codigo": "SIN_EXISTENCIA_EN_ORIGEN", "mensaje": "…"}]}],
+  "avisos": []
+}
+```
+
+**Idempotencia.** El `id_cliente` del vale es determinista a partir de `id_lote` (uuid5). Confirmar de nuevo el mismo `id_lote` responde 200 con `repetida: true` y el mismo vale (mismo folio), sin crear nada; un `id_lote` de otra persona da 409. Un lote nuevo con las mismas filas crea otro traspaso: lo frena el aviso de archivo repetido, no la idempotencia.
+
+**Errores propios** (además de los de la sección Errores):
+
+| HTTP | `codigo` | Cuándo |
+|---|---|---|
+| 403 | `RUTA_SOLO_ADMINISTRADOR` | La ruta no es padre-hijo y quien confirma no tiene `almacenes.todos` (X-03). Existente. |
+| 409 | `ALMACEN_CERRADO` | El origen o el destino está cerrado (AL-04). Existente. |
+| 409 | `ARCHIVO_REPETIDO` | La huella del archivo ya está en un traspaso importado y el cuerpo no trae `confirmar_repetido: true`; `detalles.fecha` es la de la importación anterior. Se resuelve reenviando con `confirmar_repetido: true`. Un `id_lote` ya confirmado se resuelve antes y no pasa por esta revisión. |
+| 409 | `FILAS_CON_ERROR` | Se confirmó con filas en rojo sin `dejar_fuera_errores: true`; `detalles.filas` las lista con sus motivos y no se guarda nada. Si no queda ninguna fila confirmable, 422 `DATOS_INVALIDOS` con `detalles.filas`. |
+| 422 | `TRASPASO_MUY_GRANDE` | Más de 500 renglones: un traspaso no se parte en varios vales; se divide el archivo. |
+| 422 | `DATOS_INVALIDOS` | Falta la `observacion` que pide X-03 (`detalles: [{campo: "observacion", mensaje, regla: "X-03"}]`); el destino es igual al origen; falta `destino_almacen_id` o `id_lote`; el archivo no sirve. |
+
+**Auditoría.** Cada confirmación deja un renglón `importacion.traspaso`; su `despues` lleva el resumen, el id y el folio del vale y la `huella` (sha256 en hexadecimal) del archivo, que usa el aviso de archivo repetido. Con `confirmar_repetido: true` se guarda también `repetido: true`. No hay tabla ni migración para eso (ver `data-model.md`).
 
 ## Reportes
 
@@ -801,9 +922,9 @@ Todos aceptan `formato=csv` y las listas, `pagina` y `tamano`. Las fechas (`desd
 
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
-| `GET /api/seguimiento/piezas` | `reportes.existencias` | Seguimiento de piezas (C-13): todas las piezas dentro del alcance del usuario, cada una con dónde está o quién la tiene, desde cuándo y con qué vale. Filtros: `q`, `articulo_id`, `almacen_id`, `estado`, `ubicacion`, `pagina`, `tamano` y `formato=csv`. Solo lee. |
+| `GET /api/seguimiento/piezas` | `reportes.existencias` | Seguimiento de piezas (C-13): todas las piezas dentro del alcance del usuario, cada una con dónde está o quién la tiene, desde cuándo y con qué vale. Filtros: `q`, `articulo_id`, `almacen_id`, `estado`, `ubicacion`, `serie_pendiente`, `pagina`, `tamano` y `formato=csv`. Solo lee. |
 
-- **Filtros.** `q` busca por nombre o código del artículo, número de serie, código de la pieza y nombre o número del trabajador que la tiene; varias palabras deben coincidir todas, y con menos de dos caracteres no busca (lista vacía y `mensaje` "Escribe al menos dos caracteres para buscar."). `estado`: `APTO`, `NO_APTO`, `EN_MANTENIMIENTO`, `EN_CALIBRACION` o `BAJA`. `ubicacion`: `ALMACEN`, `TRABAJADOR`, `TRANSITO` o `BAJA`. `almacen_id` deja las piezas que están en ese almacén, las que tiene un trabajador por un vale de ese almacén y las que van en tránsito desde o hacia él. Un valor inválido responde 422 `DATOS_INVALIDOS`.
+- **Filtros.** `q` busca por nombre o código del artículo, número de serie, código de la pieza y nombre o número del trabajador que la tiene; varias palabras deben coincidir todas, y con menos de dos caracteres no busca (lista vacía y `mensaje` "Escribe al menos dos caracteres para buscar."). `estado`: `APTO`, `NO_APTO`, `EN_MANTENIMIENTO`, `EN_CALIBRACION` o `BAJA`. `ubicacion`: `ALMACEN`, `TRABAJADOR`, `TRANSITO` o `BAJA`. `almacen_id` deja las piezas que están en ese almacén, las que tiene un trabajador por un vale de ese almacén y las que van en tránsito desde o hacia él. `serie_pendiente=true` deja solo las piezas sin número de serie (`false`, solo las que ya la tienen; omitido, todas). Un valor inválido responde 422 `DATOS_INVALIDOS`.
 - **Alcance (AC-06, C-02).** Con `almacenes.todos`, todas las piezas. Sin él, solo las del almacén asignado, las que tiene un trabajador (si el rol tiene `trabajadores.ver`) y el tránsito desde o hacia su almacén; pedir el `almacen_id` de otro no devuelve nada (no es error), y sin almacén asignado ni `almacenes.todos` tampoco. `vale` es `null` cuando el vale es de un almacén fuera del alcance. Nunca lleva costos, CURP ni NSS (RG-12, RG-13).
 - **Respuesta.** `{elementos, total, sin_registros, mensaje, resumen}`, ordenada por artículo y código de pieza. `resumen` = `{total, en_almacen, en_resguardo, en_transito, no_aptas}` cuenta las piezas del alcance con el texto, el artículo y el almacén del filtro, **sin** aplicar `estado` ni `ubicacion`, para que las tarjetas de la pantalla cambien entre ellos. Cada elemento:
 
@@ -812,6 +933,7 @@ Todos aceptan `formato=csv` y las listas, `pagina` y `tamano`. Las fechas (`desd
   "id": "0192...",
   "codigo": "HER-001",
   "numero_serie": "MP-2041",
+  "serie_pendiente": false,
   "articulo": {"id": "0192...", "codigo": "MINIPULIDOR", "nombre": "Minipulidor", "marca": "Bosch"},
   "estado": "APTO",
   "estado_texto": "Apta",
@@ -828,7 +950,7 @@ Todos aceptan `formato=csv` y las listas, `pagina` y `tamano`. Las fechas (`desd
 }
 ```
 
-  `ubicacion.tipo` es `ALMACEN` (`almacen` es el almacén; texto "En Kepler"), `TRABAJADOR` (`trabajador` es quien la tiene), `TRANSITO` (`almacen` es el almacén al que va; texto "En tránsito a Contratistas"), `BAJA` ("De baja"), `OTRA` o `NINGUNA` (sin ubicación todavía). `desde` (UTC) es el movimiento que la dejó en esa ubicación; con un trabajador, su entrega más reciente, porque una cancelación que se la regresa no cambia desde cuándo la tiene. `vale` es el vale de ese movimiento.
+  `numero_serie` es `null` y `serie_pendiente` es `true` en una pieza sin serie registrada; el CSV deja la celda de la serie vacía. `ubicacion.tipo` es `ALMACEN` (`almacen` es el almacén; texto "En Kepler"), `TRABAJADOR` (`trabajador` es quien la tiene), `TRANSITO` (`almacen` es el almacén al que va; texto "En tránsito a Contratistas"), `BAJA` ("De baja"), `OTRA` o `NINGUNA` (sin ubicación todavía). `desde` (UTC) es el movimiento que la dejó en esa ubicación; con un trabajador, su entrega más reciente, porque una cancelación que se la regresa no cambia desde cuándo la tiene. `vale` es el vale de ese movimiento.
 - **CSV.** `formato=csv` descarga todas las filas del filtro (`seguimiento-piezas-AAAAMMDD.csv`): código de la pieza, serie, código y nombre del artículo, marca, estado, inspección vigente hasta, dónde está, número y nombre del trabajador, desde (hora de México) y folio del vale. Mismas reglas del CSV de los reportes (BOM, neutralización de `=`, `+`, `-` y `@`).
 - **Pantalla.** La ficha de cada pieza es `GET /api/piezas/{id}` (C-02): trae su inspección y su historial completo.
 

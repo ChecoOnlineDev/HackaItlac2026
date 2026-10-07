@@ -17,7 +17,7 @@ def test_todos_los_tipos_de_vale_estan_registrados_con_su_permiso():
     assert permisos[TipoVale.ENTREGA] == P.ENTREGAS_CREAR
     assert permisos[TipoVale.DEVOLUCION] == P.DEVOLUCIONES_CREAR
     assert permisos[TipoVale.TRASPASO] == P.TRASPASOS_OPERAR
-    assert permisos[TipoVale.RECEPCION] == P.TRASPASOS_OPERAR
+    assert permisos[TipoVale.RECEPCION] == P.TRASPASOS_RECIBIR
     assert permisos[TipoVale.NO_ADEUDO] == P.NO_ADEUDO_EMITIR
     assert permisos[TipoVale.CANCELACION] == P.VALES_CANCELAR
     assert {t for t, m in TIPOS.items() if isinstance(m, TipoPendiente)} == set(PENDIENTES)

@@ -14,6 +14,7 @@ from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import P
 from app.modulos.importacion.dependencies import ImportacionServiceDep
 from app.modulos.importacion.lectura import MAX_BYTES_ARCHIVO
+from app.modulos.importacion.router_traspasos import router as router_traspasos
 from app.modulos.importacion.schemas import (
     ArchivoOut,
     ImportacionIn,
@@ -25,6 +26,7 @@ from app.modulos.importacion.schemas import (
 TIPO_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 router = APIRouter(prefix="/importacion", tags=["importacion"])
+router.include_router(router_traspasos)  # FEAT-009: /importacion/traspasos/*
 
 Importar = Annotated[Usuario, Depends(requiere_permiso(P.INVENTARIO_ENTRADAS))]
 

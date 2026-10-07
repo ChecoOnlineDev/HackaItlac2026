@@ -39,8 +39,23 @@ function textoFalta(r: RenglonDotacionApi): string {
 export function HojaDotacion({ abierta, alCambiar, dotacion, modo, yaEnLista, alAgregar }: PropiedadesHojaDotacion) {
   const [marcados, setMarcados] = useState<ReadonlySet<string>>(new Set());
 
+  // Al abrir en modo selección, «Marcar lo que falta» ya está aplicado: quien entrega solo quita lo que no quiera.
   useEffect(() => {
-    if (abierta) setMarcados(new Set());
+    if (!abierta) return;
+    setMarcados(
+      modo === "seleccion"
+        ? new Set(
+            dotacion.renglones
+              .filter(
+                (r) =>
+                  r.falta > 0 && r.articulo.control === "CANTIDAD" && !(yaEnLista?.has(r.articulo.codigo.trim().toLocaleUpperCase("es-MX")) ?? false),
+              )
+              .map((r) => r.articulo.id),
+          )
+        : new Set(),
+    );
+    // Solo al abrir: los cambios de la lista mientras está abierta no deben deshacer las marcas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [abierta]);
 
   const seleccionando = modo === "seleccion";
@@ -89,7 +104,7 @@ export function HojaDotacion({ abierta, alCambiar, dotacion, modo, yaEnLista, al
       <div className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
           {faltan === 0 ? "Tiene completa su dotación." : `Le faltan ${faltan} de ${dotacion.renglones.length} artículos.`}{" "}
-          {seleccionando ? "Es solo una sugerencia: marca lo que quieras entregar ahora." : "Es solo una sugerencia."}
+          {seleccionando ? "Ya está marcado lo que falta: quita lo que no quieras entregar ahora." : "Es solo una sugerencia."}
         </p>
 
         {seleccionando && marcables.length > 0 ? (

@@ -30,7 +30,7 @@ const ESPERA_MS = 120;
  * Evalúa el borrador de un traspaso o una recepción en el servidor cada vez que cambia (E-28: no se
  * escribe nada). Cancela la evaluación anterior y descarta respuestas viejas.
  */
-export function useEvaluar(cuerpo: CuerpoTraspaso | null): Resultado {
+export function useEvaluar(cuerpo: CuerpoTraspaso | null, esperaMs: number = ESPERA_MS): Resultado {
   const [evaluacion, setEvaluacion] = useState<EvaluacionApi | null>(null);
   const [claveEvaluada, setClaveEvaluada] = useState<string | null>(null);
   const [evaluando, setEvaluando] = useState(false);
@@ -62,12 +62,12 @@ export function useEvaluar(cuerpo: CuerpoTraspaso | null): Resultado {
           setError(esErrorApi(causa) ? causa : null);
           setEvaluando(false);
         });
-    }, ESPERA_MS);
+    }, esperaMs);
     return () => {
       window.clearTimeout(temporizador);
       control.abort();
     };
-  }, [clave, intento]);
+  }, [clave, intento, esperaMs]);
 
   const reintentar = useCallback(() => setIntento((n) => n + 1), []);
   const adoptar = useCallback((nueva: EvaluacionApi) => {

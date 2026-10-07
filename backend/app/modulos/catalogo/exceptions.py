@@ -35,9 +35,24 @@ class NombreRepetido(Conflicto):
 
 
 class SerieRepetida(Conflicto):
-    """El artículo ya tiene una pieza con ese número de serie."""
+    """El artículo ya tiene una pieza con ese número de serie (I-02)."""
+
+    codigo = "SERIE_REPETIDA"
 
     mensaje_defecto = "Ya existe una pieza de ese artículo con ese número de serie."
+
+
+class SerieYaRegistrada(Conflicto):
+    """La pieza ya tiene número de serie: solo se pone, no se cambia (P-08)."""
+
+    codigo = "SERIE_YA_REGISTRADA"
+    mensaje_defecto = "Esta pieza ya tiene número de serie registrado."
+
+
+class PiezaDeBaja(Conflicto):
+    """Una pieza dada de baja ya no cambia."""
+
+    mensaje_defecto = "La pieza está dada de baja."
 
 
 class PuestoNoEncontrado(NoEncontrado):

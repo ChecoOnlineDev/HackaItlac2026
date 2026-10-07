@@ -185,7 +185,7 @@ El sistema **no ata el EPP a un almacén**. La entrega se hace en **el almacén 
 | 3 | **Kepler → proyecto directo** | **Decidido:** excepción, solo el **Administrador**, con aviso amarillo y observación obligatoria. |
 | 4 | **Quién da de alta los almacenes** | **Decidido:** el **Administrador** da de alta, edita, inactiva y reactiva. El supervisor del proyecto ve su reporte de cierre. FEAT-002 y la tabla 8.3 se ajustaron. |
 | 5 | **Reabrir un proyecto** | **Decidido:** se **reactiva el mismo almacén**. |
-| 6 | **Quién recibe en un proyecto** con turnos de 24 horas | **Propuesto:** permiso de recibir separado del de enviar, para que el almacenista del proyecto reciba (sección 12.1, mejora 2). Pendiente de confirmar. |
+| 6 | **Quién recibe en un proyecto** con turnos de 24 horas | **Resuelto (7 oct 2026):** permiso `traspasos.recibir` separado de `traspasos.operar` (enviar); el Supervisor tiene los dos y al almacenista del proyecto se le puede dar el de recibir desde Roles y permisos (sección 12.1, mejora 2; X-01). Documentado, sin construir. |
 | 7 | **Un trabajador que cambia de proyecto** | Lo que tiene en resguardo sigue siendo suyo (sección 11). |
 | 8 | **Periodo por apertura** | **Decidido: después del MVP** (sección 12.2). |
 | 9 | **Sembrar los almacenes iniciales** | **Decidido:** comando `sembrar-almacenes`, solo si no existe ningún almacén (FEAT-008). |
@@ -212,10 +212,10 @@ El sistema **no ata el EPP a un almacén**. La entrega se hace en **el almacén 
 
 | # | Mejora | Qué hace | Por qué |
 |---|---|---|---|
-| 1 | **Surtido por lista** | Al abrir un proyecto, el supervisor de Contratistas arma el traspaso pegando o subiendo un Excel con artículos y cantidades, con la misma vista previa en tabla de la importación (FEAT-007). | La plática dice: «te acabo de dar este listado de herramientas». Capturar renglón por renglón es lento y la infraestructura ya existe. |
-| 2 | **Recibir separado de enviar** | Un permiso aparte para **recibir** traspasos, que también tiene el almacenista del proyecto. Enviar sigue siendo del supervisor. | El reto asigna almacenistas por proyecto con turnos de 24 horas y los hace responsables de lo recibido. Cambia X-01 y la sección 8 de permisos. |
+| 1 | **Surtido por lista** (se resuelve con [FEAT-009](../features/FEAT-009-traspasos-por-lista-de-excel.md), propuesta pendiente de aprobación) | Al abrir un proyecto, el supervisor de Contratistas arma la **salida** del traspaso pegando o subiendo un Excel con artículos y cantidades, con la misma vista previa en tabla de la importación (FEAT-007); la recepción no cambia (X-10 a X-13). | La plática dice: «te acabo de dar este listado de herramientas». Capturar renglón por renglón es lento y la infraestructura ya existe. |
+| 2 | **Recibir separado de enviar** | **Resuelta (aprobada el 7 oct 2026; reglas al día, sin construir).** Un permiso aparte, `traspasos.recibir`, para **recibir** traspasos, que se puede dar al almacenista del proyecto desde Roles y permisos. Enviar sigue siendo de `traspasos.operar` (Supervisor). | El reto asigna almacenistas por proyecto con turnos de 24 horas y los hace responsables de lo recibido. Cambia X-01 y la sección 8 de permisos. |
 | 3 | **«Devolver todo al cerrar»** | Arma el traspaso de regreso a Contratistas con las existencias del proyecto que sí regresan (herramienta y equipo; los consumibles gastados no). | Hace el cierre en un paso y alimenta el reporte de cierre. |
-| 4 | **Kepler → proyecto solo por el Administrador** | La ruta que no es padre-hijo la hace únicamente quien tiene `almacenes.todos`, con aviso amarillo (X-03) y observación obligatoria. | Evita que se salten Contratistas por costumbre y deja constancia de la excepción. Cambia X-03. |
+| 4 | **Kepler → proyecto solo por el Administrador** (**ya está en el código**: X-03 con `RUTA_SOLO_ADMINISTRADOR`) | La ruta que no es padre-hijo la hace únicamente quien tiene `almacenes.todos`, con aviso amarillo (X-03) y observación obligatoria. | Evita que se salten Contratistas por costumbre y deja constancia de la excepción. Cambia X-03. |
 
 ### 12.2 Quedan para después del MVP
 
@@ -243,10 +243,10 @@ El sistema **no ata el EPP a un almacén**. La entrega se hace en **el almacén 
 | Alta, edición, inactivar y reactivar almacenes | **Falta** (FEAT-008, etapas 1 y 2) |
 | Rechazo de almacén cerrado en entregas, entradas y compras | **Falta** (hoy solo traspasos, usuarios e importación) |
 | Reporte de cierre y faltantes | **Falta** (FEAT-002) |
-| Traspaso fuera de ruta solo para el Administrador, con observación obligatoria | **Falta el código** (12.1, mejora 4); la regla X-03 y el contrato de API ya están escritos |
+| Traspaso fuera de ruta solo para el Administrador, con observación obligatoria | **Ya existe** (12.1, mejora 4): X-03 con `RUTA_SOLO_ADMINISTRADOR` |
 | Comando `sembrar-almacenes` | **Falta** (FEAT-008, etapa 1) |
-| Permiso de recibir separado de enviar | **Falta** (12.1, mejora 2) |
-| Surtido por lista (Excel) | **Falta** (12.1, mejora 1) |
+| Permiso de recibir separado de enviar | **Documentado, falta construirlo** (12.1, mejora 2; `traspasos.recibir`) |
+| Surtido por lista (Excel) | **Falta** (12.1, mejora 1; [FEAT-009](../features/FEAT-009-traspasos-por-lista-de-excel.md), propuesta) |
 | «Devolver todo al cerrar» | **Falta** (12.1, mejora 3) |
 | Periodo por apertura, solicitud de surtido y aviso de traspaso sin recibir | **Después del MVP** (12.2) |
 

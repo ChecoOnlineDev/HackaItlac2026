@@ -99,7 +99,7 @@ def _clave_de(ident) -> Clave | None:
 
 class RecepcionTipo(ManejadorTipo):
     tipo = TipoVale.RECEPCION
-    permiso = P.TRASPASOS_OPERAR
+    permiso = P.TRASPASOS_RECIBIR
     firma_modo = FirmaModo.SESION  # F-09: firma quien recibe, con su sesión
 
     # ------------------------------------------------------------------ validación

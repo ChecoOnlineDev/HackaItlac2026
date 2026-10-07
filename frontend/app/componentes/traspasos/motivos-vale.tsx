@@ -22,7 +22,7 @@ const BORDE: Record<NivelSemaforo, string> = {
  * Los motivos que valen para todo el traspaso o la recepción (por ejemplo la ruta, X-03, o que el traspaso
  * es de otro almacén, X-10). Cada uno con icono y texto además del color, y el ID de su regla.
  */
-export function MotivosDelVale({ motivos, className }: { motivos: MotivoRegla[]; className?: string }) {
+export function MotivosDelVale({ motivos, className, sinRegla = false }: { motivos: MotivoRegla[]; className?: string; sinRegla?: boolean }) {
   if (motivos.length === 0) return null;
   return (
     <ul aria-label="Avisos del traspaso" className={cn("flex flex-col gap-2", className)}>
@@ -33,7 +33,8 @@ export function MotivosDelVale({ motivos, className }: { motivos: MotivoRegla[];
             <Icono aria-hidden="true" strokeWidth={3} className={cn("mt-1 size-4 shrink-0", COLOR_ICONO[m.nivel])} />
             <span className="min-w-0 flex-1">
               <span className="sr-only">{TEXTO[m.nivel]}: </span>
-              {m.mensaje} <span className="text-xs font-medium whitespace-nowrap text-muted-foreground">({m.regla})</span>
+              {m.mensaje}
+              {sinRegla ? null : <span className="ml-1 text-xs font-medium whitespace-nowrap text-muted-foreground">({m.regla})</span>}
             </span>
           </li>
         );

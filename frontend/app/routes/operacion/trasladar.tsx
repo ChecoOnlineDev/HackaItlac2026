@@ -1,4 +1,4 @@
-import { CircleAlertIcon, InfoIcon, RotateCcwIcon, WifiOffIcon } from "lucide-react";
+import { CircleAlertIcon, FileSpreadsheetIcon, InfoIcon, RotateCcwIcon, WifiOffIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker } from "react-router";
 
@@ -24,6 +24,7 @@ import {
 import { MotivosDelVale } from "~/componentes/traspasos/motivos-vale";
 import { ResultadoTraspaso } from "~/componentes/traspasos/resultado-traspaso";
 import { SelectorDestino } from "~/componentes/traspasos/selector-destino";
+import { TrasladarConLista } from "~/componentes/traspasos-lista/trasladar-con-lista";
 import { useEvaluar, type CuerpoTraspaso } from "~/componentes/traspasos/use-evaluar";
 import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
@@ -104,6 +105,7 @@ export default function Trasladar() {
   const [enviando, setEnviando] = useState(false);
   const enviandoRef = useRef(false);
   const [descartando, setDescartando] = useState(false);
+  const [conLista, setConLista] = useState(false);
   const [resultadosBusqueda, setResultadosBusqueda] = useState<{ texto: string; items: CoincidenciaArticulo[] } | null>(null);
   const [buscandoArticulo, setBuscandoArticulo] = useState(false);
   const sonidoPendiente = useRef<Set<string>>(new Set());
@@ -544,6 +546,12 @@ export default function Trasladar() {
               placeholderCampo="Código, serie o nombre"
             />
             {buscandoArticulo ? <Cargando variante="en-linea" texto="Buscando…" /> : null}
+            {borrador.renglones.length === 0 ? (
+              <Boton variante="secundario" onClick={() => setConLista(true)} disabled={operaTodos && !borrador.almacenId}>
+                <FileSpreadsheetIcon aria-hidden="true" />
+                Trasladar con una lista
+              </Boton>
+            ) : null}
           </div>
         </div>
       </div>
@@ -570,6 +578,17 @@ export default function Trasladar() {
           Nuevo traspaso
         </Boton>
       </AccionPrincipal>
+    );
+  }
+
+  if (conLista && !resultado) {
+    return (
+      <TrasladarConLista
+        operaTodos={operaTodos}
+        almacenInicialId={borrador.almacenId}
+        almacenNombre={almacenNombre}
+        alSalir={() => setConLista(false)}
+      />
     );
   }
 

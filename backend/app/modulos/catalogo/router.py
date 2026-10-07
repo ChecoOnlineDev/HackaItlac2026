@@ -14,7 +14,11 @@ from app.core.paginacion import Pagina, PaginacionDep
 from app.modulos.acceso.dependencies import requiere_permiso
 from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import P
-from app.modulos.catalogo.dependencies import CatalogoServiceDep, PuestoServiceDep
+from app.modulos.catalogo.dependencies import (
+    CatalogoServiceDep,
+    PuestoServiceDep,
+    SerieServiceDep,
+)
 from app.modulos.catalogo.schemas import (
     ArticuloCreate,
     ArticuloFichaOut,
@@ -34,13 +38,16 @@ from app.modulos.catalogo.schemas import (
     PuestoFilters,
     PuestoOut,
     PuestoUpdate,
+    SerieIn,
     TipoEtiqueta,
 )
+from app.modulos.consulta.schemas import PiezaFichaOut
 
 router = APIRouter(tags=["catalogo"])
 
 Ver = Annotated[Usuario, Depends(requiere_permiso(P.CATALOGO_VER))]
 Administrar = Annotated[Usuario, Depends(requiere_permiso(P.CATALOGO_ADMINISTRAR))]
+RegistrarSerie = Annotated[Usuario, Depends(requiere_permiso(P.PIEZAS_REGISTRAR_SERIE))]
 Imprimir = Annotated[Usuario, Depends(requiere_permiso(P.ETIQUETAS_IMPRIMIR))]
 
 
@@ -167,6 +174,18 @@ def eliminar_articulo(
     """`catalogo.administrar`. Elimina solo si no tiene movimientos (CF-12); si no, 409."""
     service.eliminar_articulo(articulo_id, usuario)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ------------------------------------------------------------------------------- series
+
+
+@router.post("/piezas/{pieza_id}/serie", response_model=PiezaFichaOut)
+def registrar_serie(
+    pieza_id: uuid.UUID, datos: SerieIn, usuario: RegistrarSerie, service: SerieServiceDep
+) -> PiezaFichaOut:
+    """`piezas.registrar_serie`. Pone la serie a una pieza que no la tiene (P-08); responde su
+    ficha. 409 `SERIE_YA_REGISTRADA` o `SERIE_REPETIDA`."""
+    return service.registrar_serie(pieza_id, datos.numero_serie, usuario)
 
 
 # ----------------------------------------------------------------------------- etiquetas

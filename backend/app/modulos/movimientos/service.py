@@ -776,7 +776,10 @@ class MovimientoService:
             cantidad=r.cantidad,
             disponible=r.disponible,
             nivel=r.nivel,
-            motivos=[MotivoOut(regla=m.regla, nivel=m.nivel, mensaje=m.mensaje) for m in r.motivos],
+            motivos=[
+                MotivoOut(regla=m.regla, nivel=m.nivel, mensaje=m.mensaje, codigo=m.codigo)
+                for m in r.motivos
+            ],
             pide_observacion=r.pide_observacion,
             autorizable=r.autorizable,
             requiere_confirmacion=r.requiere_confirmacion,
@@ -790,7 +793,7 @@ class MovimientoService:
             puede_confirmar=evaluacion.puede_confirmar,
             pide_observacion=evaluacion.pide_observacion,
             motivos=[
-                MotivoOut(regla=m.regla, nivel=m.nivel, mensaje=m.mensaje)
+                MotivoOut(regla=m.regla, nivel=m.nivel, mensaje=m.mensaje, codigo=m.codigo)
                 for m in evaluacion.motivos_vale
             ],
             almacen=AlmacenResumenOut(id=almacen.id, clave=almacen.clave, nombre=almacen.nombre),

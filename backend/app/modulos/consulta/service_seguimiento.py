@@ -97,6 +97,7 @@ class SeguimientoService:
             "articulo_id": filtros.articulo_id,
             "estado": filtros.estado.value if filtros.estado else None,
             "ubicacion": filtros.ubicacion.value if filtros.ubicacion else None,
+            "serie_pendiente": filtros.serie_pendiente,
         }
         if self.acceso.puede_operar_todos_los_almacenes(usuario):
             return FiltroSeguimiento(almacen_id=filtros.almacen_id, **common)

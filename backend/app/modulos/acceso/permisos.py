@@ -29,6 +29,7 @@ class P:
     ENTREGAS_CREAR = "entregas.crear"
     DEVOLUCIONES_CREAR = "devoluciones.crear"
     TRASPASOS_OPERAR = "traspasos.operar"
+    TRASPASOS_RECIBIR = "traspasos.recibir"
     NO_ADEUDO_EMITIR = "no_adeudo.emitir"
     VALES_VER = "vales.ver"
     VALES_CANCELAR = "vales.cancelar"
@@ -36,6 +37,7 @@ class P:
     AUTORIZACIONES_RESOLVER = "autorizaciones.resolver"
     PIEZAS_INSPECCIONAR = "piezas.inspeccionar"
     PIEZAS_AJUSTAR_VIGENCIA = "piezas.ajustar_vigencia"
+    PIEZAS_REGISTRAR_SERIE = "piezas.registrar_serie"
     REPORTES_EXISTENCIAS = "reportes.existencias"
     REPORTES_MOVIMIENTOS = "reportes.movimientos"
     REPORTES_ADEUDOS = "reportes.adeudos"
@@ -88,7 +90,8 @@ CATALOGO: tuple[Permiso, ...] = (
     Permiso(P.INVENTARIO_ENTRADAS, "Entradas e importación", True),
     Permiso(P.ENTREGAS_CREAR, "Entregar y pedir autorización", True),
     Permiso(P.DEVOLUCIONES_CREAR, "Recibir devoluciones", True),
-    Permiso(P.TRASPASOS_OPERAR, "Enviar y recibir traspasos", True),
+    Permiso(P.TRASPASOS_OPERAR, "Enviar traspasos", True),
+    Permiso(P.TRASPASOS_RECIBIR, "Recibir traspasos en el almacén de destino", True),
     Permiso(P.NO_ADEUDO_EMITIR, "Emitir el vale de no adeudo", True),
     Permiso(P.VALES_VER, "Consultar vales", True),
     Permiso(P.VALES_CANCELAR, "Cancelar los vales propios", True),
@@ -96,6 +99,11 @@ CATALOGO: tuple[Permiso, ...] = (
     Permiso(P.AUTORIZACIONES_RESOLVER, "Autorizar o rechazar excedentes", True),
     Permiso(P.PIEZAS_INSPECCIONAR, "Inspeccionar y marcar No apta", True),
     Permiso(P.PIEZAS_AJUSTAR_VIGENCIA, "Ajustar la vigencia de una inspección", True),
+    Permiso(
+        P.PIEZAS_REGISTRAR_SERIE,
+        "Poner el número de serie a una pieza que no lo tiene",
+        True,
+    ),
     Permiso(P.REPORTES_EXISTENCIAS, "Reporte de existencias", True),
     Permiso(P.REPORTES_MOVIMIENTOS, "Reporte de movimientos", True),
     Permiso(P.REPORTES_ADEUDOS, "Reporte de adeudos", True),

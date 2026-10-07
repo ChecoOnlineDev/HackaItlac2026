@@ -15,6 +15,7 @@ export interface PiezaSeguimiento {
   id: string;
   codigo: string;
   numero_serie: string | null;
+  serie_pendiente?: boolean;
   articulo: { id: string; codigo: string; nombre: string; marca: string | null };
   estado: string;
   estado_texto: string;

@@ -90,6 +90,7 @@ def test_I_06_resumen_y_articulos_que_se_crearian(compras):
         "piezas": 0,
         "unidades": 6,
         "almacenes": 2,
+        "series_pendientes": 0,  # I-17
     }
     nuevo = vp["articulos_nuevos"][0]
     assert nuevo["codigo"] == codigo and nuevo["filas"] == 2
@@ -139,6 +140,7 @@ def test_I_06_las_columnas_se_proponen_con_los_encabezados_aunque_tengan_acentos
         "costo": 6,
         "marca": 7,
         "codigo_pieza": 8,
+        "unidad": None,  # columna opcional que este archivo no trae (I-16)
     }
     fila_valida = vp["filas_validas"][0]
     assert fila_valida["nombre"] == "Martillo" and fila_valida["cantidad"] == 7
@@ -284,13 +286,13 @@ def test_CF_02_la_categoria_elegida_cubre_a_las_filas_con_categoria_desconocida(
         mapa_categorias=mapa,
         categoria_por_defecto_id=por_defecto,
     )
-    # "Cosas raras" -> eléctrica (por pieza, sin serie ni código de pieza): error de pieza;
+    # "Cosas raras" -> eléctrica (por pieza). Antes de I-15 e I-17 esta fila era error por no traer
+    # código de pieza ni serie; ahora entra con código provisional y serie pendiente.
     # "Otras" -> la de por defecto (manual, por cantidad).
-    assert vp["filas_error"][0]["fila"] == 1
-    assert vp["filas_error"][0]["motivos"][0]["regla"] == "RG-05" or any(
-        m["codigo"] == "FALTA_CODIGO_PIEZA" for m in vp["filas_error"][0]["motivos"]
-    )
-    assert vp["filas_validas"][0]["categoria"]["nombre"] == MANUAL
+    assert vp["filas_error"] == []
+    assert vp["filas_validas"][0]["categoria"]["nombre"] == ELECTRICA
+    assert vp["filas_validas"][0]["serie_pendiente"] is True
+    assert vp["filas_validas"][1]["categoria"]["nombre"] == MANUAL
 
 
 def test_CF_02_una_categoria_elegida_que_no_existe_es_un_error_de_datos(compras):
@@ -433,7 +435,9 @@ def test_I_02_cada_fila_de_un_articulo_por_pieza_es_una_pieza(compras):
     assert all(f["cantidad"] == 1 and f["control"] == "PIEZA" for f in vp["filas_validas"])
 
 
-def test_I_02_la_pieza_sin_serie_o_sin_codigo_de_pieza_se_rechaza(compras):
+def test_I_02_la_pieza_sin_serie_o_sin_codigo_de_pieza_ya_no_se_rechaza(compras):
+    # Antes de I-15 e I-17 las dos filas eran error (FALTA_SERIE, FALTA_CODIGO_PIEZA); ahora
+    # entran: la primera con serie pendiente y la segunda con código de pieza provisional.
     vp = vista(
         compras,
         [
@@ -441,9 +445,9 @@ def test_I_02_la_pieza_sin_serie_o_sin_codigo_de_pieza_se_rechaza(compras):
             fila(unico("B"), categoria=ELECTRICA, serie="S-9", codigo_pieza=""),
         ],
     )
-    assert motivos(vp, 1)[0]["codigo"] == "FALTA_SERIE"
-    assert motivos(vp, 2)[0]["codigo"] == "FALTA_CODIGO_PIEZA"
-    assert all(m["regla"] == "I-02" for f in vp["filas_error"] for m in f["motivos"])
+    assert vp["filas_error"] == [] and vp["resumen"]["validas"] == 2
+    assert vp["filas_validas"][0]["serie_pendiente"] is True
+    assert vp["filas_validas"][1]["codigo_pieza_generado"] is True
 
 
 def test_I_02_un_codigo_de_pieza_que_ya_existe_en_la_base_se_rechaza(compras, session):

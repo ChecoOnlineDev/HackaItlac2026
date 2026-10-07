@@ -2,7 +2,7 @@
 // docs/architecture/api-contracts.md ("Importación"). Son tipos de PRESENTACIÓN: la revisión de cada fila
 // la hace el servidor; la interfaz muestra lo que responde.
 
-export const CAMPOS = ["codigo", "nombre", "marca", "categoria", "cantidad", "almacen", "serie", "costo", "codigo_pieza"] as const;
+export const CAMPOS = ["codigo", "nombre", "marca", "categoria", "cantidad", "almacen", "serie", "costo", "codigo_pieza", "unidad"] as const;
 export type CampoImportacion = (typeof CAMPOS)[number];
 
 /** Los dos modos de la importación (regla I-10): `ALTA` crea y suma; `REPOSICION` solo suma a lo que ya existe. */
@@ -59,7 +59,13 @@ export interface FilaValida {
   unida_de?: number[];
   almacen: AlmacenRef;
   codigo_pieza: string | null;
+  /** El código de la pieza lo asigna el servidor al confirmar; el que se ve es provisional. */
+  codigo_pieza_generado?: boolean;
   numero_serie: string | null;
+  /** La pieza no trae número de serie: entra igual y se registra después (aviso, no bloquea). */
+  serie_pendiente?: boolean;
+  /** Unidad del artículo: la del archivo en uno nuevo, la registrada en uno existente. */
+  unidad?: string | null;
   costo?: string | null;
   avisos: string[];
 }
@@ -107,6 +113,8 @@ export interface ResumenVistaPrevia {
   piezas: number;
   unidades: number;
   almacenes: number;
+  /** Piezas que entrarían sin número de serie. */
+  series_pendientes?: number;
 }
 
 export interface VistaPreviaApi {
@@ -142,6 +150,16 @@ export interface ValeImportado {
   unidades: number;
 }
 
+export interface PiezaCreada {
+  id: string;
+  codigo: string;
+  codigo_generado: boolean;
+  articulo: { id: string; codigo: string; nombre: string };
+  numero_serie: string | null;
+  serie_pendiente: boolean;
+  almacen: AlmacenRef;
+}
+
 export interface ImportacionApi {
   modo: ModoImportacion;
   id_lote: string;
@@ -156,8 +174,11 @@ export interface ImportacionApi {
     vales: number;
     piezas: number;
     unidades: number;
+    series_pendientes?: number;
   };
   articulos_creados: { id: string; codigo: string; nombre: string; categoria: string; control: string }[];
+  /** Todas las piezas que entraron, con su código definitivo (para imprimir sus etiquetas). */
+  piezas_creadas?: PiezaCreada[];
   vales: ValeImportado[];
   filas_error: FilaError[];
   avisos: string[];

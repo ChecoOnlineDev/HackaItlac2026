@@ -166,6 +166,8 @@ export interface FichaPieza {
   id: string;
   codigo: string;
   numero_serie: string | null;
+  /** Derivado: `true` si no tiene serie. Si el servidor no lo manda, se deduce de `numero_serie`. */
+  serie_pendiente?: boolean;
   estado: string;
   estado_texto: string;
   articulo: ArticuloDePieza;

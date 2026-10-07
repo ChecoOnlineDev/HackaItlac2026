@@ -483,6 +483,7 @@ export default function Entregar() {
     : borrador.trabajador;
   const almacenNombre = evaluacion?.almacen.nombre ?? sesion.almacen?.nombre ?? null;
   const dotacion = useDotacion(borrador.trabajador?.id ?? null, borrador.paso);
+  const faltanDotacion = dotacion ? dotacion.renglones.filter((r) => r.falta > 0).length : 0;
   const yaEnLista = useMemo(
     () =>
       new Set([
@@ -675,7 +676,7 @@ export default function Entregar() {
                 {evaluacion.motivos.map((m, i) => (
                   <li key={`${m.regla}-${i}`} className="text-base">
                     <span className="sr-only">{TEXTO_NIVEL[m.nivel]}: </span>
-                    {m.mensaje} <span className="text-xs font-medium whitespace-nowrap text-muted-foreground">({m.regla})</span>
+                    {m.mensaje}
                   </li>
                 ))}
               </ul>
@@ -698,6 +699,7 @@ export default function Entregar() {
               onQuitar={quitar}
               onCantidad={cambiarCantidad}
               onPedirAutorizacion={() => setPidiendoAutorizacion(true)}
+              onInspeccionar={puede("piezas.inspeccionar") ? (r) => r.pieza?.id && navegar(`/piezas/${r.pieza.id}`) : undefined}
               estadoAutorizacion={(r) =>
                 r.autorizado
                   ? "autorizado"
@@ -749,10 +751,17 @@ export default function Entregar() {
             />
             {buscandoArticulo ? <Cargando variante="en-linea" texto="Buscando…" /> : null}
             {dotacion ? (
-              <Boton variante="contorno" onClick={() => setEligiendoDotacion(true)}>
-                <ClipboardListIcon aria-hidden="true" />
-                Dotación sugerida
-              </Boton>
+              <>
+                {faltanDotacion > 0 ? (
+                  <p className="rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-sm font-semibold" aria-live="polite">
+                    Te faltan {faltanDotacion} {faltanDotacion === 1 ? "artículo" : "artículos"} de la dotación.
+                  </p>
+                ) : null}
+                <Boton variante="contorno" onClick={() => setEligiendoDotacion(true)}>
+                  <ClipboardListIcon aria-hidden="true" />
+                  Dotación sugerida
+                </Boton>
+              </>
             ) : null}
           </div>
         </div>

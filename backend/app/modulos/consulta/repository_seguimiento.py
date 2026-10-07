@@ -29,6 +29,7 @@ class FiltroSeguimiento:
     almacen_id: uuid.UUID | None = None
     estado: str | None = None
     ubicacion: str | None = None
+    serie_pendiente: bool | None = None
     visibles: tuple[uuid.UUID | None, bool] | None = field(default=None)
 
 
@@ -104,6 +105,12 @@ class SeguimientoRepository:
             )
         if filtro.articulo_id is not None:
             consulta = consulta.where(Pieza.articulo_id == filtro.articulo_id)
+        if filtro.serie_pendiente is not None:
+            consulta = consulta.where(
+                Pieza.numero_serie.is_(None)
+                if filtro.serie_pendiente
+                else Pieza.numero_serie.is_not(None)
+            )
         for palabra in filtro.palabras:
             patron = _patron(palabra)
             consulta = consulta.where(

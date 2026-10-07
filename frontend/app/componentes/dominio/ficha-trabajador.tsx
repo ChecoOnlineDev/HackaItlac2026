@@ -107,7 +107,6 @@ export function FichaTrabajador({ trabajador, variante = "completa", dotacion = 
       <XIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" strokeWidth={3} />
       <p className="text-sm leading-snug font-semibold">
         No se puede entregar. <span className="font-medium">{motivo}</span>
-        {vigencia.regla ? <span className="ml-1.5 text-xs font-medium whitespace-nowrap opacity-90">({vigencia.regla})</span> : null}
       </p>
     </div>
   ) : null;

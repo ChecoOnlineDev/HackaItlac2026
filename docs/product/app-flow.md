@@ -113,7 +113,7 @@ Dotación  -> agregar artículos activos y cantidad recomendada -> resumen de ca
 Elegir almacén (Kepler por defecto)
 Agregar renglones (escanear o buscar artículo)
   -> por cantidad: capturar cantidad
-  -> por pieza: capturar o escanear el código de cada pieza, marca y serie (I-02)
+  -> por pieza: capturar o escanear el código de cada pieza, marca y serie (I-02); la serie puede quedar pendiente (E-xx)
        -> requiere inspección: capturar la inspección inicial o dejarla pendiente (I-03)
 Confirmar -> vale de entrada con folio
 ```
@@ -134,25 +134,28 @@ Elegir el modo: Alta (carga inicial: crea artículos nuevos y suma a los que ya 
    -> "Descargar plantilla" ofrece el ejemplo de ese modo
 Pegar la tabla copiada de Excel, o subir el archivo
 Indicar qué columna es cada dato
-   Alta: código (opcional), nombre, marca, categoría, cantidad, almacén, serie, costo, código de pieza
+   Alta: código (opcional), nombre, marca, categoría, cantidad, unidad (opcional), almacén, serie (opcional), costo, código de pieza (opcional)
    Reposición: código, cantidad, almacén y, si es por pieza, código de pieza y serie
 Vista previa en tabla: una fila por renglón del archivo, con su estado
    Nuevo | Existente (suma) | Unido | Error, saldo antes -> después,
    y en el alta la categoría sugerida, que se puede cambiar por fila
-   Resumen arriba: nuevos, existentes, unidos, errores
+   Resumen arriba: nuevos, existentes, unidos, errores y, si los hay, «n piezas sin serie»
+   Una pieza sin serie sale en amarillo con «Serie pendiente»; una sin código de pieza, con «Código provisional: se asigna al confirmar»
    Aviso si el archivo ya se importó
 Confirmar -> un vale de entrada por almacén
+  -> si entraron piezas: pantalla de resultado con «Imprimir etiquetas de las piezas nuevas»
 ```
 
 - **Decisiones:**
   - Categoría de un artículo nuevo sin categoría en el archivo: el sistema sugiere una según la descripción y dice por qué; la persona la acepta o la cambia en la fila, y lo que no coincide queda «por revisar» hasta elegir una (I-14).
-  - Filas del mismo artículo por cantidad y almacén: se unen en una («Unido: filas 2, 5, 9»); artículo por pieza: cada fila es una pieza, y el código o la serie repetidos son error (I-06).
+  - Filas del mismo artículo por cantidad y almacén: se unen en una («Unido: filas 2, 5, 9»); artículo por pieza: cada fila es una pieza, y el código de pieza o la serie repetidos son error (I-06). Una pieza sin serie **no** es error: entra con la serie pendiente y la fila sale en amarillo (I-02, I-17). Una pieza sin código de pieza tampoco: el sistema le asigna `CÓDIGO-DEL-ARTÍCULO-NNN` al confirmar (RG-10).
   - Código que no existe en Reposición: error «Ese artículo no existe: dalo de alta primero» (I-10).
   - Cantidad con decimales o con coma ambigua: error que pide una unidad entera menor; nunca se redondea (I-13). Más de 100 000 por fila: error (I-11).
+  - Columna `unidad` (opcional, en Alta): la unidad de un artículo nuevo; si difiere de la de uno existente, aviso y no se cambia. Las cantidades siguen siendo enteras: quien mide en kilos las pasa a gramos en el archivo (I-13).
   - Una descripción con la palabra SERVICIO se excluye con aviso.
   - Archivo ya importado: aviso en la vista previa; para confirmar hay que aceptar expresamente (I-12).
   - Sin `catalogo.administrar`: las filas que crearían un artículo salen como error y las demás entran.
-- **Éxito:** catálogo y existencias cargados; resumen de lo creado y de lo sumado, con los folios de los vales.
+- **Éxito:** catálogo y existencias cargados; resumen de lo creado y de lo sumado, con los folios de los vales. Si entraron piezas, el resultado lista las piezas creadas con su código (los generados, marcados) y ofrece «Imprimir etiquetas de las piezas nuevas», que abre Etiquetas (flujo 16) con esas piezas; un código generado no está pegado en la herramienta hasta imprimir y pegar su etiqueta. Si quedaron piezas con serie pendiente, el resultado lo dice y enlaza al seguimiento filtrado.
 - **Error:** las filas con error no se importan y se listan con su motivo (se pueden descargar en CSV); las buenas entran sin esperar a las malas.
 - **Cancelación:** hasta "Confirmar" no se guarda nada.
 
@@ -176,7 +179,7 @@ Escanear artículos, uno tras otro (cada lectura se agrega a un borrador; nada s
   -> cantidad inusualmente alta: se pide confirmar la cantidad (E-27)
   -> lectura accidental: Quitar el renglón, o Deshacer durante 5 segundos
   -> rojo: se quita el renglón para poder continuar
-  -> amarillo: se lee y no detiene (E-09 fuera de la dotación o sobre lo recomendado, E-10 talla, E-11 inspección por vencer)
+  -> amarillo: se lee y no detiene (E-09 fuera de la dotación o sobre lo recomendado, E-10 talla, E-11 inspección por vencer, E-29 pieza con serie pendiente: el renglón ofrece «Registrar serie» si la persona tiene `piezas.registrar_serie`)
   -> naranja: Pedir autorización (flujo 7) o quitar el renglón (A-07)
 Continuar: sin rojos y con los naranjas autorizados (SM-03)
   -> si algún renglón pide observación (E-09): "¿Por qué se entrega esto?" con respuestas rápidas; obligatoria para confirmar
@@ -230,9 +233,9 @@ Confirmar -> vale de devolución con folio (V-11)
 - **Error:** cantidad mayor a la que tiene el trabajador se rechaza en ese renglón.
 - **Cancelación:** como en la entrega.
 
-## Flujo 9: Traspaso, salida (almacenista de origen)
+## Flujo 9: Traspaso, salida (supervisor del almacén de origen)
 
-- **Entrada:** Inicio -> Trasladar.
+- **Entrada:** Inicio -> Trasladar. Con `traspasos.operar` (X-01); el almacenista no la tiene.
 - **Pasos:**
 
 ```
@@ -245,21 +248,59 @@ Confirmar -> vale de traspaso con folio y QR; estado En tránsito (X-06)
 - **Éxito:** las existencias salen del origen y quedan En tránsito (X-01).
 - **Error:** pieza que no está en este almacén, o cantidad mayor a la existencia: rojo.
 
-## Flujo 10: Traspaso, recepción (almacenista de destino)
+### Entrada alternativa: Trasladar con una lista (FEAT-009)
+
+- **Entrada:** en Trasladar, el botón «Trasladar con una lista», junto a «Escanear». Misma precondición y mismo permiso (`traspasos.operar`); no hay permiso nuevo.
+- **Pasos:**
+
+```
+Elegir almacén de destino (igual que arriba: rutas habituales; la no habitual solo con `almacenes.todos`,
+  con aviso amarillo y observación obligatoria, X-03)
+  -> el destino es uno solo para todo el archivo
+Descargar la plantilla, o subir el archivo, o pegar la tabla copiada de Excel
+Indicar qué columna es cada dato (se proponen solas por el encabezado; se pueden cambiar)
+   código, cantidad y, si es por pieza, código de pieza o serie
+Vista previa en tabla: una fila por renglón del archivo, con su estado
+   Correcto | Aviso | Error, artículo, cantidad y lo disponible en el origen
+   Resumen arriba: correctas, con aviso, con error
+   Aviso si el archivo ya se usó para otro traspaso
+   Banner de ruta: habitual, o no habitual con la observación obligatoria
+Confirmar -> vale de traspaso con folio CLAVE-TRS y QR; estado En tránsito (X-06)
+```
+
+- **Decisiones:**
+  - Cada fila pasa por la misma evaluación que un escaneo (X-02, X-04, X-09); el servidor decide el nivel y la pantalla solo lo muestra.
+  - Un rojo bloquea **todo** el traspaso (RG-09). Para seguir, se corrige el archivo y se vuelve a subir, o se usa «Dejar fuera las filas con error», que pide confirmar y dice cuántas son y cuáles; las filas dejadas fuera no se envían.
+  - Una fila en amarillo avisa y no detiene. Las filas del mismo artículo por cantidad se unen en una; un artículo por pieza lleva una fila por pieza.
+  - Más de 500 filas: se rechaza el archivo completo con el motivo en español llano.
+  - Archivo ya usado: aviso en la vista previa; para confirmar hay que aceptarlo expresamente.
+  - Tocar «Confirmar» dos veces, o perder la conexión y reintentar, no duplica el vale (el dispositivo manda su `id_lote`; una repetición devuelve el mismo vale).
+- **Éxito:** igual que la captura manual: las existencias salen del origen y quedan En tránsito (X-01); resultado con folio y QR.
+- **Error:** destino inválido, un renglón en rojo (sin dejarlo fuera) o un archivo ilegible: no se guarda nada.
+- **Cancelación:** hasta «Confirmar» no se guarda nada; el archivo no se conserva en el servidor.
+- **Con escaneo:** la lista y el escaneo se pueden combinar antes de confirmar: lo que viene del archivo entra como renglones normales del borrador.
+
+## Flujo 10: Traspaso, recepción (supervisor del almacén de destino)
 
 - **Entrada:** Inicio -> Recibir (n); o escanear el QR del traspaso.
+- **Precondiciones:** `traspasos.recibir` (distinto de `traspasos.operar`, que es solo para enviar). Quién recibe en un almacén lo define ese permiso: un supervisor, un almacenista del destino o quien el administrador decida; armar y enviar el traspaso no lo implica.
 - **Pasos:**
 
 ```
 Abrir el traspaso
   -> Recibir todo
   -> o escanear renglón por renglón (X-11)
+  -> o marcar renglones con su casilla y ajustar la cantidad con − y +
+  -> en una lista larga: buscar un renglón, filtrar «Pendientes» / «Todos» / «Con diferencia»
+     y seguir el avance en el contador «12 de 40 revisados»
 Confirmar -> vale de recepción; el traspaso queda Recibido
 ```
 
+- **Lista larga (traspasos de cientos de renglones, FEAT-009):** el encabezado muestra «12 de 40 revisados» (un renglón está revisado cuando se marcó, se escaneó o se le puso cantidad) y una barra de avance. Un cuadro de búsqueda filtra por código, nombre o serie, y el filtro «Pendientes» oculta lo ya revisado. «Recibir todo» marca todos los renglones **pendientes**, incluidos los que el filtro oculta. Escanear un código marca su renglón y lo lleva a la vista; si el código no es del traspaso, avisa (X-12). La cantidad de cada renglón por cantidad es editable (teclear, o − y +) y no pasa de lo pendiente (X-11). Los renglones con diferencia se resumen arriba con «Falta recibir n» antes de confirmar y piden la observación (RG-14). Estas ayudas son de la interfaz; el servidor evalúa lo mismo que antes.
 - **Decisiones:** lo que no se reciba sigue En tránsito y el traspaso queda "Recibido con diferencias" (X-13). Mientras le falte algo, el traspaso sigue en la lista de por recibir y se puede recibir otra vez hasta completarlo; entonces queda Recibido. "Recibir todo" manda todos los renglones pendientes del traspaso.
+- **Sin cambios de reglas por FEAT-009:** un traspaso armado con una lista de Excel se recibe con las mismas reglas que uno escaneado (X-10 a X-13, RG-14); el Excel solo arma la salida. Lo que cambia es la pantalla, para listas largas (arriba).
 - **Éxito:** las existencias entran al destino, con origen y destino conservados (X-07).
-- **Error:** el traspaso es para otro almacén (X-10); lo escaneado no pertenece a este traspaso (X-12).
+- **Error:** el traspaso es para otro almacén (X-10); lo escaneado no pertenece a este traspaso (X-12); quien no tiene `traspasos.recibir` no ve «Recibir» y el servidor responde 403.
 
 ## Flujo 11: Baja y vale de no adeudo (RH o almacenista)
 
@@ -287,7 +328,7 @@ RH ve "No adeudo emitido" en su consulta (B-09)
 ```
 Escanear o escribir
   -> credencial o trabajador -> ficha: vigencia y resguardo (C-01)
-  -> pieza -> estado, inspección, quién la tiene e historial (C-02)
+  -> pieza -> estado, inspección, quién la tiene e historial (C-02); si no tiene serie, la insignia «Serie pendiente» (E-xx)
   -> artículo -> existencias por almacén y quién lo tiene (C-03)
   -> vale -> detalle (C-04)
   -> texto -> lista de coincidencias: artículos, piezas y trabajadores (C-06)
@@ -310,6 +351,14 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 ```
 
 - **Éxito:** el estado y la inspección aparecen en el historial de la pieza; el semáforo los respeta de inmediato.
+
+### Registrar la serie de una pieza (con `piezas.registrar_serie`)
+
+- **Entrada:** ficha de la pieza con la insignia «Serie pendiente» -> «Registrar serie»; o el renglón amarillo de una entrega; o la lista del seguimiento filtrada por «Serie pendiente».
+- **Pasos:** escribir o escanear el número de serie del fabricante -> Guardar. El servidor guarda la serie y deja la auditoría `pieza.registrar_serie`.
+- **Decisiones:** solo se **pone** la serie a una pieza que no la tiene; si ya tiene, no se ofrece el botón (409 `SERIE_YA_REGISTRADA`). Una serie que ya existe en otra pieza del mismo artículo se rechaza con «Esa serie ya está registrada en otra pieza» (409 `SERIE_REPETIDA`).
+- **Éxito:** la ficha ya no muestra la insignia; la pieza deja de avisar en las entregas.
+- **Segunda entrega:** completar muchas series de una vez con un Excel (`codigo pieza`, `serie`).
 
 ## Flujo 14: Cancelar un vale (quien lo hizo, o el supervisor)
 
@@ -412,7 +461,7 @@ Parte de FEAT-008 (TB-01 a TB-03).
 - **Entrada:** `/` con sesión. El Inicio depende de los permisos, nunca del nombre del rol.
 - **Orden de la pantalla:** primero «Lo que haces hoy» (los botones de operación del rol, grandes), debajo las tarjetas y, al final, la gráfica de lo más usado.
 - **Quién ve el tablero:** quien tiene `tablero.ver` (Administrador, Supervisor y Almacenista de inicio). Con `almacenes.todos` (Administrador) ve todos los almacenes y un selector «Viendo: Todos los almacenes» con la lista de almacenes; el rótulo «Viendo: Midrex» avisa que el selector solo cambia lo que se mira, no el almacén en el que se opera. Sin `almacenes.todos`, ve solo su almacén, sin selector. Compras y RH no tienen tablero: su Inicio muestra lo suyo (solicitudes por atender, trabajadores y altas recientes).
-- **Tarjetas** (de `GET /api/tablero/resumen`): Existencias, Equipo importante en resguardo, Sin existencia, Traspasos en tránsito, Entregas de hoy, Solicitudes de compra abiertas e Inspecciones por vencer. Cada una dice en una línea qué cuenta. Tocar «Equipo importante en resguardo» abre `/seguimiento` con las piezas en manos de trabajadores; «Traspasos en tránsito», `/recibir`; «Solicitudes de compra abiertas», `/compras` o `/compras/mias` según el permiso. Las demás no navegan.
+- **Tarjetas** (de `GET /api/tablero/resumen`): Existencias, Equipo importante en resguardo, Sin existencia, Traspasos en tránsito, Entregas de hoy, Solicitudes de compra abiertas, Inspecciones por vencer y Piezas con serie pendiente. Cada una dice en una línea qué cuenta. Tocar «Equipo importante en resguardo» abre `/seguimiento` con las piezas en manos de trabajadores; «Traspasos en tránsito», `/recibir`; «Solicitudes de compra abiertas», `/compras` o `/compras/mias` según el permiso. «Piezas con serie pendiente» abre `/seguimiento` con el filtro `serie_pendiente=true`. Las demás no navegan.
 - **Gráfica «Lo más usado»** (de `GET /api/tablero/consumo`): filtros Almacén (solo con `almacenes.todos`), Periodo (Hoy, 7 días, Este mes, Mes pasado, Elegir fechas; por omisión Este mes) y Categoría (por omisión Consumibles de trabajo); «Limpiar filtros»; interruptor «Separar por almacén» solo con todos los almacenes. Se actualiza al cambiar cualquier filtro, con indicador de carga y sin borrar la anterior hasta que llega la nueva. Cada barra se toca y abre el artículo (`/articulos/:id`).
 - **Estados:** sin consumo en el rango, «No hubo consumo en estas fechas»; error con «Reintentar»; sin almacén asignado, el aviso «No tienes un almacén asignado» y las tarjetas en cero.
 - **Sin permiso:** quien no tiene `tablero.ver` no ve el tablero y `GET /api/tablero/*` responde 403.
@@ -437,8 +486,8 @@ Parte de FEAT-008 (TB-01 a TB-03).
 | `/almacenes` | Administración de almacenes: lista, alta, edición, inactivar y reactivar (flujo 21) | Administrador (`almacenes.administrar`) |
 | `/entregar` | Entrega | Almacenista, supervisor |
 | `/devolver` | Devolución | Almacenista, supervisor |
-| `/trasladar` | Traspaso, salida | Almacenista, supervisor |
-| `/recibir`, `/recibir/:id` | Traspasos por recibir y recepción | Almacenista, supervisor |
+| `/trasladar` | Traspaso, salida, escaneando o con una lista de Excel (FEAT-009) | Supervisor, administrador (`traspasos.operar`, solo enviar) |
+| `/recibir`, `/recibir/:id` | Traspasos por recibir y recepción, con búsqueda, filtros y avance para listas largas (flujo 10) | Quien tiene `traspasos.recibir`: de inicio supervisor y administrador; el almacenista si se le da |
 | `/consultar` | Consulta y búsqueda | Todos |
 | `/trabajadores`, `/trabajadores/nuevo`, `/trabajadores/:id` | Lista, alta y ficha | RH; ficha reducida para almacenista y supervisor |
 | `/articulos/:id`, `/piezas/:id` | Fichas de artículo y de pieza | Almacenista, supervisor, Compras |

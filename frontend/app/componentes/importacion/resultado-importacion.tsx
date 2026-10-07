@@ -1,4 +1,4 @@
-import { CircleCheckIcon, DownloadIcon, InfoIcon, TriangleAlertIcon } from "lucide-react";
+import { CircleCheckIcon, DownloadIcon, InfoIcon, PrinterIcon, TriangleAlertIcon } from "lucide-react";
 import { Link } from "react-router";
 
 import { Boton } from "~/componentes/ui/boton";
@@ -23,6 +23,11 @@ function Dato({ etiqueta, valor }: { etiqueta: string; valor: number }) {
 /** Resultado de una importación ya guardada por el servidor: lo creado, los vales de entrada con su folio y las filas que no entraron. */
 export function ResultadoImportacion({ resultado, filasError, alDescargarErrores }: PropiedadesResultadoImportacion) {
   const { resumen } = resultado;
+  const piezas = resultado.piezas_creadas ?? [];
+  const seriesPendientes = resumen.series_pendientes ?? piezas.filter((p) => p.serie_pendiente).length;
+  // Los códigos viajan en la dirección; si son demasiados para una dirección, se imprime desde la lista completa.
+  const codigos = piezas.map((p) => encodeURIComponent(p.codigo)).join(",");
+  const enlaceEtiquetas = codigos.length <= 6000 ? `/etiquetas?tipo=piezas&codigos=${codigos}` : "/etiquetas?tipo=piezas";
   return (
     <div className="flex flex-col gap-6">
       <section aria-label="Importación guardada" className="flex flex-col gap-3 rounded-2xl border border-semaforo-verde p-5">
@@ -48,6 +53,25 @@ export function ResultadoImportacion({ resultado, filasError, alDescargarErrores
           {resultado.repetida ? null : <Dato etiqueta="Filas con error (no entraron)" valor={resumen.filas_con_error} />}
         </dl>
       </section>
+
+      {seriesPendientes > 0 ? (
+        <p className="flex items-start gap-2 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3 text-base">
+          <TriangleAlertIcon aria-hidden="true" strokeWidth={3} className="mt-1 size-4 shrink-0 text-semaforo-amarillo" />
+          <span>
+            {seriesPendientes} {seriesPendientes === 1 ? "pieza quedó con serie pendiente" : "piezas quedaron con serie pendiente"}: regístrala en la ficha de cada pieza.
+          </span>
+        </p>
+      ) : null}
+
+      {piezas.length > 0 ? (
+        <Link
+          to={enlaceEtiquetas}
+          className="inline-flex min-h-12 items-center gap-2 self-start rounded-xl border-2 border-primary px-4 text-base font-semibold text-marino transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          <PrinterIcon aria-hidden="true" className="size-5" />
+          Imprimir etiquetas de las piezas nuevas
+        </Link>
+      ) : null}
 
       {resultado.avisos.length > 0 ? (
         <ul aria-label="Avisos" className="flex flex-col gap-2">

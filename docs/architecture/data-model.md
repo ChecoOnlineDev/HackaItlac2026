@@ -29,7 +29,7 @@ Decisión completa en [ADR-006](decisions/ADR-006-identificadores-uuid-y-folio.m
 | Vale | Folio, por ejemplo `KEP-ENT-000123` |
 | Trabajador | Número de empleado y código de su credencial |
 | Artículo | Código |
-| Pieza | Código y número de serie |
+| Pieza | Código y número de serie (que puede estar pendiente) |
 | Almacén | Clave |
 | Usuario | Nombre de usuario |
 
@@ -63,7 +63,7 @@ Decisión completa en [ADR-006](decisions/ADR-006-identificadores-uuid-y-folio.m
 |---|---|---|
 | `categoria` | `id`, `nombre`, `tipo`, `control`, `retornable`, `requiere_inspeccion`, `vigencia_inspeccion_dias`, `requiere_autorizacion`, `motivo_uso_especial`, `limite_cantidad`, `limite_periodo_dias`, `cantidad_aviso`, `activo` | `tipo`: EPP, HERRAMIENTA. Los campos de regla son la plantilla que se copia al artículo (CF-02). |
 | `articulo` | `id`, `codigo`, `nombre`, `marca`, `modelo`, `categoria_id`, `control`, `retornable`, `talla`, `unidad`, `costo_unitario`, `requiere_inspeccion`, `vigencia_inspeccion_dias`, `requiere_autorizacion`, `motivo_uso_especial`, `limite_cantidad`, `limite_periodo_dias`, `cantidad_aviso`, `activo`, `motivo_inactivacion`, `creado_en` | `control`: PIEZA, CANTIDAD. Guarda sus propias reglas; las de la categoría solo son el punto de partida. `limite_periodo_dias` vacío significa "en posesión" (L-05). `cantidad_aviso` vacío significa que no hay aviso de cantidad inusual (E-27). |
-| `pieza` | `id`, `articulo_id`, `codigo`, `numero_serie`, `estado`, `inspeccion_vigente_hasta`, `ubicacion_id`, `creado_en` | `estado`: APTO, NO_APTO, EN_MANTENIMIENTO, EN_CALIBRACION, BAJA. `ubicacion_id` la actualiza solo el motor. |
+| `pieza` | `id`, `articulo_id`, `codigo`, `numero_serie`, `estado`, `inspeccion_vigente_hasta`, `ubicacion_id`, `creado_en` | `estado`: APTO, NO_APTO, EN_MANTENIMIENTO, EN_CALIBRACION, BAJA. `ubicacion_id` la actualiza solo el motor. `numero_serie` admite nulo: nulo significa **serie pendiente** (ver «Serie pendiente y código de pieza generado»). |
 | `codigo` | `codigo`, `tipo`, `ref_id` | Registro único de todo lo que se escanea. `tipo`: TRABAJADOR, ARTICULO, PIEZA, VALE. Un trabajador puede tener varios códigos. |
 | `puesto` | `id`, `nombre`, `activo`, `creado_en` | `nombre` único sin distinguir mayúsculas ni acentos. Se inactiva, no se borra. |
 | `dotacion` | `id`, `puesto_id`, `articulo_id`, `cantidad` | La cantidad recomendada de un artículo en un puesto (D-01). `(puesto_id, articulo_id)` único, `cantidad >= 1`. La cantidad no pasa del `limite_cantidad` del artículo (D-04): lo verifica el servicio, no la base. |
@@ -86,7 +86,7 @@ Decisión completa en [ADR-006](decisions/ADR-006-identificadores-uuid-y-folio.m
 | `ajuste_vigencia` | `id`, `pieza_id`, `inspeccion_id`, `vigente_hasta_anterior`, `vigente_hasta_nuevo`, `motivo`, `usuario_id`, `creado_en` | Solo se inserta (P-07). Al guardarse, `pieza.inspeccion_vigente_hasta` toma la fecha nueva; la inspección original no cambia. |
 | `evento_pieza` | `id`, `pieza_id`, `estado_anterior`, `estado_nuevo`, `observacion`, `usuario_id`, `creado_en` | Cambios de estado que no son inspección. |
 | `adjunto` | `id`, `tipo`, `ruta`, `mime`, `tamano`, `sha256`, `vale_id`, `movimiento_id`, `subido_por`, `creado_en` | `tipo`: FIRMA, FOTO_DANO, FOTO_TRABAJADOR. El archivo vive en el volumen, no en la base. |
-| `auditoria` | `id`, `usuario_id`, `accion`, `entidad`, `entidad_id`, `antes`, `despues`, `creado_en` | Entradas al sistema, cambios de catálogo, inactivaciones (CF-15). |
+| `auditoria` | `id`, `usuario_id`, `accion`, `entidad`, `entidad_id`, `antes`, `despues`, `creado_en` | Entradas al sistema, cambios de catálogo, inactivaciones (CF-15). Acciones de importación: `importacion.confirmar` (entradas por Excel) e `importacion.traspaso` (traspaso por lista de Excel, FEAT-009; su `despues` lleva el resumen, el vale creado y la `huella` sha256 del archivo, con `repetido: true` si se confirmó un archivo ya importado). Registro de serie: `pieza.registrar_serie` (`entidad` = pieza, `antes` = `{numero_serie: null}`, `despues` = `{numero_serie: "…"}`). Sin tabla nueva: el aviso de archivo repetido busca la huella aquí. |
 | `solicitud_compra` | `id`, `id_cliente`, `huella_cuerpo`, `folio`, `almacen_id`, `solicitante_id`, `articulo_id`, `descripcion`, `cantidad`, `motivo`, `urgencia`, `estado`, `nota_compras`, `vale_entrada_id`, `creada_en`, `actualizada_en` | La solicitud de compra urgente (SC-01 a SC-11, migración `0006_solicitudes_compra`). `id_cliente` y `folio` son únicos. `folio`: `CLAVE-SOL-000001`, del contador del almacén solicitante. `almacen_id` es el del solicitante al pedir. `articulo_id` va vacío si el equipo no está en el catálogo; `descripcion` siempre tiene texto (el nombre del artículo, si lo hay). `urgencia`: URGENTE, NORMAL. `estado`: PENDIENTE, EN_COMPRA, COMPRADA, INGRESADA, RECHAZADA, CANCELADA. `cantidad >= 1` (CHECK). `vale_entrada_id` (FK a `vale`) solo puede tener valor si `estado = INGRESADA` (CHECK `vale_solo_ingresada`); el servicio exige que sea de tipo ENTRADA, no cancelado y dentro del alcance de quien lo liga. `huella_cuerpo` (SHA-256 del cuerpo canónico) rechaza con 409 un reintento con el mismo `id_cliente` y otro cuerpo. No es inventario: no mueve existencias. |
 | `solicitud_compra_evento` | `id`, `solicitud_id`, `estado_anterior`, `estado_nuevo`, `usuario_id`, `nota`, `creado_en` | Un renglón por cada cambio de estado, el primero con `estado_anterior` vacío (nace PENDIENTE). Solo se inserta (SC-08): ninguna ruta lo edita o lo borra. |
 | `serie_solicitud_compra` | `almacen_id`, `ultimo` | El consecutivo de folios de solicitud por almacén (SC-09). Su fila se bloquea (`FOR UPDATE`) y avanza en la misma transacción que guarda la solicitud: sin huecos ni repetidos. Es aparte de `serie_folio` porque esa tabla es de `movimientos` y su `tipo` es un tipo de vale. |
@@ -101,7 +101,7 @@ Fijadas al construir las tablas; son parte del contrato para los demás módulos
 - **Fechas** `DATETIME(6)` en UTC sin zona; las pone el servidor.
 - **Mayúsculas.** La colación es `utf8mb4_0900_ai_ci`: usuarios, códigos y claves son únicos sin distinguir mayúsculas ni acentos.
 - **`ubicacion`**: además de que exactamente uno de `almacen_id`, `trabajador_id` y `virtual` tiene valor, `tipo` (ALMACEN, TRABAJADOR, VIRTUAL) debe coincidir con cuál es; cada uno es único (una ubicación por almacén, por trabajador y por tipo virtual).
-- **`pieza.ubicacion_id`** puede ir vacía mientras la pieza no tenga su primer movimiento (la entrada). `(articulo_id, numero_serie)` es único.
+- **`pieza.ubicacion_id`** puede ir vacía mientras la pieza no tenga su primer movimiento (la entrada). `(articulo_id, numero_serie)` es único, y como MySQL permite varios nulos en un índice único, varias piezas del mismo artículo pueden tener la serie pendiente a la vez.
 - **`categoria` y `articulo`**: `requiere_inspeccion` solo con `control = PIEZA` (CHECK); límite, periodo, vigencia y aviso, positivos si existen; un artículo inactivo exige `motivo_inactivacion`; el costo no es negativo.
 - **`movimiento`**: `cantidad > 0`, una pieza siempre con cantidad 1, `origen_id` distinto de `destino_id`, `(vale_id, renglon)` único, `nivel` (VERDE, AMARILLO, NARANJA, ROJO). `reglas` es una lista JSON de IDs de regla.
 - **`autorizacion`**: `resuelta_por` no puede ser `solicitada_por` (AC-07, A-05).
@@ -119,6 +119,16 @@ Fijadas al construir las tablas; son parte del contrato para los demás módulos
 - **Dueños.** `acceso`: usuario, rol, rol_permiso, sesion_dispositivo. `trabajadores`: trabajador, periodo_contrato, serie_empleado (lee `puesto` y `dotacion`). `almacenes`: almacen, ubicacion. `catalogo`: categoria, articulo, pieza, codigo, puesto, dotacion. `movimientos`: vale, movimiento, existencia, serie_folio. `autorizaciones`: autorizacion. `solicitudes_compra`: solicitud_compra, solicitud_compra_evento, serie_solicitud_compra (solo LEE `vale`). `inspecciones`: inspeccion, ajuste_vigencia, evento_pieza. `archivos`: adjunto. `auditoria`: auditoria.
 - **Lo que no se puede expresar en la base** y queda para los services: que `vale` y `movimiento` no se actualicen (salvo `vale.estado`), que `existencia` sea la suma de los movimientos, que `pieza.ubicacion_id` sea el destino de su último movimiento, que `control` y `retornable` no cambien con movimientos (CF-05), y que siempre exista un usuario activo con `acceso.administrar` (AC-09).
 
+### Serie pendiente y código de pieza generado
+
+Decisión en [ADR-010](decisions/ADR-010-codigos-y-series-de-pieza.md). **No hay migración ni columna nueva.**
+
+- **Serie pendiente (E-29, I-02).** `pieza.numero_serie` nulo significa que la pieza entró sin número de serie del fabricante. La condición se **deriva** del dato, igual que la inspección pendiente (I-03) se deriva de `inspeccion_vigente_hasta`: la API la expone como `serie_pendiente` (booleano) y no se guarda aparte ni hay un estado nuevo en `EstadoPieza`. Una cadena vacía o en blanco no se guarda: se normaliza a nulo.
+- **Quién escribe la serie.** Al entrar, el módulo `movimientos` crea la pieza dentro del vale de entrada (con o sin serie). Después, solo `POST /api/piezas/{id}/serie` (módulo `catalogo`) puede poner una serie, y únicamente si la pieza no tiene (P-08); cambiar una serie ya registrada no entra en esta etapa. Es una escritura de dato de la pieza, no un movimiento: no cambia existencias ni ubicación (Invariante 5 intacta) y deja la auditoría `pieza.registrar_serie`.
+- **Unicidad.** La serie que sí existe sigue siendo única por artículo; el nulo no cuenta como repetido.
+- **Código de pieza generado.** `pieza.codigo` ya es único y vive en `codigo` (tipo PIEZA, invariante 6). Si la importación Alta no trae `codigo_pieza`, el servidor lo genera al confirmar con la forma `CÓDIGO-DEL-ARTÍCULO-NNN` (`HEL-0003-001`): el consecutivo es por artículo, se busca el primer `NNN` libre en `codigo` bajo el bloqueo del artículo y el código nace en la misma transacción que la pieza. No se guarda si fue generado o capturado; la respuesta de la importación lo informa.
+- **Unidad.** `articulo.unidad` (texto de hasta 20, «pieza» por omisión) ya existe. La importación Alta la lee de una columna opcional `unidad` solo al **crear** un artículo; en uno existente no se modifica. Las cantidades siguen siendo enteras (I-13): quien mide en otra unidad la declara en la unidad menor.
+
 ## Qué movimientos genera cada vale
 
 | Vale | Folio | Origen | Destino |
@@ -133,6 +143,8 @@ Fijadas al construir las tablas; son parte del contrato para los demás módulos
 | RECEPCION | `REC` | EN_TRANSITO | Almacén de destino |
 | NO_ADEUDO | `NAD` | Sin movimientos | — |
 | CANCELACION | `CAN` | Los destinos del vale original | Sus orígenes |
+
+Un traspaso creado por la importación de FEAT-009 («Traspasos por lista de Excel») es un vale TRASPASO normal: mismo folio `CLAVE-TRS-…`, mismo QR y estado `EN_TRANSITO`, movimientos y existencias iguales a los de la captura manual. No hay tablas, columnas ni migración nuevas, y la recepción no cambia (`POST /api/vales` tipo RECEPCION).
 
 El folio tiene la forma `CLAVE-TIPO-CONSECUTIVO`, por ejemplo `KEP-ENT-000123`.
 
@@ -195,4 +207,5 @@ El script carga, de forma repetible:
 | FEAT-004 | Tabla `minimo` (`almacen_id`, `articulo_id`, `cantidad`) |
 | FEAT-005 | Ninguno: pasó al MVP (T-09) |
 | FEAT-006 | Sin tablas nuevas: administra `rol`, `rol_permiso` y `usuario` desde la pantalla, incluida la asignación de personal a almacenes (`usuario.almacen_id`) |
+| FEAT-007 / ADR-010 | Sin migración: `pieza.numero_serie` nulo = serie pendiente (derivado), código de pieza generado y columna `unidad` de la importación Alta usan columnas que ya existen. Auditoría nueva: `pieza.registrar_serie`. |
 | FEAT-008 | Migración `0007`: tabla `serie_empleado`, `trabajador.numero_externo`, `uq_almacen_nombre` y `uq_almacen_un_central`; `almacen.cerrado_en` empieza a usarse. El tablero lee con consultas agregadas sobre `movimiento`, `existencia`, `vale`, `pieza` y `solicitud_compra`: se revisan los índices por fecha y almacén (ver «Índices») y no hay tablas de resumen. |

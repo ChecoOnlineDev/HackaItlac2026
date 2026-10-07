@@ -17,6 +17,8 @@ export const PERMISOS = [
   "entregas.crear",
   "devoluciones.crear",
   "traspasos.operar",
+  "traspasos.recibir",
+  "piezas.registrar_serie",
   "no_adeudo.emitir",
   "vales.ver",
   "vales.cancelar",

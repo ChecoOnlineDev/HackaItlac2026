@@ -8,7 +8,7 @@ from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Annotated
 
-from pydantic import BaseModel, PlainSerializer
+from pydantic import BaseModel, PlainSerializer, computed_field
 
 from app.core.paginacion import Pagina
 from app.modulos.movimientos.models import TipoVale
@@ -124,6 +124,12 @@ class ResumenPieza(BaseModel):
     inspeccion_vigente: bool
     ubicacion: UbicacionOut | None
 
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def serie_pendiente(self) -> bool:
+        """Derivado de `numero_serie` nulo (E-29, I-02)."""
+        return not self.numero_serie
+
 
 class ResumenVale(BaseModel):
     folio: str
@@ -171,6 +177,12 @@ class BusquedaPiezaItem(BaseModel):
     estado_texto: str
     # Quién o dónde la tiene: "Kepler (KEP)" o "Juan Pérez (EMP-1001)".
     ubicacion: str | None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def serie_pendiente(self) -> bool:
+        """Derivado de `numero_serie` nulo (E-29, I-02)."""
+        return not self.numero_serie
 
 
 class BusquedaTrabajadorItem(BaseModel):
@@ -277,8 +289,13 @@ class PiezaFichaOut(BaseModel):
     ubicacion: UbicacionOut | None
     historial: list[HistorialItem]
 
+    # ---------------------------------------------------------------------------- reportes
 
-# ---------------------------------------------------------------------------- reportes
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def serie_pendiente(self) -> bool:
+        """Derivado de `numero_serie` nulo (E-29, I-02)."""
+        return not self.numero_serie
 
 
 class FormatoReporte(StrEnum):

@@ -46,7 +46,7 @@ def get_service(session: SesionDep) -> MovimientoService:
 
 ServiceDep = Annotated[MovimientoService, Depends(get_service)]
 UsuarioVer = Annotated[Usuario, Depends(requiere_permiso(P.VALES_VER))]
-UsuarioTraspasos = Annotated[Usuario, Depends(requiere_permiso(P.TRASPASOS_OPERAR))]
+UsuarioRecibir = Annotated[Usuario, Depends(requiere_permiso(P.TRASPASOS_RECIBIR))]
 UsuarioNoAdeudo = Annotated[Usuario, Depends(requiere_permiso(P.NO_ADEUDO_EMITIR))]
 UsuarioCancelar = Annotated[Usuario, Depends(requiere_permiso(P.VALES_CANCELAR))]
 
@@ -124,12 +124,12 @@ def listar(
 
 @router.get("/traspasos/por-recibir", response_model=None)
 def traspasos_por_recibir(
-    usuario: UsuarioTraspasos,
+    usuario: UsuarioRecibir,
     service: ServiceDep,
     solo_contar: bool = False,
     almacen_id: uuid.UUID | None = None,
 ) -> Any:
-    """`traspasos.operar`. Traspasos en tránsito hacia el almacén de la sesión (tipo RECEPCION).
+    """`traspasos.recibir`. Traspasos en tránsito hacia el almacén de la sesión (tipo RECEPCION).
     `solo_contar=true` responde solo `{total}` (contador del inicio); `almacen_id` solo lo usa
     quien tiene `almacenes.todos`."""
     return service.traspasos_por_recibir(usuario, solo_contar=solo_contar, almacen_id=almacen_id)

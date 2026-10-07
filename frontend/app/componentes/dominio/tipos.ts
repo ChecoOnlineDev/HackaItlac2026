@@ -32,6 +32,8 @@ export interface PiezaEvaluada {
   estado?: string | null;
   inspeccion_vigente_hasta?: string | null;
   numero_serie?: string | null;
+  /** `true` si la pieza no tiene serie (E-29); el aviso amarillo llega en `motivos`. */
+  serie_pendiente?: boolean;
 }
 
 /** Quien tiene la pieza ahora. El servidor puede mandar solo el nombre o un objeto. */

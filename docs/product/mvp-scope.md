@@ -35,6 +35,9 @@ Corresponde a la prioridad P0 de las [reglas de negocio](reglas-de-negocio.md).
 - **Seguridad.** Inspección de piezas; bloqueo de equipo no apto o sin inspección vigente; ajuste de la vigencia de una inspección por el supervisor o el administrador, con motivo.
 - **Devolución.** Por escaneo de la pieza o desde la lista del trabajador; condición al volver; rechazo de equipo ajeno.
 - **Traspasos.** Salida, tránsito y recepción con QR.
+- **Traspasos por lista de Excel ([FEAT-009](../features/FEAT-009-traspasos-por-lista-de-excel.md)).** *Aprobada por el usuario, sin construir (amplía el alcance).* Quien envía (`traspasos.operar`, de inicio el Supervisor) arma la salida subiendo un `.xlsx` o pegando una tabla, con vista previa y reglas de la captura manual (TR-01 a TR-10); la recepción no cambia de lógica (X-15 solo mejora la interfaz para listas largas).
+- **Recibir traspasos con permiso propio (`traspasos.recibir`).** Aprobado el 7 de octubre de 2026, sin construir. Enviar sigue con `traspasos.operar`; el Supervisor tiene los dos y al Almacenista de un proyecto se le puede dar `traspasos.recibir` desde Roles y permisos (X-01, X-10). Resuelve el pendiente de quién recibe en un proyecto con turnos de 24 horas.
+- **Serie pendiente, código de pieza automático y columna `unidad` en la importación.** Aprobado el 7 de octubre de 2026, sin construir. Una pieza puede entrar sin número de serie (queda pendiente, se entrega con aviso y se completa con `piezas.registrar_serie`); la importación de alta genera el código de pieza que falte y lee una columna `unidad` opcional (I-02, I-15 a I-17, E-29, P-08). Hay un seguimiento y una tarjeta de tablero de piezas con serie pendiente (C-13).
 - **Baja.** Pendientes del trabajador, vale de no adeudo y paso a inactivo.
 - **Consulta y reportes.** Escaneo universal, búsqueda por texto, historial de pieza; reportes de existencias, movimientos, adeudos y consumo, con descarga en CSV.
 - **Solicitud de compra urgente.** Cuando falta un equipo o herramienta para un trabajo, el supervisor o el almacenista levanta una solicitud; Compras ve la cola de todos los almacenes (sin ver su inventario), la toma, la compra y la ingresa, y la liga con el vale de entrada que ella misma registra; pendiente, en compra, comprada, ingresada (o rechazada o cancelada). No es una orden de compra: no lleva proveedor, precio ni factura, y no mueve existencias (reglas SC-01 a SC-11).
@@ -83,6 +86,8 @@ Probable en fases posteriores; hoy no tiene brief.
 - Habilitaciones del trabajador, como la capacitación de alturas.
 - Carta de aceptación como requisito del alta.
 - Importación de trabajadores desde Excel.
+- Completar las series de muchas piezas a la vez con un Excel (`codigo pieza`, `serie`): segunda entrega; por ahora se captura pieza por pieza (P-08).
+- Descargar la lista de un traspaso como Excel (TR-10): segunda entrega de FEAT-009.
 - Periodo por apertura de un almacén de proyecto (ciclos al reactivar, con fecha de apertura y de cierre): mientras tanto el reporte de cierre se pide por rango de fechas ([red-de-almacenes-y-flujo.md](red-de-almacenes-y-flujo.md), sección 12.2).
 - Tablero con pestañas por almacén, mínimos y alertas de stock (FEAT-004) y valor del inventario (FEAT-002) dentro del tablero. El tablero básico ya entró con FEAT-008.
 - Entrega de turno entre almacenistas, con conteo y firma de los dos.

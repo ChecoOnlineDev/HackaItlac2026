@@ -600,7 +600,7 @@ def test_I_10_la_plantilla_se_lee_de_vuelta_y_sus_columnas_se_reconocen(compras,
     columnas = proponer_columnas(filas[0])
     esperadas = {"codigo", "cantidad", "almacen", "serie", "codigo_pieza"}
     if modo == "ALTA":
-        esperadas |= {"nombre", "marca", "categoria", "costo"}
+        esperadas |= {"nombre", "marca", "categoria", "costo", "unidad"}  # I-16
     assert {c for c, i in columnas.items() if i is not None} == esperadas
     # La fila de ejemplo es una tabla válida en su modo.
     vp = compras.post(

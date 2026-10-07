@@ -172,9 +172,13 @@ export function PasoRevision({
               <Dato etiqueta="Excluidas" valor={vista.resumen.excluidas ?? vista.filas_excluidas?.length ?? 0} />
               <Dato etiqueta="Piezas" valor={vista.resumen.piezas} />
               <Dato etiqueta="Unidades" valor={vista.resumen.unidades} />
+              {(vista.resumen.series_pendientes ?? 0) > 0 ? <Dato etiqueta="Series pendientes" valor={vista.resumen.series_pendientes ?? 0} /> : null}
             </dl>
             <p className="text-sm text-muted-foreground">
               {vista.resumen.vacias > 0 ? `${vista.resumen.vacias} ${vista.resumen.vacias === 1 ? "fila vacía se ignora" : "filas vacías se ignoran"}. ` : ""}
+              {(vista.resumen.series_pendientes ?? 0) > 0
+                ? `${vista.resumen.series_pendientes} ${vista.resumen.series_pendientes === 1 ? "pieza entra" : "piezas entran"} sin número de serie: se registra después en la ficha de la pieza. `
+                : ""}
               Los vales de entrada serán {vista.resumen.almacenes}: uno por almacén.
             </p>
           </section>

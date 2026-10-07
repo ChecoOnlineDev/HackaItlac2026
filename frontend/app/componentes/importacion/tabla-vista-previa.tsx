@@ -22,6 +22,10 @@ export interface FilaVista {
   costo: string;
   codigoPieza: string;
   serie: string;
+  /** La pieza entra sin número de serie (aviso, no bloquea). */
+  seriePendiente: boolean;
+  codigoPiezaGenerado: boolean;
+  unidad: string;
   saldoAntes: number | null;
   saldoDespues: number | null;
   unidaDe: number[];
@@ -51,6 +55,9 @@ export function filasDeVista(vista: VistaPreviaApi, modo: ModoImportacion, elegi
     costo: f.costo ?? "",
     codigoPieza: f.codigo_pieza ?? "",
     serie: f.numero_serie ?? "",
+    seriePendiente: f.serie_pendiente === true,
+    codigoPiezaGenerado: f.codigo_pieza_generado === true,
+    unidad: f.unidad ?? "",
     saldoAntes: f.saldo_antes ?? null,
     saldoDespues: f.saldo_despues ?? null,
     unidaDe: f.unida_de ?? [],
@@ -73,6 +80,9 @@ export function filasDeVista(vista: VistaPreviaApi, modo: ModoImportacion, elegi
     costo: f.datos.costo ?? "",
     codigoPieza: f.datos.codigo_pieza ?? "",
     serie: f.datos.serie ?? "",
+    seriePendiente: false,
+    codigoPiezaGenerado: false,
+    unidad: f.datos.unidad ?? "",
     saldoAntes: null,
     saldoDespues: null,
     unidaDe: [],
@@ -161,7 +171,8 @@ export function TablaVistaPrevia({ vista, modo, filtro, alFiltrar, categoriaPorF
   const hay = {
     marca: todas.some((f) => f.marca !== ""),
     costo: todas.some((f) => f.costo !== ""),
-    pieza: todas.some((f) => f.codigoPieza !== "" || f.serie !== ""),
+    pieza: todas.some((f) => f.codigoPieza !== "" || f.serie !== "" || f.seriePendiente || f.codigoPiezaGenerado),
+    unidad: modo === "ALTA" && todas.some((f) => f.unidad !== ""),
     saldo: todas.some((f) => f.saldoAntes !== null),
   };
   const encabezados = [
@@ -172,6 +183,7 @@ export function TablaVistaPrevia({ vista, modo, filtro, alFiltrar, categoriaPorF
     ...(hay.marca ? ["Marca"] : []),
     ...(modo === "ALTA" ? ["Categoría"] : []),
     "Cantidad",
+    ...(hay.unidad ? ["Unidad"] : []),
     "Almacén",
     ...(hay.costo ? ["Costo"] : []),
     ...(hay.pieza ? ["Código de pieza", "Serie"] : []),
@@ -260,12 +272,13 @@ export function TablaVistaPrevia({ vista, modo, filtro, alFiltrar, categoriaPorF
                         </TableCell>
                       ) : null}
                       <TableCell className="px-3 py-2 align-top tabular-nums">{f.cantidad || <span className="text-muted-foreground">—</span>}</TableCell>
+                      {hay.unidad ? <TableCell className="px-3 py-2 align-top whitespace-nowrap">{f.unidad || <span className="text-muted-foreground">—</span>}</TableCell> : null}
                       <TableCell className="px-3 py-2 align-top whitespace-nowrap">{f.almacen || <span className="text-muted-foreground">—</span>}</TableCell>
                       {hay.costo ? <TableCell className="px-3 py-2 align-top tabular-nums">{f.costo ? `$${f.costo}` : <span className="text-muted-foreground">—</span>}</TableCell> : null}
                       {hay.pieza ? (
                         <>
-                          <TableCell className="px-3 py-2 align-top text-sm whitespace-nowrap">{f.codigoPieza || <span className="text-muted-foreground">—</span>}</TableCell>
-                          <TableCell className="px-3 py-2 align-top text-sm whitespace-nowrap">{f.serie || <span className="text-muted-foreground">—</span>}</TableCell>
+                          <TableCell className="px-3 py-2 align-top text-sm whitespace-nowrap"><CodigoPieza f={f} /></TableCell>
+                          <TableCell className="px-3 py-2 align-top text-sm whitespace-nowrap"><SerieFila f={f} /></TableCell>
                         </>
                       ) : null}
                       {hay.saldo ? (
@@ -295,8 +308,23 @@ export function TablaVistaPrevia({ vista, modo, filtro, alFiltrar, categoriaPorF
                   <Campo etiqueta="Cantidad" valor={f.cantidad} />
                   <Campo etiqueta="Almacén" valor={f.almacen} />
                   {hay.costo ? <Campo etiqueta="Costo" valor={f.costo ? `$${f.costo}` : ""} /> : null}
-                  {hay.pieza ? <Campo etiqueta="Código de pieza" valor={f.codigoPieza} /> : null}
-                  {hay.pieza ? <Campo etiqueta="Serie" valor={f.serie} /> : null}
+                  {hay.unidad ? <Campo etiqueta="Unidad" valor={f.unidad} /> : null}
+                  {hay.pieza ? (
+                    <div className="min-w-0">
+                      <dt className="text-muted-foreground">Código de pieza</dt>
+                      <dd className="break-words">
+                        <CodigoPieza f={f} />
+                      </dd>
+                    </div>
+                  ) : null}
+                  {hay.pieza ? (
+                    <div className="min-w-0">
+                      <dt className="text-muted-foreground">Serie</dt>
+                      <dd className="break-words">
+                        <SerieFila f={f} />
+                      </dd>
+                    </div>
+                  ) : null}
                   {f.saldoAntes !== null ? (
                     <div>
                       <dt className="text-muted-foreground">Saldo</dt>
@@ -315,6 +343,27 @@ export function TablaVistaPrevia({ vista, modo, filtro, alFiltrar, categoriaPorF
         </>
       ) : null}
     </section>
+  );
+}
+
+/** Código de la pieza: si lo asigna el servidor, el que se ve es provisional. */
+function CodigoPieza({ f }: { f: FilaVista }) {
+  if (f.codigoPiezaGenerado) return <span className="text-xs text-muted-foreground">Provisional: se asigna al confirmar</span>;
+  return f.codigoPieza ? <>{f.codigoPieza}</> : <span className="text-muted-foreground">—</span>;
+}
+
+/** Serie de la pieza; si falta, aviso amarillo (no bloquea: la pieza entra y la serie se registra después). */
+function SerieFila({ f }: { f: FilaVista }) {
+  if (f.seriePendiente) return <InsigniaSeriePendiente />;
+  return f.serie ? <>{f.serie}</> : <span className="text-muted-foreground">—</span>;
+}
+
+function InsigniaSeriePendiente() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-semaforo-amarillo bg-semaforo-amarillo/10 px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">
+      <TriangleAlertIcon aria-hidden="true" strokeWidth={3} className="size-3.5 shrink-0 text-semaforo-amarillo" />
+      Serie pendiente
+    </span>
   );
 }
 

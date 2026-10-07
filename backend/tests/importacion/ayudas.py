@@ -24,6 +24,7 @@ COLUMNAS = {
     "serie": 6,
     "costo": 7,
     "codigo_pieza": 8,
+    "unidad": 9,
 }
 
 MANUAL = "Herramienta manual"  # por cantidad
@@ -45,8 +46,20 @@ def fila(
     serie: str = "",
     costo: str | int | float = "",
     codigo_pieza: str = "",
+    unidad: str = "",
 ) -> list:
-    return [codigo, nombre, marca, categoria, cantidad, almacen, serie, costo, codigo_pieza]
+    return [
+        codigo,
+        nombre,
+        marca,
+        categoria,
+        cantidad,
+        almacen,
+        serie,
+        costo,
+        codigo_pieza,
+        unidad,
+    ]
 
 
 def cuerpo(filas: list[list], **extra) -> dict:

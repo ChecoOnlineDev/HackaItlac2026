@@ -64,6 +64,7 @@ from app.modulos.importacion.schemas import (
     ArchivoRepetidoOut,
     ArticuloCreadoOut,
     ArticuloNuevoOut,
+    ArticuloRefOut,
     CategoriaDesconocidaOut,
     CategoriaRefOut,
     ColumnasIn,
@@ -73,6 +74,7 @@ from app.modulos.importacion.schemas import (
     ImportacionIn,
     ImportacionOut,
     MotivoOut,
+    PiezaCreadaOut,
     ResumenImportacionOut,
     ResumenVistaPreviaOut,
     ValeImportadoOut,
@@ -278,10 +280,9 @@ class ImportacionService:
 
     def _importar(self, usuario: Usuario, datos: ImportacionIn, huella: str) -> ImportacionOut:
         assert datos.id_lote is not None
-        if datos.modo == "ALTA" and self.acceso.tiene_permiso(usuario, P.CATALOGO_ADMINISTRAR):
-            # Antes de revisar: dos lotes que crean articulos se turnan, y el segundo ve lo que el
-            # primero creo (articulos, piezas y consecutivo de codigos generados).
-            self.repository.bloquear_categorias()
+        # Antes de revisar: dos lotes que crean articulos o codigos de pieza se turnan, y el segundo
+        # ve lo que el primero creo (articulos, piezas y consecutivos de codigos generados).
+        self.repository.bloquear_categorias()
         resultado = self._analizar(usuario, datos, confirmando=True)
         if not resultado.buenas:
             raise SinFilasValidas(
@@ -303,6 +304,7 @@ class ImportacionService:
                     nombre=nuevo.nombre,
                     marca=nuevo.marca,
                     categoria_id=nuevo.categoria.id,
+                    unidad=nuevo.unidad,
                     costo_unitario=nuevo.costo if puede_costos else None,
                 ),
                 usuario.id,
@@ -313,6 +315,7 @@ class ImportacionService:
                 codigo=articulo.codigo,
                 codigo_generado=nuevo.codigo_generado,
                 nombre=articulo.nombre,
+                unidad=articulo.unidad,
                 categoria=nuevo.categoria.nombre,
                 control=articulo.control,
             )
@@ -353,6 +356,11 @@ class ImportacionService:
                     )
                 )
 
+        generados = {
+            b.codigo_pieza for b in resultado.buenas if b.codigo_pieza_generado and b.codigo_pieza
+        }
+        piezas_creadas = self._piezas_creadas([v.id for v in vales], generados)
+
         salida = ImportacionOut(
             modo=datos.modo,
             id_lote=datos.id_lote,
@@ -367,8 +375,10 @@ class ImportacionService:
                 vales=len(vales),
                 piezas=sum(v.piezas for v in vales),
                 unidades=sum(v.unidades for v in vales),
+                series_pendientes=sum(1 for p in piezas_creadas if p.serie_pendiente),
             ),
             articulos_creados=list(creados.values()),
+            piezas_creadas=piezas_creadas,
             vales=vales,
             filas_error=[self._fila_error(m) for m in resultado.malas],
             avisos=resultado.avisos,
@@ -384,8 +394,35 @@ class ImportacionService:
                 "huella": huella,
                 **({"repetido": True} if datos.confirmar_repetido else {}),
                 "folios": [v.folio for v in vales],
+                # Para volver a listar las etiquetas si se repite el lote (I-15).
+                "codigos_pieza_generados": sorted(generados),
             },
         )
+        return salida
+
+    def _piezas_creadas(
+        self, vale_ids: list[uuid.UUID], generados: set[str]
+    ) -> list[PiezaCreadaOut]:
+        """Las piezas que entraron en esos vales, con su codigo definitivo (I-15)."""
+        almacenes = {a.id: a for a in self.repository.almacenes()}
+        salida = []
+        for pieza, articulo, vale in self.repository.piezas_de_vales(vale_ids):
+            almacen = almacenes[vale.almacen_id]
+            salida.append(
+                PiezaCreadaOut(
+                    id=pieza.id,
+                    codigo=pieza.codigo,
+                    codigo_generado=pieza.codigo in generados,
+                    articulo=ArticuloRefOut(
+                        id=articulo.id, codigo=articulo.codigo, nombre=articulo.nombre
+                    ),
+                    numero_serie=pieza.numero_serie,
+                    serie_pendiente=not pieza.numero_serie,
+                    almacen=AlmacenRefOut(
+                        id=almacen.id, clave=almacen.clave, nombre=almacen.nombre
+                    ),
+                )
+            )
         return salida
 
     @staticmethod
@@ -426,6 +463,9 @@ class ImportacionService:
         if any(v.responsable_id != usuario.id or v.tipo != TipoVale.ENTRADA for v in vales):
             raise LoteEnUso()
         resumen = self.repository.resumen_de_vales(v.id for v in vales)
+        piezas_creadas = self._piezas_creadas(
+            [v.id for v in vales], self.repository.codigos_de_piezas_generados(id_lote)
+        )
         por_id = {a.id: a for a in almacenes}
         salida = []
         for v in sorted(vales, key=lambda v: v.folio):
@@ -457,8 +497,10 @@ class ImportacionService:
                 vales=len(salida),
                 piezas=sum(v.piezas for v in salida),
                 unidades=sum(v.unidades for v in salida),
+                series_pendientes=sum(1 for p in piezas_creadas if p.serie_pendiente),
             ),
             articulos_creados=[],
+            piezas_creadas=piezas_creadas,
             vales=salida,
             filas_error=[],
             avisos=["Este lote ya se había importado: no se guardó nada nuevo."],
@@ -504,6 +546,7 @@ class ImportacionService:
                 control=b.control,
                 articulo_nuevo=b.nuevo,
                 cantidad=b.cantidad,
+                unidad=b.unidad,
                 saldo_antes=b.saldo_antes,
                 saldo_despues=b.saldo_despues,
                 unida_de=b.unida_de,
@@ -511,7 +554,9 @@ class ImportacionService:
                     id=b.almacen.id, clave=b.almacen.clave, nombre=b.almacen.nombre
                 ),
                 codigo_pieza=b.codigo_pieza,
+                codigo_pieza_generado=b.codigo_pieza_generado,
                 numero_serie=b.numero_serie,
+                serie_pendiente=b.serie_pendiente,
                 avisos=b.avisos,
             )
             if puede_costos and b.costo is not None:
@@ -525,6 +570,7 @@ class ImportacionService:
                 marca=n.marca,
                 categoria=None if n.pendiente else _ref(n.categoria),
                 control=n.control,
+                unidad=n.unidad,
                 filas=n.filas,
             )
             if puede_costos and n.costo is not None:
@@ -548,6 +594,7 @@ class ImportacionService:
                 piezas=sum(1 for b in res.buenas if b.control == "PIEZA"),
                 unidades=sum(b.cantidad for b in res.buenas),
                 almacenes=len({b.almacen.id for b in res.buenas}),
+                series_pendientes=sum(1 for b in res.buenas if b.serie_pendiente),
             ),
             filas_validas=validas,
             filas_error=[self._fila_error(m) for m in res.malas],

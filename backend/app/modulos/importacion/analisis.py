@@ -7,7 +7,9 @@ Las filas con error no se importan y se listan; las buenas si entran (flujo 5). 
 `ALTA` crea los articulos que faltan y suma a los que existen; `REPOSICION` solo suma a los que
 existen. Las filas del mismo articulo por cantidad en el mismo almacen se consolidan en una
 (I-06, RG-10: "Unido: filas 2, 5, 9"); un codigo de pieza o una serie repetidos siguen siendo
-error. Una fila "buena" tiene que ser coherente con las buenas que van antes en la misma tabla.
+error. Una pieza sin serie entra con aviso (I-17) y una sin codigo de pieza recibe
+`CODIGO-DEL-ARTICULO-NNN` (I-15). Una fila "buena" tiene que ser coherente con las buenas que
+van antes en la misma tabla.
 
 La categoria sugerida (I-14) nunca se aplica sola: en la vista previa una fila con sugerencia
 pendiente se muestra sin categoria; al confirmar solo cuenta lo que la persona eligio.
@@ -33,9 +35,17 @@ from app.modulos.importacion.schemas import CAMPOS, ImportacionIn
 COSTO_MAXIMO = Decimal("9999999999.99")
 # `existencia.cantidad` es un entero de 32 bits: una fila unida no puede pasar de ahi.
 EXISTENCIA_MAXIMA = 2_000_000_000
-LONGITUD = {"codigo": 64, "nombre": 150, "marca": 80, "serie": 80, "codigo_pieza": 64}
+LONGITUD = {
+    "codigo": 64,
+    "nombre": 150,
+    "marca": 80,
+    "serie": 80,
+    "codigo_pieza": 64,
+    "unidad": 20,
+}
+UNIDAD_POR_OMISION = "pieza"
 # Datos que la reposicion ignora (I-10): solo lee codigo, cantidad, almacen, codigo_pieza y serie.
-CAMPOS_IGNORADOS_EN_REPOSICION = ("nombre", "marca", "categoria", "costo")
+CAMPOS_IGNORADOS_EN_REPOSICION = ("nombre", "marca", "categoria", "costo", "unidad")
 MENSAJE_NO_ENTERA = (
     "La cantidad debe ser un número entero. Usa una unidad menor "
     "(por ejemplo, 250 gramos en lugar de 0.25 kilos)."
@@ -91,8 +101,14 @@ class FilaBuena:
     costo: Decimal | None
     saldo_antes: int
     saldo_despues: int
+    unidad: str = UNIDAD_POR_OMISION
+    codigo_pieza_generado: bool = False
     unida_de: list[int] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
+
+    @property
+    def serie_pendiente(self) -> bool:
+        return self.control == Control.PIEZA and not self.numero_serie
 
     @property
     def nuevo(self) -> bool:
@@ -131,6 +147,7 @@ class ArticuloPorCrear:
     fila: int  # la primera fila que lo define
     filas: int = 1
     codigo_generado: bool = False
+    unidad: str = UNIDAD_POR_OMISION
     pendiente: bool = False  # la categoria es solo una sugerencia que nadie ha elegido
 
 
@@ -456,6 +473,7 @@ class Analizador:
         codigo_pieza: str | None = None
         serie: str | None = None
         previa: FilaBuena | None = None
+        pieza_generada = False
         if control == Control.CANTIDAD:
             cantidad = self._cantidad_por_cantidad(f["cantidad"], malo)
             if f["codigo_pieza"] or f["serie"]:
@@ -475,7 +493,12 @@ class Analizador:
         elif control == Control.PIEZA:
             cantidad = 1
             assert ident is not None
-            codigo_pieza, serie = self._pieza(f, k, ident, articulo, e, malo)
+            codigo_pieza, serie, pieza_generada = self._pieza(f, k, ident, articulo, e, malo)
+            if not f["serie"]:
+                avisos.append(
+                    "Serie pendiente: la pieza entra sin número de serie; se puede completar "
+                    "después."
+                )
             requiere = (
                 articulo.requiere_inspeccion
                 if articulo
@@ -533,9 +556,13 @@ class Analizador:
                 e.saldos_tabla[saldo_llave] = previa.saldo_despues
                 return
         else:
-            assert codigo_pieza is not None and serie is not None
+            if pieza_generada:
+                base = articulo.codigo if articulo else (nuevo.codigo if nuevo else codigo)
+                codigo_pieza = self._generar_codigo_pieza(base, e)
+            assert codigo_pieza is not None
             e.piezas_tabla[clave(codigo_pieza)] = numero
-            e.series_tabla[(ident, clave(serie))] = numero
+            if serie:
+                e.series_tabla[(ident, clave(serie))] = numero
         fila_buena = FilaBuena(
             fila=numero,
             codigo=articulo.codigo if articulo else (nuevo.codigo if nuevo else codigo),
@@ -554,6 +581,8 @@ class Analizador:
             costo=costo,
             saldo_antes=saldo,
             saldo_despues=saldo + cantidad,
+            unidad=articulo.unidad if articulo else (nuevo.unidad if nuevo else UNIDAD_POR_OMISION),
+            codigo_pieza_generado=pieza_generada,
             avisos=avisos,
         )
         e.saldos_tabla[saldo_llave] = saldo + cantidad
@@ -594,6 +623,8 @@ class Analizador:
         """El archivo no cambia nada de un articulo que ya existe; solo se avisa si difiere."""
         if nombre and clave(nombre) != clave(articulo.nombre):
             avisos.append("El nombre del archivo es distinto del registrado; no se cambia.")
+        if f["unidad"] and clave(f["unidad"]) != clave(articulo.unidad):
+            avisos.append("La unidad del archivo es distinta de la registrada; no se cambia.")
         if f["marca"] and clave(f["marca"]) != clave(articulo.marca or ""):
             avisos.append("La marca del archivo es distinta de la registrada; no se cambia.")
         registrada = e.categorias_por_id.get(articulo.categoria_id)
@@ -648,6 +679,7 @@ class Analizador:
             costo=None,
             fila=numero,
             filas=0,
+            unidad=f["unidad"] or UNIDAD_POR_OMISION,
             pendiente=pendiente,
         )
         # Solo queda definido si la fila resulta buena: se registra al terminar la revision.
@@ -704,6 +736,24 @@ class Analizador:
             e.consecutivos[prefijo] += 1
             codigo = f"{prefijo}-{e.consecutivos[prefijo]:04d}"
             if clave(codigo) not in e.claves_en_tabla:
+                return codigo
+
+    def _generar_codigo_pieza(self, codigo_articulo: str, e: _Estado) -> str:
+        """`CODIGO-DEL-ARTICULO-NNN` (I-15), consecutivo por articulo. Salta lo que ya trae la
+        tabla; lo que ya hay en la base lo cubre el consecutivo inicial. En la confirmacion se
+        llama con las categorias bloqueadas."""
+        base = clave(codigo_articulo)
+        if base not in e.consecutivos_pieza:
+            e.consecutivos_pieza[base] = self.repository.ultimo_numero_con_prefijo(codigo_articulo)
+        while True:
+            e.consecutivos_pieza[base] += 1
+            codigo = f"{codigo_articulo}-{e.consecutivos_pieza[base]:03d}"
+            k = clave(codigo)
+            if (
+                k not in e.claves_en_tabla
+                and k not in e.piezas_tabla
+                and k not in e.codigos_articulo_tabla
+            ):
                 return codigo
 
     def _almacen(self, texto: str, e: _Estado, malo) -> Almacen | None:
@@ -767,16 +817,27 @@ class Analizador:
 
     @staticmethod
     def _pieza(f, k, ident: str, articulo: Articulo | None, e: _Estado, malo):
-        """Codigo y serie de la pieza (I-02). Devuelve `(codigo_pieza, serie)` o `None` en lo que
-        falla."""
+        """Codigo y serie de la pieza (I-02). Devuelve `(codigo_pieza, serie, generado)`. Sin
+        codigo de pieza se devuelve `None` con `generado` verdadero (se arma despues, I-15); sin
+        serie queda `None` (serie pendiente, I-17)."""
         if f["cantidad"]:
             valor, _ = parsear_cantidad(f["cantidad"])
             if valor != 1:
                 malo("RG-05", "cantidad", "CANTIDAD_INVALIDA", "Una pieza entra de una en una.")
         codigo_pieza: str | None = f["codigo_pieza"]
+        generado = False
         if not codigo_pieza:
-            malo("I-02", "codigo_pieza", "FALTA_CODIGO_PIEZA", "Falta el código de la pieza.")
+            generado = True
             codigo_pieza = None
+            largo = len(articulo.codigo) if articulo else len(f["codigo"])
+            if largo + 4 > LONGITUD["codigo_pieza"]:
+                malo(
+                    "I-15",
+                    "codigo_pieza",
+                    "DEMASIADO_LARGO",
+                    "El código del artículo es muy largo para generar el de la pieza: "
+                    "escribe el código de la pieza.",
+                )
         elif len(codigo_pieza) <= LONGITUD["codigo_pieza"]:
             kp = clave(codigo_pieza)
             en_base = e.en_base.get(kp)
@@ -809,10 +870,9 @@ class Analizador:
                     "CODIGO_REPETIDO",
                     f"El código {codigo_pieza} ya es el de un artículo de esta tabla.",
                 )
-        serie: str | None = f["serie"]
-        if not serie:
-            malo("I-02", "serie", "FALTA_SERIE", "Falta el número de serie de la pieza.")
-            serie = None
+        serie: str | None = f["serie"] or None
+        if serie is None:
+            pass  # serie pendiente (I-17): no es error
         elif len(serie) <= LONGITUD["serie"]:
             ks = clave(serie)
             if articulo is not None and (articulo.id, ks) in e.series_base:
@@ -829,7 +889,7 @@ class Analizador:
                     "SERIE_REPETIDA",
                     f"El número de serie {serie} ya está en la fila {e.series_tabla[(ident, ks)]}.",
                 )
-        return codigo_pieza, serie
+        return codigo_pieza, serie, generado
 
 
 @dataclass
@@ -862,3 +922,4 @@ class _Estado:
     codigos_articulo_tabla: set[str] = field(default_factory=set)
     nuevos_por_nombre: dict[tuple[str, str], str] = field(default_factory=dict)
     consecutivos: dict[str, int] = field(default_factory=dict)
+    consecutivos_pieza: dict[str, int] = field(default_factory=dict)

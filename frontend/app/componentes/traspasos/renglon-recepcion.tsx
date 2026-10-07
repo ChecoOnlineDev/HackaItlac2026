@@ -1,11 +1,13 @@
 import { cn } from "cn";
 import { CheckIcon, MinusIcon, PlusIcon, TriangleAlertIcon, XIcon } from "lucide-react";
-import { useId } from "react";
+import { memo, useEffect, useId, useRef } from "react";
 
 import { Checkbox } from "~/components/ui/checkbox";
 import type { MotivoRegla, NivelSemaforo } from "~/componentes/dominio/tipos";
 import { Boton } from "~/componentes/ui/boton";
 import type { RenglonPorRecibirApi } from "./tipos";
+
+const SIN_MOTIVOS: MotivoRegla[] = [];
 
 const FRANJA: Record<NivelSemaforo, string> = {
   VERDE: "bg-semaforo-verde",
@@ -18,7 +20,12 @@ interface PropiedadesRenglonRecepcion {
   renglon: RenglonPorRecibirApi;
   /** Cuántas piezas o unidades se marcaron como recibidas ahora (0 = sin marcar). */
   marcado: number;
-  alMarcar?: (cantidad: number) => void;
+  /** Estable entre dibujos (así el renglón no se redibuja si no cambió): recibe la clave del renglón y la cantidad. */
+  alMarcar?: (clave: string, cantidad: number) => void;
+  /** Clave con la que `alMarcar` identifica este renglón. */
+  clave?: string;
+  /** Cambia cada vez que se acaba de escanear este renglón: destello verde breve. */
+  destello?: number;
   /** Lo que dijo el servidor de este renglón (por ejemplo X-12). */
   nivel?: NivelSemaforo;
   motivos?: MotivoRegla[];
@@ -31,7 +38,31 @@ interface PropiedadesRenglonRecepcion {
  * Un renglón de un traspaso que se está recibiendo: casilla de recibido de 48 px (toda la fila es el botón),
  * lo enviado, lo ya recibido y lo que falta. En un artículo por cantidad, − y + dicen cuántas unidades llegaron.
  */
-export function RenglonRecepcion({ renglon, marcado, alMarcar, nivel, motivos = [], soloLectura = false, deshabilitado = false }: PropiedadesRenglonRecepcion) {
+export const RenglonRecepcion = memo(function RenglonRecepcion({
+  renglon,
+  marcado,
+  alMarcar: alMarcarClave,
+  clave = "",
+  destello = 0,
+  nivel,
+  motivos = SIN_MOTIVOS,
+  soloLectura = false,
+  deshabilitado = false,
+}: PropiedadesRenglonRecepcion) {
+  const alMarcar = alMarcarClave ? (cantidad: number) => alMarcarClave(clave, cantidad) : undefined;
+  const raiz = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!destello) return;
+    try {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      raiz.current?.animate(
+        [{ backgroundColor: "rgb(34 197 94 / 0.35)" }, { backgroundColor: "rgb(34 197 94 / 0)" }],
+        { duration: 1000, easing: "ease-out" },
+      );
+    } catch {
+      // Sin animación el renglón se marca igual.
+    }
+  }, [destello]);
   const idCasilla = useId();
   const porCantidad = renglon.pieza_id === null;
   const completo = renglon.cantidad_pendiente <= 0;
@@ -44,6 +75,7 @@ export function RenglonRecepcion({ renglon, marcado, alMarcar, nivel, motivos = 
 
   return (
     <div
+      ref={raiz}
       role="group"
       aria-label={`${renglon.articulo}. ${completo ? "Ya recibido" : marcada ? "Marcado como recibido" : "Sin marcar"}`}
       className={cn("flex overflow-hidden rounded-2xl border bg-card", nivel === "ROJO" && "bg-semaforo-rojo/5 ring-2 ring-semaforo-rojo")}
@@ -133,7 +165,7 @@ export function RenglonRecepcion({ renglon, marcado, alMarcar, nivel, motivos = 
                 )}
                 <span>
                   <span className="sr-only">{m.nivel === "ROJO" ? "No se puede recibir" : "Aviso"}: </span>
-                  {m.mensaje} <span className="text-xs font-medium whitespace-nowrap text-muted-foreground">({m.regla})</span>
+                  {m.mensaje}
                 </span>
               </li>
             ))}
@@ -142,4 +174,4 @@ export function RenglonRecepcion({ renglon, marcado, alMarcar, nivel, motivos = 
       </div>
     </div>
   );
-}
+});

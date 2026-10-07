@@ -243,7 +243,7 @@ def test_AC_01_el_catalogo_trae_todas_las_claves_de_las_secciones_8_2_y_8_3():
         "reportes.movimientos", "reportes.adeudos", "reportes.consumo", "almacenes.todos",
         "etiquetas.imprimir", "almacenes.asignar_personal", "compras.solicitar",
         "compras.atender", "almacenes.administrar", "tablero.ver",
-        "trabajadores.numero_externo",
+        "trabajadores.numero_externo", "traspasos.recibir", "piezas.registrar_serie",
     }  # fmt: skip
     esperadas_features = {
         "reportes.valor_inventario", "inventario.minimos", "piezas.dar_de_baja", "revision.ver",
@@ -278,6 +278,8 @@ TABLA_8_2 = {
     "entregas.crear": "AS",
     "devoluciones.crear": "AS",
     "traspasos.operar": "S",
+    "traspasos.recibir": "S",
+    "piezas.registrar_serie": "SC",
     "no_adeudo.emitir": "AS",
     "vales.ver": "ASC",
     "vales.cancelar": "ASC",

@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import { IdCardIcon, PackageIcon, PrinterIcon, TagIcon, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 
 import { Checkbox } from "~/components/ui/checkbox";
 import { apiGet } from "~/api/cliente";
@@ -32,7 +33,11 @@ export default function Etiquetas() {
   // `etiquetas.imprimir` basta para los tres tipos (la ruta ya lo exige; el servidor lo verifica).
   const disponibles = TIPOS;
 
-  const [tipo, setTipo] = useState<TipoEtiqueta | null>(disponibles[0]?.tipo ?? null);
+  // Al llegar desde la importación: `?tipo=piezas&codigos=A,B` abre ese tipo con esas piezas ya elegidas.
+  const [params] = useSearchParams();
+  const tipoInicial = TIPOS.find((t) => t.tipo === params.get("tipo"))?.tipo ?? disponibles[0]?.tipo ?? null;
+  const [codigosInicial] = useState<ReadonlySet<string>>(() => new Set((params.get("codigos") ?? "").split(",").filter(Boolean)));
+  const [tipo, setTipo] = useState<TipoEtiqueta | null>(tipoInicial);
   const [elementos, setElementos] = useState<EtiquetaElemento[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [busqueda, setBusqueda] = useState("");
@@ -49,7 +54,11 @@ export default function Etiquetas() {
     setElegidos(new Set());
     setBusqueda("");
     apiGet<RespuestaEtiquetas>("/etiquetas", { tipo }, control.signal)
-      .then((r) => setElementos(r.elementos))
+      .then((r) => {
+        setElementos(r.elementos);
+        // Solo el tipo pedido por la dirección preselecciona.
+        if (tipo === tipoInicial && codigosInicial.size > 0) setElegidos(new Set(r.elementos.filter((e) => codigosInicial.has(e.codigo)).map((e) => e.codigo)));
+      })
       .catch((e: unknown) => {
         if (e instanceof DOMException && e.name === "AbortError") return;
         setError(e);

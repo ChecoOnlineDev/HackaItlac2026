@@ -333,8 +333,11 @@ def test_I_02_una_pieza_lleva_codigo_y_serie_unicos():
     assert evaluar_renglon_entrada(ok, HOY).nivel == Nivel.VERDE
     sin_codigo = entrada(**base, pieza_serie="S-9")
     assert reglas(evaluar_renglon_entrada(sin_codigo, HOY).motivos) == ["I-02"]
+    # I-02 (decisión de FEAT-009): la serie es opcional al entrar; sin ella la pieza queda con serie
+    # pendiente y entra sin motivos (el aviso amarillo es de la entrega, E-29).
     sin_serie = entrada(**base, pieza_codigo="P-9")
-    assert reglas(evaluar_renglon_entrada(sin_serie, HOY).motivos) == ["I-02"]
+    r_sin_serie = evaluar_renglon_entrada(sin_serie, HOY)
+    assert r_sin_serie.nivel == Nivel.VERDE and r_sin_serie.motivos == []
     en_uso = entrada(**base, pieza_codigo="P-9", pieza_serie="S", codigo_pieza_en_uso="una pieza")
     assert "ya identifica una pieza" in evaluar_renglon_entrada(en_uso, HOY).motivos[0].mensaje
     serie_repe = entrada(**base, pieza_codigo="P-9", pieza_serie="S", serie_en_uso=True)

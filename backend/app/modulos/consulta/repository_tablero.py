@@ -114,6 +114,12 @@ class TableroRepository:
         )
         return int(self.session.scalar(consulta) or 0)
 
+    def piezas_serie_pendiente(self, almacen_id: uuid.UUID | None) -> int:
+        """Piezas sin número de serie (derivado de `numero_serie` nulo) que no están de baja."""
+        consulta, _ = self._piezas(func.count(Pieza.id), almacen_id)
+        consulta = consulta.where(Pieza.numero_serie.is_(None), Pieza.estado != EstadoPieza.BAJA)
+        return int(self.session.scalar(consulta) or 0)
+
     def traspasos_en_transito(self, almacen_id: uuid.UUID | None) -> int:
         consulta = select(func.count(Vale.id)).where(
             Vale.tipo == TipoVale.TRASPASO,

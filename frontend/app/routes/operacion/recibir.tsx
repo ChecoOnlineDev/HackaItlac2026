@@ -1,10 +1,10 @@
-import { InboxIcon, RefreshCwIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowDownUpIcon, InboxIcon, RefreshCwIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { apiGet } from "~/api/cliente";
 import { mensajeDeError } from "~/api/errores";
-import { useConsulta } from "~/componentes/catalogo/usar-consulta";
+import { useConsulta, useRetraso } from "~/componentes/catalogo/usar-consulta";
 import { Escaner } from "~/componentes/dominio/escaner";
 import { reproducir } from "~/componentes/dominio/sonido";
 import { Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
@@ -14,13 +14,19 @@ import { TarjetaTraspaso } from "~/componentes/traspasos/tarjeta-traspaso";
 import type { PorRecibirApi } from "~/componentes/traspasos/tipos";
 import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
+import { CampoBusqueda } from "~/componentes/ui/campo-busqueda";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { EstadoVacio } from "~/componentes/ui/estado-vacio";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { refrescarContadores } from "~/sesion/contadores";
 import { useSesionActiva } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "traspasos.operar" };
+export const handle: ManejadorRuta = { permiso: "traspasos.recibir" };
+
+/** Minúsculas y sin acentos, para buscar sin importar cómo se escribió. */
+function normalizar(texto: string): string {
+  return texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase("es-MX").trim();
+}
 
 export default function Recibir() {
   const { puede } = useSesionActiva();
@@ -69,7 +75,16 @@ export default function Recibir() {
     }
   };
 
-  const lista = consulta.datos?.elementos ?? [];
+  const [busqueda, setBusqueda] = useState("");
+  const buscar = useRetraso(busqueda, 200);
+  const [masAntiguosPrimero, setMasAntiguosPrimero] = useState(true);
+  const todos = consulta.datos?.elementos;
+  const lista = useMemo(() => {
+    const q = normalizar(buscar);
+    const filtrada = (todos ?? []).filter((t) => !q || normalizar(`${t.folio} ${t.origen.nombre} ${t.destino.nombre} ${t.envio.nombre}`).includes(q));
+    // Orden por antigüedad del envío (ISO en UTC: se compara como texto).
+    return filtrada.sort((a, b) => (masAntiguosPrimero ? 1 : -1) * a.creado_en.localeCompare(b.creado_en));
+  }, [todos, buscar, masAntiguosPrimero]);
 
   return (
     <Pantalla
@@ -88,18 +103,31 @@ export default function Recibir() {
             <EstadoError error={consulta.error} alReintentar={actualizar} />
           ) : consulta.cargando && !consulta.datos ? (
             <Esqueleto tipo="lista" cantidad={3} />
-          ) : lista.length === 0 ? (
+          ) : (todos?.length ?? 0) === 0 ? (
             <EstadoVacio
               icono={InboxIcon}
               titulo="No hay traspasos por recibir"
               descripcion="Cuando otro almacén te envíe algo, aparecerá aquí."
             />
           ) : (
-            <ul aria-label="Traspasos en camino" className="flex flex-col gap-3">
-              {lista.map((t) => (
-                <TarjetaTraspaso key={t.id} traspaso={t} mostrarDestino={operaTodos} />
-              ))}
-            </ul>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <CampoBusqueda etiqueta="Buscar un traspaso por folio o almacén" placeholder="Buscar por folio o almacén" value={busqueda} alCambiar={setBusqueda} />
+                <Boton variante="contorno" className="min-h-11" onClick={() => setMasAntiguosPrimero((v) => !v)} aria-label={`Orden: ${masAntiguosPrimero ? "más antiguos primero" : "más recientes primero"}. Tocar para cambiar`}>
+                  <ArrowDownUpIcon aria-hidden="true" />
+                  {masAntiguosPrimero ? "Más antiguos primero" : "Más recientes primero"}
+                </Boton>
+              </div>
+              {lista.length === 0 ? (
+                <p className="rounded-2xl border border-dashed p-4 text-base text-muted-foreground">Ningún traspaso coincide con tu búsqueda.</p>
+              ) : (
+                <ul aria-label="Traspasos en camino" className="flex flex-col gap-3">
+                  {lista.map((t) => (
+                    <TarjetaTraspaso key={t.id} traspaso={t} mostrarDestino={operaTodos} />
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
         </div>
         <div className="order-1 flex flex-col gap-3 md:sticky md:top-4 md:order-2">

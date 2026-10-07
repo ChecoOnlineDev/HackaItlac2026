@@ -59,7 +59,9 @@ Resumen en lenguaje de persona, según la tabla 8.2 de las reglas (entre parént
 |---|:-:|:-:|:-:|:-:|:-:|
 | Entregar y pedir autorización (`entregas.crear`) | Sí | Sí | Sí | No | No |
 | Recibir devoluciones (`devoluciones.crear`) | Sí | Sí | Sí | No | No |
-| Enviar y recibir traspasos (`traspasos.operar`) | Sí | Sí (su almacén) | No | No | No |
+| Enviar traspasos (`traspasos.operar`) | Sí | Sí (su almacén) | No | No | No |
+| Recibir traspasos (`traspasos.recibir`) | Sí | Sí (su almacén) | Opcional | No | No |
+| Registrar la serie de una pieza que entró sin ella (`piezas.registrar_serie`) | Sí | Sí | No | Sí | No |
 | Emitir el vale de no adeudo (`no_adeudo.emitir`) | Sí | Sí | Sí | No | No |
 | Autorizar o rechazar excedentes (`autorizaciones.resolver`) | Sí | Sí | No | No | No |
 | Inspeccionar una pieza o marcarla No apta (`piezas.inspeccionar`) | Sí | Sí | Sí | No | No |
@@ -182,7 +184,8 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 - Devolver por escaneo, con la condición de regreso.
 - Buscar trabajadores (por nombre, apellido, número de empleado o QR) e inventario de su almacén.
 - Inspeccionar piezas de su almacén (o que un trabajador tiene por entrega de su almacén) y marcarlas como No aptas (H11).
-- Los traspasos entre almacenes no son suyos: los opera el Supervisor.
+- Los traspasos entre almacenes no son suyos: el envío lo opera el Supervisor. No traslada (X-01), tampoco con lista de Excel: no ve «Trasladar» ni «Trasladar con una lista». **Recibir** es un permiso aparte (`traspasos.recibir`): de inicio no lo tiene, pero el Administrador puede dárselo en Roles y permisos (por ejemplo, al almacenista de un proyecto que recibe la lista que le manda Contratistas); con él ve «Recibir traspaso» y la recepción con progreso y filtros para listas largas, y nada más de traspasos.
+- Si una pieza sale con el aviso amarillo «Serie pendiente» al entregar, la entrega sigue (no bloquea); capturar la serie la hace quien tiene `piezas.registrar_serie` (de inicio, Supervisor, Compras y Administrador): avísale al supervisor.
 - Iniciar la baja y emitir el vale de no adeudo.
 - Consultar quién tiene qué; cancelar un vale propio mal capturado.
 
@@ -259,7 +262,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 
 **Funcionalidades clave.**
 - Autorizar o rechazar excedentes y entregas restringidas **de su almacén**, desde su celular o con su PIN en el mostrador. Las solicitudes de otro almacén no las ve ni las puede resolver (A-01); si da su PIN en el mostrador de otro almacén, se rechaza.
-- Enviar y recibir traspasos de su almacén (el del origen envía y el del destino recibe), **solo por la ruta habitual**: a su almacén padre o hijo (Kepler con Contratistas, Contratistas con un proyecto). Una ruta que se salta a Contratistas la hace solo el Administrador, con observación (X-03); si un supervisor la intenta, la pantalla la marca en rojo y el servidor la rechaza.
+- Enviar (`traspasos.operar`) y recibir (`traspasos.recibir`, de inicio también suyo) traspasos de su almacén (el del origen envía y el del destino recibe), **solo por la ruta habitual**: a su almacén padre o hijo (Kepler con Contratistas, Contratistas con un proyecto). Una ruta que se salta a Contratistas la hace solo el Administrador, con observación (X-03); si un supervisor la intenta, la pantalla la marca en rojo y el servidor la rechaza.
 - Ver el tablero de su almacén en el Inicio (FEAT-008, aún no construido; `tablero.ver`).
 - Operar solo su almacén asignado (no elige otro).
 - Administrar el catálogo (categorías, artículos, requisitos, límites, inactivar).
@@ -280,8 +283,11 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 6. La autorización vale solo para ese vale y se usa una sola vez; no cambia el límite del artículo (A-03). El vale muestra al supervisor como «Validó» (A-04).
 
 **Otros flujos frecuentes.**
+- *Trasladar con una lista de Excel (FEAT-009).* En **Trasladar**, toca **Trasladar con una lista** (junto a Escanear). Elige el destino (uno solo para todo el archivo; la ruta no habitual la hace solo el Administrador), descarga la plantilla o sube o pega tu tabla, confirma qué columna es cada dato y revisa la vista previa: cada fila sale Correcta, con Aviso o con Error, con lo disponible en tu almacén. Un error detiene todo el traspaso: corrige el archivo o toca **Dejar fuera las filas con error** (te dice cuántas y cuáles). Al confirmar queda En tránsito con folio y QR, igual que escaneando. El almacén de destino lo recibe con «Recibir todo» o palomitas; si la lista es larga, ahí mismo encuentra el contador «12 de 40 revisados», la búsqueda y el filtro «Pendientes». El archivo admite hasta 500 filas y, si ya se usó, te avisa.
 - *Catálogo.* Categorías → plantilla de reglas; Artículos → crear con la plantilla de su categoría y ajustar límite, requisitos especiales (inspección vigente, autorización en cada entrega) y su motivo; inactivar con motivo obligatorio o reactivar (CF-01 a CF-13). El costo lo captura solo Compras.
 - *Pedir o cancelar una compra urgente.* Igual que el almacenista (SC-01; **Menú → Pedir compra urgente** y **Compras urgentes**), con una diferencia: puede **cancelar** cualquier solicitud pendiente de su almacén, no solo las suyas (SC-07). Ve todas las de su almacén y la nota con que Compras rechazó alguna.
+- *Completar la serie de una pieza.* En la ficha de una pieza con la insignia «Serie pendiente», toca **Registrar serie**, escribe o escanea el número del fabricante y guarda; si ya existe en otra pieza del mismo artículo, no lo acepta. Solo sirve para piezas que no tienen serie; cambiar una ya registrada no se puede. Queda en la auditoría (`pieza.registrar_serie`). El tablero de su almacén tiene la tarjeta «Piezas con serie pendiente» que lleva al seguimiento ya filtrado.
+- *Recibir un traspaso grande.* **Recibir traspaso** → abre el traspaso → usa el contador «12 de 40 revisados», la búsqueda y el filtro «Pendientes»; escanea para marcar, ajusta la cantidad de lo que llegó incompleto con − y +, o toca **Recibir todo** para marcar lo pendiente; lo que falte pide observación y queda En tránsito (X-13, RG-14).
 - *Ajustar la vigencia de una inspección.* En la ficha de la pieza, **Ajustar vigencia**, nueva fecha y motivo obligatorio; queda en el historial (P-07).
 - *Rastrear una desaparición.* Reporte de Movimientos filtrado por usuario, artículo, almacén y periodo, más el historial de la pieza (C-11).
 - *Cancelar el vale de otro.* Abre el vale y lo cancela con motivo (K-01).
@@ -338,7 +344,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 7. Entra a **Etiquetas** para imprimir los QR de las piezas nuevas y de los estantes, desde el navegador.
 
 **Otros flujos frecuentes.**
-- *Importación.* Importar → elegir el modo, **Alta** o **Reposición** (cada uno tiene su plantilla de ejemplo) → pegar la tabla o subir el archivo → indicar qué columna es cada dato → vista previa en tabla (cada fila con su estado: Nuevo, Existente, Unido o Error, y su saldo antes y después; en el alta, la categoría sugerida que se puede cambiar) → confirmar; se crea un vale de entrada por almacén. Las filas con error no se importan y se listan con su motivo (I-06, I-10 a I-14). Reposición nunca crea artículos: un código que no existe es error, y hay que darlo de alta primero. Las cantidades son enteros (nada de 0.25) y un archivo que ya se importó pide confirmación expresa.
+- *Importación.* Importar → elegir el modo, **Alta** o **Reposición** (cada uno tiene su plantilla de ejemplo) → pegar la tabla o subir el archivo → indicar qué columna es cada dato → vista previa en tabla (cada fila con su estado: Nuevo, Existente, Unido o Error, y su saldo antes y después; en el alta, la categoría sugerida que se puede cambiar) → confirmar; se crea un vale de entrada por almacén. Las filas con error no se importan y se listan con su motivo (I-06, I-10 a I-14). En el alta, las columnas `unidad`, `serie` y `codigo pieza` son opcionales: una pieza sin serie entra con el aviso amarillo «Serie pendiente» (después se completa con Registrar serie) y una sin código de pieza recibe uno automático, del tipo `HEL-0003-001`, al confirmar; la serie o el código de pieza repetidos sí son error. Al terminar, el resultado lista las piezas nuevas y ofrece **Imprimir etiquetas de las piezas nuevas**: los códigos generados todavía no están pegados en la herramienta. Reposición nunca crea artículos: un código que no existe es error, y hay que darlo de alta primero. Las cantidades son enteros (nada de 0.25) y un archivo que ya se importó pide confirmación expresa.
 - *Atender las solicitudes de compra.* Entra a **Solicitudes de compra** (en su inicio y en el menú, con el número de pendientes). Arriba ve tres tarjetas con lo que espera (Pendientes, En compra y Compradas por ingresar); tocar una filtra la lista, y puede buscar por folio, artículo o motivo y filtrar por estado, urgencia, almacén y periodo. Ve la cola de **todos** los almacenes (sin ver su inventario), con las urgentes y las más antiguas primero; las urgentes pendientes salen con una franja roja. En cada renglón toca el botón que le ofrece el sistema: **Tomar** (pasa a en compra; pide una confirmación), **Comprada** y, cuando llega la compra y la registra con **Entradas**, **Ingresar**. Al tocar una solicitud abre su detalle, con todos los datos, la **línea de tiempo** (quién hizo cada cosa, cuándo y con qué nota) y los botones: **Rechazar** (pide una nota que explique por qué; la lee quien pidió), **Marcar como comprada** (nota opcional: proveedor o día de llegada) e **Ingresar al almacén**, que permite ligar el vale de entrada con el que metió lo comprado (lo elige de sus últimas entradas o escribe el folio; es opcional). Si otra persona ya cambió la solicitud, el sistema se lo dice en la misma ventana y actualiza el detalle (SC-04 a SC-06). Cada paso queda en la línea de tiempo (SC-08). Ingresar no sube las existencias: eso lo hace el vale de entrada (SC-11).
 - *Revisar faltantes.* Reportes de Existencias y de Consumo (cuánto se consume por artículo, periodo, almacén y trabajador).
 - *Imprimir credenciales.* Etiquetas → credenciales, completa o solo QR; también desde la ficha del trabajador cuando su rol la puede abrir (ver incongruencia 6 de la sección 11).
@@ -351,6 +357,7 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 | Entrada de un artículo inactivo | Se rechaza | I-09 |
 | Código de pieza repetido | Se rechaza | I-02 |
 | Un renglón con problema | Se marca; no se guarda nada hasta corregirlo | RG-09 |
+| Pieza importada sin número de serie | Entra con el aviso «Serie pendiente»; se entrega con aviso amarillo y se completa con Registrar serie | I-02, E-xx |
 | Fila de importación con categoría desconocida | Se sugiere una por la descripción o queda «por revisar»; se elige una para esas filas | I-14 |
 | Reposición de un código que no existe | Esa fila es error: dalo de alta primero; las demás entran | I-10 |
 | Cantidad con decimales (0.25) | La fila es error; se pide una unidad entera menor; nunca se redondea | I-13 |

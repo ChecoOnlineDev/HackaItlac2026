@@ -16,6 +16,8 @@ export interface PropiedadesListaRenglones {
   onCantidad?: (renglon: RenglonEvaluado, cantidad: number) => void;
   onPedirAutorizacion?: (renglon: RenglonEvaluado) => void;
   onObservacion?: (renglon: RenglonEvaluado) => void;
+  /** Lleva a la ficha de la pieza para inspeccionarla (renglón rojo por E-05 o E-06). */
+  onInspeccionar?: (renglon: RenglonEvaluado) => void;
   /** Estado de autorización de cada renglón naranja. */
   estadoAutorizacion?: (renglon: RenglonEvaluado) => EstadoAutorizacion;
   /** Observación capturada de cada renglón. */
@@ -51,6 +53,7 @@ export function ListaRenglones({
   onCantidad,
   onPedirAutorizacion,
   onObservacion,
+  onInspeccionar,
   estadoAutorizacion,
   observacionDe,
   notas,
@@ -154,6 +157,7 @@ export function ListaRenglones({
               onCantidad={onCantidad ? (n) => onCantidad(renglon, n) : undefined}
               onPedirAutorizacion={onPedirAutorizacion ? () => onPedirAutorizacion(renglon) : undefined}
               onObservacion={onObservacion ? () => onObservacion(renglon) : undefined}
+              onInspeccionar={onInspeccionar ? () => onInspeccionar(renglon) : undefined}
             />
           </li>
         );

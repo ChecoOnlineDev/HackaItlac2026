@@ -52,6 +52,8 @@ def test_AC_03_el_almacenista_no_tiene_etiquetas_traspasos_reportes_ni_catalogo_
     for clave in (
         P.ETIQUETAS_IMPRIMIR,
         P.TRASPASOS_OPERAR,
+        P.TRASPASOS_RECIBIR,
+        P.PIEZAS_REGISTRAR_SERIE,
         P.REPORTES_EXISTENCIAS,
         P.REPORTES_MOVIMIENTOS,
         P.REPORTES_ADEUDOS,

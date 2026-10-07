@@ -75,6 +75,7 @@ def test_I_06_un_xlsx_valido_devuelve_filas_columnas_propuestas_y_vista_previa(c
         "serie": 6,
         "costo": 7,
         "codigo_pieza": 8,
+        "unidad": None,  # el archivo de ejemplo no trae la columna opcional (I-16)
     }
     assert cuerpo["filas"][0][:5] == [codigo, "Martillo", "Truper", MANUAL, "12"]
     vp = cuerpo["vista_previa"]

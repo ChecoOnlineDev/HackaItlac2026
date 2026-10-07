@@ -74,6 +74,7 @@ _PALABRAS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("costo", ("costo", "precio", "importe")),
     ("cantidad", ("cantidad", "cant", "existencia", "existencias", "stock", "unidades")),
     ("almacen", ("almacen", "bodega")),
+    ("unidad", ("unidad", "um", "medida")),
     ("categoria", ("categoria", "familia", "rubro")),
     ("marca", ("marca", "fabricante")),
     ("nombre", ("nombre", "descripcion", "producto", "material", "herramienta")),
@@ -87,6 +88,9 @@ def proponer_columnas(encabezados: list[str | None]) -> dict[str, int | None]:
     columnas: dict[str, int | None] = dict.fromkeys(CAMPOS)
     usadas: set[int] = set()
     palabras = [set(re.findall(r"[a-z0-9]+", clave(e or ""))) for e in encabezados]
+    for conjunto, e in zip(palabras, encabezados, strict=True):
+        if re.sub(r"[^a-z0-9]", "", clave(e or "")) == "um":  # «U.M.»
+            conjunto.add("um")
 
     def tomar(campo: str, buscadas: tuple[str, ...], *, exigir: tuple[str, ...] = ()) -> None:
         for i, conjunto in enumerate(palabras):

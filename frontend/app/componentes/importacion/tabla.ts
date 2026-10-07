@@ -20,6 +20,7 @@ export const ETIQUETA_CAMPO: Record<CampoImportacion, string> = {
   serie: "Número de serie",
   costo: "Costo",
   codigo_pieza: "Código de la pieza",
+  unidad: "Unidad de medida",
 };
 
 /** Cada modo habla distinto de algunos datos. */
@@ -40,9 +41,10 @@ export const AYUDA_CAMPO: Record<CampoImportacion, string> = {
   categoria: "Hace falta en los artículos nuevos.",
   cantidad: "Cuántas unidades entran (los artículos por pieza entran de una en una).",
   almacen: "A qué almacén entra. Si no la trae, se usa el almacén que elijas en la revisión.",
-  serie: "Solo para artículos por pieza.",
+  serie: "Solo para artículos por pieza. Si no la traes, la pieza entra con la serie pendiente.",
   costo: "Solo se guarda en artículos nuevos.",
-  codigo_pieza: "Solo para artículos por pieza: el código de cada pieza.",
+  codigo_pieza: "Opcional. Si no lo traes, se genera al confirmar.",
+  unidad: "Opcional: kilos, metros, pieza… Si no la traes, se usa «pieza». No cambia la de un artículo que ya existe.",
 };
 
 /** Una columna vacía en todos sus datos: `null` para cada campo. */
@@ -154,6 +156,7 @@ const PALABRAS: [CampoImportacion, string[]][] = [
   ["almacen", ["almacen", "bodega"]],
   ["categoria", ["categoria", "familia", "rubro"]],
   ["marca", ["marca", "fabricante"]],
+  ["unidad", ["unidad", "um", "medida"]],
   ["nombre", ["nombre", "descripcion", "producto", "material", "herramienta"]],
 ];
 const CODIGO = ["codigo", "clave", "sku", "folio", "etiqueta", "qr"];

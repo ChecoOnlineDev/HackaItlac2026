@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { formatearFecha, formatearFechaHora } from "~/componentes/dominio/fechas";
 import { instanteUtc } from "~/componentes/consulta/formato";
+import { InsigniaSeriePendiente } from "~/componentes/dominio/insignia-serie-pendiente";
 import { InsigniaDonde, InsigniaEstadoPieza } from "./insignias";
 import type { PiezaSeguimiento } from "./tipos";
 
@@ -95,7 +96,11 @@ export function TablaPiezas({ piezas, puedeAbrir, puedeVerVale }: PropiedadesLis
                   ) : (
                     <span className="font-semibold">{p.codigo}</span>
                   )}
-                  {p.numero_serie ? <span className="block text-xs text-muted-foreground">{p.numero_serie}</span> : null}
+                  {p.numero_serie ? (
+                    <span className="block text-xs text-muted-foreground">{p.numero_serie}</span>
+                  ) : (
+                    <InsigniaSeriePendiente className="mt-1" />
+                  )}
                 </TableCell>
                 <TableCell className="whitespace-normal">
                   <span className="font-medium">{p.articulo.nombre}</span>
@@ -156,6 +161,7 @@ export function TarjetasPiezas({ piezas, puedeAbrir, puedeVerVale }: Propiedades
                   )}
                   {p.numero_serie ? ` · Serie ${p.numero_serie}` : null}
                 </p>
+                {p.numero_serie ? null : <InsigniaSeriePendiente className="mt-1" />}
               </div>
               <InsigniaEstadoPieza pieza={p} />
             </div>

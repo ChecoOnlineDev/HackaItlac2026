@@ -36,6 +36,7 @@ class ResumenTableroOut(BaseModel):
     entregas_hoy: int
     solicitudes_compra_abiertas: int
     inspecciones_por_vencer: int
+    piezas_serie_pendiente: int
     generado_en: FechaUtc
 
 

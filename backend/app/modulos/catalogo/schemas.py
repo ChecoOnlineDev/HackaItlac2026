@@ -366,3 +366,11 @@ class DotacionIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     renglones: list[RenglonDotacionIn] = Field(max_length=200)
+
+
+class SerieIn(BaseModel):
+    """P-08: el número de serie que se pone a una pieza que no lo tenía."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    numero_serie: Texto = Field(max_length=80)

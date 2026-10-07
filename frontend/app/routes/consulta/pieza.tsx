@@ -1,4 +1,4 @@
-import { ClipboardCheckIcon, MapPinIcon, PackageCheckIcon, TriangleAlertIcon, Undo2Icon, CalendarClockIcon } from "lucide-react";
+import { HashIcon, ClipboardCheckIcon, MapPinIcon, PackageCheckIcon, TriangleAlertIcon, Undo2Icon, CalendarClockIcon } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 
@@ -6,6 +6,8 @@ import { Bloque } from "~/componentes/consulta/bloque";
 import { Dato, Seccion, VolverAConsultar } from "~/componentes/consulta/bloques";
 import { BandaEstadoPieza, leerEstadoPieza } from "~/componentes/consulta/estado-pieza";
 import { formatearFecha } from "~/componentes/dominio/fechas";
+import { InsigniaSeriePendiente } from "~/componentes/dominio/insignia-serie-pendiente";
+import { HojaRegistrarSerie } from "~/componentes/consulta/hoja-registrar-serie";
 import { HojaAjusteVigencia, HojaInspeccion, HojaMarcarNoApta } from "~/componentes/consulta/hojas-pieza";
 import { LineaDeTiempo } from "~/componentes/consulta/linea-de-tiempo";
 import type { FichaPieza } from "~/componentes/consulta/tipos";
@@ -18,7 +20,7 @@ import { useSesion } from "~/sesion/sesion";
 
 export const handle: ManejadorRuta = { permiso: "catalogo.ver" };
 
-type Panel = null | "inspeccion" | "no-apta" | "vigencia";
+type Panel = null | "inspeccion" | "no-apta" | "vigencia" | "serie";
 
 export default function FichaPiezaPantalla() {
   const { id } = useParams();
@@ -28,6 +30,7 @@ export default function FichaPiezaPantalla() {
 
   const puedeInspeccionar = puede("piezas.inspeccionar");
   const puedeAjustar = puede("piezas.ajustar_vigencia");
+  const puedeRegistrarSerie = puede("piezas.registrar_serie");
   const puedeEntregar = puede("entregas.crear");
   const puedeDevolver = puede("devoluciones.crear");
 
@@ -54,6 +57,7 @@ export default function FichaPiezaPantalla() {
   const enBaja = pieza.estado === "BAJA";
   const conTrabajador = pieza.ubicacion?.tipo === "TRABAJADOR";
   const inspeccion = pieza.ultima_inspeccion;
+  const seriePendiente = pieza.serie_pendiente ?? !pieza.numero_serie;
 
   return (
     <Pantalla
@@ -64,6 +68,19 @@ export default function FichaPiezaPantalla() {
       <VolverAConsultar />
 
       <BandaEstadoPieza lectura={lectura} />
+
+      {seriePendiente && !enBaja ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3">
+          <InsigniaSeriePendiente />
+          <p className="min-w-0 flex-1 text-sm">Esta pieza no tiene número de serie registrado. Se puede entregar, pero conviene completarlo.</p>
+          {puedeRegistrarSerie ? (
+            <Boton variante="secundario" className="h-11" onClick={() => setPanel("serie")}>
+              <HashIcon aria-hidden="true" />
+              Registrar serie
+            </Boton>
+          ) : null}
+        </div>
+      ) : null}
 
       <Bloque titulo="Dónde está" icono={MapPinIcon}>
         {pieza.ubicacion ? (
@@ -129,7 +146,7 @@ export default function FichaPiezaPantalla() {
           />
           <Dato etiqueta="Estado" valor={pieza.estado_texto} />
           <Dato etiqueta="Código" valor={pieza.codigo} />
-          {pieza.numero_serie ? <Dato etiqueta="Número de serie" valor={pieza.numero_serie} /> : null}
+          <Dato etiqueta="Número de serie" valor={pieza.numero_serie ? pieza.numero_serie : <InsigniaSeriePendiente />} />
           {pieza.articulo.marca ? <Dato etiqueta="Marca" valor={pieza.articulo.marca} /> : null}
           {pieza.articulo.talla ? <Dato etiqueta="Talla" valor={pieza.articulo.talla} /> : null}
           {pieza.articulo.requiere_inspeccion && pieza.articulo.vigencia_inspeccion_dias ? (
@@ -160,6 +177,16 @@ export default function FichaPiezaPantalla() {
 
       <HojaInspeccion pieza={pieza} abierta={panel === "inspeccion"} alCambiar={(a) => setPanel(a ? "inspeccion" : null)} alGuardar={recargar} />
       <HojaMarcarNoApta pieza={pieza} abierta={panel === "no-apta"} alCambiar={(a) => setPanel(a ? "no-apta" : null)} alGuardar={recargar} />
+      {puedeRegistrarSerie ? (
+        <HojaRegistrarSerie
+          piezaId={pieza.id}
+          codigo={pieza.codigo}
+          articulo={pieza.articulo.nombre}
+          abierta={panel === "serie"}
+          alCambiar={(a) => setPanel(a ? "serie" : null)}
+          alGuardar={recargar}
+        />
+      ) : null}
       <HojaAjusteVigencia pieza={pieza} abierta={panel === "vigencia"} alCambiar={(a) => setPanel(a ? "vigencia" : null)} alGuardar={recargar} />
     </Pantalla>
   );
