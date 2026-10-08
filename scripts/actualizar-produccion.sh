@@ -82,18 +82,19 @@ done
 
 echo "4/4 Verificando..."
 fallos=0
-actual="$(docker exec "$APP" alembic current 2>/dev/null | grep head || true)"
-if printf '%s' "$actual" | grep -q "0008_permisos_feat011"; then
-  echo "  [ok] Base en la migración 0008_permisos_feat011."
+actual="$(docker exec "$APP" alembic current 2>/dev/null | grep -o '^[A-Za-z0-9_]*' | head -n1 || true)"
+ultima="$(docker exec "$APP" alembic heads 2>/dev/null | grep -o '^[A-Za-z0-9_]*' | head -n1 || true)"
+if [ -n "$actual" ] && [ "$actual" = "$ultima" ]; then
+  echo "  [ok] Base en la última migración ($actual)."
 else
-  echo "  [!!] La base no está en la migración 0008 (actual: $actual)."; fallos=$((fallos + 1))
+  echo "  [!!] La base no está en la última migración (actual: ${actual:-ninguna}, última: ${ultima:-?})."; fallos=$((fallos + 1))
 fi
 
 presentes="$(docker exec "$DB_CONTENEDOR" sh -c "MYSQL_PWD=\$MYSQL_ROOT_PASSWORD mysql -uroot -N $BASE -e \"SELECT COUNT(DISTINCT permiso) FROM rol_permiso WHERE permiso IN ($CLAVES);\"" 2>/dev/null | tail -n1 || echo 0)"
-if [ "${presentes:-0}" -ge 1 ]; then
-  echo "  [ok] $presentes de $TOTAL permisos nuevos ya están asignados a algún rol."
+if [ "${presentes:-0}" -ge "$TOTAL" ]; then
+  echo "  [ok] Los $TOTAL permisos nuevos están asignados a algún rol."
 else
-  echo "  [!!] Ningún permiso nuevo quedó asignado a un rol."; fallos=$((fallos + 1))
+  echo "  [!!] Solo ${presentes:-0} de $TOTAL permisos nuevos están asignados a un rol."; fallos=$((fallos + 1))
 fi
 
 if docker exec "$APP" python -m app.mantenimiento verificar; then
