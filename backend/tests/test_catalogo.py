@@ -1180,3 +1180,55 @@ def test_CF_10_la_lista_trae_el_motivo_de_los_inactivos(cliente_como, session):
     lista = cliente.get("/api/articulos", params={"q": "MOT-LISTA-1"}).json()["elementos"]
 
     assert [a["motivo_inactivacion"] for a in lista] == ["Descontinuado"]
+
+
+# ------------------------------------------------------------- EK-07: crear desde «Dar entrada»
+
+
+def _alta_sin_codigo(cliente: TestClient, session: Session, categoria: str, nombre: str):
+    return cliente.post(
+        "/api/articulos",
+        json={"nombre": nombre, "categoria_id": str(_categoria(session, categoria).id)},
+    )
+
+
+def test_EK_07_el_servidor_genera_el_codigo_consecutivo_por_prefijo(cliente_como, session):
+    cliente = cliente_como("Compras")
+    uno = _alta_sin_codigo(cliente, session, "Herramienta manual", "Flexómetro EK07 uno")
+    dos = _alta_sin_codigo(cliente, session, "Herramienta manual", "Flexómetro EK07 dos")
+    assert uno.status_code == 201 and dos.status_code == 201, uno.text + dos.text
+    n1 = int(uno.json()["codigo"].removeprefix("HMA-"))
+    assert uno.json()["codigo"] == f"HMA-{n1:04d}"
+    assert dos.json()["codigo"] == f"HMA-{n1 + 1:04d}"
+    # También queda como código escaneable del artículo (I-07).
+    assert CodigoService(session).identificar(uno.json()["codigo"]) is not None
+
+
+def test_EK_07_la_categoria_define_si_es_por_cantidad_o_por_pieza(cliente_como, session):
+    cliente = cliente_como("Compras")
+    cantidad = _alta_sin_codigo(cliente, session, "EPP básico", "Casco EK07 cantidad")
+    pieza = _alta_sin_codigo(cliente, session, "Herramienta eléctrica", "Taladro EK07 pieza")
+    assert cantidad.json()["control"] == "CANTIDAD" and cantidad.json()["codigo"].startswith("EPB-")
+    assert pieza.json()["control"] == "PIEZA" and pieza.json()["codigo"].startswith("HEL-")
+
+
+def test_EK_07_el_nombre_repetido_se_rechaza(cliente_como, session):
+    cliente = cliente_como("Compras")
+    assert _alta_sin_codigo(cliente, session, "Herramienta manual", "Marro EK07").status_code == 201
+    r = _alta_sin_codigo(cliente, session, "Herramienta manual", "marro ek07")
+    assert r.status_code == 409 and r.json()["codigo"] == "ARTICULO_REPETIDO", r.text
+
+
+def test_EK_07_sin_permiso_de_catalogo_no_crea_el_articulo(cliente_con, session):
+    cliente = cliente_con({P.INVENTARIO_ENTRADAS})
+    r = _alta_sin_codigo(cliente, session, "Herramienta manual", "Sin permiso EK07")
+    assert r.status_code == 403
+
+
+def test_EK_07_una_categoria_inactiva_se_rechaza(cliente_como, session):
+    cliente = cliente_como("Compras")
+    categoria = _categoria(session, "Consumibles de trabajo")
+    categoria.activo = False
+    session.flush()
+    r = _alta_sin_codigo(cliente, session, "Consumibles de trabajo", "Disco EK07")
+    assert r.status_code == 422 and r.json()["detalles"]["campo"] == "categoria_id"

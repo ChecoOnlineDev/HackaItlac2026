@@ -1,4 +1,6 @@
-"""Contratos del tablero (FEAT-008, TB-01 a TB-03). Solo lectura: sin costos, CURP ni NSS."""
+"""Contratos del tablero (FEAT-008, TB-01 a TB-03). Solo lectura: sin CURP ni NSS ni costos
+de artículos. El valor agregado (FEAT-012) viaja solo en `/tablero/valor`, con
+`reportes.valor_inventario`, y nunca trae el costo de un artículo."""
 
 import uuid
 from datetime import date
@@ -94,3 +96,42 @@ class ConsumoTableroOut(BaseModel):
     otros: OtrosOut
     total_general: int
     sin_registros: bool
+
+
+# ------------------------------------------------------------------ valor del inventario (VI)
+
+
+class AlcanceValorOut(BaseModel):
+    todos: bool
+    almacen_id: uuid.UUID | None
+    almacen_nombre: str | None
+
+
+class ValorCategoriaOut(BaseModel):
+    categoria: str
+    valor: str
+
+
+class ValorAlmacenOut(BaseModel):
+    almacen_id: uuid.UUID
+    nombre: str
+    en_almacen: str
+    en_resguardo: str
+    total: str
+
+
+class ValorInventarioOut(BaseModel):
+    """Totales en pesos (texto con 2 decimales). Nunca el costo ni el valor de un artículo."""
+
+    moneda: str = "MXN"
+    alcance: AlcanceValorOut
+    total: str
+    en_almacen: str
+    en_resguardo: str
+    # `null` si el alcance es un solo almacén: el tránsito no se atribuye a un almacén.
+    en_transito: str | None
+    articulos_sin_costo: int
+    unidades_sin_costo: int
+    por_categoria: list[ValorCategoriaOut]
+    por_almacen: list[ValorAlmacenOut]
+    generado_en: FechaUtc

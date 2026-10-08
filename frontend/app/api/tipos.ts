@@ -33,6 +33,7 @@ export const PERMISOS = [
   "reportes.movimientos",
   "reportes.adeudos",
   "reportes.consumo",
+  "reportes.valor_inventario",
   "almacenes.todos",
   "almacenes.asignar_personal",
   "almacenes.administrar",

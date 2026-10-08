@@ -11,6 +11,7 @@ import { erroresDeAcceso } from "./errores";
 import {
   PERMISO_AUTORIZA,
   PERMISO_TODOS_LOS_ALMACENES,
+  operaUnAlmacen,
   type AlmacenAcceso,
   type RolAcceso,
   type UsuarioAcceso,
@@ -61,6 +62,8 @@ export function HojaUsuario({ abierta, alCambiar, usuario, roles, almacenes, alG
 
   const rol = roles.find((r) => r.id === rolId) ?? null;
   const operaTodos = rol?.permisos.includes(PERMISO_TODOS_LOS_ALMACENES) ?? false;
+  // Lleva almacén quien trabaja en uno: RH, que solo administra personas, no (RG-07).
+  const llevaAlmacen = rol ? operaUnAlmacen(rol.permisos) : false;
   const autoriza = rol?.permisos.includes(PERMISO_AUTORIZA) ?? false;
   // Un rol inactivo no se puede asignar, pero el usuario que ya lo tiene debe verlo en la lista.
   const opcionesRol = roles
@@ -79,7 +82,7 @@ export function HojaUsuario({ abierta, alCambiar, usuario, roles, almacenes, alG
     if (!usuario && nombreUsuario.trim().length < 3) nuevos.usuario = "El usuario lleva al menos 3 caracteres.";
     if (!usuario && !/^[A-Za-z0-9._-]*$/.test(nombreUsuario)) nuevos.usuario = "Usa solo letras, números, punto, guion y guion bajo.";
     if (rolId === "") nuevos.rol_id = "Elige el rol.";
-    if (rol && !operaTodos && almacenId === "") nuevos.almacen_id = "Elige el almacén en el que va a trabajar.";
+    if (rol && llevaAlmacen && almacenId === "") nuevos.almacen_id = "Elige el almacén en el que va a trabajar.";
     if (!usuario && contrasena.length < 8) nuevos.contrasena = "La contraseña lleva al menos 8 caracteres.";
     if (pin !== "" && !/^\d{4,8}$/.test(pin)) nuevos.pin = "El PIN lleva de 4 a 8 números.";
     if (Object.values(nuevos).some(Boolean)) {
@@ -96,7 +99,7 @@ export function HojaUsuario({ abierta, alCambiar, usuario, roles, almacenes, alG
         const cambios: Record<string, unknown> = {};
         if (nombre.trim() !== usuario.nombre) cambios.nombre = nombre.trim();
         if (rolId !== usuario.rol.id) cambios.rol_id = rolId;
-        const almacenNuevo = operaTodos ? null : almacenId;
+        const almacenNuevo = llevaAlmacen ? almacenId : null;
         if (almacenNuevo !== (usuario.almacen?.id ?? null)) cambios.almacen_id = almacenNuevo;
         if (Object.keys(cambios).length === 0) {
           alCambiar(false);
@@ -109,7 +112,7 @@ export function HojaUsuario({ abierta, alCambiar, usuario, roles, almacenes, alG
           usuario: nombreUsuario.trim(),
           contrasena,
           rol_id: rolId,
-          almacen_id: operaTodos ? null : almacenId,
+          almacen_id: llevaAlmacen ? almacenId : null,
           pin: autoriza && pin !== "" ? pin : null,
         });
       }
@@ -204,7 +207,7 @@ export function HojaUsuario({ abierta, alCambiar, usuario, roles, almacenes, alG
             </p>
           ) : null}
         </div>
-        {rol && !operaTodos ? (
+        {rol && llevaAlmacen ? (
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="usuario-almacen" className="text-sm font-medium text-foreground">
               Almacén donde trabaja
@@ -228,9 +231,11 @@ export function HojaUsuario({ abierta, alCambiar, usuario, roles, almacenes, alG
             ) : null}
           </div>
         ) : null}
-        {rol && operaTodos ? (
+        {rol && !llevaAlmacen ? (
           <p className="rounded-2xl border bg-accent p-3 text-sm text-marino">
-            Este rol opera todos los almacenes, así que no lleva un almacén asignado.
+            {operaTodos
+              ? "Este rol opera todos los almacenes, así que no lleva un almacén asignado."
+              : "Este rol no trabaja en un almacén, así que no lleva uno asignado."}
           </p>
         ) : null}
         {!usuario ? (

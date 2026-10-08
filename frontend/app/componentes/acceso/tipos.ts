@@ -46,6 +46,19 @@ export const TAMANO_PAGINA_USUARIOS = 20;
 /** Los permisos que deciden qué pide el formulario de un usuario. */
 export const PERMISO_TODOS_LOS_ALMACENES = "almacenes.todos";
 export const PERMISO_AUTORIZA = "autorizaciones.resolver";
+/** Quien tiene alguno de estos permisos trabaja en un almacén y lleva uno asignado (RG-07). */
+export const PERMISOS_DE_ALMACEN = [
+  "inventario.ver",
+  "inventario.entradas",
+  "entregas.crear",
+  "devoluciones.crear",
+  "traspasos.operar",
+  "traspasos.recibir",
+  "autorizaciones.resolver",
+];
+/** ¿Un rol con estos permisos trabaja en un almacén? (no, si opera todos o si no toca almacén). */
+export const operaUnAlmacen = (permisos: string[]) =>
+  !permisos.includes(PERMISO_TODOS_LOS_ALMACENES) && permisos.some((p) => PERMISOS_DE_ALMACEN.includes(p));
 export const PERMISO_ADMINISTRAR = "acceso.administrar";
 
 /** Cómo se agrupan los módulos del catálogo en la matriz, con nombres de persona. */

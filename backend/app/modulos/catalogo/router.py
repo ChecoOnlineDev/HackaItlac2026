@@ -96,7 +96,8 @@ def listar_articulos(
     pagina: PaginacionDep,
     filtros: Annotated[ArticuloFilters, Query()],
 ) -> Pagina[ArticuloListItem]:
-    """`catalogo.ver`. Lista. Filtros: `q`, `categoria_id`, `activo`. Costo solo con su permiso."""
+    """`catalogo.ver`. Lista. Filtros: `q`, `categoria_id`, `activo`, `sin_costo`. Costo solo con su
+    permiso."""
     return service.listar_articulos(filtros, pagina, usuario)
 
 

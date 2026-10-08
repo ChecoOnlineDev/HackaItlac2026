@@ -191,11 +191,10 @@ CATALOGO: tuple[Permiso, ...] = (
     Permiso(P.AUDITORIA_VER, "Ver el registro de cambios del sistema", True, "FEAT-011"),
     Permiso(
         P.REPORTES_VALOR_INVENTARIO,
-        "Valor del inventario",
-        False,
-        "FEAT-002",
+        "Ver el valor del inventario (solo totales, nunca el costo de un artículo)",
         True,
-        disponible=False,
+        "FEAT-012",
+        True,
     ),
     Permiso(P.INVENTARIO_MINIMOS, "Fijar mínimos por almacén", False, "FEAT-004", disponible=False),
     Permiso(

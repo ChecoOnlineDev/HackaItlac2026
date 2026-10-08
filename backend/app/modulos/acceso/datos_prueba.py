@@ -16,7 +16,7 @@ from app.modulos.auditoria.models import Auditoria
 from app.seguridad import hashear_secreto, verificar_secreto
 
 # Permisos de los roles iniciales: sección 8.2 de las reglas de negocio. El Administrador
-# tiene todos los que funcionan en esta versión (los 4 de 8.3 sin uso no se asignan a nadie).
+# tiene todos los que funcionan en esta versión (los de 8.3 sin uso no se asignan a nadie).
 PERMISOS_INICIALES: dict[str, frozenset[str]] = {
     "Administrador": CLAVES_DISPONIBLES,
     "Almacenista": frozenset(
@@ -69,6 +69,7 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.ETIQUETAS_IMPRIMIR,
             P.COMPRAS_SOLICITAR,
             P.TABLERO_VER,
+            P.REPORTES_VALOR_INVENTARIO,
         }
     ),
     "Compras": frozenset(
@@ -87,6 +88,7 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.REPORTES_EXISTENCIAS,
             P.REPORTES_MOVIMIENTOS,
             P.REPORTES_CONSUMO,
+            P.REPORTES_VALOR_INVENTARIO,
             P.ETIQUETAS_IMPRIMIR,
             P.COMPRAS_ATENDER,
         }

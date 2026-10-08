@@ -11,6 +11,13 @@ class ArticuloNoEncontrado(NoEncontrado):
     mensaje_defecto = "No se encontró el artículo."
 
 
+class ArticuloRepetido(Conflicto):
+    """Ya existe un artículo con ese nombre (EK-07, al crear sin código)."""
+
+    codigo = "ARTICULO_REPETIDO"
+    mensaje_defecto = "Ya existe un artículo con ese nombre."
+
+
 class PiezaNoEncontrada(NoEncontrado):
     mensaje_defecto = "No se encontró la pieza."
 

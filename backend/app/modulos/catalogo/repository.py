@@ -34,6 +34,8 @@ class FiltroArticulos:
     q: str | None = None
     categoria_id: uuid.UUID | None = None
     activo: bool | None = None
+    # FEAT-012: solo artículos activos que no tienen costo capturado.
+    sin_costo: bool = False
     offset: int = 0
     limit: int = 50
 
@@ -47,6 +49,12 @@ class CategoriaRepository:
 
     def get_by_nombre(self, nombre: str) -> Categoria | None:
         return self.session.scalar(select(Categoria).where(Categoria.nombre == nombre))
+
+    def bloquear(self, categoria_id: uuid.UUID) -> None:
+        """`FOR UPDATE` de la categoría: serializa la generación de códigos `PREFIJO-NNNN`."""
+        self.session.execute(
+            select(Categoria.id).where(Categoria.id == categoria_id).with_for_update()
+        )
 
     def listar(
         self, *, activo: bool | None, offset: int, limit: int
@@ -78,6 +86,10 @@ class ArticuloRepository:
     def get_by_codigo(self, codigo: str) -> Articulo | None:
         return self.session.scalar(select(Articulo).where(Articulo.codigo == codigo))
 
+    def get_by_nombre(self, nombre: str) -> Articulo | None:
+        """El artículo con ese nombre (la base compara sin acentos ni mayúsculas), si hay."""
+        return self.session.scalar(select(Articulo).where(Articulo.nombre == nombre).limit(1))
+
     def listar(self, filtro: FiltroArticulos) -> tuple[list[tuple[Articulo, str]], int]:
         """`(articulo, nombre de su categoría)` ordenados por nombre, y el total sin paginar."""
         condiciones = []
@@ -93,6 +105,9 @@ class ArticuloRepository:
             condiciones.append(Articulo.categoria_id == filtro.categoria_id)
         if filtro.activo is not None:
             condiciones.append(Articulo.activo == filtro.activo)
+        if filtro.sin_costo:
+            condiciones.append(Articulo.activo.is_(True))
+            condiciones.append(Articulo.costo_unitario.is_(None))
 
         total = self.session.scalar(select(func.count()).select_from(Articulo).where(*condiciones))
         filas = self.session.execute(

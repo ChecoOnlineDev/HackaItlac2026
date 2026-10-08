@@ -246,9 +246,10 @@ def test_AC_01_el_catalogo_trae_todas_las_claves_de_las_secciones_8_2_y_8_3():
         "trabajadores.numero_externo", "traspasos.recibir", "piezas.registrar_serie",
         "bitacora.ver", "resguardo.ver", "inventario.importar", "catalogo.limites",
         "piezas.marcar_estado", "acceso.usuarios", "acceso.roles", "auditoria.ver",
+        "reportes.valor_inventario",
     }  # fmt: skip
     esperadas_features = {
-        "reportes.valor_inventario", "inventario.minimos", "piezas.dar_de_baja", "revision.ver",
+        "inventario.minimos", "piezas.dar_de_baja", "revision.ver",
     }  # fmt: skip
     assert CLAVES_MVP == esperadas_mvp
     assert CLAVES == esperadas_mvp | esperadas_features

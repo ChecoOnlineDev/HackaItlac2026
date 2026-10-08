@@ -291,8 +291,12 @@ class UsuarioAdminService:
         return P.ALMACENES_TODOS in self.roles.permisos(usuario.rol_id)
 
     def _opera_almacen(self, rol_id: uuid.UUID) -> bool:
-        """Opera un almacén quien no tiene `almacenes.todos` (RG-07)."""
-        return P.ALMACENES_TODOS not in self.roles.permisos(rol_id)
+        """Opera un almacén quien no tiene `almacenes.todos` y sí algún permiso de almacén
+        (RG-07). RH, que solo administra personas, no lleva almacén."""
+        permisos = self.roles.permisos(rol_id)
+        return P.ALMACENES_TODOS not in permisos and bool(
+            permisos.intersection(PERMISOS_DE_ALMACEN)
+        )
 
     def _rol_asignable(self, rol_id: uuid.UUID) -> Rol:
         rol = self.roles.get(rol_id)
@@ -324,9 +328,7 @@ class UsuarioAdminService:
         activo (un almacén cerrado no impide editar el nombre, por ejemplo)."""
         if not self._opera_almacen(rol_id):
             if almacen_id is not None:
-                raise _invalido(
-                    "almacen_id", "Este rol opera todos los almacenes; no lleva almacén asignado."
-                )
+                raise _invalido("almacen_id", "Este rol no lleva almacén asignado.")
             return None
         if almacen_id is None:
             if obligatorio:

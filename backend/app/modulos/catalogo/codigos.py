@@ -4,6 +4,7 @@ Es el único lugar que escribe en la tabla `codigo`. Los demás módulos (trabaj
 importación) registran e identifican códigos llamando a `CodigoService`.
 """
 
+import re
 import uuid
 
 from sqlalchemy import select
@@ -41,6 +42,17 @@ class CodigoRepository:
         consulta = select(Codigo).where(Codigo.tipo == tipo, Codigo.ref_id == ref_id)
         return list(self.session.scalars(consulta.order_by(Codigo.codigo)))
 
+    def ultimo_numero_con_prefijo(self, prefijo: str) -> int:
+        """El consecutivo más alto de los códigos `PREFIJO-NNNN` que ya existen (0 si no hay)."""
+        patron = re.compile(rf"^{re.escape(prefijo)}-(\d+)$", re.IGNORECASE)
+        mayor = 0
+        consulta = select(Codigo.codigo).where(Codigo.codigo.like(f"{prefijo}-%"))
+        for codigo in self.session.scalars(consulta):
+            encontrado = patron.match(codigo)
+            if encontrado:
+                mayor = max(mayor, int(encontrado.group(1)))
+        return mayor
+
     def agregar(self, codigo: str, tipo: TipoCodigo, ref_id: uuid.UUID) -> Codigo:
         fila = Codigo(codigo=codigo, tipo=tipo, ref_id=ref_id)
         self.session.add(fila)
@@ -58,6 +70,12 @@ class CodigoService:
     def identificar(self, codigo: str) -> Codigo | None:
         """Qué cosa identifica el código, o `None` si no existe (DESCONOCIDO)."""
         return self.repository.obtener(normalizar(codigo))
+
+    def siguiente_con_prefijo(self, prefijo: str) -> str:
+        """El siguiente `PREFIJO-NNNN` libre (mismo formato que la importación en modo Alta).
+        El llamador bloquea antes la categoría para que dos altas no reciban el mismo."""
+        numero = self.repository.ultimo_numero_con_prefijo(prefijo) + 1
+        return f"{prefijo}-{numero:04d}"
 
     def codigos_de(self, tipo: TipoCodigo, ref_id: uuid.UUID) -> list[Codigo]:
         return self.repository.de(tipo, ref_id)

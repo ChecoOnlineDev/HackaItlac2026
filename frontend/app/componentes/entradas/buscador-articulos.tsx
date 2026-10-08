@@ -1,7 +1,9 @@
+import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
 import { apiGet } from "~/api/cliente";
 import { useConsulta, useRetraso } from "~/componentes/catalogo/usar-consulta";
+import { Boton } from "~/componentes/ui/boton";
 import { Campo } from "~/componentes/ui/campo";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { Insignia } from "~/componentes/ui/insignia";
@@ -15,10 +17,12 @@ interface Busqueda {
 interface Propiedades {
   deshabilitado?: boolean;
   alElegir: (articuloId: string) => void;
+  /** Si quien captura puede dar de alta artículos (`catalogo.administrar`), ofrece «Crear este artículo» (EK-07). */
+  alCrear?: (nombre: string) => void;
 }
 
 /** Búsqueda de un artículo por nombre o código, para cuando no hay etiqueta que escanear. */
-export function BuscadorArticulos({ deshabilitado, alElegir }: Propiedades) {
+export function BuscadorArticulos({ deshabilitado, alElegir, alCrear }: Propiedades) {
   const [texto, setTexto] = useState("");
   const q = useRetraso(texto.trim());
   const buscable = q.length >= 2;
@@ -41,9 +45,17 @@ export function BuscadorArticulos({ deshabilitado, alElegir }: Propiedades) {
       />
       {buscable && consulta.error ? <EstadoError error={consulta.error} alReintentar={consulta.recargar} /> : null}
       {buscable && !consulta.error && !consulta.cargando && resultados.length === 0 ? (
-        <p className="text-muted-foreground" role="status">
-          No se encontró ningún artículo con “{q}”.
-        </p>
+        <div className="flex flex-col items-start gap-2 rounded-2xl border p-3" role="status">
+          <p className="text-muted-foreground">No se encontró ningún artículo con “{q}”.</p>
+          {alCrear ? (
+            <Boton variante="normal" disabled={deshabilitado} onClick={() => alCrear(texto.trim())}>
+              <PlusIcon aria-hidden="true" />
+              Crear este artículo
+            </Boton>
+          ) : (
+            <p className="text-sm">Este artículo no existe en el catálogo; pide que lo den de alta.</p>
+          )}
+        </div>
       ) : null}
       {resultados.length > 0 && buscable ? (
         <ul aria-label="Artículos encontrados" className="flex flex-col gap-2">

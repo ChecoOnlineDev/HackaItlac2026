@@ -139,7 +139,8 @@ class ArticuloCreate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    codigo: Texto = Field(max_length=64)
+    # Si no se envía, el servidor lo genera `PREFIJO-NNNN` según la categoría (EK-07).
+    codigo: Texto | None = Field(default=None, max_length=64)
     nombre: Texto = Field(max_length=150)
     marca: str | None = Field(default=None, max_length=80)
     modelo: str | None = Field(default=None, max_length=80)
@@ -277,6 +278,8 @@ class ArticuloFilters(BaseModel):
     categoria_id: uuid.UUID | None = None
     # `None` trae todos; la pantalla de catálogo manda `true` por defecto (CF-10).
     activo: bool | None = None
+    # FEAT-012: `true` trae solo artículos activos sin costo capturado. No revela costos.
+    sin_costo: bool = False
 
 
 # ----------------------------------------------------------------------------- etiquetas

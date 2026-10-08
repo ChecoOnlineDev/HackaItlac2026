@@ -13,6 +13,7 @@ from app.modulos.acceso.permisos import es_clave_valida
 from app.modulos.consulta.service import ConsultaService
 from app.modulos.consulta.service_seguimiento import SeguimientoService
 from app.modulos.consulta.service_tablero import TableroService
+from app.modulos.consulta.service_valor import ValorInventarioService
 
 
 def requiere_alguno(*claves: str) -> Callable[..., Usuario]:
@@ -50,3 +51,10 @@ def get_tablero_service(session: SesionDep) -> TableroService:
 
 
 TableroServiceDep = Annotated[TableroService, Depends(get_tablero_service)]
+
+
+def get_valor_service(session: SesionDep) -> ValorInventarioService:
+    return ValorInventarioService(session)
+
+
+ValorServiceDep = Annotated[ValorInventarioService, Depends(get_valor_service)]

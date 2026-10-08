@@ -74,3 +74,35 @@ export const pedirConsumoTablero = (p: ParametrosConsumo, signal?: AbortSignal) 
     },
     signal,
   );
+
+// Valor del inventario (GET /api/tablero/valor, permiso `reportes.valor_inventario`). Los importes llegan como texto decimal.
+export interface ValorPorCategoria {
+  categoria: string;
+  valor: string;
+}
+
+export interface ValorPorAlmacen {
+  almacen_id: string;
+  nombre: string;
+  en_almacen: string;
+  en_resguardo: string;
+  total: string;
+}
+
+export interface ValorTablero {
+  moneda: "MXN";
+  alcance: { todos: boolean; almacen_id: string | null; almacen_nombre: string | null };
+  total: string;
+  en_almacen: string;
+  en_resguardo: string;
+  en_transito: string | null;
+  articulos_sin_costo: number;
+  unidades_sin_costo: number;
+  por_categoria: ValorPorCategoria[];
+  /** Vacío si no aplica (un solo almacén). */
+  por_almacen: ValorPorAlmacen[];
+  generado_en: string;
+}
+
+export const pedirValorTablero = (almacenId: string, signal?: AbortSignal) =>
+  apiGet<ValorTablero>("/tablero/valor", { almacen_id: almacenId || undefined }, signal);

@@ -367,6 +367,8 @@ ROLES_8_2: dict[str, str] = {
     P.ACCESO_USUARIOS: "",
     P.ACCESO_ROLES: "",
     P.AUDITORIA_VER: "",
+    # FEAT-012
+    P.REPORTES_VALOR_INVENTARIO: "SC",
 }
 LETRA_DE_ROL = {
     "Almacenista": "A",
@@ -384,6 +386,10 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
     P.TABLERO_VER: [
         ("GET", "/api/tablero/resumen", None, set()),
         ("GET", "/api/tablero/consumo", None, set()),
+    ],
+    # FEAT-012: no exige `tablero.ver`, solo su propio permiso.
+    P.REPORTES_VALOR_INVENTARIO: [
+        ("GET", "/api/tablero/valor", None, set()),
     ],
     P.ACCESO_USUARIOS: [
         ("GET", "/api/usuarios", None, set()),

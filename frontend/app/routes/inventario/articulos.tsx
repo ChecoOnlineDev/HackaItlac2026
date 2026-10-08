@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { Package, PlusIcon, SearchIcon } from "lucide-react";
+import { Package, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 
@@ -43,6 +43,7 @@ export default function Articulos() {
   const [params, setParams] = useSearchParams();
   const articuloAbierto = params.get("articulo");
   const categoriaFiltro = params.get("categoria") ?? "";
+  const sinCosto = params.get("sin_costo") === "true";
 
   const [texto, setTexto] = useState("");
   const q = useRetraso(texto.trim());
@@ -58,24 +59,30 @@ export default function Articulos() {
         {
           q,
           categoria_id: categoriaFiltro,
+          sin_costo: sinCosto ? true : undefined,
           activo: estado === "activos" ? true : estado === "inactivos" ? false : undefined,
           pagina,
           tamano: TAMANO_PAGINA,
         },
         signal,
       ),
-    `${q}|${categoriaFiltro}|${estado}|${pagina}`,
+    `${q}|${categoriaFiltro}|${estado}|${pagina}|${sinCosto}`,
   );
 
   const todasCategorias = categorias.datos?.elementos ?? [];
   const articulos = lista.datos?.elementos ?? [];
-  const hayFiltros = q !== "" || categoriaFiltro !== "" || estado !== "activos";
+  const hayFiltros = q !== "" || categoriaFiltro !== "" || sinCosto || estado !== "activos";
 
-  function cambiarFiltro(parcial: { categoria?: string; articulo?: string | null }) {
+  function cambiarFiltro(parcial: { categoria?: string; articulo?: string | null; sinCosto?: boolean }) {
     const nuevos = new URLSearchParams(params);
     if (parcial.categoria !== undefined) {
       if (parcial.categoria) nuevos.set("categoria", parcial.categoria);
       else nuevos.delete("categoria");
+      setPagina(1);
+    }
+    if (parcial.sinCosto !== undefined) {
+      if (parcial.sinCosto) nuevos.set("sin_costo", "true");
+      else nuevos.delete("sin_costo");
       setPagina(1);
     }
     if (parcial.articulo !== undefined) {
@@ -124,7 +131,7 @@ export default function Articulos() {
             onClick={() => {
               setTexto("");
               setEstado("activos");
-              cambiarFiltro({ categoria: "" });
+              cambiarFiltro({ categoria: "", sinCosto: false });
             }}
           >
             Quitar filtros
@@ -260,6 +267,22 @@ export default function Articulos() {
           )}
         </HojaFiltros>
       </div>
+      {sinCosto ? (
+        <div className="flex flex-col gap-1.5">
+          <div>
+            <button
+              type="button"
+              onClick={() => cambiarFiltro({ sinCosto: false })}
+              aria-label="Quitar el filtro «Sin costo registrado»"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-accent px-4 text-sm font-medium text-marino focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            >
+              Sin costo registrado
+              <XIcon aria-hidden="true" className="size-4" />
+            </button>
+          </div>
+          <p className="text-sm text-muted-foreground">Estos artículos no suman al valor del inventario hasta que se les registre un costo.</p>
+        </div>
+      ) : null}
       {contenido}
       <HojaArticulo
         abierta={alta}

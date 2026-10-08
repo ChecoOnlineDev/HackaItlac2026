@@ -9,6 +9,7 @@ import { HojaContrasena } from "~/componentes/acceso/hoja-contrasena";
 import { HojaUsuario } from "~/componentes/acceso/hoja-usuario";
 import {
   PERMISO_TODOS_LOS_ALMACENES,
+  operaUnAlmacen,
   TAMANO_PAGINA_USUARIOS,
   type AlmacenAcceso,
   type RolAcceso,
@@ -42,9 +43,13 @@ interface Filtros extends Record<string, string> {
 
 const SIN_FILTROS: Filtros = { rol: "", almacen: "", estado: "" };
 
-function AlmacenDe({ usuario, opera }: { usuario: UsuarioAcceso; opera: boolean }) {
+function AlmacenDe({ usuario, opera, todos }: { usuario: UsuarioAcceso; opera: boolean; todos: boolean }) {
   if (usuario.almacen) return <span>{usuario.almacen.nombre}</span>;
-  return <span className="text-muted-foreground">{opera ? "Sin almacén" : "Todos los almacenes"}</span>;
+  return (
+    <span className="text-muted-foreground">
+      {opera ? "Sin almacén" : todos ? "Todos los almacenes" : "No aplica"}
+    </span>
+  );
 }
 
 export default function Usuarios() {
@@ -83,8 +88,9 @@ export default function Usuarios() {
   const almacenesActivos = (almacenes.datos ?? []).filter((a) => a.estado === "ACTIVO");
   const usuarios = lista.datos?.elementos ?? [];
   /** Opera un almacén quien no tiene `almacenes.todos`: ese necesita almacén asignado. */
-  const opera = (u: UsuarioAcceso) =>
-    !(todosLosRoles.find((r) => r.id === u.rol.id)?.permisos.includes(PERMISO_TODOS_LOS_ALMACENES) ?? false);
+  const permisosDe = (u: UsuarioAcceso) => todosLosRoles.find((r) => r.id === u.rol.id)?.permisos ?? [];
+  const opera = (u: UsuarioAcceso) => operaUnAlmacen(permisosDe(u));
+  const operaTodos = (u: UsuarioAcceso) => permisosDe(u).includes(PERMISO_TODOS_LOS_ALMACENES);
   const activos = Object.values(filtros).filter((v) => v !== "").length;
   const hayFiltros = q !== "" || activos > 0;
 
@@ -186,7 +192,7 @@ export default function Usuarios() {
                     <span className="block text-xs font-normal text-muted-foreground">{u.usuario}</span>
                   </TableHead>
                   <TableCell>{u.rol.nombre}</TableCell>
-                  <TableCell className="whitespace-normal"><AlmacenDe usuario={u} opera={opera(u)} /></TableCell>
+                  <TableCell className="whitespace-normal"><AlmacenDe usuario={u} opera={opera(u)} todos={operaTodos(u)} /></TableCell>
                   <TableCell>
                     <Insignia estado={u.activo ? "info" : "neutra"}>{u.activo ? "Activo" : "Inactivo"}</Insignia>
                   </TableCell>
@@ -212,7 +218,7 @@ export default function Usuarios() {
                 {u.usuario} · {u.rol.nombre}
               </p>
               <p className="text-sm">
-                Almacén: <AlmacenDe usuario={u} opera={opera(u)} />
+                Almacén: <AlmacenDe usuario={u} opera={opera(u)} todos={operaTodos(u)} />
               </p>
               {acciones(u, false)}
             </li>

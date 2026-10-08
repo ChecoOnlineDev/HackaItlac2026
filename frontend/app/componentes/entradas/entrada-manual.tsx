@@ -10,6 +10,7 @@ import type { RenglonEvaluado } from "~/componentes/dominio/tipos";
 import { AvisoEntradaCentral, useNombreAlmacenCentral } from "~/componentes/entradas/almacen-central";
 import { BuscadorArticulos } from "~/componentes/entradas/buscador-articulos";
 import { CapturaPieza } from "~/componentes/entradas/captura-pieza";
+import { CrearArticulo } from "~/componentes/entradas/crear-articulo";
 import { ResultadoEntrada } from "~/componentes/entradas/resultado-entrada";
 import {
   cuerpoDeEntrada,
@@ -61,7 +62,8 @@ interface EvaluacionGuardada {
  * almacén central (EK-01): no se elige almacén y la API tampoco lo recibe.
  */
 export function EntradaManual() {
-  const { sesion } = useSesionActiva();
+  const { sesion, puede } = useSesionActiva();
+  const puedeCrearArticulo = puede("catalogo.administrar");
   const enLinea = useEnLinea();
   const nombreCentral = useNombreAlmacenCentral();
   const b = useBorradorEntrada(sesion.usuario.id);
@@ -70,6 +72,8 @@ export function EntradaManual() {
   const [capturando, setCapturando] = useState<Capturando | null>(null);
   const [codigoLeido, setCodigoLeido] = useState<{ valor: string; n: number } | null>(null);
   const [buscando, setBuscando] = useState(false);
+  /** Formulario «Crear este artículo» abierto (EK-07), con el nombre que se buscaba. */
+  const [creando, setCreando] = useState<{ nombre: string } | null>(null);
   const [descartar, setDescartar] = useState(false);
 
   const [evaluacion, setEvaluacion] = useState<EvaluacionGuardada | null>(null);
@@ -171,7 +175,9 @@ export function EntradaManual() {
         } else {
           aviso({
             titulo: "No encontramos ese código",
-            descripcion: "Revisa que sea de un artículo del catálogo o búscalo por nombre.",
+            descripcion: puedeCrearArticulo
+              ? "Revisa el código o búscalo por nombre; si no existe, podrás crearlo."
+              : "Revisa que sea de un artículo del catálogo o búscalo por nombre.",
             tipo: "aviso",
           });
         }
@@ -181,7 +187,7 @@ export function EntradaManual() {
         setBuscando(false);
       }
     },
-    [capturando, elegirArticulo],
+    [capturando, elegirArticulo, puedeCrearArticulo],
   );
 
   function guardarPieza(pieza: PiezaBorrador, otra: boolean) {
@@ -322,8 +328,23 @@ export function EntradaManual() {
             alGuardar={guardarPieza}
             alCancelar={() => setCapturando(null)}
           />
+        ) : creando ? (
+          <CrearArticulo
+            nombreInicial={creando.nombre}
+            alCancelar={() => setCreando(null)}
+            alCrear={(articulo) => {
+              setCreando(null);
+              aviso({ titulo: `Se creó ${articulo.nombre}`, descripcion: `Código ${articulo.codigo}`, tipo: "exito" });
+              // Sigue en esta pantalla: el artículo ya queda como renglón (o abre la captura de su pieza).
+              void elegirArticulo(articulo.id);
+            }}
+          />
         ) : (
-          <BuscadorArticulos deshabilitado={bloqueado} alElegir={(id) => void elegirArticulo(id)} />
+          <BuscadorArticulos
+            deshabilitado={bloqueado}
+            alElegir={(id) => void elegirArticulo(id)}
+            alCrear={puedeCrearArticulo ? (nombre) => setCreando({ nombre }) : undefined}
+          />
         )}
 
         <section aria-labelledby="renglones-entrada" className="flex flex-col gap-3">

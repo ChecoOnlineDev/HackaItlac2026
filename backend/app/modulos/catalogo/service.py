@@ -28,6 +28,7 @@ from app.modulos.auditoria.service import AuditoriaService
 from app.modulos.catalogo.codigos import CodigoRepetido, CodigoService
 from app.modulos.catalogo.exceptions import (
     ArticuloNoEncontrado,
+    ArticuloRepetido,
     CategoriaNoEncontrada,
     ConMovimientos,
     EnDotacion,
@@ -71,6 +72,7 @@ from app.modulos.catalogo.schemas import (
     PoseedorOut,
     TipoEtiqueta,
 )
+from app.modulos.importacion.categorias_sugeridas import PREFIJOS
 
 # Vigencia de la inspección cuando se activa sin indicar los días (5.4 de las reglas; supuesto).
 VIGENCIA_INSPECCION_DEFECTO_DIAS = 180
@@ -322,6 +324,7 @@ class CatalogoService:
                 q=filtros.q,
                 categoria_id=filtros.categoria_id,
                 activo=filtros.activo,
+                sin_costo=filtros.sin_costo,
                 offset=pagina.offset,
                 limit=pagina.limit,
             )
@@ -400,6 +403,8 @@ class CatalogoService:
         """
         categoria = self.obtener_categoria(datos.categoria_id)
         puestos = datos.model_fields_set
+        if datos.codigo is None:  # solo `crear` lo deja sin código, y ya lo generó
+            raise DatosInvalidos("Falta el código del artículo.", {"campo": "codigo"})
 
         control = datos.control or categoria.control
         retornable = categoria.retornable if datos.retornable is None else datos.retornable
@@ -456,10 +461,33 @@ class CatalogoService:
             },
         )
         with self._transaccion():
+            if datos.codigo is None:
+                datos = datos.model_copy(update={"codigo": self._codigo_generado(datos)})
             articulo = self.crear_articulo(
                 datos, usuario.id, puede_costos=self._ver_costos(usuario)
             )
         return self._articulo_out(articulo, usuario)
+
+    def _codigo_generado(self, datos: ArticuloCreate) -> str:
+        """EK-07: alta sin código. Valida categoría activa y nombre nuevo, y genera `PREFIJO-NNNN`
+        con la misma lista de prefijos que la importación en modo Alta."""
+        categoria = self.obtener_categoria(datos.categoria_id)
+        if not categoria.activo:
+            raise DatosInvalidos(
+                "Esa categoría está inactiva: elige otra.", {"campo": "categoria_id"}
+            )
+        prefijo = PREFIJOS.get(categoria.nombre)
+        if prefijo is None:
+            raise DatosInvalidos(
+                f"La categoría {categoria.nombre} no genera códigos: escribe el código "
+                "del artículo.",
+                {"campo": "codigo", "motivo": "FALTA_CODIGO"},
+            )
+        self.categorias.bloquear(categoria.id)
+        existente = self.articulos.get_by_nombre(datos.nombre)
+        if existente is not None:
+            raise ArticuloRepetido(detalles={"campo": "nombre", "articulo_id": str(existente.id)})
+        return self.codigos.siguiente_con_prefijo(prefijo)
 
     def actualizar_articulo(
         self, articulo_id: uuid.UUID, datos: ArticuloUpdate, usuario: Usuario

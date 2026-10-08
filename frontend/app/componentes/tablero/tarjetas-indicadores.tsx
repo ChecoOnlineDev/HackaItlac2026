@@ -10,7 +10,8 @@ const numero = new Intl.NumberFormat("es-MX");
 
 interface PropiedadesTarjeta {
   titulo: string;
-  valor: number;
+  /** Número (se formatea) o texto ya formateado, como un importe. */
+  valor: number | string;
   /** Qué cuenta, en pocas palabras. */
   detalle: ReactNode;
   /** Si lleva, toda la tarjeta se toca y abre esa pantalla. */
@@ -25,7 +26,7 @@ export function TarjetaIndicador({ titulo, valor, detalle, ruta, atencion }: Pro
     <Card size="sm" className={cn("h-full", ruta && "transition-colors group-hover/enlace:bg-accent/60")}>
       <CardContent className="flex h-full flex-col gap-1">
         <p className="text-sm font-medium text-muted-foreground">{titulo}</p>
-        <p className={cn("text-3xl leading-tight font-bold tabular-nums", atencion && valor > 0 ? "text-destructive" : "text-marino")}>{numero.format(valor)}</p>
+        <p className={cn("text-3xl leading-tight font-bold tabular-nums break-words", typeof valor === "number" && atencion && valor > 0 ? "text-destructive" : "text-marino")}>{typeof valor === "number" ? numero.format(valor) : valor}</p>
         <p className="flex items-end justify-between gap-2 text-sm text-muted-foreground">
           <span>{detalle}</span>
           {ruta ? <ArrowRightIcon aria-hidden="true" className="size-4 shrink-0 text-marino" /> : null}
@@ -44,18 +45,32 @@ export function TarjetaIndicador({ titulo, valor, detalle, ruta, atencion }: Pro
 interface PropiedadesTarjetas {
   resumen: ResumenTablero;
   /** Si quien mira puede abrir el seguimiento de piezas (`reportes.existencias`). */
-  puedeVerSeguimiento: boolean;
+  puedeVerSeguimiento?: boolean;
 }
 
-/** Los indicadores del tablero (FEAT-008 4.2.2). Todas las cifras las calcula el servidor. */
-export function TarjetasIndicadores({ resumen, puedeVerSeguimiento }: PropiedadesTarjetas) {
+const CUADRICULA = "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4";
+
+/** Pestaña «Resumen» / «Mi almacén»: cuatro tarjetas. Todas las cifras las calcula el servidor. */
+export function TarjetasResumen({ resumen }: PropiedadesTarjetas) {
+  const { unidades, articulos } = resumen.existencias;
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+    <div className={CUADRICULA}>
       <TarjetaIndicador
         titulo="Existencias"
-        valor={resumen.existencias.unidades}
-        detalle={`unidades · ${numero.format(resumen.existencias.articulos)} ${resumen.existencias.articulos === 1 ? "artículo" : "artículos"}`}
+        valor={unidades}
+        detalle={`unidades · ${numero.format(articulos)} ${articulos === 1 ? "artículo" : "artículos"} · ${numero.format(resumen.sin_existencia)} agotados`}
       />
+      <TarjetaIndicador titulo="Entregas de hoy" valor={resumen.entregas_hoy} detalle="vales de entrega del día" />
+      <TarjetaIndicador titulo="Traspasos en tránsito" valor={resumen.traspasos_en_transito} detalle="enviados y sin recibir" />
+      <TarjetaIndicador titulo="Solicitudes de compra abiertas" valor={resumen.solicitudes_compra_abiertas} detalle="pendientes o en compra" />
+    </div>
+  );
+}
+
+/** Pestaña «Piezas»: equipo en resguardo, alto valor, inspecciones y serie pendiente. */
+export function TarjetasPiezas({ resumen, puedeVerSeguimiento = false }: PropiedadesTarjetas) {
+  return (
+    <div className={CUADRICULA}>
       <TarjetaIndicador
         titulo="Equipo importante en resguardo"
         valor={resumen.resguardo_equipo_importante}
@@ -70,10 +85,7 @@ export function TarjetasIndicadores({ resumen, puedeVerSeguimiento }: Propiedade
           ruta="/seguimiento?alto_valor=true&ubicacion=TRABAJADOR"
         />
       ) : null}
-      <TarjetaIndicador titulo="Sin existencia" valor={resumen.sin_existencia} detalle="artículos agotados" atencion />
-      <TarjetaIndicador titulo="Traspasos en tránsito" valor={resumen.traspasos_en_transito} detalle="enviados y sin recibir" />
-      <TarjetaIndicador titulo="Entregas de hoy" valor={resumen.entregas_hoy} detalle="vales de entrega del día" />
-      <TarjetaIndicador titulo="Solicitudes de compra abiertas" valor={resumen.solicitudes_compra_abiertas} detalle="pendientes o en compra" />
+      <TarjetaIndicador titulo="Inspecciones por vencer" valor={resumen.inspecciones_por_vencer} detalle="en los próximos 7 días" atencion />
       {typeof resumen.piezas_serie_pendiente === "number" ? (
         <TarjetaIndicador
           titulo="Piezas con serie pendiente"
@@ -82,7 +94,6 @@ export function TarjetasIndicadores({ resumen, puedeVerSeguimiento }: Propiedade
           ruta={puedeVerSeguimiento ? "/seguimiento?serie_pendiente=true" : undefined}
         />
       ) : null}
-      <TarjetaIndicador titulo="Inspecciones por vencer" valor={resumen.inspecciones_por_vencer} detalle="en los próximos 7 días" atencion />
     </div>
   );
 }
