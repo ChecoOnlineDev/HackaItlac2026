@@ -22,6 +22,17 @@ Para entrar por `http://` (sin túnel), deja `COOKIE_SEGURA=false` y `ENTORNO=de
 
 En el servidor real pon en `.env` `ENTORNO=produccion`, `COOKIE_SEGURA=true` y una `CLAVE_SESION` propia de al menos 32 caracteres (`python -c "import secrets; print(secrets.token_urlsafe(48))"`). Con `produccion` la aplicación **se niega a arrancar** si la clave de sesión es la de ejemplo o es corta, si `COOKIE_SEGURA` no es `true`, o si `CARGAR_DATOS_PRUEBA=true` con `CLAVE_DATOS_PRUEBA` vacía; además apaga `/api/docs`, `/api/redoc` y `/api/openapi.json`. `FORWARDED_ALLOW_IPS` acota de qué redes se aceptan las cabeceras `X-Forwarded-*` (por defecto, las privadas de Docker; en el servidor, la subred real de la red de compose). El valor por defecto de `ENTORNO` en el compose es `desarrollo` porque la prueba local por `http://` exige `COOKIE_SEGURA=false`.
 
+### Primer administrador (sin datos de prueba)
+
+En producción la base arranca sin usuarios. Para crear el primero, sin cargar datos de prueba:
+
+```bash
+docker compose exec app python -m app.crear_admin            # usuario `admin`; pide contraseña y PIN
+docker compose exec app python -m app.crear_admin --usuario ana --nombre "Ana Pérez"
+```
+
+Crea el rol Administrador (todos los permisos) y el usuario. Es repetible: si el usuario ya existe, restablece su contraseña, su PIN y sus bloqueos. La contraseña lleva al menos 8 caracteres; el PIN, de 4 a 8 dígitos y distinto de la contraseña. Los demás roles y usuarios se crean desde la pantalla Usuarios.
+
 ### Datos de prueba
 
 Pon `CARGAR_DATOS_PRUEBA=true` en `.env` y vuelve a levantar (`docker compose up -d`): se cargan los seis almacenes, los cinco roles y un usuario por rol, artículos, trabajadores y las entradas iniciales de Kepler y Contratistas. Es repetible. Déjalo en `false` en producción. Sin Docker: `uv run python -m app.datos_prueba` dentro de `backend/`.

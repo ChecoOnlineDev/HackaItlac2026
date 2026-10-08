@@ -7,6 +7,7 @@
 services:
   db:
     image: mysql:8.4
+    networks: [imhotep]
     container_name: ${DB_CONTENEDOR:-imhotep_db}
     restart: unless-stopped
     command:
@@ -34,6 +35,7 @@ services:
   app:
     build: .
     restart: unless-stopped
+    networks: [imhotep]
     depends_on:
       db:
         condition: service_healthy
@@ -81,11 +83,21 @@ services:
     profiles: ["tunel"]
     restart: unless-stopped
     command: tunnel --no-autoupdate run
+    networks: [imhotep]
     environment:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
     depends_on:
       app:
         condition: service_healthy
+
+  # HTTPS/dominio: lo gestiona el Caddy central (/root/caddy-central/sites/hackaitlac.caddy), que llega a APP_PUERTO en 127.0.0.1.
+
+networks:
+  # Subred fija para poder acotar FORWARDED_ALLOW_IPS a ella (172.28.0.0/24).
+  imhotep:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
 
 volumes:
   imhotep_db_datos:

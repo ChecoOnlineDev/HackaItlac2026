@@ -118,6 +118,7 @@ Producción (un solo desplegable, ADR-002), en la raíz del repo; comprobados en
 | Levantar base + aplicación (API e interfaz en `http://127.0.0.1:21040`, `APP_PUERTO`) | `docker compose up -d --build` |
 | Además, publicar por el túnel de Cloudflare (requiere `TUNNEL_TOKEN`) | `docker compose --profile tunel up -d --build` |
 | Datos de prueba al arrancar | `CARGAR_DATOS_PRUEBA=true` en `.env` |
+| Primer administrador en producción, sin datos de prueba (pide contraseña y PIN) | `docker compose exec app python -m app.crear_admin` |
 | Estado y bitácora | `docker compose ps` / `docker compose logs app` |
 | Apagar (con `-v` borra los datos) | `docker compose down` |
 | Respaldo de la base y de los archivos (`respaldos/`) | `./scripts/respaldo.sh` (bash) o `scripts/respaldo.ps1` (PowerShell) |
