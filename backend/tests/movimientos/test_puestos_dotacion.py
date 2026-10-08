@@ -167,15 +167,16 @@ def test_D_04_la_cantidad_recomendada_no_puede_pasar_del_limite_del_articulo(sup
 
 
 def test_D_04_el_limite_de_un_articulo_no_baja_de_lo_recomendado_en_una_dotacion(
-    supervisor, session
+    supervisor, compras, session
 ):
     puesto = crear_puesto(supervisor)
     guantes = crear_articulo(session, retornable=False, limite_cantidad=3, limite_periodo_dias=7)
     poner_dotacion(supervisor, puesto["id"], [{"articulo_id": str(guantes.id), "cantidad": 3}])
-    r = supervisor.patch(f"/api/articulos/{guantes.id}", json={"limite_cantidad": 2})
+    # Cambiar un límite pide `catalogo.limites`, que el Supervisor ya no tiene (AC-31).
+    r = compras.patch(f"/api/articulos/{guantes.id}", json={"limite_cantidad": 2})
     assert r.status_code == 422 and r.json()["detalles"][0]["regla"] == "D-04"
     assert (
-        supervisor.patch(f"/api/articulos/{guantes.id}", json={"limite_cantidad": 4}).status_code
+        compras.patch(f"/api/articulos/{guantes.id}", json={"limite_cantidad": 4}).status_code
         == 200
     )
 

@@ -13,7 +13,7 @@ from app.core.tiempo import ahora_utc
 from app.modulos.acceso.dependencies import requiere_permiso
 from app.modulos.acceso.exceptions import PinIncorrecto
 from app.modulos.acceso.models import Usuario
-from app.modulos.acceso.permisos import CATALOGO, CLAVES, CLAVES_MVP, P
+from app.modulos.acceso.permisos import CATALOGO, CLAVES, CLAVES_DISPONIBLES, CLAVES_MVP, P
 from app.modulos.acceso.repository import RolRepository, UsuarioRepository
 from app.modulos.acceso.service import AccesoService
 from tests.conftest import iniciar_sesion_en
@@ -244,6 +244,8 @@ def test_AC_01_el_catalogo_trae_todas_las_claves_de_las_secciones_8_2_y_8_3():
         "etiquetas.imprimir", "almacenes.asignar_personal", "compras.solicitar",
         "compras.atender", "almacenes.administrar", "tablero.ver",
         "trabajadores.numero_externo", "traspasos.recibir", "piezas.registrar_serie",
+        "bitacora.ver", "resguardo.ver", "inventario.importar", "catalogo.limites",
+        "piezas.marcar_estado", "acceso.usuarios", "acceso.roles", "auditoria.ver",
     }  # fmt: skip
     esperadas_features = {
         "reportes.valor_inventario", "inventario.minimos", "piezas.dar_de_baja", "revision.ver",
@@ -278,10 +280,10 @@ TABLA_8_2 = {
     "entregas.crear": "AS",
     "devoluciones.crear": "AS",
     "traspasos.operar": "S",
-    "traspasos.recibir": "S",
+    "traspasos.recibir": "AS",
     "piezas.registrar_serie": "SC",
     "no_adeudo.emitir": "AS",
-    "vales.ver": "ASC",
+    "vales.ver": "ASCR",
     "vales.cancelar": "ASC",
     "vales.cancelar_todos": "S",
     "autorizaciones.resolver": "S",
@@ -299,6 +301,15 @@ TABLA_8_2 = {
     "trabajadores.numero_externo": "",
     "almacenes.administrar": "",
     "tablero.ver": "AS",
+    # FEAT-011 (AC-30, AC-31)
+    "bitacora.ver": "ASC",
+    "resguardo.ver": "AS",
+    "inventario.importar": "C",
+    "catalogo.limites": "C",
+    "piezas.marcar_estado": "AS",
+    "acceso.usuarios": "",
+    "acceso.roles": "",
+    "auditoria.ver": "",
 }  # fmt: skip
 
 ROL_POR_LETRA = {
@@ -325,10 +336,10 @@ def test_AC_03_el_administrador_tiene_todos_los_permisos_como_datos(
     client, usuario_por_rol, session
 ):
     r = iniciar_sesion_en(client, usuario_por_rol("Administrador"))
-    assert set(r.json()["permisos"]) == CLAVES
+    assert set(r.json()["permisos"]) == CLAVES_DISPONIBLES
     # Son filas reales de rol_permiso, no una excepción en el código.
     rol_id = _usuario(session, "admin").rol_id
-    assert RolRepository(session).permisos(rol_id) == CLAVES
+    assert RolRepository(session).permisos(rol_id) == CLAVES_DISPONIBLES
     assert _usuario(session, "admin").rol.protegido is True
 
 

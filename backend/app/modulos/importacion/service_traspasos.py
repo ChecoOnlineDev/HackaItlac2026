@@ -149,18 +149,24 @@ class TraspasoImportService:
         hoja = libro.active
         assert hoja is not None
         hoja.title = "Plantilla"
-        hoja.append(["codigo", "cantidad", "codigo pieza", "serie"])
-        hoja.append(["GUA-001", 6, "", ""])
-        hoja.append(["", "", "ALT-024-0007", "SN-5521"])
+        hoja.append(["codigo", "nombre", "cantidad", "codigo pieza", "serie"])
+        hoja.append(["GUA-001", "Guantes de carnaza", 6, "", ""])
+        hoja.append(["ALT-024", "Arnés de poliéster", "", "ALT-024-0007", "SN-5521"])
         for celda in hoja[1]:
             celda.font = Font(bold=True)
-        for letra, ancho in zip("ABCD", (18, 12, 22, 18), strict=True):
+        for letra, ancho in zip("ABCDE", (18, 32, 12, 22, 18), strict=True):
             hoja.column_dimensions[letra].width = ancho
         ayuda = libro.create_sheet("Instrucciones")
         ayuda.append(["Dato", "Qué poner"])
         for celda in ayuda[1]:
             celda.font = Font(bold=True)
         ayuda.append(["codigo", "Código del artículo que se traspasa (artículos por cantidad)."])
+        ayuda.append(
+            [
+                "nombre",
+                "Opcional, solo de ayuda: se compara con el catálogo para avisar de un error.",
+            ]
+        )
         ayuda.append(["cantidad", "Número entero. Para una pieza no hace falta."])
         ayuda.append(["codigo pieza", "Código de la pieza: una fila por pieza."])
         ayuda.append(["serie", "Opcional: sirve para comprobar que es la pieza correcta."])
@@ -171,7 +177,7 @@ class TraspasoImportService:
             "Las filas del mismo artículo se unen en una.",
             "La cantidad es un número entero: en lugar de 0.25 kilos, escribe 250 gramos.",
             "Solo se mueve lo que ya existe: un código que no existe es un error.",
-            "Las demás columnas (por ejemplo el nombre) se ignoran.",
+            "Las demás columnas se ignoran.",
         ):
             ayuda.append([nota])
         ayuda.column_dimensions["A"].width = 18
@@ -218,7 +224,7 @@ class TraspasoImportService:
         if ignoradas:
             rev.avisos.append(
                 "Se ignoran las columnas de " + ", ".join(ignoradas) + ": el traspaso solo lee "
-                "código, cantidad, código de pieza y serie; el nombre sale del catálogo."
+                "código, nombre (de ayuda), cantidad, código de pieza y serie."
             )
         rev.leidas = leer_filas(datos.filas, columnas, datos.primera_fila)
         rev.filas = preparar(
@@ -270,6 +276,8 @@ class TraspasoImportService:
                         )
             for f, r in zip(trozo, evaluacion.renglones, strict=True):
                 f.nivel = r.nivel.value
+                if f.nivel == Nivel.VERDE.value and f.con_aviso_local:  # TR-13
+                    f.nivel = Nivel.AMARILLO.value
                 for m in r.motivos:
                     f.motivos.append(
                         MotivoFila(

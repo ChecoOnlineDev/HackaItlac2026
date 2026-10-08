@@ -1,17 +1,20 @@
 import { cn } from "cn";
 import { DownloadIcon, MapPinnedIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 
 import { apiGet, descargarCsv } from "~/api/cliente";
 import { mensajeDeError } from "~/api/errores";
 import { Paginador } from "~/componentes/catalogo/campos";
 import { useConsulta, useRetraso } from "~/componentes/catalogo/usar-consulta";
 import { Checkbox } from "~/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
 import { FiltroLista, NotaAlcance, textoDeOpcion, useAlcance } from "~/componentes/reportes/filtros-comunes";
 import { useAlmacenesFiltro, useEtiqueta } from "~/componentes/reportes/listas";
 import { useFiltrosUrl } from "~/componentes/reportes/usar-filtros";
 import { TablaPiezas, TarjetasPiezas } from "~/componentes/seguimiento/lista";
+import { PestanaCantidad } from "~/componentes/seguimiento/pestana-cantidad";
 import { ResumenSeguimientoTarjetas, type ClaveResumen } from "~/componentes/seguimiento/resumen";
 import {
   OPCIONES_ESTADO,
@@ -28,9 +31,10 @@ import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { HojaFiltros } from "~/componentes/ui/hoja-filtros";
 import { useSesion } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "reportes.existencias" };
+// SG-04: «quién tiene qué» también se ve con `resguardo.ver`.
+export const handle: ManejadorRuta = { permisosAlguno: ["reportes.existencias", "resguardo.ver"] };
 
-const CLAVES = ["q", "articulo", "almacen", "estado", "ubicacion", "serie_pendiente"] as const;
+const CLAVES = ["q", "articulo", "almacen", "estado", "ubicacion", "serie_pendiente", "alto_valor"] as const;
 const MINIMO_BUSQUEDA = 2;
 
 /** Qué tarjeta del resumen corresponde a los filtros de la dirección. */
@@ -40,11 +44,53 @@ function tarjetaActiva(ubicacion: string, estado: string): ClaveResumen {
   return "total";
 }
 
-export default function SeguimientoDePiezas() {
+/** SG-01: Seguimiento tiene dos pestañas, Piezas (con serie) y Por cantidad. La elegida va en `?vista=`. */
+export default function Seguimiento() {
+  const [params, setParams] = useSearchParams();
+  const vista = params.get("vista") === "cantidad" ? "cantidad" : "piezas";
+
+  function elegir(nueva: string) {
+    setParams(
+      (previos) => {
+        const nuevos = new URLSearchParams(previos);
+        if (nueva === "cantidad") nuevos.set("vista", "cantidad");
+        else nuevos.delete("vista");
+        nuevos.delete("pagina");
+        return nuevos;
+      },
+      { replace: true },
+    );
+  }
+
+  return (
+    <Pantalla titulo="Quién tiene qué" descripcion="Dónde está cada pieza y quién tiene cada herramienta o equipo de protección en resguardo.">
+      <div className="flex flex-col gap-4">
+        <Tabs value={vista} onValueChange={(v) => elegir(String(v))}>
+          <TabsList aria-label="Qué mostrar" className="h-auto! w-full sm:w-fit">
+            <TabsTrigger value="piezas" className="min-h-11 flex-1 px-4 text-base sm:flex-none">
+              Piezas
+            </TabsTrigger>
+            <TabsTrigger value="cantidad" className="min-h-11 flex-1 px-4 text-base sm:flex-none">
+              Por cantidad
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <p className="text-sm text-muted-foreground">
+          {vista === "piezas"
+            ? "Piezas: cada herramienta o equipo con serie, una por una, con dónde está y quién la tiene."
+            : "Por cantidad: lo que se entrega sin serie, como guantes o flexómetros, y cuánto tiene cada trabajador."}
+        </p>
+        {vista === "piezas" ? <PestanaPiezas alVerCantidad={() => elegir("cantidad")} /> : <PestanaCantidad />}
+      </div>
+    </Pantalla>
+  );
+}
+
+function PestanaPiezas({ alVerCantidad }: { alVerCantidad: () => void }) {
   const { puede } = useSesion();
   const alcance = useAlcance();
   const almacenes = useAlmacenesFiltro();
-  const { valores, pagina, cambiar, cambiarPagina, quitarTodos } = useFiltrosUrl(CLAVES);
+  const { valores, pagina, cambiar, cambiarPagina } = useFiltrosUrl(CLAVES);
 
   // El texto se guarda aparte para escribir sin trabas; se aplica a la dirección al dejar de escribir.
   const [texto, setTexto] = useState(valores.q);
@@ -67,6 +113,7 @@ export default function SeguimientoDePiezas() {
     estado: valores.estado,
     ubicacion: valores.ubicacion,
     serie_pendiente: valores.serie_pendiente === "true" ? true : undefined,
+    alto_valor: valores.alto_valor === "true" ? true : undefined,
   };
   const consulta = useConsulta(
     (signal) => apiGet<PaginaSeguimiento>("/seguimiento/piezas", { ...parametros, pagina, tamano: TAMANO_SEGUIMIENTO }, signal),
@@ -75,6 +122,7 @@ export default function SeguimientoDePiezas() {
   const { datos, cargando, error } = consulta;
   const elementos = datos?.elementos ?? [];
   const total = datos?.total ?? 0;
+  const porCantidad = datos?.resumen.articulos_por_cantidad ?? 0;
 
   const nombreArticulo = useEtiqueta("articulo", valores.articulo);
   const articuloPrimero = elementos.find((e) => e.articulo.id === valores.articulo)?.articulo.nombre ?? null;
@@ -101,7 +149,7 @@ export default function SeguimientoDePiezas() {
   function limpiar() {
     setTexto("");
     qEnUrl.current = "";
-    quitarTodos();
+    cambiar({ q: null, articulo: null, almacen: null, estado: null, ubicacion: null, serie_pendiente: null, alto_valor: null });
   }
 
   const chips: { clave: (typeof CLAVES)[number]; texto: string }[] = [];
@@ -112,6 +160,7 @@ export default function SeguimientoDePiezas() {
   if (valores.estado) chips.push({ clave: "estado", texto: `Estado: ${textoDeOpcion(OPCIONES_ESTADO.map(({ valor, texto }) => ({ valor, texto })), valores.estado) ?? valores.estado}` });
   if (valores.ubicacion) chips.push({ clave: "ubicacion", texto: `Lugar: ${textoDeOpcion(OPCIONES_UBICACION, valores.ubicacion) ?? valores.ubicacion}` });
   if (valores.serie_pendiente === "true") chips.push({ clave: "serie_pendiente", texto: "Con serie pendiente" });
+  if (valores.alto_valor === "true") chips.push({ clave: "alto_valor", texto: "Alto valor y alturas" });
   const hayFiltros = chips.length > 0 || buscaConTexto !== "";
 
   let contenido;
@@ -133,9 +182,19 @@ export default function SeguimientoDePiezas() {
       <EstadoVacio
         icono={MapPinnedIcon}
         titulo="No hay piezas con ese filtro"
-        descripcion={hayFiltros ? "Prueba con otra palabra o quita algún filtro." : "Todavía no hay piezas que mostrar."}
+        descripcion={
+          porCantidad > 0
+            ? `Esta pestaña solo cuenta piezas con serie. Hay ${porCantidad} ${porCantidad === 1 ? "artículo" : "artículos"} por cantidad en resguardo: míralos en la pestaña Por cantidad.`
+            : hayFiltros
+              ? "Prueba con otra palabra o quita algún filtro."
+              : "Todavía no hay piezas que mostrar."
+        }
         accion={
-          hayFiltros ? (
+          porCantidad > 0 ? (
+            <Boton variante="normal" onClick={alVerCantidad}>
+              Ver lo que se entregó por cantidad
+            </Boton>
+          ) : hayFiltros ? (
             <Boton variante="contorno" onClick={limpiar}>
               Quitar filtros
             </Boton>
@@ -157,7 +216,7 @@ export default function SeguimientoDePiezas() {
   }
 
   return (
-    <Pantalla titulo="Seguimiento de piezas" descripcion="Dónde está cada pieza y quién la tiene: busca un artículo y ve todas sus piezas.">
+    <>
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <CampoBusqueda
@@ -231,6 +290,15 @@ export default function SeguimientoDePiezas() {
           cargando={cargando && Boolean(datos)}
         />
 
+        {porCantidad > 0 && total > 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Además hay {porCantidad} {porCantidad === 1 ? "artículo" : "artículos"} por cantidad en resguardo.{" "}
+            <button type="button" onClick={alVerCantidad} className="inline-flex min-h-10 items-center font-semibold text-primary underline underline-offset-2">
+              Verlos
+            </button>
+          </p>
+        ) : null}
+
         {chips.length > 0 ? (
           <ul aria-label="Filtros activos" className="flex flex-wrap items-center gap-2">
             {chips.map((f) => (
@@ -265,6 +333,6 @@ export default function SeguimientoDePiezas() {
 
         {contenido}
       </div>
-    </Pantalla>
+    </>
   );
 }

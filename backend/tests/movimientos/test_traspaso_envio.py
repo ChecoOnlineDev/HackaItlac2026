@@ -17,6 +17,7 @@ from app.modulos.catalogo.models import EstadoPieza
 from app.modulos.movimientos.models import Vale
 from tests.movimientos.ayudas import (
     abastecer,
+    abastecer_en,
     crear_articulo,
     crear_trabajador,
     cuerpo_entrega,
@@ -253,9 +254,7 @@ def test_X_03_las_rutas_habituales_no_llevan_aviso(
 ):
     guantes = crear_articulo(session, retornable=False)
     # Compras es de Kepler: los demás almacenes los abastece el Administrador.
-    abastecer(
-        cliente_como("Administrador"), guantes, 3, almacen_id=str(almacen_id(session, origen))
-    )
+    abastecer_en(session, guantes, 3, origen)
     ev = evaluar_traspaso(cliente_almacen(origen), session, destino, [renglon(guantes.codigo)])
     assert ev["nivel"] == "VERDE" and ev["puede_confirmar"] is True
     assert [(m["regla"], m["nivel"]) for m in ev["motivos"]] == [("X-03", "VERDE")]
@@ -268,7 +267,7 @@ def test_X_03_otra_ruta_la_hace_el_administrador_con_aviso_amarillo(
 ):
     guantes = crear_articulo(session, retornable=False)
     admin = cliente_como("Administrador")
-    abastecer(admin, guantes, 3, almacen_id=str(almacen_id(session, origen)))
+    abastecer_en(session, guantes, 3, origen)
     desde = {"almacen_id": str(almacen_id(session, origen))}
     ev = evaluar_traspaso(admin, session, destino, [renglon(guantes.codigo)], **desde)
     assert ev["nivel"] == "AMARILLO" and ev["puede_confirmar"] is True

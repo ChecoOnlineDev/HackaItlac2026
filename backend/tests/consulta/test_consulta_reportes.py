@@ -96,8 +96,9 @@ def test_AC_04_un_reporte_sin_sesion_responde_401(client, ruta):
 @pytest.mark.parametrize(
     ("rol", "esperado"),
     [
-        # El Almacenista no tiene reportes (tabla 8.2): su inventario sale de `inventario.ver`.
-        ("Almacenista", {EXISTENCIAS: 403, MOVIMIENTOS: 403, ADEUDOS: 403, CONSUMO: 403}),
+        # El Almacenista no tiene reportes (tabla 8.2), salvo la bitácora de su almacén
+        # (`bitacora.ver`, SG-05) que sale por la misma ruta de movimientos.
+        ("Almacenista", {EXISTENCIAS: 403, MOVIMIENTOS: 200, ADEUDOS: 403, CONSUMO: 403}),
         ("Supervisor", {EXISTENCIAS: 200, MOVIMIENTOS: 200, ADEUDOS: 200, CONSUMO: 200}),
         ("Administrador", {EXISTENCIAS: 200, MOVIMIENTOS: 200, ADEUDOS: 200, CONSUMO: 200}),
         ("Compras", {EXISTENCIAS: 200, MOVIMIENTOS: 200, ADEUDOS: 403, CONSUMO: 200}),
@@ -303,14 +304,15 @@ def test_A_04_el_reporte_de_movimientos_dice_quien_autorizo_y_el_motivo(cliente_
     _autorizar(datos, ent_ana, "Cuadrilla de paro de planta")
     supervisor = cliente_como("Administrador")
 
-    cuerpo = pedir(supervisor, MOVIMIENTOS)
+    septiembre = {"desde": "2026-09-01", "hasta": "2026-09-30"}  # los datos de prueba son de hoy
+    cuerpo = pedir(supervisor, MOVIMIENTOS, tamano=100, **septiembre)
     por_folio = {f["folio"]: f for f in cuerpo["elementos"]}
     assert por_folio[ent_ana.folio]["autorizado_por"] == datos.usuario("supervisor").nombre
     assert por_folio[ent_ana.folio]["motivo"] == "Cuadrilla de paro de planta"
     assert por_folio[ent_juan.folio]["autorizado_por"] is None
     assert por_folio[ent_juan.folio]["motivo"] is None
 
-    filas = filas_csv(pedir_csv(supervisor, MOVIMIENTOS))
+    filas = filas_csv(pedir_csv(supervisor, MOVIMIENTOS, **septiembre))
     encabezado = filas[0]
     assert "Autorizado por" in encabezado and "Motivo" in encabezado
     fila = next(f for f in filas[1:] if f[encabezado.index("Folio")] == ent_ana.folio)
@@ -570,7 +572,8 @@ def test_C_05_el_csv_de_movimientos_tiene_el_mismo_conteo_que_el_json(cliente_co
     assert len(filas) - 1 == cuerpo["total"]
     assert filas[0] == [
         "Fecha", "Folio", "Tipo", "Código del artículo", "Artículo", "Pieza", "Cantidad",
-        "Origen", "Destino", "Responsable", "Trabajador", "Autorizado por", "Motivo",
+        "Origen", "Destino", "Entrada o salida", "Responsable", "Trabajador", "Autorizado por",
+        "Motivo",
         "Saldo origen", "Saldo destino",
     ]  # fmt: skip
     assert {f[1] for f in filas[1:]} == {e["folio"] for e in cuerpo["elementos"]}

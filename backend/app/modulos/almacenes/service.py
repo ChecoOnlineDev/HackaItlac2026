@@ -83,6 +83,13 @@ class AlmacenService:
             raise AlmacenNoEncontrado()
         return almacen
 
+    def obtener_central(self) -> Almacen:
+        """EK-01: el almacén central (Kepler), resuelto por su tipo y no por su clave."""
+        almacen = self.almacenes.get_central()
+        if almacen is None:
+            raise AlmacenNoEncontrado("No hay un almacén central. Créalo primero.")
+        return almacen
+
     def obtener_por_clave(self, clave: str) -> Almacen:
         almacen = self.almacenes.get_by_clave(clave)
         if almacen is None:
@@ -134,7 +141,8 @@ class AlmacenService:
             raise PadreInvalido("Elige de qué almacén depende.")
         self._rechazar_si_repetido(datos.clave, datos.nombre, datos.tipo_enum())
         if datos.padre_id is not None:
-            self._padre_valido(datos.padre_id)
+            padre = self._padre_valido(datos.padre_id)
+            self._exigir_tipo_de_padre(datos.tipo_enum(), padre)
         try:
             almacen = self.almacenes.add(
                 Almacen(
@@ -188,7 +196,8 @@ class AlmacenService:
                 raise PadreInvalido("El almacén central no depende de otro.")
             if datos.padre_id is None:
                 raise PadreInvalido("Elige de qué almacén depende.")
-            self._padre_valido(datos.padre_id, hijo=almacen)
+            padre = self._padre_valido(datos.padre_id, hijo=almacen)
+            self._exigir_tipo_de_padre(almacen.tipo, padre)
             almacen.padre_id = datos.padre_id
 
         despues = self._instantanea(almacen)
@@ -329,6 +338,20 @@ class AlmacenService:
                     f"{padre.nombre} depende de {hijo.nombre}: así la red daría una vuelta."
                 )
         return padre
+
+    @staticmethod
+    def _exigir_tipo_de_padre(tipo: TipoAlmacen, padre: Almacen) -> None:
+        """EK-06: un proyecto depende de un subalmacén y un subalmacén del central, para que la
+        ruta X-03 no se rompa por configuración."""
+        if tipo == TipoAlmacen.PROYECTO and padre.tipo != TipoAlmacen.SUBALMACEN:
+            raise PadreInvalido(
+                "Un proyecto depende de un subalmacén (por ejemplo, Contratistas), "
+                f"no de {padre.nombre}."
+            )
+        if tipo == TipoAlmacen.SUBALMACEN and padre.tipo != TipoAlmacen.CENTRAL:
+            raise PadreInvalido(
+                f"Un subalmacén depende del almacén central (Kepler), no de {padre.nombre}."
+            )
 
     def _descendientes(self, almacen_id: uuid.UUID) -> set[uuid.UUID]:
         hijos: dict[uuid.UUID, list[uuid.UUID]] = {}
@@ -541,6 +564,10 @@ class AlmacenService:
             (almacen, cantidad, int(disponible or 0))
             for almacen, cantidad, disponible in self.almacenes.existencias_de_articulo(articulo_id)
         ]
+
+    def posesion_de_articulo(self, articulo_id: uuid.UUID, control: str) -> list:
+        """Quién tiene un artículo y desde cuándo (SG-02), por cantidad o por pieza."""
+        return self.almacenes.posesion_de_articulo(articulo_id, control)
 
     def poseedores_de_articulo(self, articulo_id: uuid.UUID) -> list[tuple]:
         """Quién lo tiene: `(trabajador, cantidad)` por trabajador con existencia."""

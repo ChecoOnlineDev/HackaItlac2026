@@ -13,7 +13,7 @@ import { EstadoVacio } from "~/componentes/ui/estado-vacio";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { Insignia } from "~/componentes/ui/insignia";
 
-export const handle: ManejadorRuta = { permiso: "acceso.administrar" };
+export const handle: ManejadorRuta = { permiso: "acceso.roles" };
 
 export default function Roles() {
   const navegar = useNavigate();

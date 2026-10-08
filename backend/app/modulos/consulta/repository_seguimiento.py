@@ -12,11 +12,15 @@ from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from app.modulos.almacenes.models import Almacen, TipoUbicacion, Ubicacion, UbicacionVirtual
-from app.modulos.catalogo.models import Articulo, EstadoPieza, Pieza
+from app.modulos.catalogo.models import Articulo, Categoria, EstadoPieza, Pieza
 from app.modulos.consulta.repository import ConsultaRepository, Lugar, _patron
 from app.modulos.movimientos.models import Movimiento, TipoVale, Vale
 
 MAXIMO_PALABRAS = 6
+
+# SG-04 y SG-06: las categorías cuyas piezas se consideran de alto valor. Son las dos que trae la
+# semilla de categorías (ambas con control por pieza, SG-07).
+CATEGORIAS_ALTO_VALOR = ("Equipo de alto valor", "Equipo de alturas")
 
 
 @dataclass(frozen=True)
@@ -30,6 +34,8 @@ class FiltroSeguimiento:
     estado: str | None = None
     ubicacion: str | None = None
     serie_pendiente: bool | None = None
+    # SG-04: `True` deja solo las piezas de las categorías de alto valor.
+    alto_valor: bool | None = None
     visibles: tuple[uuid.UUID | None, bool] | None = field(default=None)
 
 
@@ -91,6 +97,7 @@ class SeguimientoRepository:
             select(*columnas(lugar, ult, destino_traspaso))
             .select_from(Pieza)
             .join(Articulo, Articulo.id == Pieza.articulo_id)
+            .join(Categoria, Categoria.id == Articulo.categoria_id)
         )
         consulta = lugar.unir(consulta, Pieza.ubicacion_id, externa=True)
         consulta = consulta.outerjoin(
@@ -105,6 +112,8 @@ class SeguimientoRepository:
             )
         if filtro.articulo_id is not None:
             consulta = consulta.where(Pieza.articulo_id == filtro.articulo_id)
+        if filtro.alto_valor:
+            consulta = consulta.where(Categoria.nombre.in_(CATEGORIAS_ALTO_VALOR))
         if filtro.serie_pendiente is not None:
             consulta = consulta.where(
                 Pieza.numero_serie.is_(None)
@@ -159,6 +168,16 @@ class SeguimientoRepository:
             )
         return u.id.is_(None)  # NINGUNA
 
+    def trabajador_de_ubicacion(self, ubicacion_id: uuid.UUID | None) -> uuid.UUID | None:
+        """El trabajador dueño de una ubicación (`None` si es de un almacén o virtual)."""
+        if ubicacion_id is None:
+            return None
+        return self.session.scalar(
+            select(Ubicacion.trabajador_id).where(
+                Ubicacion.id == ubicacion_id, Ubicacion.tipo == TipoUbicacion.TRABAJADOR
+            )
+        )
+
     def piezas(
         self, filtro: FiltroSeguimiento, offset: int | None, limit: int | None
     ) -> tuple[list, int]:
@@ -175,6 +194,7 @@ class SeguimientoRepository:
                 Articulo.codigo.label("articulo_codigo"),
                 Articulo.nombre.label("articulo_nombre"),
                 Articulo.marca.label("articulo_marca"),
+                Categoria.nombre.label("categoria_nombre"),
                 *lugar.columnas(),
                 ult.c.desde,
                 ult.c.vale_id,

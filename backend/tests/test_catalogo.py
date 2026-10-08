@@ -669,14 +669,13 @@ def test_C_03_la_ficha_trae_existencias_por_almacen_y_quien_lo_tiene(cliente_com
             "disponible": 7,
         }
     ]
-    assert cuerpo["en_posesion"] == [
-        {
-            "trabajador_id": str(trabajador.id),
-            "numero_empleado": "TEST-C03",
-            "nombre": "Juan Pérez García",
-            "cantidad": 2,
-        }
-    ]
+    (poseedor,) = cuerpo["en_posesion"]
+    assert poseedor["trabajador_id"] == str(trabajador.id)
+    assert poseedor["numero_empleado"] == "TEST-C03"
+    assert poseedor["nombre"] == "Juan Pérez García"
+    assert poseedor["cantidad"] == 2
+    # SG-02: además trae desde cuándo, el folio y, por pieza, cada una (aquí no hay entrega)
+    assert poseedor["folio"] is None and poseedor["piezas"] == []
 
 
 def test_C_03_el_disponible_de_un_articulo_por_pieza_no_cuenta_piezas_no_aptas(
@@ -807,7 +806,7 @@ ENDPOINTS = [
     # (método, ruta, permiso, cuerpo, estado cuando se tiene el permiso)
     ("GET", "/api/categorias", P.CATALOGO_VER, None, 200),
     ("POST", "/api/categorias", P.CATALOGO_ADMINISTRAR, "categoria", 201),
-    ("PATCH", "/api/categorias/{categoria}", P.CATALOGO_ADMINISTRAR, {"limite_cantidad": 9}, 200),
+    ("PATCH", "/api/categorias/{categoria}", P.CATALOGO_ADMINISTRAR, {"cantidad_aviso": 9}, 200),
     ("GET", "/api/articulos", P.CATALOGO_VER, None, 200),
     ("POST", "/api/articulos", P.CATALOGO_ADMINISTRAR, "articulo", 201),
     ("GET", "/api/articulos/{articulo}", P.CATALOGO_VER, None, 200),

@@ -21,6 +21,8 @@ export interface ResumenTablero {
   inspecciones_por_vencer: number;
   /** Puede faltar si el servidor es anterior a ADR-010. */
   piezas_serie_pendiente?: number;
+  /** SG-04: solo llega con `resguardo.ver`; sin ese permiso es `null`. */
+  alto_valor_fuera?: number | null;
   generado_en: string;
 }
 

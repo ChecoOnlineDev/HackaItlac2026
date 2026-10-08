@@ -7,6 +7,7 @@ Para agregar datos de un módulo, llena su `modulos/<modulo>/datos_prueba.py`; y
 """
 
 import logging
+import sys
 
 from sqlalchemy.orm import Session
 
@@ -47,6 +48,9 @@ def cargar_todo(session: Session) -> None:
 def main() -> None:
     with get_sessionmaker()() as session:
         try:
+            if "--restablecer-roles" in sys.argv[1:]:
+                # Opción explícita (AC-33): los cinco roles vuelven a sus permisos de fábrica.
+                acceso.cargar(session, restablecer_roles=True)
             cargar_todo(session)
             session.commit()
         except Exception:

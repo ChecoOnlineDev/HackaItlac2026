@@ -9,7 +9,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import Select, and_, case, false, func, or_, select
+from sqlalchemy import Select, and_, case, false, func, null, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from app.modulos.acceso.models import Usuario
@@ -207,12 +207,30 @@ class ConsultaRepository:
 
     # ----------------------------------------------------------------- búsqueda
 
-    def buscar_articulos(self, q: str, offset: int, limit: int) -> tuple[list, int]:
+    def buscar_articulos(
+        self, q: str, offset: int, limit: int, *, en_almacen_id: uuid.UUID | None = None
+    ) -> tuple[list, int]:
+        """Por nombre o código. Con `en_almacen_id` (TR-11) solo los que tienen existencia en ese
+        almacén y cada fila trae `disponible` (lo que hay ahí); sin él, `disponible` es nulo."""
         patron = _patron(q)
         condicion = or_(
             Articulo.nombre.like(patron, escape="\\"),
             Articulo.codigo.like(patron, escape="\\"),
         )
+        if en_almacen_id is not None:
+            disponible = (
+                select(func.coalesce(func.sum(Existencia.cantidad), 0))
+                .join(Ubicacion, Ubicacion.id == Existencia.ubicacion_id)
+                .where(
+                    Existencia.articulo_id == Articulo.id,
+                    Ubicacion.tipo == TipoUbicacion.ALMACEN,
+                    Ubicacion.almacen_id == en_almacen_id,
+                )
+                .correlate(Articulo)
+                .scalar_subquery()
+            )
+        else:
+            disponible = null()
         consulta = (
             select(
                 Articulo.id,
@@ -222,10 +240,13 @@ class ConsultaRepository:
                 Categoria.nombre.label("categoria"),
                 Articulo.control,
                 Articulo.activo,
+                disponible.label("disponible"),
             )
             .join(Categoria, Categoria.id == Articulo.categoria_id)
             .where(condicion)
         )
+        if en_almacen_id is not None:
+            consulta = consulta.where(disponible > 0)
         total = _contar(self.session, consulta)
         filas = self.session.execute(
             consulta.order_by(Articulo.nombre, Articulo.codigo).offset(offset).limit(limit)
@@ -241,9 +262,11 @@ class ConsultaRepository:
         todos: bool = True,
         almacen_id: uuid.UUID | None = None,
         ver_trabajadores: bool = False,
+        en_almacen_id: uuid.UUID | None = None,
     ) -> tuple[list, int]:
         """Por número de serie, por código de la pieza y por nombre de su artículo ("detector"
-        lista los detectores y quién tiene cada uno)."""
+        lista los detectores y quién tiene cada uno). Con `en_almacen_id` (TR-11) solo las piezas
+        que están en ese almacén."""
         patron = _patron(q)
         lugar = Lugar("ub")
         condicion = or_(
@@ -267,6 +290,10 @@ class ConsultaRepository:
         consulta = lugar.unir(consulta, Pieza.ubicacion_id, externa=True).where(condicion)
         if not todos:  # AC-06
             consulta = consulta.where(self._pieza_visible(lugar.u, almacen_id, ver_trabajadores))
+        if en_almacen_id is not None:
+            consulta = consulta.where(
+                lugar.u.tipo == TipoUbicacion.ALMACEN, lugar.u.almacen_id == en_almacen_id
+            )
         total = _contar(self.session, consulta)
         filas = self.session.execute(
             consulta.order_by(Articulo.nombre, Pieza.numero_serie, Pieza.codigo)
@@ -318,12 +345,14 @@ class ConsultaRepository:
                 Vale.estado.label("vale_estado"),
                 Vale.almacen_id.label("vale_almacen_id"),
                 Vale.destino_almacen_id.label("vale_destino_almacen_id"),
+                Almacen.nombre.label("vale_almacen"),
                 Usuario.nombre.label("responsable"),
                 *origen.columnas(),
                 *destino.columnas(),
             )
             .select_from(Movimiento)
             .join(Vale, Vale.id == Movimiento.vale_id)
+            .join(Almacen, Almacen.id == Vale.almacen_id)
             .join(Usuario, Usuario.id == Vale.responsable_id)
         )
         consulta = origen.unir(consulta, Movimiento.origen_id)
@@ -428,9 +457,13 @@ class ConsultaRepository:
         usuario_id: uuid.UUID | None,
         offset: int | None,
         limit: int | None,
+        pieza_texto: str | None = None,
     ) -> tuple[list, int]:
-        """La bitácora. `almacen_id` es el almacén del vale (el que lo emitió); `trabajador_id`
-        coincide con el trabajador del vale o el que se anotó en el renglón."""
+        """La bitácora de un almacén (SG-05). Con `almacen_id` entra lo que sale (el vale lo emitió
+        ese almacén o el movimiento sale de sus ubicaciones), lo que llega (el vale va hacia él o
+        el movimiento llega a sus ubicaciones) y las entradas. `trabajador_id` coincide con el
+        trabajador del vale o el que se anotó en el renglón. `pieza_texto` busca en el código y
+        en la serie de la pieza."""
         origen, destino = Lugar("origen"), Lugar("destino")
         trabajador = aliased(Trabajador, name="t_vale")
         responsable = aliased(Usuario, name="responsable")
@@ -450,6 +483,9 @@ class ConsultaRepository:
                 Articulo.codigo.label("codigo_articulo"),
                 Articulo.nombre.label("articulo"),
                 Pieza.codigo.label("pieza"),
+                Pieza.numero_serie.label("numero_serie"),
+                Vale.destino_almacen_id.label("vale_destino_almacen_id"),
+                trabajador.id.label("trabajador_id"),
                 responsable.nombre.label("responsable"),
                 trabajador.numero_empleado.label("numero_empleado"),
                 trabajador.nombre.label("trabajador"),
@@ -477,7 +513,22 @@ class ConsultaRepository:
         if hasta_excluyente is not None:
             consulta = consulta.where(Movimiento.creado_en < hasta_excluyente)
         if almacen_id is not None:
-            consulta = consulta.where(Vale.almacen_id == almacen_id)
+            consulta = consulta.where(
+                or_(
+                    Vale.almacen_id == almacen_id,
+                    Vale.destino_almacen_id == almacen_id,
+                    origen.u.almacen_id == almacen_id,
+                    destino.u.almacen_id == almacen_id,
+                )
+            )
+        if pieza_texto:
+            patron = _patron(pieza_texto)
+            consulta = consulta.where(
+                or_(
+                    Pieza.numero_serie.like(patron, escape="\\"),
+                    Pieza.codigo.like(patron, escape="\\"),
+                )
+            )
         if tipo is not None:
             consulta = consulta.where(Vale.tipo == tipo)
         if trabajador_id is not None:

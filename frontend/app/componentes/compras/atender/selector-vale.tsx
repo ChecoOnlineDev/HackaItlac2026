@@ -7,6 +7,7 @@ import type { Pagina } from "~/api/tipos";
 import { useConsulta } from "~/componentes/catalogo/usar-consulta";
 import { formatearFechaHora } from "~/componentes/dominio/fechas";
 import { instanteUtc } from "~/componentes/consulta/formato";
+import { useAlmacenCentral } from "~/componentes/entradas/almacen-central";
 import { Boton } from "~/componentes/ui/boton";
 import { Campo } from "~/componentes/ui/campo";
 import { ListaDesplegable, type OpcionLista } from "~/componentes/ui/lista-desplegable";
@@ -32,8 +33,8 @@ interface PropiedadesSelectorVale {
 }
 
 /**
- * Elige el vale de ENTRADA con el que Compras metió lo comprado al almacén (SC-06). Es opcional: sin vale, la
- * solicitud se ingresa igual. Ofrece las últimas entradas que el usuario ve y, si la que busca no está, un campo
+ * Elige el vale de ENTRADA con el que Compras metió lo comprado a Kepler (SC-06, EK-05). Es opcional: sin vale, la
+ * solicitud se ingresa igual. Ofrece las últimas entradas de Kepler que el usuario ve y, si la que busca no está, un campo
  * para escribir o pegar el folio. El servidor decide si el vale sirve.
  */
 export function SelectorVale({ valor, alElegir, error }: PropiedadesSelectorVale) {
@@ -49,16 +50,19 @@ export function SelectorVale({ valor, alElegir, error }: PropiedadesSelectorVale
     "vales-entrada",
   );
 
+  // EK-05: lo comprado entra solo a Kepler, así que solo se ofrecen entradas de Kepler. El servidor decide si sirve.
+  const central = useAlmacenCentral();
+
   const opciones = useMemo<OpcionLista[]>(() => {
     const deLista = (lista.datos?.elementos ?? [])
-      .filter((v) => v.estado !== "CANCELADO")
+      .filter((v) => v.estado !== "CANCELADO" && (!central || v.almacen.id === central.id))
       .map((v) => ({
         valor: v.id,
         texto: `${v.folio} · ${v.almacen.clave} · ${formatearFechaHora(instanteUtc(v.creado_en))}`,
       }));
     const ids = new Set(deLista.map((o) => o.valor));
     return [...extra.filter((e) => !ids.has(e.id)).map((e) => ({ valor: e.id, texto: e.folio })), ...deLista];
-  }, [lista.datos, extra]);
+  }, [lista.datos, extra, central]);
 
   // Si el vale elegido ya no está en las opciones (por ejemplo, se recargó la lista), se suelta.
   useEffect(() => {
@@ -110,7 +114,7 @@ export function SelectorVale({ valor, alElegir, error }: PropiedadesSelectorVale
         {lista.error ? (
           <p className="text-sm text-muted-foreground">No pudimos cargar tus últimas entradas. Puedes escribir el folio abajo.</p>
         ) : (
-          <p className="text-sm text-muted-foreground">Liga el vale con el que registraste lo comprado. Así queda a la vista de quien lo pidió.</p>
+          <p className="text-sm text-muted-foreground">Liga el vale de Kepler con el que registraste lo comprado. Así queda a la vista de quien lo pidió.</p>
         )}
       </div>
 

@@ -16,6 +16,7 @@ from app.modulos.importacion.analisis import MENSAJE_NO_ENTERA, parsear_cantidad
 from app.modulos.importacion.lectura import clave, texto_de_celda
 
 ROJO = "ROJO"
+AMARILLO = "AMARILLO"
 Identificar = Callable[[str], tuple[Articulo | None, Pieza | None]]
 
 
@@ -34,6 +35,7 @@ class FilaLeida:
     cantidad: str
     codigo_pieza: str
     serie: str
+    nombre: str = ""
 
 
 @dataclass
@@ -51,6 +53,16 @@ class FilaAnalizada:
     @property
     def con_error_local(self) -> bool:
         return any(m.nivel == ROJO for m in self.motivos)
+
+    @property
+    def con_aviso_local(self) -> bool:
+        return any(m.nivel == AMARILLO for m in self.motivos)
+
+    def amarillo(self, regla: str, codigo: str, mensaje: str) -> None:
+        """Un aviso que no bloquea (TR-13); no baja el nivel si la fila ya está en rojo."""
+        self.motivos.append(MotivoFila(regla, codigo, mensaje, AMARILLO))
+        if self.nivel != ROJO:
+            self.nivel = AMARILLO
 
     def rojo(self, regla: str, codigo: str, mensaje: str) -> None:
         self.motivos.append(MotivoFila(regla, codigo, mensaje))
@@ -75,6 +87,7 @@ def leer_filas(
             cantidad=_celda(fila, columnas.get("cantidad")),
             codigo_pieza=_celda(fila, columnas.get("codigo_pieza")),
             serie=_celda(fila, columnas.get("serie")),
+            nombre=_celda(fila, columnas.get("nombre")),
         )
         if leida.codigo or leida.cantidad or leida.codigo_pieza or leida.serie:
             leidas.append(leida)
@@ -128,6 +141,7 @@ def preparar(
             _nuevo_error_de_codigo(f, f.codigo, False)
             continue
         f.articulo, f.pieza = articulo, pieza
+        _revisar_nombre(f, leida)
 
         if pieza is not None:
             _revisar_pieza(f, leida, piezas_vistas)
@@ -153,8 +167,27 @@ def preparar(
         else:
             primera.cantidad += f.cantidad
             primera.unida_de.append(f.fila)
+            for aviso in f.motivos:  # TR-13: el aviso de la fila unida no se pierde
+                if aviso.nivel == AMARILLO:
+                    primera.amarillo(aviso.regla, aviso.codigo, f"Fila {f.fila}: {aviso.mensaje}")
             resultado.pop()  # esta fila queda dentro de la primera
     return resultado
+
+
+def _revisar_nombre(f: FilaAnalizada, leida: FilaLeida) -> None:
+    """TR-13: la columna `nombre` es una ayuda de quien arma el archivo. Si no se parece al
+    nombre del catálogo para ese código, la fila avisa (amarillo): quizá el código está mal."""
+    if not leida.nombre or f.articulo is None:
+        return
+    escrito, catalogo = clave(leida.nombre), clave(f.articulo.nombre)
+    if escrito == catalogo or escrito in catalogo or catalogo in escrito:
+        return
+    f.amarillo(
+        "TR-13",
+        "NOMBRE_NO_COINCIDE",
+        f"El nombre «{leida.nombre}» no es el del catálogo para {f.codigo} "
+        f"({f.articulo.nombre}). Revisa que el código esté bien.",
+    )
 
 
 def _revisar_pieza(f: FilaAnalizada, leida: FilaLeida, vistas: dict[uuid.UUID, int]) -> None:

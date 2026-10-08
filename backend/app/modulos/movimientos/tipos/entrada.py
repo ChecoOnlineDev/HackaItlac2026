@@ -13,7 +13,7 @@ entregar (E-06). El costo unitario no va en el vale: se captura en `catalogo` co
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from app.core.excepciones import DatosInvalidos
+from app.core.excepciones import DatosInvalidos, SinPermiso
 from app.modulos.acceso.permisos import P
 from app.modulos.almacenes.models import UbicacionVirtual
 from app.modulos.movimientos.cargador import hechos_de_articulo
@@ -30,6 +30,7 @@ from app.modulos.movimientos.evaluador import (
     HechosRenglonEntrada,
     evaluar_renglon_entrada,
 )
+from app.modulos.movimientos.exceptions import EntradaSoloKepler
 from app.modulos.movimientos.models import FirmaModo, TipoVale, Vale
 from app.modulos.movimientos.schemas import RenglonIn, ValeIn
 from app.modulos.movimientos.tipos.base import ManejadorTipo, motivos_ids, vista_articulo
@@ -38,9 +39,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from app.modulos.movimientos.service import MovimientoService
-
-# Clave del almacén al que entran las compras si quien captura puede elegir y no indica uno (I-01).
-ALMACEN_COMPRAS = "KEP"
 
 
 def servicio_inspecciones(session: Session) -> Any:
@@ -77,10 +75,22 @@ class EntradaTipo(ManejadorTipo):
     def almacen_operativo(
         self, servicio: MovimientoService, usuario: Any, cuerpo: ValeIn
     ) -> uuid.UUID:
-        """El almacén que recibe: `almacen_id` o `destino_almacen_id`; quien puede elegir y no
-        indica uno entra por Kepler (I-01)."""
-        indicado = cuerpo.almacen_id or cuerpo.destino_almacen_id
-        return servicio.resolver_almacen_del_vale(usuario, indicado, por_defecto=ALMACEN_COMPRAS)
+        """EK-01: siempre el almacén central (Kepler), resuelto por su tipo. Si el cuerpo indica
+        otro, se rechaza, también al Administrador. Sin `almacenes.todos`, además, el usuario
+        debe estar asignado a Kepler (AC-06)."""
+        central = servicio.almacenes.obtener_central()
+        for indicado in (cuerpo.almacen_id, cuerpo.destino_almacen_id):
+            if indicado is not None and indicado != central.id:
+                raise EntradaSoloKepler(
+                    f"La mercancía entra solo a {central.nombre}. "
+                    "Para llevarla a otro almacén, haz un traspaso."
+                )
+        if not servicio.acceso.puede_operar_todos_los_almacenes(usuario):
+            if usuario.almacen_id is None:
+                raise SinPermiso("No tienes un almacén asignado.")
+            if usuario.almacen_id != central.id:
+                raise SinPermiso(f"Solo quien trabaja en {central.nombre} puede dar entrada.")
+        return central.id
 
     def normalizar_renglones(self, ctx: ContextoVale, cuerpo: ValeIn) -> list[RenglonIn]:
         """Un artículo por cantidad repetido suma (como E-16). Las piezas no se juntan: cada una

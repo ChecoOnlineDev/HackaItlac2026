@@ -145,6 +145,10 @@ class PermisoOut(BaseModel):
     es_de_informacion: bool
     mvp: bool
     llega_con: str
+    # Para agrupar en la matriz de /roles (puede ser distinto del módulo de la clave).
+    grupo: str
+    # False: no tiene función en esta versión; la matriz lo oculta o lo marca así.
+    disponible: bool
     # Permisos de ver que este necesita: activarlo los activa y quitarlos lo quita.
     requiere: list[str]
 

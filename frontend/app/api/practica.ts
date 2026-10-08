@@ -378,18 +378,19 @@ function confirmar(cuerpo: CuerpoPractica): { estado: number; cuerpo: unknown } 
 
 // ------------------------------------------------------------------------------------------ lecturas
 
-function escanear(codigo: string): Escaneo {
+/** Con `almacen_id` (Trasladar) el servidor suma `disponible`: cuántas hay en ese almacén. */
+function escanear(codigo: string, conDisponible = false): Escaneo {
   if (esTrabajador(codigo)) {
     const f = fichaTrabajador();
     return { tipo: "TRABAJADOR", id: f.id, resumen: { numero_empleado: f.numero_empleado, nombre: f.nombre, estado: f.estado, estado_texto: f.estado_texto, vigente: true, motivo_no_vigente: null, puesto: f.puesto, area_obra: f.area_obra, vigente_hasta: f.periodo?.fin ?? null, pendientes: f.resguardo.length } };
   }
   const pieza = piezaPorCodigo(codigo);
   if (pieza) {
-    return { tipo: "PIEZA", id: pieza.id, resumen: { codigo: pieza.codigo, numero_serie: pieza.serie, articulo_id: pieza.articulo.id, articulo: pieza.articulo.nombre, estado: "DISPONIBLE", estado_texto: "Disponible", inspeccion_vigente_hasta: diaIso(90), inspeccion_vigente: true, ubicacion: ubicacionDe(pieza) } };
+    return { tipo: "PIEZA", id: pieza.id, resumen: { codigo: pieza.codigo, numero_serie: pieza.serie, articulo_id: pieza.articulo.id, articulo: pieza.articulo.nombre, estado: "DISPONIBLE", estado_texto: "Disponible", inspeccion_vigente_hasta: diaIso(90), inspeccion_vigente: true, ubicacion: ubicacionDe(pieza), ...(conDisponible ? { disponible: 0 } : {}) } };
   }
   const articulo = articuloPorCodigo(codigo);
   if (articulo) {
-    return { tipo: "ARTICULO", id: articulo.id, resumen: { codigo: articulo.codigo, nombre: articulo.nombre, marca: articulo.marca, categoria: articulo.categoria, control: articulo.control, retornable: true, unidad: articulo.unidad, activo: true, existencia_total: 50 } };
+    return { tipo: "ARTICULO", id: articulo.id, resumen: { codigo: articulo.codigo, nombre: articulo.nombre, marca: articulo.marca, categoria: articulo.categoria, control: articulo.control, retornable: true, unidad: articulo.unidad, activo: true, existencia_total: 50, ...(conDisponible ? { disponible: 50 } : {}) } };
   }
   return { tipo: "DESCONOCIDO", id: null, resumen: { mensaje: "No reconocemos ese código." } };
 }
@@ -400,11 +401,11 @@ function ubicacionDe(p: PiezaPractica) {
     : { tipo: "VIRTUAL", texto: "En camino", almacen_id: null, almacen_clave: null, trabajador_id: null, numero_empleado: null, virtual: "TRANSITO" };
 }
 
-function buscar(q: string): Busqueda {
+function buscar(q: string, conDisponible = false): Busqueda {
   const t = sinAcentos(q);
   const f = fichaTrabajador();
-  const articulos = ARTICULOS.filter((a) => sinAcentos(`${a.nombre} ${a.codigo}`).includes(t)).map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, marca: a.marca, categoria: a.categoria, control: a.control, activo: true }));
-  const piezas = PIEZAS.filter((p) => sinAcentos(`${p.articulo.nombre} ${p.codigo} ${p.serie}`).includes(t)).map((p) => ({ id: p.id, codigo: p.codigo, numero_serie: p.serie, articulo_id: p.articulo.id, articulo: p.articulo.nombre, estado: "DISPONIBLE", estado_texto: "Disponible", ubicacion: ubicacionDe(p).texto }));
+  const articulos = ARTICULOS.filter((a) => sinAcentos(`${a.nombre} ${a.codigo}`).includes(t)).map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, marca: a.marca, categoria: a.categoria, control: a.control, activo: true, ...(conDisponible ? { disponible: 50 } : {}) }));
+  const piezas = PIEZAS.filter((p) => sinAcentos(`${p.articulo.nombre} ${p.codigo} ${p.serie}`).includes(t)).map((p) => ({ id: p.id, codigo: p.codigo, numero_serie: p.serie, articulo_id: p.articulo.id, articulo: p.articulo.nombre, estado: "DISPONIBLE", estado_texto: "Disponible", ubicacion: ubicacionDe(p).texto, ...(conDisponible ? { disponible: 0 } : {}) }));
   const trabajadores = sinAcentos(`${f.nombre} ${f.numero_empleado}`).includes(t) ? [{ id: f.id, numero_empleado: f.numero_empleado, nombre: f.nombre, estado: f.estado, estado_texto: f.estado_texto }] : [];
   const sin = articulos.length + piezas.length + trabajadores.length === 0;
   return {
@@ -462,8 +463,8 @@ function enrutar(ruta: string, metodo: string, cuerpo: unknown, parametros: Opci
 
   if (metodo === "GET") {
     if (a === "sesion" && partes.length === 1) return sesionEnMemoria ? ok(sesionEnMemoria) : noDisponible(metodo);
-    if (a === "escaneo" && b) return ok(escanear(b));
-    if (a === "busqueda") return ok(buscar(String(parametros?.q ?? "")));
+    if (a === "escaneo" && b) return ok(escanear(b, Boolean(parametros?.almacen_id)));
+    if (a === "busqueda") return ok(buscar(String(parametros?.q ?? ""), Boolean(parametros?.almacen_id)));
     if (a === "traspasos" && b === "por-recibir") {
       const lista: PorRecibirApi = { total: 1, elementos: [traspaso()] };
       return ok(lista);

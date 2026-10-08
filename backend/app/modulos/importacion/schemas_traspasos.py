@@ -12,7 +12,8 @@ from app.modulos.importacion.schemas import MAX_CELDA, MAX_COLUMNAS, MAX_FILAS, 
 from app.modulos.movimientos.schemas import FechaUtc
 
 # Datos que el traspaso lee de la tabla (TR-04); el resto de las columnas se ignora con aviso.
-CAMPOS_TRASPASO = ("codigo", "cantidad", "codigo_pieza", "serie")
+# `nombre` es solo de ayuda (TR-13): se compara con el catálogo, no se ignora.
+CAMPOS_TRASPASO = ("codigo", "nombre", "cantidad", "codigo_pieza", "serie")
 
 
 class _Estricto(BaseModel):
@@ -26,6 +27,7 @@ class ColumnasTraspasoIn(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     codigo: int | None = Field(default=None, ge=0, lt=MAX_COLUMNAS)
+    nombre: int | None = Field(default=None, ge=0, lt=MAX_COLUMNAS)
     cantidad: int | None = Field(default=None, ge=0, lt=MAX_COLUMNAS)
     codigo_pieza: int | None = Field(default=None, ge=0, lt=MAX_COLUMNAS)
     serie: int | None = Field(default=None, ge=0, lt=MAX_COLUMNAS)

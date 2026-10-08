@@ -8,7 +8,7 @@ from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Annotated
 
-from pydantic import BaseModel, PlainSerializer, computed_field
+from pydantic import BaseModel, Field, PlainSerializer, computed_field
 
 from app.core.paginacion import Pagina
 from app.modulos.movimientos.models import TipoVale
@@ -111,6 +111,8 @@ class ResumenArticulo(BaseModel):
     unidad: str
     activo: bool
     existencia_total: int
+    # TR-11: con `almacen_id`, lo que hay del artículo en ese almacén; sin él, nulo.
+    disponible: int | None = None
 
 
 class ResumenPieza(BaseModel):
@@ -123,6 +125,8 @@ class ResumenPieza(BaseModel):
     inspeccion_vigente_hasta: date | None
     inspeccion_vigente: bool
     ubicacion: UbicacionOut | None
+    # TR-11: con `almacen_id`, 1 si la pieza está en ese almacén y 0 si no; sin él, nulo.
+    disponible: int | None = None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -165,6 +169,8 @@ class BusquedaArticuloItem(BaseModel):
     categoria: str
     control: str
     activo: bool
+    # TR-11: con `almacen_id`, lo que hay en ese almacén; sin él, nulo.
+    disponible: int | None = None
 
 
 class BusquedaPiezaItem(BaseModel):
@@ -177,6 +183,8 @@ class BusquedaPiezaItem(BaseModel):
     estado_texto: str
     # Quién o dónde la tiene: "Kepler (KEP)" o "Juan Pérez (EMP-1001)".
     ubicacion: str | None
+    # TR-11: con `almacen_id`, siempre 1 (solo se ofrecen las que están en ese almacén).
+    disponible: int | None = None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -264,6 +272,10 @@ class HistorialItem(BaseModel):
     destino: str | None = None
     responsable: str | None = None
     condicion: str | None = None
+    # SG-03: el almacén del vale y el trabajador que recibe (o devuelve) la pieza.
+    almacen: str | None = None
+    trabajador: str | None = None
+    trabajador_id: uuid.UUID | None = None
     # Inspección y ajuste de vigencia
     resultado: str | None = None
     vigente_hasta: date | None = None
@@ -288,6 +300,8 @@ class PiezaFichaOut(BaseModel):
     ultima_inspeccion: InspeccionOut | None
     ubicacion: UbicacionOut | None
     historial: list[HistorialItem]
+    # SG-06: aviso si es de alto valor y la tiene un trabajador dado de baja o con contrato vencido.
+    aviso: str | None = None
 
     # ---------------------------------------------------------------------------- reportes
 
@@ -319,6 +333,10 @@ class MovimientosFilters(BaseModel):
     articulo_id: uuid.UUID | None = None
     # Quien hizo el vale (C-11).
     usuario_id: uuid.UUID | None = None
+    # SG-05: texto del código o de la serie de la pieza.
+    pieza: Annotated[str | None, Field(max_length=100)] = None
+    # SG-05: solo lo que hizo el usuario de la sesión («Solo los míos»).
+    solo_mios: bool = False
     formato: FormatoReporte = FormatoReporte.JSON
 
 
@@ -364,10 +382,16 @@ class MovimientoReporteItem(BaseModel):
     codigo_articulo: str
     articulo: str
     pieza: str | None
+    numero_serie: str | None = None
     cantidad: int
     origen: str
     destino: str
+    # SG-05: qué fue para el almacén que se ve: ENTRADA, SALIDA o EN_CAMINO (un traspaso que va
+    # hacia él y aún no llega). Nulo si no se filtró por almacén o no lo toca directamente.
+    direccion: str | None = None
+    direccion_texto: str | None = None
     responsable: str
+    trabajador_id: uuid.UUID | None = None
     trabajador: str | None
     # Quién autorizó el vale y por qué (A-04); vacíos si no hubo autorización ni motivo.
     autorizado_por: str | None = None

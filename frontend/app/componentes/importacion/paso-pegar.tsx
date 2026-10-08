@@ -98,7 +98,7 @@ export function PasoPegar({ modo, textoInicial, alCambiarTexto, alContinuarConTe
           value={texto}
           rows={8}
           spellCheck={false}
-          placeholder={modo === "REPOSICION" ? "Código\tCantidad\tAlmacén" : "Código\tNombre\tMarca\tCategoría\tCantidad\tAlmacén"}
+          placeholder={modo === "REPOSICION" ? "Código\tCantidad" : "Código\tNombre\tMarca\tCategoría\tCantidad"}
           aria-invalid={lectura && !lectura.ok ? true : undefined}
           aria-describedby={`${idTexto}-estado`}
           onChange={(e) => {

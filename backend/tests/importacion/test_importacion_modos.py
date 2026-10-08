@@ -136,7 +136,7 @@ def test_I_10_reposicion_exige_la_columna_del_codigo_y_en_alta_basta_el_nombre(c
 
 
 def test_I_10_reposicion_no_pide_catalogo_administrar(cliente_con, session):
-    solo_entradas = cliente_con({P.INVENTARIO_ENTRADAS, P.ALMACENES_TODOS})
+    solo_entradas = cliente_con({P.INVENTARIO_ENTRADAS, P.INVENTARIO_IMPORTAR, P.ALMACENES_TODOS})
     existente = crear_articulo(session)
     salida = importar(solo_entradas, [fila(existente.codigo, cantidad=5)], modo="REPOSICION")
     assert salida["resumen"]["filas_importadas"] == 1
@@ -144,7 +144,7 @@ def test_I_10_reposicion_no_pide_catalogo_administrar(cliente_con, session):
 
 
 def test_I_10_SIN_PERMISO_CREAR_el_alta_que_crea_exige_catalogo_administrar(cliente_con, session):
-    sin_administrar = cliente_con({P.INVENTARIO_ENTRADAS, P.ALMACENES_TODOS})
+    sin_administrar = cliente_con({P.INVENTARIO_ENTRADAS, P.INVENTARIO_IMPORTAR, P.ALMACENES_TODOS})
     existente = crear_articulo(session)
     nuevo = unico("NUEVO")
     filas = [fila(nuevo, cantidad=1), fila(existente.codigo, cantidad=2)]
@@ -294,21 +294,21 @@ def test_RG_10_consolidacion_las_filas_del_mismo_articulo_y_almacen_salen_como_u
         fila(otro, nombre="Cinta", cantidad=1),
         fila(unico("X"), nombre="Pila", cantidad="mucho"),
         fila(codigo, nombre="Disco de lija", cantidad=5),
-        fila(codigo, nombre="Disco de lija", cantidad=20, almacen="CON"),
+        fila(codigo, nombre="Disco de lija", cantidad=20, almacen="CON"),  # EK-01: también Kepler
         fila(codigo, nombre="Disco de lija", cantidad=3),
     ]
     vp = vista(compras, filas, primera_fila=2)
     unida = valida(vp, 2)
-    assert unida["estado"] == "UNIDO" and unida["cantidad"] == 18 and unida["unida_de"] == [5, 7]
-    assert "Unido: filas 2, 5, 7" in unida["avisos"]
-    assert valida(vp, 6)["estado"] == "NUEVO"  # otro almacén, otra fila
+    assert unida["estado"] == "UNIDO" and unida["cantidad"] == 38
+    assert unida["unida_de"] == [5, 6, 7]
+    assert "Unido: filas 2, 5, 6, 7" in unida["avisos"]
     assert vp["resumen"]["unidos"] == 1 and vp["resumen"]["con_error"] == 1
-    assert vp["resumen"]["unidades"] == 18 + 1 + 20
+    assert vp["resumen"]["unidades"] == 38 + 1
 
     salida = importar(compras, filas, primera_fila=2)
     assert salida["resumen"]["unidos"] == 1 and salida["resumen"]["articulos_creados"] == 2
-    assert existencia(session, "KEP", articulo(session, codigo)) == 18
-    assert existencia(session, "CON", articulo(session, codigo)) == 20
+    assert existencia(session, "KEP", articulo(session, codigo)) == 38
+    assert existencia(session, "CON", articulo(session, codigo)) == 0
 
 
 def test_RG_10_consolidacion_una_fila_sin_codigo_se_une_por_nombre_y_marca(compras, session):
@@ -359,7 +359,7 @@ def test_RG_10_consolidacion_un_codigo_de_pieza_o_una_serie_repetidos_siguen_sie
     assert vp["resumen"]["unidos"] == 0
 
 
-def test_I_06_saldo_antes_y_despues_leen_la_existencia_del_almacen(compras, session):
+def test_I_06_saldo_antes_y_despues_leen_la_existencia_de_kepler(compras, session):
     codigo = unico("SAL")
     importar(compras, [fila(codigo, nombre="Cinta", cantidad=10)])
     vp = vista(
@@ -367,20 +367,14 @@ def test_I_06_saldo_antes_y_despues_leen_la_existencia_del_almacen(compras, sess
         [
             fila(codigo, cantidad=3),
             fila(codigo, cantidad=2),
-            fila(codigo, cantidad=7, almacen="CON"),
             fila(unico("NUE"), cantidad=4),
         ],
     )
     unida = valida(vp, 1)
     assert unida["estado"] == "UNIDO" and unida["cantidad"] == 5
     assert (unida["saldo_antes"], unida["saldo_despues"]) == (10, 15)
-    en_con = valida(vp, 3)
-    assert en_con["estado"] == "EXISTENTE" and (en_con["saldo_antes"], en_con["saldo_despues"]) == (
-        0,
-        7,
-    )
-    assert (valida(vp, 4)["saldo_antes"], valida(vp, 4)["saldo_despues"]) == (0, 4)
-    assert vp["resumen"]["existentes"] == 1
+    assert (valida(vp, 3)["saldo_antes"], valida(vp, 3)["saldo_despues"]) == (0, 4)
+    assert vp["resumen"]["unidos"] == 1
 
 
 def test_I_06_un_articulo_existente_avisa_las_diferencias_y_no_cambia_nada(compras, session):
@@ -580,7 +574,7 @@ def test_I_10_plantilla_de_alta_trae_costo_solo_con_catalogo_costos(compras, cli
     assert r.status_code == 200 and "spreadsheetml.sheet" in r.headers["content-type"]
     assert "plantilla-alta.xlsx" in r.headers["content-disposition"]
     assert "Costo" in _encabezados(r)
-    sin_costos = cliente_con({P.INVENTARIO_ENTRADAS})
+    sin_costos = cliente_con({P.INVENTARIO_ENTRADAS, P.INVENTARIO_IMPORTAR})
     r = sin_costos.get(PLANTILLA)  # sin modo: ALTA
     assert r.status_code == 200 and "Costo" not in _encabezados(r)
     assert "Nombre" in _encabezados(r)
@@ -589,7 +583,7 @@ def test_I_10_plantilla_de_alta_trae_costo_solo_con_catalogo_costos(compras, cli
 def test_I_10_plantilla_de_reposicion_trae_solo_lo_que_se_lee(compras):
     r = compras.get(PLANTILLA, params={"modo": "REPOSICION"})
     assert r.status_code == 200
-    assert _encabezados(r) == ["Código", "Cantidad", "Almacén", "Serie", "Código de la pieza"]
+    assert _encabezados(r) == ["Código", "Cantidad", "Serie", "Código de la pieza"]
     assert "plantilla-reposicion.xlsx" in r.headers["content-disposition"]
 
 
@@ -598,7 +592,7 @@ def test_I_10_la_plantilla_se_lee_de_vuelta_y_sus_columnas_se_reconocen(compras,
     r = compras.get(PLANTILLA, params={"modo": modo})
     _, filas = leer_xlsx("plantilla.xlsx", r.content)
     columnas = proponer_columnas(filas[0])
-    esperadas = {"codigo", "cantidad", "almacen", "serie", "codigo_pieza"}
+    esperadas = {"codigo", "cantidad", "serie", "codigo_pieza"}  # sin almacén (EK-03)
     if modo == "ALTA":
         esperadas |= {"nombre", "marca", "categoria", "costo", "unidad"}  # I-16
     assert {c for c, i in columnas.items() if i is not None} == esperadas
@@ -610,7 +604,7 @@ def test_I_10_la_plantilla_se_lee_de_vuelta_y_sus_columnas_se_reconocen(compras,
     assert vp.json()["vista_previa"]["modo"] == modo
 
 
-def test_I_10_la_plantilla_exige_inventario_entradas_y_un_modo_valido(compras, cliente_con):
+def test_I_10_la_plantilla_exige_inventario_importar_y_un_modo_valido(compras, cliente_con):
     sin_permiso = cliente_con({P.CATALOGO_VER})
     assert sin_permiso.get(PLANTILLA).status_code == 403
     assert compras.get(PLANTILLA, params={"modo": "OTRO"}).status_code == 422

@@ -219,6 +219,69 @@ def abastecer(cliente_compras, articulo: Articulo, cantidad: int, **extra):
     return r.json()
 
 
+def abastecer_en(session: Session, articulo: Articulo, cantidad: int, clave: str):
+    """Deja `cantidad` del artículo en el almacén `clave` por el camino real (EK-01, X-03): entra
+    a Kepler y baja por traspaso (con su recepción) por la cadena de padres, p. ej. Kepler,
+    Contratistas y el proyecto. Usa los servicios en la sesión de la prueba, con el supervisor de
+    cada almacén de los datos de prueba o, si no tiene, el Administrador. Devuelve el último vale
+    (la recepción en `clave`; la entrada si `clave` es Kepler)."""
+    # Imports aquí: el módulo de ayudas se importa desde muchos archivos de pruebas.
+    from app.modulos.movimientos.datos_prueba import SUPERVISOR
+    from app.modulos.movimientos.models import TipoVale
+    from app.modulos.movimientos.schemas import ConfirmarIn, RenglonIn
+    from app.modulos.movimientos.service import MovimientoService
+
+    servicio = MovimientoService(session)
+    usuarios = UsuarioRepository(session)
+    renglones = [RenglonIn(codigo=articulo.codigo, cantidad=cantidad)]
+    ultimo, _ = servicio.confirmar(
+        usuarios.get_by_usuario("compras"),
+        ConfirmarIn(tipo=TipoVale.ENTRADA, id_cliente=uuid.uuid4(), renglones=renglones),
+        aislar=False,
+        commit=False,
+    )
+    # La cadena de Kepler al destino, por `padre_id`.
+    cadena = []
+    actual = servicio.almacenes.obtener_por_clave(clave)
+    while actual.padre_id is not None:
+        cadena.append(actual)
+        actual = servicio.almacenes.obtener(actual.padre_id)
+    cadena.reverse()
+
+    def responsable(almacen):
+        return usuarios.get_by_usuario(SUPERVISOR.get(almacen.clave, "admin"))
+
+    origen = servicio.almacenes.obtener_por_clave("KEP")
+    for destino in cadena:
+        envio, _ = servicio.confirmar(
+            responsable(origen),
+            ConfirmarIn(
+                tipo=TipoVale.TRASPASO,
+                almacen_id=origen.id,
+                destino_almacen_id=destino.id,
+                id_cliente=uuid.uuid4(),
+                renglones=renglones,
+            ),
+            aislar=False,
+            commit=False,
+        )
+        ultimo, _ = servicio.confirmar(
+            responsable(destino),
+            ConfirmarIn(
+                tipo=TipoVale.RECEPCION,
+                almacen_id=destino.id,
+                vale_origen_id=envio.id,
+                id_cliente=uuid.uuid4(),
+                renglones=renglones,
+            ),
+            aislar=False,
+            commit=False,
+        )
+        origen = destino
+    session.commit()  # como la API: lo que sigue no pierde el reparto si hace rollback
+    return ultimo
+
+
 def entrar_pieza(
     cliente_compras, articulo: Articulo, codigo: str | None = None, serie=None, **extra
 ):

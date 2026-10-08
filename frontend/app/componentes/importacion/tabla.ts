@@ -40,7 +40,7 @@ export const AYUDA_CAMPO: Record<CampoImportacion, string> = {
   marca: "Opcional.",
   categoria: "Hace falta en los artículos nuevos.",
   cantidad: "Cuántas unidades entran (los artículos por pieza entran de una en una).",
-  almacen: "A qué almacén entra. Si no la trae, se usa el almacén que elijas en la revisión.",
+  almacen: "Ya no se usa: todo entra a Kepler.",
   serie: "Solo para artículos por pieza. Si no la traes, la pieza entra con la serie pendiente.",
   costo: "Solo se guarda en artículos nuevos.",
   codigo_pieza: "Opcional. Si no lo traes, se genera al confirmar.",
@@ -181,6 +181,17 @@ export function proponerColumnas(encabezados: string[]): Columnas {
   for (const [campo, buscadas] of PALABRAS) tomar(campo, buscadas);
   tomar("codigo", CODIGO);
   return columnas;
+}
+
+/**
+ * TR-12: ¿se reconocieron solas las columnas obligatorias? Hace falta saber qué artículo es (código o nombre; en
+ * la reposición, el código) y cuántos entran (cantidad, o una fila por pieza). Solo entonces se salta
+ * «Relacionar columnas» y la vista previa aparece sola.
+ */
+export function columnasObligatoriasReconocidas(modo: ModoImportacion, c: Columnas): boolean {
+  const articulo = modo === "REPOSICION" ? c.codigo !== null : c.codigo !== null || c.nombre !== null;
+  const cuantos = c.cantidad !== null || c.codigo_pieza !== null || c.serie !== null;
+  return articulo && cuantos;
 }
 
 /** ¿La primera fila parece de encabezados? (si tiene palabras como "código", "cantidad", "almacén"…). */

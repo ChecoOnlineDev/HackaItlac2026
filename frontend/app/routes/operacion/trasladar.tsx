@@ -56,8 +56,8 @@ interface EscaneoApi {
   tipo: "TRABAJADOR" | "ARTICULO" | "PIEZA" | "VALE" | "DESCONOCIDO";
 }
 interface BusquedaApi {
-  articulos: { elementos: { codigo: string; nombre: string; marca: string | null }[] };
-  piezas: { elementos: { codigo: string; articulo: string; numero_serie: string | null }[] };
+  articulos: { elementos: { codigo: string; nombre: string; marca: string | null; disponible?: number | null }[] };
+  piezas: { elementos: { codigo: string; articulo: string; numero_serie: string | null; disponible?: number | null }[] };
 }
 
 type ErrorEnvio = { tipo: "conexion" | "otro"; mensaje: string } | null;
@@ -109,6 +109,7 @@ export default function Trasladar() {
   const [resultadosBusqueda, setResultadosBusqueda] = useState<{ texto: string; items: CoincidenciaArticulo[] } | null>(null);
   const [buscandoArticulo, setBuscandoArticulo] = useState(false);
   const sonidoPendiente = useRef<Set<string>>(new Set());
+  const almacenNombreRef = useRef<string | null>(null);
 
   // ------------------------------------------------------------------ evaluación
   const resultado: ValeConfirmadoApi | null = borrador.resultado;
@@ -210,25 +211,37 @@ export default function Trasladar() {
         return;
       }
       // Lo que se teclea puede ser un código o un nombre: si el servidor no lo reconoce, se busca.
+      // TR-11: la búsqueda ofrece solo lo que hay en el almacén de origen, con su cantidad.
+      // Un código que no hay allí se identifica igual y el servidor lo rechaza (X-02).
       setBuscandoArticulo(true);
+      const origenId = borradorRef.current.almacenId ?? undefined;
       try {
-        const escaneo = await apiGet<EscaneoApi>(`/escaneo/${encodeURIComponent(codigo)}`);
+        const escaneo = await apiGet<EscaneoApi>(`/escaneo/${encodeURIComponent(codigo)}`, { almacen_id: origenId });
         if (escaneo.tipo === "DESCONOCIDO" && codigo.length >= 2) {
-          const b = await apiGet<BusquedaApi>("/busqueda", { q: codigo });
+          const b = await apiGet<BusquedaApi>("/busqueda", { q: codigo, almacen_id: origenId });
           const items: CoincidenciaArticulo[] = [
             ...b.articulos.elementos.map((a) => ({
               codigo: a.codigo,
               nombre: a.nombre,
-              detalle: [a.marca, a.codigo].filter(Boolean).join(" · "),
+              detalle: [a.marca, a.codigo, a.disponible != null ? `Disponible: ${a.disponible}` : null].filter(Boolean).join(" · "),
             })),
             ...b.piezas.elementos.map((p) => ({
               codigo: p.codigo,
               nombre: p.articulo,
-              detalle: `Pieza ${p.codigo}${p.numero_serie ? ` · Serie ${p.numero_serie}` : ""}`,
+              detalle: `Pieza ${p.codigo}${p.numero_serie ? ` · Serie ${p.numero_serie}` : ""}${p.disponible != null ? ` · Disponible: ${p.disponible}` : ""}`,
             })),
           ];
           if (items.length > 0) {
             setResultadosBusqueda({ texto: codigo, items });
+            return;
+          }
+          if (origenId) {
+            reproducir("aviso");
+            aviso({
+              titulo: "No hay nada con ese nombre",
+              descripcion: `No encontramos «${codigo}» en ${almacenNombreRef.current ?? "el almacén de origen"}.`,
+              tipo: "aviso",
+            });
             return;
           }
         }
@@ -368,6 +381,7 @@ export default function Trasladar() {
 
   // ------------------------------------------------------------------ lo que se pinta
   const almacenNombre = evaluacion?.almacen.nombre ?? sesion.almacen?.nombre ?? null;
+  almacenNombreRef.current = almacenNombre;
 
   // Una ruta que no es padre-hijo la hace solo el Administrador y pide observación (X-03).
   const pideObservacion = Boolean(evaluacion?.pide_observacion);

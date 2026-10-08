@@ -9,6 +9,7 @@ import { formatearFecha } from "~/componentes/dominio/fechas";
 import { InsigniaSeriePendiente } from "~/componentes/dominio/insignia-serie-pendiente";
 import { HojaRegistrarSerie } from "~/componentes/consulta/hoja-registrar-serie";
 import { HojaAjusteVigencia, HojaInspeccion, HojaMarcarNoApta } from "~/componentes/consulta/hojas-pieza";
+import { AvisoResguardo } from "~/componentes/seguimiento/aviso-resguardo";
 import { LineaDeTiempo } from "~/componentes/consulta/linea-de-tiempo";
 import type { FichaPieza } from "~/componentes/consulta/tipos";
 import { useCarga } from "~/componentes/consulta/use-carga";
@@ -81,6 +82,8 @@ export default function FichaPiezaPantalla() {
           ) : null}
         </div>
       ) : null}
+
+      {pieza.aviso && !enBaja ? <AvisoResguardo texto={pieza.aviso} /> : null}
 
       <Bloque titulo="Dónde está" icono={MapPinIcon}>
         {pieza.ubicacion ? (
@@ -171,8 +174,8 @@ export default function FichaPiezaPantalla() {
         </Seccion>
       ) : null}
 
-      <Seccion titulo="Historial">
-        <LineaDeTiempo historial={pieza.historial} puedeVerVales={puede("vales.ver")} />
+      <Seccion titulo="Línea de tiempo">
+        <LineaDeTiempo historial={pieza.historial} puedeVerVales={puede("vales.ver")} puedeVerTrabajadores={puede("trabajadores.ver")} />
       </Seccion>
 
       <HojaInspeccion pieza={pieza} abierta={panel === "inspeccion"} alCambiar={(a) => setPanel(a ? "inspeccion" : null)} alGuardar={recargar} />

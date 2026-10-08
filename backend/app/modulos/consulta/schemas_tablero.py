@@ -37,6 +37,9 @@ class ResumenTableroOut(BaseModel):
     solicitudes_compra_abiertas: int
     inspecciones_por_vencer: int
     piezas_serie_pendiente: int
+    # SG-04: piezas de alto valor y de alturas en manos de trabajadores. `null` (no se envía el
+    # número) si el usuario no tiene `resguardo.ver`.
+    alto_valor_fuera: int | None = None
     generado_en: FechaUtc
 
 

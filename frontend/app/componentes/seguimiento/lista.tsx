@@ -5,6 +5,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { formatearFecha, formatearFechaHora } from "~/componentes/dominio/fechas";
 import { instanteUtc } from "~/componentes/consulta/formato";
 import { InsigniaSeriePendiente } from "~/componentes/dominio/insignia-serie-pendiente";
+import { AvisoResguardo } from "./aviso-resguardo";
 import { InsigniaDonde, InsigniaEstadoPieza } from "./insignias";
 import type { PiezaSeguimiento } from "./tipos";
 
@@ -121,6 +122,7 @@ export function TablaPiezas({ piezas, puedeAbrir, puedeVerVale }: PropiedadesLis
                   {p.ubicacion.trabajador ? (
                     <span className="mt-1 block text-xs text-muted-foreground">Número {p.ubicacion.trabajador.numero_empleado}</span>
                   ) : null}
+                  {p.aviso ? <AvisoResguardo texto={p.aviso} /> : null}
                 </TableCell>
                 <TableCell className="whitespace-normal">
                   <Desde pieza={p} />
@@ -170,6 +172,7 @@ export function TarjetasPiezas({ piezas, puedeAbrir, puedeVerVale }: Propiedades
               {p.ubicacion.trabajador ? (
                 <span className="text-xs text-muted-foreground">Número {p.ubicacion.trabajador.numero_empleado}</span>
               ) : null}
+              {p.aviso ? <AvisoResguardo texto={p.aviso} /> : null}
             </div>
             {inspeccion ? (
               <p className="text-xs text-muted-foreground">{inspeccion}</p>

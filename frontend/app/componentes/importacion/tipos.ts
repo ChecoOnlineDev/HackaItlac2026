@@ -9,7 +9,13 @@ export type CampoImportacion = (typeof CAMPOS)[number];
 export type ModoImportacion = "ALTA" | "REPOSICION";
 
 /** Los datos que se leen en la reposición: el resto de las columnas se ignora (I-10). */
-export const CAMPOS_REPOSICION: readonly CampoImportacion[] = ["codigo", "cantidad", "almacen", "serie", "codigo_pieza"];
+export const CAMPOS_REPOSICION: readonly CampoImportacion[] = ["codigo", "cantidad", "serie", "codigo_pieza"];
+
+/**
+ * EK-03: todo entra a Kepler, así que «almacén» ya no es una columna que se relacione. Si el archivo la trae, se
+ * manda igual y el servidor la ignora con un aviso.
+ */
+export const CAMPOS_RELACIONABLES: readonly CampoImportacion[] = CAMPOS.filter((c) => c !== "almacen");
 
 export function camposDelModo(modo: ModoImportacion): readonly CampoImportacion[] {
   return modo === "REPOSICION" ? CAMPOS_REPOSICION : CAMPOS;
@@ -203,5 +209,4 @@ export interface OpcionesImportacion {
   mapaCategorias: Record<string, string>;
   /** `{número de fila: categoria_id}`: solo lo que la persona eligió o aceptó viendo la fila. */
   categoriaPorFila: Record<string, string>;
-  almacenPorDefecto: string | null;
 }

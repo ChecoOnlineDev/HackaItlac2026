@@ -67,6 +67,7 @@ from app.modulos.catalogo.schemas import (
     EtiquetaOut,
     EtiquetasOut,
     ExistenciaAlmacenOut,
+    PiezaPoseidaOut,
     PoseedorOut,
     TipoEtiqueta,
 )
@@ -195,6 +196,13 @@ class CatalogoService:
         """RG-12: el costo solo lo ve y lo captura quien tiene `catalogo.costos`."""
         return self.acceso.tiene_permiso(usuario, P.CATALOGO_COSTOS)
 
+    def _exigir_limites(self, usuario: Usuario, cambios: dict[str, Any]) -> None:
+        """AC-30: cambiar el límite de entrega pide `catalogo.limites`, aparte de administrar."""
+        if {"limite_cantidad", "limite_periodo_dias"} & cambios.keys() and (
+            not self.acceso.tiene_permiso(usuario, P.CATALOGO_LIMITES)
+        ):
+            raise SinPermiso("No tienes permiso para cambiar los límites de entrega.")
+
     # ----------------------------------------------------------------- categorías
 
     def obtener_categoria(self, categoria_id: uuid.UUID) -> Categoria:
@@ -216,6 +224,9 @@ class CatalogoService:
     def crear_categoria(self, datos: CategoriaCreate, usuario: Usuario) -> CategoriaOut:
         """CF-01: nombre único, tipo y plantilla. CF-15: queda en el registro de cambios."""
         valores = datos.model_dump()
+        self._exigir_limites(
+            usuario, {k: v for k, v in valores.items() if k.startswith("limite_") and v is not None}
+        )
         _vigencia_por_defecto(valores)
         validar_reglas(valores["control"], valores)
         with self._transaccion():
@@ -242,6 +253,7 @@ class CatalogoService:
             _vigencia_por_defecto(nuevos)
         validar_reglas(nuevos["control"], nuevos)
         diferencias = {k: v for k, v in nuevos.items() if getattr(categoria, k) != v}
+        self._exigir_limites(usuario, diferencias)
         if not diferencias:
             return CategoriaOut.model_validate(categoria)
 
@@ -345,16 +357,36 @@ class CatalogoService:
                 for a, cantidad, disponible in self.almacenes.existencias_de_articulo(articulo.id)
                 if ve_todos or a.id == usuario.almacen_id
             ],
-            en_posesion=[
-                PoseedorOut(
-                    trabajador_id=t.id,
-                    numero_empleado=t.numero_empleado,
-                    nombre=t.nombre,
-                    cantidad=cantidad,
-                )
-                for t, cantidad in self.almacenes.poseedores_de_articulo(articulo.id)
-            ],
+            en_posesion=self._poseedores(articulo, usuario, ve_todos),
         )
+
+    def _poseedores(
+        self, articulo: Articulo, usuario: Usuario, ve_todos: bool
+    ) -> list[PoseedorOut]:
+        """SG-02: quién lo tiene, con cantidad, fecha y folio de la entrega y, por pieza, el
+        código y la serie de cada una. AC-06: el vale de otro almacén no se nombra."""
+        poseedores = []
+        # La consulta vive en el repositorio de `almacenes`; no hay un método de servicio para ella
+        for p in self.almacenes.posesion_de_articulo(articulo.id, articulo.control):
+            propio = ve_todos or (
+                usuario.almacen_id is not None and p.vale_almacen_id == usuario.almacen_id
+            )
+            poseedores.append(
+                PoseedorOut(
+                    trabajador_id=p.trabajador.id,
+                    numero_empleado=p.trabajador.numero_empleado,
+                    nombre=p.trabajador.nombre,
+                    cantidad=p.cantidad,
+                    desde=p.desde,
+                    vale_id=p.vale_id if propio else None,
+                    folio=p.folio if propio else None,
+                    piezas=[
+                        PiezaPoseidaOut(id=z.id, codigo=z.codigo, numero_serie=z.numero_serie)
+                        for z in p.piezas
+                    ],
+                )
+            )
+        return poseedores
 
     def crear_articulo(
         self, datos: ArticuloCreate, actor_id: uuid.UUID, *, puede_costos: bool = False
@@ -415,6 +447,14 @@ class CatalogoService:
 
     def crear(self, datos: ArticuloCreate, usuario: Usuario) -> ArticuloOut:
         """Endpoint `POST /articulos`: crea y confirma."""
+        self._exigir_limites(
+            usuario,
+            {
+                k: v
+                for k, v in datos.model_dump(exclude_unset=True).items()
+                if k.startswith("limite_") and v is not None
+            },
+        )
         with self._transaccion():
             articulo = self.crear_articulo(
                 datos, usuario.id, puede_costos=self._ver_costos(usuario)
@@ -436,6 +476,7 @@ class CatalogoService:
 
         if "costo_unitario" in diferencias and not puede_costos:
             raise SinPermiso("No tienes permiso para capturar costos.")
+        self._exigir_limites(usuario, diferencias)
 
         cambia_control = {"control", "retornable"} & diferencias.keys()
         if cambia_control:

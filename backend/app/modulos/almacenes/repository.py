@@ -1,9 +1,10 @@
 """Persistencia del módulo `almacenes`. Solo `add`, `flush` y consultas; nunca commit."""
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 
-from sqlalchemy import case, func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session, aliased
 
 from app.modulos.acceso.models import Usuario
@@ -33,6 +34,29 @@ from app.modulos.trabajadores.models import Trabajador
 # Un traspaso con algo todavía En tránsito: enviado y no recibido, o recibido con diferencias.
 ESTADOS_TRASPASO_EN_TRANSITO = (EstadoVale.EN_TRANSITO, EstadoVale.RECIBIDO_CON_DIFERENCIAS)
 ESTADOS_SOLICITUD_ABIERTA = (EstadoSolicitud.PENDIENTE, EstadoSolicitud.EN_COMPRA)
+
+
+@dataclass
+class PiezaPoseida:
+    """Una pieza en manos de un trabajador (SG-02)."""
+
+    id: uuid.UUID
+    codigo: str
+    numero_serie: str | None
+    desde: datetime | None
+
+
+@dataclass
+class Posesion:
+    """Lo que un trabajador tiene de un artículo, con la entrega más reciente (SG-02)."""
+
+    trabajador: Trabajador
+    cantidad: int = 0
+    desde: datetime | None = None
+    vale_id: uuid.UUID | None = None
+    folio: str | None = None
+    vale_almacen_id: uuid.UUID | None = None
+    piezas: list[PiezaPoseida] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -72,6 +96,9 @@ class AlmacenRepository:
 
     def get_by_nombre(self, nombre: str) -> Almacen | None:
         return self.session.scalar(select(Almacen).where(Almacen.nombre == nombre))
+
+    def get_central(self) -> Almacen | None:
+        return self.session.scalar(select(Almacen).where(Almacen.tipo == TipoAlmacen.CENTRAL))
 
     def hay_central(self) -> bool:
         consulta = (
@@ -319,6 +346,117 @@ class AlmacenRepository:
             .order_by(Trabajador.nombre)
         )
         return list(self.session.execute(consulta).all())
+
+    def posesion_de_articulo(self, articulo_id: uuid.UUID, control: str) -> list[Posesion]:
+        """SG-02: quién tiene un artículo, con desde cuándo y el vale de la entrega.
+
+        Por cantidad, de la existencia en la ubicación de cada trabajador; por pieza, de cada
+        pieza que tiene un trabajador, con su código y serie. De cada una se toma el movimiento
+        que la dejó ahí, prefiriendo el de un vale de ENTREGA (una cancelación que se la regresa
+        no cambia desde cuándo la tiene). Solo lee.
+        """
+        por_pieza = control == Control.PIEZA
+        referencia = Movimiento.pieza_id if por_pieza else Movimiento.destino_id
+        orden = func.row_number().over(
+            partition_by=(Movimiento.destino_id, referencia),
+            order_by=(
+                case((Vale.tipo == TipoVale.ENTREGA, 0), else_=1),
+                Movimiento.creado_en.desc(),
+                Movimiento.id.desc(),
+            ),
+        )
+        ultima = (
+            select(
+                Movimiento.destino_id.label("ubicacion_id"),
+                Movimiento.pieza_id.label("pieza_id"),
+                Movimiento.creado_en.label("desde"),
+                Vale.id.label("vale_id"),
+                Vale.folio.label("folio"),
+                Vale.almacen_id.label("vale_almacen_id"),
+                orden.label("rn"),
+            )
+            .select_from(Movimiento)
+            .join(Vale, Vale.id == Movimiento.vale_id)
+            .where(
+                Movimiento.articulo_id == articulo_id,
+                Movimiento.pieza_id.is_not(None) if por_pieza else Movimiento.pieza_id.is_(None),
+            )
+            .subquery("ult_pos")
+        )
+        if por_pieza:
+            consulta = (
+                select(
+                    Trabajador,
+                    Pieza,
+                    ultima.c.desde,
+                    ultima.c.vale_id,
+                    ultima.c.folio,
+                    ultima.c.vale_almacen_id,
+                )
+                .select_from(Pieza)
+                .join(Ubicacion, Ubicacion.id == Pieza.ubicacion_id)
+                .join(Trabajador, Trabajador.id == Ubicacion.trabajador_id)
+                .outerjoin(
+                    ultima,
+                    and_(
+                        ultima.c.pieza_id == Pieza.id,
+                        ultima.c.ubicacion_id == Pieza.ubicacion_id,
+                        ultima.c.rn == 1,
+                    ),
+                )
+                .where(Pieza.articulo_id == articulo_id)
+                .order_by(Trabajador.nombre, Pieza.codigo)
+            )
+            posesiones: dict[uuid.UUID, Posesion] = {}
+            for t, pieza, desde, vale_id, folio, vale_almacen_id in self.session.execute(consulta):
+                p = posesiones.setdefault(t.id, Posesion(trabajador=t))
+                p.piezas.append(
+                    PiezaPoseida(
+                        id=pieza.id,
+                        codigo=pieza.codigo,
+                        numero_serie=pieza.numero_serie,
+                        desde=desde,
+                    )
+                )
+                p.cantidad += 1
+                if desde is not None and (p.desde is None or desde > p.desde):
+                    p.desde, p.vale_id, p.folio, p.vale_almacen_id = (
+                        desde,
+                        vale_id,
+                        folio,
+                        vale_almacen_id,
+                    )
+            return list(posesiones.values())
+
+        consulta = (
+            select(
+                Trabajador,
+                Existencia.cantidad,
+                ultima.c.desde,
+                ultima.c.vale_id,
+                ultima.c.folio,
+                ultima.c.vale_almacen_id,
+            )
+            .select_from(Trabajador)
+            .join(Ubicacion, Ubicacion.trabajador_id == Trabajador.id)
+            .join(Existencia, Existencia.ubicacion_id == Ubicacion.id)
+            .outerjoin(ultima, and_(ultima.c.ubicacion_id == Ubicacion.id, ultima.c.rn == 1))
+            .where(Existencia.articulo_id == articulo_id, Existencia.cantidad > 0)
+            .order_by(Trabajador.nombre)
+        )
+        return [
+            Posesion(
+                trabajador=t,
+                cantidad=cantidad,
+                desde=desde,
+                vale_id=vale_id,
+                folio=folio,
+                vale_almacen_id=vale_almacen_id,
+            )
+            for t, cantidad, desde, vale_id, folio, vale_almacen_id in self.session.execute(
+                consulta
+            )
+        ]
 
 
 class UbicacionRepository:

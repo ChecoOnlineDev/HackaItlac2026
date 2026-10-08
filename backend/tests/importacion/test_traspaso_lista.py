@@ -214,14 +214,65 @@ def test_TR_04_las_columnas_extra_se_ignoran_con_aviso_y_el_nombre_sale_del_cata
         f"{RAIZ}/vista-previa",
         json=cuerpo(
             session,
-            [art(guantes.codigo, 2) + ["Nombre del archivo"]],
-            columnas=COLUMNAS | {"nombre": 4},
+            [art(guantes.codigo, 2) + ["Marca del archivo"]],
+            columnas=COLUMNAS | {"marca": 4},
         ),
     )
     assert v.status_code == 200, v.text
     v = v.json()
-    assert any("nombre" in a for a in v["avisos"])
+    assert any("marca" in a for a in v["avisos"])
     assert v["filas"][0]["articulo"] == guantes.nombre
+
+
+def test_TR_13_la_columna_nombre_se_reconoce_sin_aviso_y_se_compara_con_el_catalogo(
+    supervisor, session, guantes
+):
+    columnas = COLUMNAS | {"nombre": 4}
+    # Mismo nombre que el catalogo (sin acentos ni mayusculas): no avisa de nada.
+    v = supervisor.post(
+        f"{RAIZ}/vista-previa",
+        json=cuerpo(
+            session, [art(guantes.codigo, 2) + [guantes.nombre.upper()]], columnas=columnas
+        ),
+    ).json()
+    assert v["avisos"] == [] and v["filas"][0]["nivel"] == "VERDE"
+    assert v["filas"][0]["motivos"] == []
+    # Nombre distinto: la fila avisa (amarillo) pero no bloquea.
+    v = supervisor.post(
+        f"{RAIZ}/vista-previa",
+        json=cuerpo(session, [art(guantes.codigo, 2) + ["Taladro percutor"]], columnas=columnas),
+    ).json()
+    fila = v["filas"][0]
+    assert fila["nivel"] == "AMARILLO" and motivos_de(fila) == ["TR-13"]
+    assert fila["motivos"][0]["codigo"] == "NOMBRE_NO_COINCIDE"
+    assert v["resumen"]["avisos"] == 1 and v["resumen"]["errores"] == 0
+    assert v["puede_confirmar"] is True and not any("nombre" in a for a in v["avisos"])
+
+
+def test_TR_13_la_plantilla_descargable_trae_la_columna_nombre(supervisor):
+    from openpyxl import load_workbook
+
+    plantilla = supervisor.get(f"{RAIZ}/plantilla")
+    hoja = load_workbook(io.BytesIO(plantilla.content))["Plantilla"]
+    assert [c.value for c in hoja[1]] == ["codigo", "nombre", "cantidad", "codigo pieza", "serie"]
+
+
+def test_TR_12_con_las_columnas_reconocidas_el_archivo_trae_la_vista_previa_sola(
+    supervisor, session, guantes
+):
+    destino = {"destino_almacen_id": str(almacen_id(session, "CON"))}
+    reconocido = xlsx([["codigo", "nombre", "cantidad"], [guantes.codigo, guantes.nombre, 3]])
+    r = supervisor.post(
+        f"{RAIZ}/archivo", files={"archivo": ("l.xlsx", reconocido, TIPO_XLSX)}, data=destino
+    ).json()
+    assert r["vista_previa"] is not None and r["columnas"]["nombre"] == 1
+    assert r["vista_previa"]["avisos"] == []
+    # Sin una columna de codigo reconocible, no hay vista previa: la persona relaciona columnas.
+    raro = xlsx([["a", "b"], [guantes.codigo, 3]])
+    r = supervisor.post(
+        f"{RAIZ}/archivo", files={"archivo": ("l.xlsx", raro, TIPO_XLSX)}, data=destino
+    ).json()
+    assert r["vista_previa"] is None and r["columnas"]["codigo"] is None
 
 
 def test_TR_04_el_mismo_articulo_se_une_por_cantidad(supervisor, session, guantes):

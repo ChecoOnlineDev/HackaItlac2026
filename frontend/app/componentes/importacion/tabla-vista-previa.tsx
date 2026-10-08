@@ -184,7 +184,6 @@ export function TablaVistaPrevia({ vista, modo, filtro, alFiltrar, categoriaPorF
     ...(modo === "ALTA" ? ["Categoría"] : []),
     "Cantidad",
     ...(hay.unidad ? ["Unidad"] : []),
-    "Almacén",
     ...(hay.costo ? ["Costo"] : []),
     ...(hay.pieza ? ["Código de pieza", "Serie"] : []),
     ...(hay.saldo ? ["Saldo (antes → después)"] : []),
@@ -273,7 +272,6 @@ export function TablaVistaPrevia({ vista, modo, filtro, alFiltrar, categoriaPorF
                       ) : null}
                       <TableCell className="px-3 py-2 align-top tabular-nums">{f.cantidad || <span className="text-muted-foreground">—</span>}</TableCell>
                       {hay.unidad ? <TableCell className="px-3 py-2 align-top whitespace-nowrap">{f.unidad || <span className="text-muted-foreground">—</span>}</TableCell> : null}
-                      <TableCell className="px-3 py-2 align-top whitespace-nowrap">{f.almacen || <span className="text-muted-foreground">—</span>}</TableCell>
                       {hay.costo ? <TableCell className="px-3 py-2 align-top tabular-nums">{f.costo ? `$${f.costo}` : <span className="text-muted-foreground">—</span>}</TableCell> : null}
                       {hay.pieza ? (
                         <>
@@ -306,7 +304,6 @@ export function TablaVistaPrevia({ vista, modo, filtro, alFiltrar, categoriaPorF
                   <Campo etiqueta="Código" valor={f.codigo} nota={f.codigoGenerado ? "Provisional" : undefined} />
                   {hay.marca ? <Campo etiqueta="Marca" valor={f.marca} /> : null}
                   <Campo etiqueta="Cantidad" valor={f.cantidad} />
-                  <Campo etiqueta="Almacén" valor={f.almacen} />
                   {hay.costo ? <Campo etiqueta="Costo" valor={f.costo ? `$${f.costo}` : ""} /> : null}
                   {hay.unidad ? <Campo etiqueta="Unidad" valor={f.unidad} /> : null}
                   {hay.pieza ? (

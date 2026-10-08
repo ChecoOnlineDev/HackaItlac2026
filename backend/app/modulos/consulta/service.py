@@ -18,7 +18,7 @@ from app.modulos.acceso.permisos import P
 from app.modulos.acceso.service import AccesoService
 from app.modulos.catalogo.codigos import CodigoService, normalizar
 from app.modulos.catalogo.exceptions import PiezaNoEncontrada
-from app.modulos.catalogo.models import Articulo, Pieza, TipoCodigo
+from app.modulos.catalogo.models import Articulo, Categoria, Pieza, TipoCodigo
 from app.modulos.consulta import exportacion
 from app.modulos.consulta.exceptions import RangoFechasInvalido
 from app.modulos.consulta.repository import ConsultaRepository, Pendiente
@@ -60,6 +60,7 @@ from app.modulos.consulta.schemas import (
     UsuarioOpcionOut,
     UsuariosOpcionesOut,
 )
+from app.modulos.consulta.service_seguimiento import SeguimientoService
 from app.modulos.trabajadores.models import Trabajador
 from app.modulos.trabajadores.repository import TrabajadorRepository
 from app.modulos.trabajadores.service import TrabajadorService, calcular_vigencia
@@ -127,6 +128,26 @@ def _texto_ubicacion(fila: Any, prefijo: str) -> str:
     return ubicacion.texto if ubicacion else ""
 
 
+TEXTO_DIRECCION = {"ENTRADA": "Entrada", "SALIDA": "Salida", "EN_CAMINO": "En camino"}
+
+
+def direccion_para(fila: Any, almacen_id: uuid.UUID | None) -> str | None:
+    """SG-05: qué fue el movimiento para el almacén que se ve. ENTRADA si llega a sus
+    ubicaciones desde fuera, SALIDA si sale de ellas, EN_CAMINO si es un traspaso hacia él que
+    aún no llega, y `None` si no se filtró por almacén o no lo toca directamente."""
+    if almacen_id is None:
+        return None
+    desde_aqui = fila.origen_almacen_id == almacen_id
+    hacia_aqui = fila.destino_almacen_id == almacen_id
+    if hacia_aqui and not desde_aqui:
+        return "ENTRADA"
+    if desde_aqui and not hacia_aqui:
+        return "SALIDA"
+    if not desde_aqui and not hacia_aqui and fila.vale_destino_almacen_id == almacen_id:
+        return "EN_CAMINO"
+    return None
+
+
 @dataclass(frozen=True)
 class Alcance:
     """Qué almacén puede ver el usuario (AC-06, C-11). `vacio` = no puede ver ninguno."""
@@ -182,15 +203,20 @@ class ConsultaService:
 
     # ========================================================================== escaneo
 
-    def escanear(self, codigo: str, usuario: Usuario) -> EscaneoOut:
+    def escanear(
+        self, codigo: str, usuario: Usuario, almacen_id: uuid.UUID | None = None
+    ) -> EscaneoOut:
         """C-01, C-02, C-03, C-04: qué es el código y un resumen. Lo que el usuario no puede ver
         llega como DESCONOCIDO. Acepta el código de una credencial, un artículo o una pieza, el
-        QR (token) o el folio de un vale y el número de empleado tecleado."""
+        QR (token) o el folio de un vale y el número de empleado tecleado.
+
+        TR-11: con `almacen_id` (el origen de un traspaso) el artículo y la pieza traen
+        `disponible`: lo que hay en ese almacén (0 si no hay; el servidor rechaza con X-02)."""
         permisos = self.acceso.permisos_de(usuario)
         codigo = normalizar(codigo)
         fila = self.codigos.identificar(codigo)
         if fila is not None:
-            return self._escaneo_por_codigo(fila.tipo, fila.ref_id, permisos, usuario)
+            return self._escaneo_por_codigo(fila.tipo, fila.ref_id, permisos, usuario, almacen_id)
         if P.TRABAJADORES_VER in permisos:
             trabajador = self.consultas.trabajador_por_numero(codigo)
             if trabajador is not None:
@@ -206,15 +232,20 @@ class ConsultaService:
         return EscaneoOut(tipo=TipoEscaneo.DESCONOCIDO, id=None, resumen=ResumenDesconocido())
 
     def _escaneo_por_codigo(
-        self, tipo: str, ref_id: uuid.UUID, permisos: frozenset[str], usuario: Usuario
+        self,
+        tipo: str,
+        ref_id: uuid.UUID,
+        permisos: frozenset[str],
+        usuario: Usuario,
+        almacen_id: uuid.UUID | None = None,
     ) -> EscaneoOut:
         if tipo == TipoCodigo.TRABAJADOR and P.TRABAJADORES_VER in permisos:
             trabajador = self.consultas.trabajador(ref_id)
             return self._escaneo_trabajador(trabajador) if trabajador else self._desconocido()
         if tipo == TipoCodigo.ARTICULO and P.CATALOGO_VER in permisos:
-            return self._escaneo_articulo(ref_id, usuario)
+            return self._escaneo_articulo(ref_id, usuario, almacen_id)
         if tipo == TipoCodigo.PIEZA and P.CATALOGO_VER in permisos:
-            return self._escaneo_pieza(ref_id, usuario, permisos)
+            return self._escaneo_pieza(ref_id, usuario, permisos, almacen_id)
         if tipo == TipoCodigo.VALE and P.VALES_VER in permisos:
             return self._escaneo_vale(ref_id, usuario)
         return self._desconocido()
@@ -238,7 +269,9 @@ class ConsultaService:
         )
         return EscaneoOut(tipo=TipoEscaneo.TRABAJADOR, id=trabajador.id, resumen=resumen)
 
-    def _escaneo_articulo(self, articulo_id: uuid.UUID, usuario: Usuario) -> EscaneoOut:
+    def _escaneo_articulo(
+        self, articulo_id: uuid.UUID, usuario: Usuario, almacen_id: uuid.UUID | None = None
+    ) -> EscaneoOut:
         """C-03: el artículo y cuánto hay en los almacenes (sin costo, RG-12). AC-06: sin
         `almacenes.todos`, `existencia_total` es lo que hay en SU almacén."""
         encontrado = self.consultas.articulo(articulo_id)
@@ -255,8 +288,21 @@ class ConsultaService:
             unidad=articulo.unidad,
             activo=articulo.activo,
             existencia_total=self._existencia_visible(articulo.id, usuario),
+            disponible=self._disponible_articulo(articulo.id, usuario, almacen_id),
         )
         return EscaneoOut(tipo=TipoEscaneo.ARTICULO, id=articulo.id, resumen=resumen)
+
+    def _disponible_articulo(
+        self, articulo_id: uuid.UUID, usuario: Usuario, almacen_id: uuid.UUID | None
+    ) -> int | None:
+        """TR-11: lo que hay del artículo en `almacen_id` (dentro del alcance, AC-06); `None` si
+        no se pidió almacén."""
+        if almacen_id is None:
+            return None
+        alcance = self._alcance(usuario, almacen_id)
+        if alcance.vacio or alcance.almacen_id is None:
+            return 0
+        return self.consultas.existencia_total_en_almacenes(articulo_id, alcance.almacen_id)
 
     def _existencia_visible(self, articulo_id: uuid.UUID, usuario: Usuario) -> int:
         """AC-06: lo que hay del artículo en todos los almacenes con `almacenes.todos`; sin él,
@@ -281,7 +327,11 @@ class ConsultaService:
         )
 
     def _escaneo_pieza(
-        self, pieza_id: uuid.UUID, usuario: Usuario, permisos: frozenset[str]
+        self,
+        pieza_id: uuid.UUID,
+        usuario: Usuario,
+        permisos: frozenset[str],
+        almacen_id: uuid.UUID | None = None,
     ) -> EscaneoOut:
         """C-02: estado, inspección y quién la tiene (el historial va en la ficha). AC-06: una
         pieza fuera del alcance del usuario llega como DESCONOCIDO."""
@@ -289,6 +339,17 @@ class ConsultaService:
         if encontrada is None or not self._pieza_en_alcance(pieza_id, usuario, permisos):
             return self._desconocido()
         pieza, articulo = encontrada
+        ubicacion = self._ubicacion_de(pieza)
+        disponible = None
+        if almacen_id is not None:  # TR-11
+            alcance = self._alcance(usuario, almacen_id)
+            en_el_almacen = (
+                not alcance.vacio
+                and ubicacion is not None
+                and ubicacion.tipo == "ALMACEN"
+                and ubicacion.almacen_id == alcance.almacen_id
+            )
+            disponible = 1 if en_el_almacen else 0
         resumen = ResumenPieza(
             codigo=pieza.codigo,
             numero_serie=pieza.numero_serie,
@@ -298,7 +359,8 @@ class ConsultaService:
             estado_texto=TEXTO_ESTADO_PIEZA.get(pieza.estado, pieza.estado),
             inspeccion_vigente_hasta=pieza.inspeccion_vigente_hasta,
             inspeccion_vigente=self._inspeccion_vigente(pieza),
-            ubicacion=self._ubicacion_de(pieza),
+            ubicacion=ubicacion,
+            disponible=disponible,
         )
         return EscaneoOut(tipo=TipoEscaneo.PIEZA, id=pieza.id, resumen=resumen)
 
@@ -337,10 +399,20 @@ class ConsultaService:
 
     # ======================================================================== búsqueda
 
-    def buscar(self, q: str, usuario: Usuario, pagina: Paginacion) -> BusquedaOut:
+    def buscar(
+        self,
+        q: str,
+        usuario: Usuario,
+        pagina: Paginacion,
+        almacen_id: uuid.UUID | None = None,
+    ) -> BusquedaOut:
         """C-06: artículos (nombre o código), piezas (serie, código o nombre del artículo) y
         trabajadores (nombre o número). Cada grupo se llena solo si el usuario puede verlo.
-        Menos de dos caracteres no busca."""
+        Menos de dos caracteres no busca.
+
+        TR-11: con `almacen_id` (el origen de un traspaso) solo se ofrecen artículos y piezas que
+        están en ese almacén, cada uno con `disponible`. Escanear un código que no hay allí no
+        pasa por aquí: sigue dando el artículo con `disponible` 0 y el servidor rechaza con X-02."""
         texto = (q or "").strip()
         vacio_art: Pagina[BusquedaArticuloItem] = Pagina(elementos=[], total=0)
         vacio_pza: Pagina[BusquedaPiezaItem] = Pagina(elementos=[], total=0)
@@ -357,8 +429,15 @@ class ConsultaService:
 
         permisos = self.acceso.permisos_de(usuario)
         articulos, piezas, trabajadores = vacio_art, vacio_pza, vacio_trab
-        if P.CATALOGO_VER in permisos:
-            filas, total = self.consultas.buscar_articulos(texto, pagina.offset, pagina.limit)
+        en_almacen: uuid.UUID | None = None
+        sin_alcance = False
+        if almacen_id is not None:
+            alcance = self._alcance(usuario, almacen_id)
+            sin_alcance, en_almacen = alcance.vacio, alcance.almacen_id
+        if P.CATALOGO_VER in permisos and not sin_alcance:
+            filas, total = self.consultas.buscar_articulos(
+                texto, pagina.offset, pagina.limit, en_almacen_id=en_almacen
+            )
             articulos = Pagina(
                 elementos=[BusquedaArticuloItem.model_validate(dict(f._mapping)) for f in filas],
                 total=total,
@@ -370,6 +449,7 @@ class ConsultaService:
                 todos=self.acceso.puede_operar_todos_los_almacenes(usuario),  # AC-06
                 almacen_id=usuario.almacen_id,
                 ver_trabajadores=P.TRABAJADORES_VER in permisos,
+                en_almacen_id=en_almacen,
             )
             piezas = Pagina(
                 elementos=[
@@ -382,6 +462,7 @@ class ConsultaService:
                         estado=f.estado,
                         estado_texto=TEXTO_ESTADO_PIEZA.get(f.estado, f.estado),
                         ubicacion=_texto_ubicacion(f, "ub") or None,
+                        disponible=1 if en_almacen is not None else None,
                     )
                     for f in filas
                 ],
@@ -434,6 +515,14 @@ class ConsultaService:
             ultima_inspeccion=self._inspeccion_out(*ultima) if ultima else None,
             ubicacion=self._ubicacion_de(pieza),
             historial=self._historial(pieza.id, usuario),
+            aviso=self._aviso_de_resguardo(pieza, articulo),
+        )
+
+    def _aviso_de_resguardo(self, pieza: Pieza, articulo: Articulo) -> str | None:
+        """SG-06: pieza de alto valor en resguardo de un trabajador de baja o sin contrato."""
+        categoria = self.session.get(Categoria, articulo.categoria_id)
+        return SeguimientoService(self.session).aviso_de_pieza(
+            pieza, categoria.nombre if categoria else None
         )
 
     @staticmethod
@@ -492,6 +581,9 @@ class ConsultaService:
                 )
                 if not propio and "TRABAJADOR" not in (f.origen_tipo, f.destino_tipo):
                     continue
+            # SG-03: quién recibe la pieza (o quién la devuelve), con su nombre sin el número
+            trabajador = f.destino_trabajador or f.origen_trabajador
+            trabajador_id = f.destino_trabajador_id or f.origen_trabajador_id
             if propio:
                 origen, destino = _texto_ubicacion(f, "origen"), _texto_ubicacion(f, "destino")
                 detalle = f"De {origen} a {destino}. Vale {f.folio}."
@@ -516,6 +608,9 @@ class ConsultaService:
                     destino=destino,
                     responsable=responsable,
                     condicion=f.condicion,
+                    almacen=f.vale_almacen if propio else None,
+                    trabajador=trabajador,
+                    trabajador_id=trabajador_id,
                 )
             )
         for inspeccion, usuario in self.consultas.historial_inspecciones(pieza_id):
@@ -633,6 +728,11 @@ class ConsultaService:
         alcance = self._alcance(usuario, filtros.almacen_id)
         if alcance.vacio:
             return [], 0
+        usuario_id = filtros.usuario_id
+        if filtros.solo_mios:  # SG-05: «Solo los míos»
+            if usuario_id is not None and usuario_id != usuario.id:
+                return [], 0
+            usuario_id = usuario.id
         filas, total = self.consultas.reporte_movimientos(
             desde=inicio,
             hasta_excluyente=fin,
@@ -640,7 +740,8 @@ class ConsultaService:
             tipo=filtros.tipo.value if filtros.tipo else None,
             trabajador_id=filtros.trabajador_id,
             articulo_id=filtros.articulo_id,
-            usuario_id=filtros.usuario_id,
+            usuario_id=usuario_id,
+            pieza_texto=(filtros.pieza or "").strip() or None,
             offset=pagina.offset if pagina else None,
             limit=pagina.limit if pagina else None,
         )
@@ -656,10 +757,14 @@ class ConsultaService:
                 codigo_articulo=f.codigo_articulo,
                 articulo=f.articulo,
                 pieza=f.pieza,
+                numero_serie=f.numero_serie,
                 cantidad=f.cantidad,
                 origen=_texto_ubicacion(f, "origen"),
                 destino=_texto_ubicacion(f, "destino"),
+                direccion=direccion,
+                direccion_texto=TEXTO_DIRECCION.get(direccion) if direccion else None,
                 responsable=f.responsable,
+                trabajador_id=f.trabajador_id,
                 trabajador=f"{f.trabajador} ({f.numero_empleado})" if f.trabajador else None,
                 autorizado_por=f.autorizado_por,
                 motivo=f.motivo,
@@ -668,6 +773,7 @@ class ConsultaService:
                 observacion=f.observacion,
             )
             for f in filas
+            for direccion in [direccion_para(f, alcance.almacen_id)]
         ]
         return elementos, total
 
@@ -691,6 +797,7 @@ class ConsultaService:
                 "Cantidad",
                 "Origen",
                 "Destino",
+                "Entrada o salida",
                 "Responsable",
                 "Trabajador",
                 "Autorizado por",
@@ -709,6 +816,7 @@ class ConsultaService:
                     e.cantidad,
                     e.origen,
                     e.destino,
+                    e.direccion_texto,
                     e.responsable,
                     e.trabajador,
                     e.autorizado_por,

@@ -22,7 +22,7 @@ import { InterruptorTutorial } from "~/componentes/tutorial/interruptor-tutorial
 import { ConfirmarSalida } from "./confirmar-salida";
 import { InstalarApp } from "./instalar-app";
 import { EncabezadoGrupo, PanelGrupo } from "./grupo-menu";
-import { agruparMenu, idActivo, idGrupoActivo, menuPermitido, type ElementoMenu } from "~/sesion/menu";
+import { armarMenu, idActivo, idEntradaActiva, menuPermitido, type ElementoMenu, type EntradaMenu } from "~/sesion/menu";
 import { useGruposAbiertos } from "~/sesion/menu-estado";
 import { useContadores } from "~/sesion/contadores";
 import { useSesionActiva } from "~/sesion/sesion";
@@ -31,7 +31,8 @@ import { useSesionActiva } from "~/sesion/sesion";
 const CLASE_OPCION =
   "h-auto min-h-10 rounded-xl py-2 text-sm transition-colors hover:bg-accent/60 data-active:bg-accent data-active:font-semibold data-active:text-marino data-active:ring-1 data-active:ring-primary data-active:hover:bg-accent";
 
-function Elemento({ elemento, activo, contador }: { elemento: ElementoMenu; activo: boolean; contador?: number }) {
+/** Una opción del menú: una pantalla dentro de un grupo, o la entrada de una sección (lleva a su primera pestaña). */
+function Elemento({ elemento, activo, contador }: { elemento: Pick<ElementoMenu | EntradaMenu, "titulo" | "ruta" | "icono">; activo: boolean; contador?: number }) {
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
@@ -53,10 +54,12 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
   const [confirmandoSalida, setConfirmandoSalida] = useState(false);
   const contadores = useContadores();
   const permitidos = menuPermitido(puedeAlguno);
-  const grupos = agruparMenu(permitidos);
+  const entradas = armarMenu(permitidos);
   const { pathname } = useLocation();
   const activoId = idActivo(permitidos, pathname);
-  const { abierto, alternar } = useGruposAbiertos(idGrupoActivo(grupos, activoId));
+  const entradaActiva = idEntradaActiva(entradas, activoId);
+  const { abierto, alternar } = useGruposAbiertos(entradaActiva);
+  const suma = (e: EntradaMenu) => e.contadores.reduce((total, c) => total + (contadores[c] ?? 0), 0) || undefined;
 
   return (
     <SidebarProvider>
@@ -85,31 +88,36 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-          {grupos.map(({ id, titulo, elementos }) => (
-            <SidebarGroup key={id}>
-              <EncabezadoGrupo
-                id={id}
-                titulo={titulo}
-                abierto={abierto(id)}
-                activo={elementos.some((e) => e.id === activoId)}
-                alAlternar={() => alternar(id)}
-              />
-              <PanelGrupo id={id} abierto={abierto(id)}>
+          {entradas.map((entrada) =>
+            entrada.grupo ? (
+              <SidebarGroup key={entrada.id}>
+                <EncabezadoGrupo
+                  id={entrada.id}
+                  titulo={entrada.titulo}
+                  abierto={abierto(entrada.id)}
+                  activo={entrada.id === entradaActiva}
+                  alAlternar={() => alternar(entrada.id)}
+                />
+                <PanelGrupo id={entrada.id} abierto={abierto(entrada.id)}>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {entrada.elementos.map((e) => (
+                        <Elemento key={e.id} elemento={e} activo={e.id === activoId} contador={e.contador ? contadores[e.contador] : undefined} />
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </PanelGrupo>
+              </SidebarGroup>
+            ) : (
+              <SidebarGroup key={entrada.id} className="py-0.5">
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {elementos.map((e) => (
-                      <Elemento
-                        key={e.id}
-                        elemento={e}
-                        activo={e.id === activoId}
-                        contador={e.contador ? contadores[e.contador] : undefined}
-                      />
-                    ))}
+                    <Elemento elemento={entrada} activo={entrada.id === entradaActiva} contador={suma(entrada)} />
                   </SidebarMenu>
                 </SidebarGroupContent>
-              </PanelGrupo>
-            </SidebarGroup>
-          ))}
+              </SidebarGroup>
+            ),
+          )}
         </SidebarContent>
         <SidebarFooter className="gap-3 border-t p-4">
           <div className="flex items-center gap-3">

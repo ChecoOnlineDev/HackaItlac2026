@@ -5,7 +5,8 @@ import { Link, useLocation } from "react-router";
 
 import { InterruptorTutorial } from "~/componentes/tutorial/interruptor-tutorial";
 import { Hoja } from "~/componentes/ui/hoja";
-import { agruparMenu, idActivo, idGrupoActivo, menuPermitido } from "~/sesion/menu";
+import { armarMenu, idActivo, idEntradaActiva, menuPermitido, type EntradaMenu } from "~/sesion/menu";
+import { useContadores } from "~/sesion/contadores";
 import { useGruposAbiertos } from "~/sesion/menu-estado";
 import { useSesion } from "~/sesion/sesion";
 import { EncabezadoGrupo, PanelGrupo } from "./grupo-menu";
@@ -20,10 +21,15 @@ export function MenuHoja({ abierta, alCambiar }: { abierta: boolean; alCambiar: 
   const { puedeAlguno } = useSesion();
   const { pathname } = useLocation();
   const permitidos = menuPermitido(puedeAlguno);
-  const grupos = agruparMenu(permitidos);
-  const activoId = pathname === "/" ? "inicio" : idActivo(permitidos, pathname);
+  const entradas = armarMenu(permitidos);
+  const contadores = useContadores();
+  const elActivo = idActivo(permitidos, pathname);
+  const entradaActiva = idEntradaActiva(entradas, elActivo);
+  // En Inicio se marca «inicio»; si no, la opción de un grupo (por su pantalla) o la entrada simple (por su sección).
+  const activoId = pathname === "/" ? "inicio" : elActivo;
   const activa = useRef<HTMLAnchorElement | null>(null);
-  const { abierto, alternar } = useGruposAbiertos(idGrupoActivo(grupos, activoId));
+  const { abierto, alternar } = useGruposAbiertos(entradaActiva);
+  const suma = (e: EntradaMenu) => e.contadores.reduce((total, c) => total + (contadores[c] ?? 0), 0) || undefined;
 
   // Al abrir, la opción activa queda a la vista aunque la lista sea larga.
   useEffect(() => {
@@ -49,37 +55,59 @@ export function MenuHoja({ abierta, alCambiar }: { abierta: boolean; alCambiar: 
           <HomeIcon aria-hidden="true" className="size-4.5 text-primary" />
           Inicio
         </Link>
-        {grupos.map(({ id, titulo, elementos }) => (
-          <div key={id} className="flex flex-col gap-1">
-            <EncabezadoGrupo
-              id={id}
-              titulo={titulo}
-              abierto={abierto(id)}
-              activo={elementos.some((e) => e.id === activoId)}
-              alAlternar={() => alternar(id)}
-            />
-            <PanelGrupo id={id} abierto={abierto(id)}>
-              <div className="flex flex-col gap-1">
-                {elementos.map((e) => {
-                  const esActiva = e.id === activoId;
-                  return (
-                    <Link
-                      key={e.id}
-                      ref={ref(esActiva)}
-                      to={e.ruta}
-                      onClick={() => alCambiar(false)}
-                      aria-current={esActiva ? "page" : undefined}
-                      className={cn(BASE, esActiva && ACTIVA)}
-                    >
-                      <e.icono aria-hidden="true" className="size-4.5 text-primary" />
-                      {e.titulo}
-                    </Link>
-                  );
-                })}
-              </div>
-            </PanelGrupo>
-          </div>
-        ))}
+        {entradas.map((entrada) => {
+          if (!entrada.grupo) {
+            const esActiva = entrada.id === entradaActiva && pathname !== "/";
+            const cuenta = suma(entrada);
+            return (
+              <Link
+                key={entrada.id}
+                ref={ref(esActiva)}
+                to={entrada.ruta}
+                onClick={() => alCambiar(false)}
+                aria-current={esActiva ? "page" : undefined}
+                className={cn(BASE, "justify-between", esActiva && ACTIVA)}
+              >
+                <span className="flex items-center gap-3">
+                  <entrada.icono aria-hidden="true" className="size-4.5 text-primary" />
+                  {entrada.titulo}
+                </span>
+                {cuenta ? <span className="rounded-full bg-primary px-2 text-xs font-semibold text-primary-foreground">{cuenta}</span> : null}
+              </Link>
+            );
+          }
+          return (
+            <div key={entrada.id} className="flex flex-col gap-1">
+              <EncabezadoGrupo
+                id={entrada.id}
+                titulo={entrada.titulo}
+                abierto={abierto(entrada.id)}
+                activo={entrada.id === entradaActiva}
+                alAlternar={() => alternar(entrada.id)}
+              />
+              <PanelGrupo id={entrada.id} abierto={abierto(entrada.id)}>
+                <div className="flex flex-col gap-1">
+                  {entrada.elementos.map((e) => {
+                    const esActiva = e.id === activoId;
+                    return (
+                      <Link
+                        key={e.id}
+                        ref={ref(esActiva)}
+                        to={e.ruta}
+                        onClick={() => alCambiar(false)}
+                        aria-current={esActiva ? "page" : undefined}
+                        className={cn(BASE, esActiva && ACTIVA)}
+                      >
+                        <e.icono aria-hidden="true" className="size-4.5 text-primary" />
+                        {e.titulo}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </PanelGrupo>
+            </div>
+          );
+        })}
       </nav>
       <InstalarApp className="mt-5" />
       <InterruptorTutorial className="mt-3" alIniciar={() => alCambiar(false)} />

@@ -74,22 +74,22 @@ def test_I_06_resumen_y_articulos_que_se_crearian(compras):
         compras,
         [
             fila(codigo, nombre="Taladro", cantidad=2, almacen="KEP"),
-            fila(codigo, nombre="Taladro", cantidad=4, almacen="CON"),
+            fila(codigo, nombre="Taladro", cantidad=4, almacen="CON"),  # EK-01: también Kepler
         ],
     )
     assert vp["resumen"] == {
         "total": 2,
-        "validas": 2,
+        "validas": 1,
         "con_error": 0,
         "vacias": 0,
         "articulos_nuevos": 1,
         "existentes": 0,
-        "unidos": 0,
+        "unidos": 1,
         "excluidas": 0,
         "por_revisar": 0,
         "piezas": 0,
         "unidades": 6,
-        "almacenes": 2,
+        "almacenes": 1,
         "series_pendientes": 0,  # I-17
     }
     nuevo = vp["articulos_nuevos"][0]
@@ -207,7 +207,7 @@ def test_I_01_la_cantidad_debe_ser_un_entero_mayor_que_cero(compras):
     ]
 
 
-def test_I_01_el_almacen_se_reconoce_por_clave_o_nombre_y_el_desconocido_se_rechaza(compras):
+def test_EK_01_la_columna_de_almacen_se_ignora_con_aviso_y_todo_entra_a_kepler(compras):
     vp = vista(
         compras,
         [
@@ -218,34 +218,40 @@ def test_I_01_el_almacen_se_reconoce_por_clave_o_nombre_y_el_desconocido_se_rech
         ],
     )
     claves = {f["fila"]: f["almacen"]["clave"] for f in vp["filas_validas"]}
-    assert claves == {1: "CON", 2: "CON", 4: "KEP"}  # sin almacén, la compra entra por Kepler
-    assert motivos(vp, 3)[0]["codigo"] == "ALMACEN_DESCONOCIDO"
+    assert claves == {1: "KEP", 2: "KEP", 3: "KEP", 4: "KEP"}
+    assert vp["filas_error"] == []
+    assert any("columna de almacén" in a for a in vp["avisos"])
+    assert vp["resumen"]["almacenes"] == 1
 
 
-def test_I_01_un_almacen_cerrado_se_rechaza(compras, session):
-    session.query(Almacen).filter(Almacen.clave == "LAM").update({"estado": EstadoAlmacen.CERRADO})
+def test_EK_01_sin_columna_de_almacen_no_hay_aviso(compras):
+    vp = vista(compras, [fila(unico("A"), cantidad=1, almacen="")])
+    assert not any("columna de almacén" in a for a in vp["avisos"])
+
+
+def test_EK_01_si_kepler_esta_cerrado_la_fila_se_rechaza(compras, session):
+    session.query(Almacen).filter(Almacen.clave == "KEP").update({"estado": EstadoAlmacen.CERRADO})
     session.flush()
     vp = vista(compras, [fila(unico("A"), cantidad=1, almacen="LAM")])
     assert motivos(vp, 1)[0]["codigo"] == "ALMACEN_CERRADO"
 
 
-def test_I_01_el_almacen_por_defecto_se_puede_elegir(compras):
+def test_EK_01_el_almacen_por_defecto_del_cuerpo_se_ignora(compras):
     vp = vista(compras, [fila(unico("A"), cantidad=1, almacen="")], almacen_por_defecto="MID")
-    assert vp["filas_validas"][0]["almacen"]["clave"] == "MID"
+    assert vp["filas_validas"][0]["almacen"]["clave"] == "KEP"
 
 
-def test_AC_06_sin_almacenes_todos_solo_se_carga_al_almacen_asignado(cliente_con):
-    kepler = cliente_con({P.INVENTARIO_ENTRADAS, P.CATALOGO_ADMINISTRAR}, almacen="KEP")
-    vp = vista(
-        kepler,
-        [
-            fila(unico("A"), cantidad=1, almacen="KEP"),
-            fila(unico("B"), cantidad=1, almacen=""),
-            fila(unico("C"), cantidad=1, almacen="CON"),
-        ],
+def test_AC_06_sin_almacenes_todos_solo_da_entrada_quien_esta_en_kepler(cliente_con):
+    kepler = cliente_con(
+        {P.INVENTARIO_ENTRADAS, P.INVENTARIO_IMPORTAR, P.CATALOGO_ADMINISTRAR}, almacen="KEP"
     )
-    assert [f["fila"] for f in vp["filas_validas"]] == [1, 2]
-    assert motivos(vp, 3)[0]["codigo"] == "ALMACEN_AJENO"
+    vp = vista(kepler, [fila(unico("A"), cantidad=1, almacen="CON")])
+    assert [f["fila"] for f in vp["filas_validas"]] == [1]
+    contratistas = cliente_con(
+        {P.INVENTARIO_ENTRADAS, P.INVENTARIO_IMPORTAR, P.CATALOGO_ADMINISTRAR}, almacen="CON"
+    )
+    vp = vista(contratistas, [fila(unico("B"), cantidad=1, almacen="CON")])
+    assert vp["filas_validas"] == [] and motivos(vp, 1)[0]["codigo"] == "ALMACEN_AJENO"
 
 
 # ------------------------------------------------------------------------------ CF-02
@@ -378,12 +384,11 @@ def test_RG_10_el_mismo_articulo_por_cantidad_en_el_mismo_almacen_se_consolida(c
         ],
     )
     assert vp["filas_error"] == []
-    assert [f["fila"] for f in vp["filas_validas"]] == [1, 3]  # otro almacén es otra fila
+    assert [f["fila"] for f in vp["filas_validas"]] == [1]  # EK-01: todo es Kepler, se suma
     unida = vp["filas_validas"][0]
-    assert unida["estado"] == "UNIDO" and unida["cantidad"] == 6 and unida["unida_de"] == [2]
-    assert "Unido: filas 1, 2" in unida["avisos"]
-    assert (unida["saldo_antes"], unida["saldo_despues"]) == (0, 6)
-    assert vp["filas_validas"][1]["estado"] == "NUEVO"
+    assert unida["estado"] == "UNIDO" and unida["cantidad"] == 8 and unida["unida_de"] == [2, 3]
+    assert "Unido: filas 1, 2, 3" in unida["avisos"]
+    assert (unida["saldo_antes"], unida["saldo_despues"]) == (0, 8)
     assert vp["resumen"]["unidos"] == 1 and vp["resumen"]["unidades"] == 8
 
 
@@ -509,7 +514,9 @@ def test_I_02_un_articulo_por_cantidad_ignora_el_codigo_de_pieza_y_avisa(compras
 
 
 def test_RG_12_sin_catalogo_costos_la_columna_de_costo_se_ignora_con_aviso(cliente_con):
-    sin_costos = cliente_con({P.INVENTARIO_ENTRADAS, P.ALMACENES_TODOS, P.CATALOGO_ADMINISTRAR})
+    sin_costos = cliente_con(
+        {P.INVENTARIO_ENTRADAS, P.INVENTARIO_IMPORTAR, P.ALMACENES_TODOS, P.CATALOGO_ADMINISTRAR}
+    )
     r = sin_costos.post(VISTA_PREVIA, json=cuerpo([fila(unico("A"), cantidad=2, costo="99.90")]))
     assert r.status_code == 200, r.text
     vp = r.json()
@@ -521,7 +528,9 @@ def test_RG_12_sin_catalogo_costos_la_columna_de_costo_se_ignora_con_aviso(clien
 
 
 def test_RG_12_sin_catalogo_costos_el_costo_tampoco_vuelve_en_las_filas_con_error(cliente_con):
-    sin_costos = cliente_con({P.INVENTARIO_ENTRADAS, P.ALMACENES_TODOS, P.CATALOGO_ADMINISTRAR})
+    sin_costos = cliente_con(
+        {P.INVENTARIO_ENTRADAS, P.INVENTARIO_IMPORTAR, P.ALMACENES_TODOS, P.CATALOGO_ADMINISTRAR}
+    )
     r = sin_costos.post(
         VISTA_PREVIA, json=cuerpo([fila(unico("A"), cantidad="mal", costo="123.45")])
     )
@@ -555,7 +564,7 @@ def test_RG_12_el_costo_de_un_articulo_que_ya_existe_no_cambia_y_avisa(compras, 
 # --------------------------------------------------------------------------- permisos
 
 
-def test_I_06_sin_inventario_entradas_los_tres_endpoints_dan_403(almacenista, cliente_con):
+def test_I_06_sin_inventario_importar_los_tres_endpoints_dan_403(almacenista, cliente_con):
     sin_permiso = cliente_con({P.CATALOGO_VER}, almacen="KEP")
     for cliente in (almacenista, sin_permiso):
         assert cliente.post(VISTA_PREVIA, json=cuerpo([fila("X", cantidad=1)])).status_code == 403
@@ -574,7 +583,7 @@ def test_I_06_sin_sesion_los_endpoints_dan_401(client):
     assert client.post("/api/importacion", json=cuerpo([])).status_code == 401
 
 
-def test_I_06_dos_filas_buenas_de_un_articulo_nuevo_con_nombres_distintos_avisan(compras):
+def test_I_06_dos_filas_de_un_articulo_nuevo_con_nombres_distintos_se_unen_con_el_primero(compras):
     codigo = unico("N")
     vp = vista(
         compras,
@@ -584,4 +593,6 @@ def test_I_06_dos_filas_buenas_de_un_articulo_nuevo_con_nombres_distintos_avisan
         ],
     )
     assert vp["articulos_nuevos"][0]["nombre"] == "Primero"
-    assert any("Primero" in a for a in vp["filas_validas"][1]["avisos"])
+    # EK-01: las dos filas son de Kepler y se unen en una, con el nombre de la primera.
+    assert vp["filas_error"] == [] and len(vp["filas_validas"]) == 1
+    assert vp["filas_validas"][0]["estado"] == "UNIDO"

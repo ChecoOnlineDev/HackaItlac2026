@@ -13,7 +13,7 @@ from sqlalchemy import delete, select
 from app.modulos.acceso.permisos import P
 from app.modulos.almacenes.models import Almacen, Ubicacion
 from app.modulos.auditoria.models import Auditoria
-from tests.movimientos.ayudas import abastecer, crear_articulo, crear_trabajador, unico
+from tests.movimientos.ayudas import abastecer_en, crear_articulo, crear_trabajador, unico
 from tests.movimientos.ayudas_traspasos import (  # noqa: F401  (fixtures)
     cliente_almacen,
     cuerpo_traspaso,
@@ -190,14 +190,13 @@ def test_AL_02_el_padre_debe_existir_estar_activo_y_cuadrar_con_el_tipo(admin, s
 
 
 def test_AL_02_un_almacen_no_depende_de_si_mismo_ni_de_un_descendiente(admin, session):
-    a = nuevo(admin, session)
+    a = nuevo(admin, session, tipo="SUBALMACEN", padre="KEP")
     b = nuevo(admin, session, padre=a["clave"])
-    c = nuevo(admin, session, padre=b["clave"])
-    for padre in (a["id"], c["id"]):  # él mismo y su descendiente
+    for padre in (a["id"], b["id"]):  # él mismo y su descendiente
         r = admin.patch(f"{ALMACENES}/{a['id']}", json={"padre_id": padre})
         assert r.status_code == 422 and r.json()["codigo"] == "PADRE_INVALIDO", padre
     # Con un padre válido sí cambia.
-    r = admin.patch(f"{ALMACENES}/{c['id']}", json={"padre_id": _id(session, "CON")})
+    r = admin.patch(f"{ALMACENES}/{b['id']}", json={"padre_id": _id(session, "CON")})
     assert r.status_code == 200 and r.json()["padre_clave"] == "CON"
     # El central no lleva padre.
     r = admin.patch(f"{ALMACENES}/{_id(session, 'KEP')}", json={"padre_id": _id(session, "CON")})
@@ -268,7 +267,7 @@ def _bloqueos(r) -> list[str]:
 def test_AL_03_con_existencias_no_se_cierra_y_dice_cuantas(admin, session):
     ficha = nuevo(admin, session)
     articulo = crear_articulo(session, retornable=False)
-    abastecer(admin, articulo, 7, almacen_id=ficha["id"])
+    abastecer_en(session, articulo, 7, ficha["clave"])
     r = admin.post(f"{ALMACENES}/{ficha['id']}/cierre")
     assert r.status_code == 409 and r.json()["codigo"] == "CON_EXISTENCIAS"
     bloqueo = r.json()["detalles"]["bloqueos"][0]
@@ -288,7 +287,7 @@ def test_AL_03_con_existencias_no_se_cierra_y_dice_cuantas(admin, session):
 def test_AL_03_con_traspasos_en_transito_no_se_cierra(admin, session):
     ficha = nuevo(admin, session)
     articulo = crear_articulo(session, retornable=False)
-    abastecer(admin, articulo, 5, almacen_id=_id(session, "CON"))
+    abastecer_en(session, articulo, 5, "CON")
     r = admin.post(
         "/api/vales",
         json=cuerpo_traspaso(session, ficha["clave"], [renglon(articulo.codigo, 2)])
@@ -302,7 +301,7 @@ def test_AL_03_con_traspasos_en_transito_no_se_cierra(admin, session):
 
 
 def test_AL_03_con_hijos_activos_no_se_cierra(admin, session):
-    padre = nuevo(admin, session)
+    padre = nuevo(admin, session, tipo="SUBALMACEN", padre="KEP")
     hijo = nuevo(admin, session, padre=padre["clave"])
     r = admin.post(f"{ALMACENES}/{padre['id']}/cierre")
     assert r.status_code == 409 and r.json()["codigo"] == "CON_HIJOS_ACTIVOS"
@@ -324,7 +323,7 @@ def test_AL_03_con_usuarios_no_se_cierra_y_dice_quienes(admin, session, crear_us
 def test_AL_03_el_detalle_lista_todos_los_bloqueos_en_orden(admin, session, crear_usuario):
     ficha = nuevo(admin, session)
     articulo = crear_articulo(session, retornable=False)
-    abastecer(admin, articulo, 3, almacen_id=ficha["id"])
+    abastecer_en(session, articulo, 3, ficha["clave"])
     crear_usuario({P.INVENTARIO_VER}, almacen=ficha["clave"])
     r = admin.post(f"{ALMACENES}/{ficha['id']}/cierre")
     assert r.json()["codigo"] == "CON_EXISTENCIAS"
@@ -332,7 +331,7 @@ def test_AL_03_el_detalle_lista_todos_los_bloqueos_en_orden(admin, session, crea
 
 
 def test_AL_03_al_reabrir_con_el_padre_cerrado_responde_padre_cerrado(admin, session):
-    a = nuevo(admin, session)
+    a = nuevo(admin, session, tipo="SUBALMACEN", padre="KEP")
     b = nuevo(admin, session, padre=a["clave"])
     assert admin.post(f"{ALMACENES}/{b['id']}/cierre").status_code == 200
     assert admin.post(f"{ALMACENES}/{a['id']}/cierre").status_code == 200
@@ -371,7 +370,7 @@ def test_AL_04_una_entrega_desde_un_almacen_cerrado_se_rechaza(cliente_como, ses
 
     trabajador = crear_trabajador(session)
     articulo = crear_articulo(session, retornable=False)
-    abastecer(cliente_como("Administrador"), articulo, 3, almacen_id=_id(session, "MID"))
+    abastecer_en(session, articulo, 3, "MID")
     _cerrar(session, "MID")
     cliente = cliente_como("Almacenista")  # de Kepler; el administrador opera con almacen_id
     admin = cliente_como("Administrador")
@@ -396,13 +395,6 @@ def test_AL_04_una_entrada_y_una_devolucion_a_un_almacen_cerrado_se_rechazan(cli
     articulo = crear_articulo(session, retornable=False)
     _cerrar(session, "HYL")
     admin = cliente_como("Administrador")
-    r = admin.post(
-        "/api/vales",
-        json=cuerpo_entrada(
-            [{"codigo": articulo.codigo, "cantidad": 1}], almacen_id=_id(session, "HYL")
-        ),
-    )
-    assert r.status_code == 409 and r.json()["codigo"] == "ALMACEN_CERRADO"
     trabajador = crear_trabajador(session)
     r = admin.post(
         "/api/vales",
@@ -411,12 +403,16 @@ def test_AL_04_una_entrada_y_una_devolucion_a_un_almacen_cerrado_se_rechazan(cli
         ),
     )
     assert r.status_code == 409 and r.json()["codigo"] == "ALMACEN_CERRADO"
+    # La entrada siempre es a Kepler (EK-01): si Kepler está cerrado, tampoco recibe.
+    _cerrar(session, "KEP")
+    r = admin.post("/api/vales", json=cuerpo_entrada([{"codigo": articulo.codigo, "cantidad": 1}]))
+    assert r.status_code == 409 and r.json()["codigo"] == "ALMACEN_CERRADO"
 
 
 def test_AL_04_un_traspaso_desde_o_hacia_un_almacen_cerrado_se_rechaza(cliente_como, session):
     articulo = crear_articulo(session, retornable=False)
     admin = cliente_como("Administrador")
-    abastecer(admin, articulo, 4, almacen_id=_id(session, "CON"))
+    abastecer_en(session, articulo, 4, "CON")
     _cerrar(session, "LAM")
     cuerpo = cuerpo_traspaso(session, "LAM", [renglon(articulo.codigo)]) | {
         "almacen_id": _id(session, "CON")
@@ -467,8 +463,8 @@ def test_AL_05_la_clave_se_corrige_mientras_no_tenga_folios(admin, session):
 def test_AL_05_con_folios_la_clave_no_se_cambia(admin, session):
     ficha = nuevo(admin, session)
     articulo = crear_articulo(session, retornable=False)
-    vale = abastecer(admin, articulo, 2, almacen_id=ficha["id"])
-    assert vale["folio"].startswith(ficha["clave"] + "-")
+    vale = abastecer_en(session, articulo, 2, ficha["clave"])
+    assert vale.folio.startswith(ficha["clave"] + "-")
     r = admin.patch(f"{ALMACENES}/{ficha['id']}", json={"clave": "otra9"})
     assert r.status_code == 409 and r.json()["codigo"] == "CLAVE_CON_FOLIOS"
     # El nombre sí se puede cambiar.
@@ -488,7 +484,56 @@ def test_AL_05_un_almacen_cerrado_no_se_edita(admin, session):
 
 
 def test_AL_02_el_primer_folio_de_un_almacen_nuevo_es_el_001(admin, session):
-    ficha = nuevo(admin, session, clave="PRY")
+    nuevo(admin, session, clave="PRY")
     articulo = crear_articulo(session, retornable=False, codigo=unico("ART"))
-    vale = abastecer(admin, articulo, 1, almacen_id=ficha["id"])
-    assert vale["folio"] == "PRY-ING-000001"
+    vale = abastecer_en(session, articulo, 1, "PRY")
+    assert vale.folio.startswith("PRY-") and vale.folio.endswith("-000001")
+
+
+# --------------------------------------------------------------------------------- EK-06
+
+
+def test_EK_06_un_proyecto_depende_de_un_subalmacen_no_del_central_ni_de_otro_proyecto(
+    admin, session
+):
+    for padre in ("KEP", "MID"):
+        r = admin.post(
+            ALMACENES,
+            json={
+                "clave": _clave(),
+                "nombre": f"Proyecto {_clave()}",
+                "tipo": "PROYECTO",
+                "padre_id": _id(session, padre),
+            },
+        )
+        assert r.status_code == 422 and r.json()["codigo"] == "PADRE_INVALIDO", padre
+        assert "subalmacén" in r.json()["mensaje"]
+    assert nuevo(admin, session, padre="CON")["padre_clave"] == "CON"
+
+
+def test_EK_06_un_subalmacen_depende_del_central(admin, session):
+    for padre in ("CON", "MID"):
+        r = admin.post(
+            ALMACENES,
+            json={
+                "clave": _clave(),
+                "nombre": f"Sub {_clave()}",
+                "tipo": "SUBALMACEN",
+                "padre_id": _id(session, padre),
+            },
+        )
+        assert r.status_code == 422 and r.json()["codigo"] == "PADRE_INVALIDO", padre
+        assert "Kepler" in r.json()["mensaje"]
+    assert nuevo(admin, session, tipo="SUBALMACEN", padre="KEP")["padre_clave"] == "KEP"
+
+
+def test_EK_06_al_editar_tambien_se_valida_el_tipo_del_padre(admin, session):
+    proyecto = nuevo(admin, session, padre="CON")
+    for padre in ("KEP", "HYL"):
+        r = admin.patch(f"{ALMACENES}/{proyecto['id']}", json={"padre_id": _id(session, padre)})
+        assert r.status_code == 422 and r.json()["codigo"] == "PADRE_INVALIDO", padre
+    subalmacen = nuevo(admin, session, tipo="SUBALMACEN", padre="KEP")
+    r = admin.patch(f"{ALMACENES}/{subalmacen['id']}", json={"padre_id": _id(session, "CON")})
+    assert r.status_code == 422 and r.json()["codigo"] == "PADRE_INVALIDO"
+    r = admin.patch(f"{ALMACENES}/{proyecto['id']}", json={"padre_id": subalmacen["id"]})
+    assert r.status_code == 200 and r.json()["padre_clave"] == subalmacen["clave"]

@@ -69,7 +69,7 @@ export const TEXTO_ACCION: Record<AccionSolicitud, string> = {
   tomar: "Tomar",
   rechazar: "Rechazar",
   comprar: "Marcar como comprada",
-  ingresar: "Ingresar al almacén",
+  ingresar: "Ingresar a Kepler",
   cancelar: "Cancelar solicitud",
 };
 

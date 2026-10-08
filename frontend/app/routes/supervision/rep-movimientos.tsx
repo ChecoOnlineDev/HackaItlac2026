@@ -1,8 +1,10 @@
 import { cn } from "cn";
+import { ArrowDownToLineIcon, ArrowUpFromLineIcon, TruckIcon } from "lucide-react";
 import { Link } from "react-router";
 
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { apiGet, descargarCsv } from "~/api/cliente";
+import { Campo } from "~/componentes/ui/campo";
 import { useConsulta } from "~/componentes/catalogo/usar-consulta";
 import { formatearFechaHora } from "~/componentes/dominio/fechas";
 import { Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
@@ -28,9 +30,33 @@ import {
 import { useFiltrosUrl } from "~/componentes/reportes/usar-filtros";
 import { Insignia } from "~/componentes/ui/insignia";
 
-export const handle: ManejadorRuta = { permiso: "reportes.movimientos" };
+// SG-05: la ve quien tiene la bitácora o el reporte de movimientos.
+export const handle: ManejadorRuta = { permisosAlguno: ["bitacora.ver", "reportes.movimientos"] };
 
-const CLAVES = ["desde", "hasta", "almacen_id", "tipo", "trabajador_id", "articulo_id", "usuario_id"] as const;
+const CLAVES = ["desde", "hasta", "almacen_id", "tipo", "trabajador_id", "articulo_id", "usuario_id", "pieza", "solo_mios"] as const;
+const OPCIONES_AUTOR = [{ valor: "true", texto: "Solo los míos" }];
+
+/** Entrada, salida o en camino respecto al almacén que se ve. Sin almacén elegido no hay "respecto a". */
+function Direccion({ m }: { m: MovimientoReporte }) {
+  if (!m.direccion) return <span className="text-muted-foreground">—</span>;
+  const Icono = m.direccion === "ENTRADA" ? ArrowDownToLineIcon : m.direccion === "SALIDA" ? ArrowUpFromLineIcon : TruckIcon;
+  return (
+    <span className="inline-flex items-center gap-1.5 font-semibold whitespace-nowrap">
+      <Icono aria-hidden="true" className="size-4" />
+      {m.direccion_texto ?? m.direccion}
+    </span>
+  );
+}
+
+function Trabajador({ m }: { m: MovimientoReporte }) {
+  if (!m.trabajador) return <span className="text-muted-foreground">—</span>;
+  if (!m.trabajador_id) return <>{m.trabajador}</>;
+  return (
+    <Link to={`/trabajadores/${m.trabajador_id}`} className="inline-flex min-h-10 items-center text-primary underline underline-offset-4">
+      {m.trabajador}
+    </Link>
+  );
+}
 
 function Saldo({ m, enLinea = false }: { m: MovimientoReporte; enLinea?: boolean }) {
   if (m.saldo_origen === null && m.saldo_destino === null) return <span className="text-muted-foreground">—</span>;
@@ -49,6 +75,7 @@ function Articulo({ m }: { m: MovimientoReporte }) {
       <span className="block text-sm text-muted-foreground">
         {m.codigo_articulo}
         {m.pieza ? ` · Pieza ${m.pieza}` : ""}
+        {m.numero_serie ? ` · Serie ${m.numero_serie}` : ""}
       </span>
     </>
   );
@@ -87,6 +114,8 @@ export default function ReporteMovimientos() {
     trabajador_id: valores.trabajador_id,
     articulo_id: valores.articulo_id,
     usuario_id: valores.usuario_id,
+    pieza: valores.pieza,
+    solo_mios: valores.solo_mios === "true" ? "true" : "",
   };
   const claveConsulta = JSON.stringify([parametros, pagina]);
   const consulta = useConsulta(
@@ -110,6 +139,8 @@ export default function ReporteMovimientos() {
   }
   if (valores.trabajador_id) activos.push({ clave: "trabajador_id", texto: `Trabajador: ${etiquetaTrabajador ?? "elegido"}` });
   if (valores.articulo_id) activos.push({ clave: "articulo_id", texto: `Artículo: ${etiquetaArticulo ?? "elegido"}` });
+  if (valores.pieza) activos.push({ clave: "pieza", texto: `Pieza o serie: ${valores.pieza}` });
+  if (valores.solo_mios === "true") activos.push({ clave: "solo_mios", texto: "Solo los míos" });
   if (valores.usuario_id) {
     activos.push({ clave: "usuario_id", texto: `Quién lo hizo: ${textoDeOpcion(usuarios.opciones, valores.usuario_id) ?? "elegido"}` });
   }
@@ -145,13 +176,27 @@ export default function ReporteMovimientos() {
         opciones={usuarios.opciones}
         alCambiar={(v) => c({ usuario_id: v })}
       />
+      <FiltroLista
+        etiqueta="De quién es el movimiento"
+        vacio="De todos"
+        valor={v.solo_mios}
+        opciones={OPCIONES_AUTOR}
+        alCambiar={(v) => c({ solo_mios: v })}
+      />
+      <Campo
+        etiqueta="Pieza o número de serie"
+        value={v.pieza ?? ""}
+        placeholder="Código de pieza o serie"
+        autoComplete="off"
+        onChange={(e) => c({ pieza: e.target.value })}
+      />
       <SelectorBusqueda tipo="trabajador" valor={v.trabajador_id} alCambiar={(id) => c({ trabajador_id: id })} />
       <SelectorBusqueda tipo="articulo" valor={v.articulo_id} alCambiar={(id) => c({ articulo_id: id })} />
     </>
   );
 
   return (
-    <Pantalla titulo="Reporte de movimientos" descripcion="Qué se movió, cuándo y quién lo hizo.">
+    <Pantalla titulo="Bitácora del almacén" descripcion="Lo que sale, lo que llega y lo que entra: qué, cuándo y quién.">
       <MarcoReporte<MovimientoReporte>
         unidad="movimientos"
         valores={valores}
@@ -172,12 +217,14 @@ export default function ReporteMovimientos() {
                 <TableRow>
                   <TableHead scope="col">Fecha y hora</TableHead>
                   <TableHead scope="col">Folio</TableHead>
+                  <TableHead scope="col">Entrada o salida</TableHead>
                   <TableHead scope="col">Tipo</TableHead>
                   <TableHead scope="col">Artículo</TableHead>
                   <TableHead scope="col" className="text-right">Cantidad</TableHead>
                   <TableHead scope="col">De</TableHead>
                   <TableHead scope="col">A</TableHead>
                   <TableHead scope="col">Responsable</TableHead>
+                  <TableHead scope="col">Trabajador</TableHead>
                   <TableHead scope="col">Autorizó, motivo y observación</TableHead>
                   <TableHead scope="col">Saldo</TableHead>
                 </TableRow>
@@ -191,6 +238,9 @@ export default function ReporteMovimientos() {
                         {m.folio}
                       </Link>
                     </TableHead>
+                    <TableCell>
+                      <Direccion m={m} />
+                    </TableCell>
                     <TableCell>{m.tipo_texto}</TableCell>
                     <TableCell>
                       <Articulo m={m} />
@@ -199,6 +249,9 @@ export default function ReporteMovimientos() {
                     <TableCell>{m.origen}</TableCell>
                     <TableCell>{m.destino}</TableCell>
                     <TableCell>{m.responsable}</TableCell>
+                    <TableCell>
+                      <Trabajador m={m} />
+                    </TableCell>
                     <TableCell>
                       <Autorizacion m={m} />
                     </TableCell>
@@ -218,7 +271,10 @@ export default function ReporteMovimientos() {
                   <Link to={`/vales/${m.vale_id}`} className="inline-flex min-h-10 items-center text-base font-semibold text-primary underline underline-offset-4">
                     {m.folio}
                   </Link>
-                  <Insignia estado="neutra">{m.tipo_texto}</Insignia>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {m.direccion ? <Direccion m={m} /> : null}
+                    <Insignia estado="neutra">{m.tipo_texto}</Insignia>
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground tabular-nums">{formatearFechaHora(comoUtc(m.fecha))}</p>
                 <p>
@@ -237,6 +293,12 @@ export default function ReporteMovimientos() {
                   <span className="text-muted-foreground">Responsable: </span>
                   {m.responsable}
                 </p>
+                {m.trabajador ? (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Trabajador: </span>
+                    <Trabajador m={m} />
+                  </p>
+                ) : null}
                 {m.autorizado_por || m.motivo || m.observacion ? (
                   <p className="text-sm">
                     {m.autorizado_por ? (

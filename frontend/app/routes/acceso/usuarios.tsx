@@ -30,7 +30,7 @@ import { ListaDesplegable } from "~/componentes/ui/lista-desplegable";
 import { mensajeDeError } from "~/api/errores";
 import { useSesionActiva } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "acceso.administrar" };
+export const handle: ManejadorRuta = { permiso: "acceso.usuarios" };
 
 const SIN_ALMACEN = "sin";
 

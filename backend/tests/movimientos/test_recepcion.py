@@ -453,7 +453,7 @@ def test_X_10_una_recepcion_pide_el_permiso_traspasos_recibir(
 ):
     traspaso, guantes, _ = traspaso_mixto(almacenista, compras, session)
     cuerpo = cuerpo_recepcion(traspaso["id"], [renglon(guantes.codigo)])
-    for rol in ("Recursos Humanos", "Compras", "Almacenista"):  # ninguno tiene `traspasos.recibir`
+    for rol in ("Recursos Humanos", "Compras"):  # no tienen `traspasos.recibir` (AC-31)
         c = cliente_como(rol)
         assert c.post("/api/vales/evaluar", json=cuerpo).status_code == 403, rol
         assert c.post(VALES, json=cuerpo).status_code == 403, rol

@@ -162,16 +162,14 @@ def test_RG_06_cada_almacen_y_cada_tipo_lleva_su_propio_consecutivo(
     compras, almacenista, cliente_como, session, trabajador
 ):
     articulo = crear_articulo(session)
-    con = str(almacen(session, "CON").id)
     kep_ing = serie(session, "KEP", "ENTRADA")
     con_ing = serie(session, "CON", "ENTRADA")
     r1 = abastecer(compras, articulo, 1)
-    # Compras es de Kepler; la carga de Contratistas la hace el Administrador (AC-06).
-    r2 = abastecer(cliente_como("Administrador"), articulo, 1, almacen_id=con)
+    # Toda entrada es de Kepler (EK-01): la serie de Contratistas no avanza.
     r3 = abastecer(compras, articulo, 1)
     assert r1["folio"] == f"KEP-ING-{kep_ing + 1:06d}"
     assert r3["folio"] == f"KEP-ING-{kep_ing + 2:06d}"
-    assert r2["folio"] == f"CON-ING-{con_ing + 1:06d}"
+    assert serie(session, "CON", "ENTRADA") == con_ing
     # Un vale de otro tipo en el mismo almacén no avanza el contador de entradas.
     r4 = almacenista.post(VALES, json=cuerpo_entrega(trabajador, [renglon(articulo.codigo)]))
     assert r4.json()["folio"].startswith("KEP-ENT-")

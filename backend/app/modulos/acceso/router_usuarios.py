@@ -1,7 +1,7 @@
 """Usuarios y personal por almacén (FEAT-006); los roles están en `router_roles.py`.
 
 `/personal` y `PATCH /usuarios/{id}/almacen` piden `almacenes.asignar_personal` (el Supervisor
-puede, sin acceso a roles ni altas). El resto pide `acceso.administrar`. Las reglas viven en
+puede, sin acceso a roles ni altas). El resto pide `acceso.usuarios`. Las reglas viven en
 `service_usuarios.py`.
 """
 
@@ -35,7 +35,7 @@ def get_service(session: SesionDep) -> UsuarioAdminService:
 
 ServiceDep = Annotated[UsuarioAdminService, Depends(get_service)]
 
-QuienAdministra = Annotated[Usuario, Depends(requiere_permiso(P.ACCESO_ADMINISTRAR))]
+QuienAdministra = Annotated[Usuario, Depends(requiere_permiso(P.ACCESO_USUARIOS))]
 QuienAsignaPersonal = Annotated[Usuario, Depends(requiere_permiso(P.ALMACENES_ASIGNAR_PERSONAL))]
 
 
@@ -80,7 +80,7 @@ def listar_usuarios(
     sin_almacen: bool = False,
     activo: bool | None = None,
 ) -> Pagina[UsuarioOut]:
-    """`acceso.administrar`. Lista de usuarios con filtros."""
+    """`acceso.usuarios`. Lista de usuarios con filtros."""
     elementos, total = service.listar_usuarios(
         FiltrosUsuarios(
             q=q, rol_id=rol_id, almacen_id=almacen_id, sin_almacen=sin_almacen, activo=activo
@@ -93,13 +93,13 @@ def listar_usuarios(
 
 @router.post("/usuarios", response_model=UsuarioOut, status_code=status.HTTP_201_CREATED)
 def crear_usuario(datos: UsuarioCreate, actor: QuienAdministra, service: ServiceDep) -> UsuarioOut:
-    """`acceso.administrar`. Alta con contraseña inicial, rol y almacén."""
+    """`acceso.usuarios`. Alta con contraseña inicial, rol y almacén."""
     return service.crear(actor, datos)
 
 
 @router.get("/usuarios/{usuario_id}", response_model=UsuarioOut)
 def ver_usuario(usuario_id: uuid.UUID, _: QuienAdministra, service: ServiceDep) -> UsuarioOut:
-    """`acceso.administrar`. Un usuario."""
+    """`acceso.usuarios`. Un usuario."""
     return service.ver(usuario_id)
 
 
@@ -107,7 +107,7 @@ def ver_usuario(usuario_id: uuid.UUID, _: QuienAdministra, service: ServiceDep) 
 def editar_usuario(
     usuario_id: uuid.UUID, datos: UsuarioUpdate, actor: QuienAdministra, service: ServiceDep
 ) -> UsuarioOut:
-    """`acceso.administrar`. Nombre, rol, activo y almacén (AC-09)."""
+    """`acceso.usuarios`. Nombre, rol, activo y almacén (AC-09)."""
     return service.editar(actor, usuario_id, datos)
 
 
@@ -118,5 +118,5 @@ def restablecer_contrasena(
     actor: QuienAdministra,
     service: ServiceDep,
 ) -> UsuarioOut:
-    """`acceso.administrar`. Restablece la contraseña (y el PIN si se manda) y los bloqueos."""
+    """`acceso.usuarios`. Restablece la contraseña (y el PIN si se manda) y los bloqueos."""
     return service.restablecer_contrasena(actor, usuario_id, datos.contrasena, datos.pin)

@@ -4,19 +4,21 @@ Las contraseñas y el PIN de prueba salen de `CLAVE_DATOS_PRUEBA` y `PIN_DATOS_P
 No son datos reales.
 """
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.modulos.acceso.models import Rol, Usuario
-from app.modulos.acceso.permisos import CATALOGO, P
+from app.modulos.acceso.permisos import CLAVES_DISPONIBLES, P
 from app.modulos.acceso.repository import RolRepository, UsuarioRepository
 from app.modulos.almacenes.repository import AlmacenRepository
+from app.modulos.auditoria.models import Auditoria
 from app.seguridad import hashear_secreto, verificar_secreto
 
 # Permisos de los roles iniciales: sección 8.2 de las reglas de negocio. El Administrador
-# tiene todos los del catálogo.
+# tiene todos los que funcionan en esta versión (los 4 de 8.3 sin uso no se asignan a nadie).
 PERMISOS_INICIALES: dict[str, frozenset[str]] = {
-    "Administrador": frozenset(p.clave for p in CATALOGO),
+    "Administrador": CLAVES_DISPONIBLES,
     "Almacenista": frozenset(
         {
             P.TRABAJADORES_VER,
@@ -29,6 +31,10 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.VALES_VER,
             P.VALES_CANCELAR,
             P.PIEZAS_INSPECCIONAR,
+            P.PIEZAS_MARCAR_ESTADO,
+            P.TRASPASOS_RECIBIR,
+            P.RESGUARDO_VER,
+            P.BITACORA_VER,
             P.COMPRAS_SOLICITAR,
             P.TABLERO_VER,
         }
@@ -52,6 +58,9 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.AUTORIZACIONES_RESOLVER,
             P.PIEZAS_INSPECCIONAR,
             P.PIEZAS_AJUSTAR_VIGENCIA,
+            P.PIEZAS_MARCAR_ESTADO,
+            P.RESGUARDO_VER,
+            P.BITACORA_VER,
             P.REPORTES_EXISTENCIAS,
             P.REPORTES_MOVIMIENTOS,
             P.REPORTES_ADEUDOS,
@@ -67,8 +76,11 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.CATALOGO_VER,
             P.CATALOGO_ADMINISTRAR,
             P.CATALOGO_COSTOS,
+            P.CATALOGO_LIMITES,
             P.INVENTARIO_VER,
             P.INVENTARIO_ENTRADAS,
+            P.INVENTARIO_IMPORTAR,
+            P.BITACORA_VER,
             P.PIEZAS_REGISTRAR_SERIE,
             P.VALES_VER,
             P.VALES_CANCELAR,
@@ -85,6 +97,7 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.TRABAJADORES_VER_DATOS_PERSONALES,
             P.TRABAJADORES_ADMINISTRAR,
             P.TRABAJADORES_INICIAR_BAJA,
+            P.VALES_VER,
             P.REPORTES_ADEUDOS,
             P.ETIQUETAS_IMPRIMIR,
         }
@@ -121,7 +134,38 @@ USUARIOS_PRUEBA = (
 )
 
 
-def cargar(session: Session) -> None:
+def _quitados_a_mano(session: Session, rol: Rol) -> set[str]:
+    """Permisos que alguien le quitó a este rol desde /roles (AC-10 los deja en el registro)."""
+    quitados: set[str] = set()
+    filas = session.scalars(
+        select(Auditoria).where(
+            Auditoria.accion == "rol.permisos", Auditoria.entidad_id == str(rol.id)
+        )
+    )
+    for fila in filas:
+        quitados |= set((fila.despues or {}).get("quitados", []))
+    return quitados
+
+
+def _poner_permisos(
+    session: Session, roles: RolRepository, rol: Rol, claves: frozenset[str], restablecer: bool
+) -> None:
+    """AC-33: por omisión solo agrega lo que falta; no quita ni vuelve a poner lo que se quitó
+    desde /roles. Con `restablecer` deja al rol exactamente como nace."""
+    if restablecer:
+        roles.reemplazar_permisos(rol.id, set(claves))
+        return
+    actuales = roles.permisos(rol.id)
+    faltan = set(claves) - actuales - _quitados_a_mano(session, rol)
+    if rol.protegido:  # el Administrador siempre trae todo lo que funciona (AC-32)
+        faltan = set(claves) - actuales
+    if faltan:
+        roles.reemplazar_permisos(rol.id, actuales | faltan)
+
+
+def cargar(session: Session, *, restablecer_roles: bool = False) -> None:
+    """Crea lo que falta. `restablecer_roles=True` (opción explícita) vuelve los cinco roles
+    iniciales a sus permisos de fábrica; sin ella, lo editado en /roles se respeta (AC-33)."""
     ajustes = get_settings()
     roles = RolRepository(session)
     usuarios = UsuarioRepository(session)
@@ -138,7 +182,7 @@ def cargar(session: Session) -> None:
                     protegido=nombre == "Administrador",
                 )
             )
-        roles.reemplazar_permisos(rol.id, set(claves))
+        _poner_permisos(session, roles, rol, claves, restablecer_roles)
         por_nombre[nombre] = rol
 
     for nombre_usuario, nombre, nombre_rol, clave_almacen, con_pin in USUARIOS_PRUEBA:

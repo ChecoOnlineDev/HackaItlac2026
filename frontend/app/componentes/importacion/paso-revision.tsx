@@ -16,19 +16,14 @@ import { CampoSelect } from "./campo-select";
 import { EsqueletoTablaVista, filasDeVista, TablaVistaPrevia, type FiltroFilas } from "./tabla-vista-previa";
 import type { CategoriaDesconocida, FilaError, ModoImportacion, OpcionesImportacion, VistaPreviaApi } from "./tipos";
 
-interface AlmacenLista {
-  id: string;
-  clave: string;
-  nombre: string;
-  estado: string;
-}
-
 export interface ErrorConfirmacion {
   tipo: "conexion" | "otro";
   mensaje: string;
 }
 
 interface PropiedadesPasoRevision {
+  /** Nombre del almacén central (EK-01), tomado de la API de almacenes. */
+  nombreCentral: string;
   modo: ModoImportacion;
   vista: VistaPreviaApi | null;
   /**
@@ -74,10 +69,11 @@ function Dato({ etiqueta, valor, tono }: { etiqueta: string; valor: number; tono
 
 /**
  * Paso 3: la vista previa que calcula el servidor, sin guardar nada. Resumen, avisos, categorías que no
- * existen, almacén para las filas que no lo traen, filas con error en rojo con su motivo y número de fila,
+ * existen, filas con error en rojo con su motivo y número de fila,
  * artículos nuevos y filas válidas. "Confirmar importación" es la acción principal.
  */
 export function PasoRevision({
+  nombreCentral,
   modo,
   vista,
   desconocidas,
@@ -97,11 +93,9 @@ export function PasoRevision({
 }: PropiedadesPasoRevision) {
   const [filtro, setFiltro] = useState<FiltroFilas>("TODAS");
   const categorias = useConsulta((signal) => apiGet<Pagina<Categoria>>("/categorias", { tamano: 200 }, signal), "importar-categorias");
-  const almacenes = useConsulta((signal) => apiGet<AlmacenLista[]>("/almacenes", undefined, signal), "importar-almacenes");
 
   const hayDesconocidas = modo === "ALTA" && desconocidas.length > 0;
   const opcionesCategoria = (categorias.datos?.elementos ?? []).map((c) => ({ valor: c.id, texto: c.nombre }));
-  const opcionesAlmacen = (almacenes.datos ?? []).filter((a) => a.estado === "ACTIVO").map((a) => ({ valor: a.clave, texto: `${a.nombre} (${a.clave})` }));
 
   const resumen = vista?.resumen;
   const reintento = errorConfirmacion?.tipo === "conexion";
@@ -179,7 +173,7 @@ export function PasoRevision({
               {(vista.resumen.series_pendientes ?? 0) > 0
                 ? `${vista.resumen.series_pendientes} ${vista.resumen.series_pendientes === 1 ? "pieza entra" : "piezas entran"} sin número de serie: se registra después en la ficha de la pieza. `
                 : ""}
-              Los vales de entrada serán {vista.resumen.almacenes}: uno por almacén.
+              Todo entra en un solo vale de entrada, a {nombreCentral}.
             </p>
           </section>
 
@@ -261,26 +255,6 @@ export function PasoRevision({
               )}
             </section>
           ) : null}
-
-          <section aria-labelledby="alm-titulo" className="flex flex-col gap-3">
-            <h2 id="alm-titulo" className="text-lg font-semibold">
-              Almacén
-            </h2>
-            {almacenes.error ? (
-              <EstadoError error={almacenes.error} alReintentar={almacenes.recargar} />
-            ) : (
-              <CampoSelect
-                etiqueta="Almacén para las filas que no traen almacén"
-                ayuda="Si no eliges uno, esas filas quedan con error."
-                valor={opciones.almacenPorDefecto ?? ""}
-                alCambiar={(v) => alCambiarOpciones({ ...opciones, almacenPorDefecto: v || null })}
-                opciones={opcionesAlmacen}
-                vacio="Ninguno"
-                deshabilitado={!almacenes.datos}
-                className="max-w-md"
-              />
-            )}
-          </section>
 
           {(vista.filas_excluidas ?? []).length > 0 ? (
             <details className="rounded-2xl border border-semaforo-amarillo bg-semaforo-amarillo/10 p-3">

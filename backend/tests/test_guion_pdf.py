@@ -823,7 +823,10 @@ def cierre_invariantes_y_reportes(g: Guion) -> None:
     # Los traspasos cruzan almacenes: solo quien ve todos (Administrador) los ve juntos. El
     # supervisor de Kepler ve el que salió de su almacén y no el de Contratistas (AC-06).
     r = sup.get("/api/reportes/movimientos", params={"tipo": "TRASPASO", "tamano": 200})
-    assert {f["folio"] for f in r.json()["elementos"]} == {g.vales["trs1"]["folio"]}
+    folios_kepler = {f["folio"] for f in r.json()["elementos"]}
+    # (la semilla trae además el reparto de Kepler a Contratistas, EK-02)
+    assert g.vales["trs1"]["folio"] in folios_kepler
+    assert g.vales["trs2"]["folio"] not in folios_kepler
     r = g.admin.get("/api/reportes/movimientos", params={"tipo": "TRASPASO", "tamano": 200})
     assert {f["folio"] for f in r.json()["elementos"]} >= {
         g.vales["trs1"]["folio"],

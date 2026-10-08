@@ -11,6 +11,7 @@ from app.modulos.movimientos.models import Movimiento, Vale
 from app.modulos.trabajadores.models import EstadoTrabajador
 from tests.movimientos.ayudas import (
     abastecer,
+    abastecer_en,
     almacen,
     crear_articulo,
     crear_trabajador,
@@ -123,8 +124,8 @@ def test_B_04_un_pendiente_de_otro_almacen_se_ve_igual_desde_kepler(
     app, almacenista, cliente_como, compras, crear_usuario, session, trabajador
 ):
     casco = crear_articulo(session, retornable=True)
-    # Compras es de Kepler: Contratistas lo abastece el Administrador.
-    abastecer(cliente_como("Administrador"), casco, 3, almacen_id=str(almacen(session, "CON").id))
+    # Entra a Kepler y llega a Contratistas por traspaso (EK-01).
+    abastecer_en(session, casco, 3, "CON")
     de_con = cliente_de(app, crear_usuario, {P.ENTREGAS_CREAR}, "CON")
     r = de_con.post(VALES, json=cuerpo_entrega(trabajador, [{"codigo": casco.codigo}]))
     assert r.status_code == 201, r.text

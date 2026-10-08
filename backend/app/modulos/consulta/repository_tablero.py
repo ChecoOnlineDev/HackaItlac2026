@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, aliased
 
 from app.modulos.almacenes.models import Almacen, TipoUbicacion, Ubicacion, UbicacionVirtual
 from app.modulos.catalogo.models import Articulo, Categoria, Control, EstadoPieza, Pieza
-from app.modulos.consulta.repository_seguimiento import SeguimientoRepository
+from app.modulos.consulta.repository_seguimiento import CATEGORIAS_ALTO_VALOR, SeguimientoRepository
 from app.modulos.movimientos.models import EstadoVale, Existencia, Movimiento, TipoVale, Vale
 from app.modulos.solicitudes_compra.models import EstadoSolicitud, SolicitudCompra
 
@@ -98,6 +98,17 @@ class TableroRepository:
         consulta, u = self._piezas(func.count(Pieza.id), almacen_id)
         consulta = consulta.where(
             Articulo.control == Control.PIEZA,
+            u.tipo == TipoUbicacion.TRABAJADOR,
+            Pieza.estado != EstadoPieza.BAJA,
+        )
+        return int(self.session.scalar(consulta) or 0)
+
+    def alto_valor_fuera(self, almacen_id: uuid.UUID | None) -> int:
+        """SG-04: piezas de las categorías de alto valor (y de alturas) que tiene un trabajador,
+        entregadas desde un almacén del alcance."""
+        consulta, u = self._piezas(func.count(Pieza.id), almacen_id)
+        consulta = consulta.join(Categoria, Categoria.id == Articulo.categoria_id).where(
+            Categoria.nombre.in_(CATEGORIAS_ALTO_VALOR),
             u.tipo == TipoUbicacion.TRABAJADOR,
             Pieza.estado != EstadoPieza.BAJA,
         )

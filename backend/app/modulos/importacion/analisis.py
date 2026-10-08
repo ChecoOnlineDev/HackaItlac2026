@@ -20,7 +20,7 @@ import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 
-from app.modulos.almacenes.models import Almacen, EstadoAlmacen
+from app.modulos.almacenes.models import Almacen, EstadoAlmacen, TipoAlmacen
 from app.modulos.catalogo.models import Articulo, Categoria, Control, TipoCodigo
 from app.modulos.importacion.categorias_sugeridas import (
     PREFIJOS,
@@ -177,7 +177,6 @@ class Contexto:
     cantidad_maxima: int = 100_000
     # Al confirmar, una sugerencia que la persona no eligio no se aplica (I-14).
     confirmando: bool = False
-    almacen_compras: str = "KEP"
 
 
 def parsear_cantidad(texto: str) -> tuple[int | None, str | None]:
@@ -245,13 +244,14 @@ class Analizador:
         por_nombre = {clave(c.nombre): c for c in categorias if c.activo}
         por_id = {c.id: c for c in categorias}
         elegidas = self._categorias_elegidas(datos, por_id)
+        # EK-01, EK-02: todo entra al almacen central; la columna `almacen` se ignora (con aviso).
         almacenes = self.repository.almacenes()
-        por_clave_almacen: dict[str, Almacen] = {}
-        for a in almacenes:
-            por_clave_almacen[clave(a.clave)] = a
-        for a in almacenes:
-            por_clave_almacen.setdefault(clave(a.nombre), a)
-        defecto = self._almacen_por_defecto(datos, por_clave_almacen, almacenes)
+        defecto = next((a for a in almacenes if a.tipo == TipoAlmacen.CENTRAL), None)
+        if any(f["almacen"] for f in filas):
+            resultado.avisos.append(
+                "Se ignoró la columna de almacén: toda la mercancía entra a Kepler "
+                "y de ahí se reparte por traspaso."
+            )
 
         # Lo que la base ya sabe de los codigos, nombres y series de la tabla.
         codigos_tabla = {f["codigo"] for f in filas if f["codigo"]} | {
@@ -278,7 +278,6 @@ class Analizador:
             categorias_por_id=por_id,
             elegidas=elegidas,
             por_fila=self._categorias_por_fila(datos, por_id),
-            almacenes=por_clave_almacen,
             defecto=defecto,
             en_base=en_base,
             articulos_base=articulos_base,
@@ -357,18 +356,6 @@ class Analizador:
             int(fila): self._categoria_activa(por_id, categoria_id, "categoria_por_fila")
             for fila, categoria_id in datos.categoria_por_fila.items()
         }
-
-    def _almacen_por_defecto(
-        self,
-        datos: ImportacionIn,
-        por_clave: dict[str, Almacen],
-        almacenes: list[Almacen],
-    ) -> Almacen | None:
-        if not self.ctx.puede_todos_los_almacenes:
-            return next((a for a in almacenes if a.id == self.ctx.almacen_asignado_id), None)
-        if datos.almacen_por_defecto and datos.almacen_por_defecto.strip():
-            return por_clave.get(clave(datos.almacen_por_defecto))
-        return por_clave.get(clave(self.ctx.almacen_compras))
 
     # --------------------------------------------------------------------- una fila
 
@@ -466,7 +453,7 @@ class Analizador:
             self._avisar_diferencias(articulo, f, nombre, e, avisos)
 
         # ---- el almacen
-        almacen = self._almacen(f["almacen"], e, malo)
+        almacen = self._almacen(e, malo)
 
         # ---- cantidad, pieza y serie
         cantidad = 0
@@ -756,22 +743,12 @@ class Analizador:
             ):
                 return codigo
 
-    def _almacen(self, texto: str, e: _Estado, malo) -> Almacen | None:
-        if texto:
-            almacen = e.almacenes.get(clave(texto))
-            if almacen is None:
-                malo(
-                    "I-01",
-                    "almacen",
-                    "ALMACEN_DESCONOCIDO",
-                    f"El almacén «{texto}» no existe. Usa su clave o su nombre.",
-                )
-                return None
-        else:
-            almacen = e.defecto
-            if almacen is None:
-                malo("I-01", "almacen", "FALTA_ALMACEN", "Falta el almacén de la fila.")
-                return None
+    def _almacen(self, e: _Estado, malo) -> Almacen | None:
+        """EK-01: el destino es siempre el almacen central (se resuelve por su tipo)."""
+        almacen = e.defecto
+        if almacen is None:
+            malo("EK-01", "almacen", "FALTA_ALMACEN", "No hay un almacén central para dar entrada.")
+            return None
         if almacen.estado == EstadoAlmacen.CERRADO:
             malo("I-01", "almacen", "ALMACEN_CERRADO", f"El almacén {almacen.nombre} está cerrado.")
             return None
@@ -906,7 +883,6 @@ class _Estado:
     categorias_por_id: dict[uuid.UUID, Categoria]
     elegidas: _Elegidas
     por_fila: dict[int, Categoria]
-    almacenes: dict[str, Almacen]
     defecto: Almacen | None
     en_base: dict
     articulos_base: dict

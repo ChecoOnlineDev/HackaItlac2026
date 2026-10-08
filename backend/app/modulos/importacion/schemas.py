@@ -80,7 +80,7 @@ class ImportacionIn(_Estricto):
       categoria para los articulos nuevos cuya categoria no existe.
     - `categoria_por_fila` ({numero de fila: categoria_id}): lo que la persona eligio o acepto
       viendo la fila (I-14); la sugerencia del servidor nunca se aplica sola.
-    - `almacen_por_defecto`: clave o nombre del almacen para las filas sin almacen.
+    - `almacen_por_defecto`: se ignora (EK-01): la importacion entra siempre al almacen central.
     - `id_lote`: obligatorio al confirmar; repetir la confirmacion con el mismo lote no
       duplica nada.
     - `confirmar_repetido`: se manda en `true` para confirmar un archivo ya importado (I-12).

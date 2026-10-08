@@ -26,6 +26,10 @@ export interface PiezaSeguimiento {
   desde: string | null;
   /** Null si el vale es de un almacén fuera del alcance del usuario. */
   vale: { id: string; folio: string } | null;
+  /** SG-04: la pieza es de alto valor o de alturas. */
+  alto_valor?: boolean;
+  /** SG-06: la tiene un trabajador dado de baja o con el contrato vencido. */
+  aviso?: string | null;
 }
 
 export interface ResumenSeguimiento {
@@ -34,6 +38,8 @@ export interface ResumenSeguimiento {
   en_resguardo: number;
   en_transito: number;
   no_aptas: number;
+  /** SG-01: cuántos artículos por cantidad hay en resguardo (otra pestaña). */
+  articulos_por_cantidad?: number;
 }
 
 export interface PaginaSeguimiento {
@@ -42,6 +48,34 @@ export interface PaginaSeguimiento {
   sin_registros: boolean;
   mensaje: string | null;
   resumen: ResumenSeguimiento;
+}
+
+/** SG-01: un artículo por cantidad en resguardo de un trabajador. */
+export interface CantidadSeguimiento {
+  trabajador: { id: string; numero_empleado: string; nombre: string };
+  articulo: { id: string; codigo: string; nombre: string; marca: string | null };
+  unidad: string;
+  cantidad: number;
+  /** Desde cuándo lo tiene: su entrega más reciente (UTC). */
+  desde: string | null;
+  /** Null si el vale es de un almacén fuera del alcance del usuario. */
+  vale: { id: string; folio: string } | null;
+  almacen: { id: string; clave: string; nombre: string } | null;
+}
+
+export interface ResumenCantidad {
+  renglones: number;
+  unidades: number;
+  articulos: number;
+  trabajadores: number;
+}
+
+export interface PaginaCantidad {
+  elementos: CantidadSeguimiento[];
+  total: number;
+  sin_registros: boolean;
+  mensaje: string | null;
+  resumen: ResumenCantidad;
 }
 
 export const TAMANO_SEGUIMIENTO = 20;

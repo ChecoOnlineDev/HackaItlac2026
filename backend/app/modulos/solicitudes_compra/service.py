@@ -9,8 +9,9 @@ recibe Compras, la compra, la ingresa al almacén y ya está disponible»):
     INGRESADA, RECHAZADA, CANCELADA: terminales.
 
 El módulo NO escribe inventario: la entrada al almacén es un vale de ENTRADA que hace `movimientos`
-y aquí solo se LEE para ligarlo (SC-06, SC-11). Cada operación es una transacción: la solicitud
-cambia junto con su evento (SC-08). Las reglas llevan su ID `SC-xx` (reglas-de-negocio.md, 7.13).
+y aquí solo se LEE para ligarlo (SC-06, SC-11); siempre es de Kepler (EK-05). Cada operación es
+una transacción: la solicitud cambia junto con su evento (SC-08). Las reglas llevan su ID `SC-xx`
+(reglas-de-negocio.md, 7.13).
 """
 
 import hashlib
@@ -31,6 +32,7 @@ from app.modulos.acceso.permisos import P
 from app.modulos.acceso.service import AccesoService
 from app.modulos.almacenes.exceptions import AlmacenCerrado
 from app.modulos.almacenes.models import EstadoAlmacen
+from app.modulos.almacenes.service import AlmacenService
 from app.modulos.catalogo.service import CatalogoService
 from app.modulos.movimientos.models import EstadoVale, TipoVale, Vale
 from app.modulos.solicitudes_compra.exceptions import (
@@ -125,6 +127,7 @@ class SolicitudCompraService:
         self.session = session
         self.repository = SolicitudCompraRepository(session)
         self.acceso = AccesoService(session)
+        self.almacenes = AlmacenService(session)
         self.catalogo = CatalogoService(session)
 
     # ------------------------------------------------------------------- permisos
@@ -367,8 +370,9 @@ class SolicitudCompraService:
         return self._detalle(solicitud, usuario)
 
     def _validar_vale_entrada(self, usuario: Usuario, vale_id: uuid.UUID | None) -> Vale | None:
-        """SC-06: un vale de ENTRADA que existe, no está cancelado y es del alcance de quien lo
-        liga (el almacén de Compras o, con `almacenes.todos`, cualquiera). Si no, 422."""
+        """SC-06, EK-05: un vale de ENTRADA que existe, no está cancelado y es del almacén central
+        (Kepler), dentro del alcance de quien lo liga. El almacén que pidió la compra la recibe
+        después por traspaso. Si no, 422."""
         if vale_id is None:
             return None
         vale = self.repository.vale(vale_id)
@@ -379,6 +383,8 @@ class SolicitudCompraService:
             problema = "Ese vale no es de entrada de inventario."
         elif vale.estado == EstadoVale.CANCELADO:
             problema = "Ese vale de entrada está cancelado."
+        elif vale.almacen_id != self.almacenes.obtener_central().id:
+            problema = "Ese vale no es de Kepler: las compras se ingresan por Kepler (EK-05)."
         if problema is not None:
             raise DatosInvalidos(
                 f"{problema} (SC-06)", detalle_campo("vale_entrada_id", problema, "SC-06")

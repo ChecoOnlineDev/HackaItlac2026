@@ -351,6 +351,7 @@ def test_C_13_el_resumen_cuenta_por_lugar_y_estado(cliente_con, datos):
         "en_resguardo": 1,
         "en_transito": 2,
         "no_aptas": 1,
+        "articulos_por_cantidad": 0,
     }
 
 
@@ -377,6 +378,7 @@ def test_C_13_el_resumen_del_supervisor_cuenta_solo_lo_que_ve(cliente_con, datos
         "en_resguardo": 1,
         "en_transito": 1,
         "no_aptas": 0,
+        "articulos_por_cantidad": 0,
     }
 
 
@@ -392,6 +394,7 @@ def test_C_13_sin_piezas_el_listado_viene_vacio_con_mensaje_y_resumen_en_cero(cl
         "en_resguardo": 0,
         "en_transito": 0,
         "no_aptas": 0,
+        "articulos_por_cantidad": 0,
     }
 
 

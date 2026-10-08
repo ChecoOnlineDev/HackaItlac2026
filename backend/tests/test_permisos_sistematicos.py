@@ -26,7 +26,7 @@ from fastapi.testclient import TestClient
 
 from app.config import get_settings
 from app.main import create_app
-from app.modulos.acceso.permisos import CLAVES, CLAVES_MVP, P
+from app.modulos.acceso.permisos import CLAVES, CLAVES_DISPONIBLES, CLAVES_MVP, P
 from tests.ayudas_guion import (
     COSTOS_DE_PRUEBA,
     FIRMA,
@@ -63,12 +63,16 @@ def _dependencias(dependant) -> Iterator:
 
 
 def _claves_de_permiso(ruta: APIRoute) -> set[str]:
-    """Las claves de `requiere_permiso(...)` de la ruta (viven en el cierre de la dependencia)."""
+    """Las claves de `requiere_permiso(...)` o de `requiere_alguno(...)` de la ruta (viven en el
+    cierre de la dependencia: una cadena, o la tupla de cadenas de `requiere_alguno`)."""
     claves = set()
     for d in _dependencias(ruta.dependant):
         for celda in getattr(d.call, "__closure__", None) or ():
-            if isinstance(celda.cell_contents, str) and celda.cell_contents in CLAVES:
-                claves.add(celda.cell_contents)
+            contenido = celda.cell_contents
+            if isinstance(contenido, str) and contenido in CLAVES:
+                claves.add(contenido)
+            elif isinstance(contenido, tuple) and contenido and set(contenido) <= CLAVES:
+                claves.update(contenido)
     return claves
 
 
@@ -97,6 +101,15 @@ PUBLICAS_DEL_FRAMEWORK = {
     "/api/openapi.json",
     "/docs/oauth2-redirect",
     "/api/redoc",
+}
+
+# Rutas que aceptan UNO DE VARIOS permisos y lo declaran en el router con `requiere_alguno(...)`
+# (403 si no tiene ninguno). Son las únicas con más de una clave en la dependencia.
+ACEPTAN_ALGUNO: dict[tuple[str, str], set[str]] = {
+    ("GET", "/api/reportes/movimientos"): {P.BITACORA_VER, P.REPORTES_MOVIMIENTOS},
+    ("GET", "/api/reportes/usuarios"): {P.BITACORA_VER, P.REPORTES_MOVIMIENTOS},
+    ("GET", "/api/seguimiento/piezas"): {P.REPORTES_EXISTENCIAS, P.RESGUARDO_VER},
+    ("GET", "/api/seguimiento/cantidad"): {P.REPORTES_EXISTENCIAS, P.RESGUARDO_VER},
 }
 
 # Rutas que piden SOLO sesión (api-contracts: «Sesión»). Cada una explica por qué no lleva un
@@ -221,6 +234,9 @@ def test_AC_01_cada_ruta_declara_un_permiso_por_clave_o_esta_en_la_lista_de_solo
     elif (metodo, camino) in SOLO_SESION:
         assert _pide_sesion(ruta), "debe pedir al menos la sesión"
         assert not claves, "ya no es «solo sesión»: quítala de SOLO_SESION"
+    elif (metodo, camino) in ACEPTAN_ALGUNO:
+        assert _pide_sesion(ruta), f"{metodo} {camino} no exige sesión"
+        assert claves == ACEPTAN_ALGUNO[(metodo, camino)], f"{metodo} {camino}: {claves}"
     else:
         assert _pide_sesion(ruta), f"{metodo} {camino} no exige sesión"
         assert len(claves) == 1, f"{metodo} {camino} debe exigir UN permiso por clave: {claves}"
@@ -230,6 +246,8 @@ def test_AC_01_cada_ruta_declara_un_permiso_por_clave_o_esta_en_la_lista_de_solo
 def test_AC_01_la_lista_de_solo_sesion_no_tiene_rutas_que_ya_no_existen():
     existentes = {(m, c) for m, c, _ in RUTAS}
     assert set(SOLO_SESION) <= existentes
+    assert set(ACEPTAN_ALGUNO) <= existentes
+    assert not set(SOLO_SESION) & set(ACEPTAN_ALGUNO)
     assert PUBLICAS <= existentes
 
 
@@ -257,7 +275,7 @@ def _contrato() -> dict[tuple[str, str], str]:
         celdas = [c.strip() for c in linea.strip().strip("|").split("|")]
         if len(celdas) < 2:
             continue
-        permiso = celdas[1].strip("` ")
+        permiso = celdas[1].replace("`", "").strip()
         for metodo, camino in re.findall(
             r"`(GET|POST|PATCH|PUT|DELETE) (/api/[^`\s?]+)", celdas[0]
         ):
@@ -274,7 +292,7 @@ def test_AC_01_los_permisos_del_codigo_coinciden_con_el_contrato_de_api():
         codigo[llave] = (
             "Público"
             if (metodo, camino) in PUBLICAS
-            else next(iter(claves))
+            else " o ".join(sorted(claves))
             if claves
             else "Sesión"
         )
@@ -318,10 +336,10 @@ ROLES_8_2: dict[str, str] = {
     P.ENTREGAS_CREAR: "AS",
     P.DEVOLUCIONES_CREAR: "AS",
     P.TRASPASOS_OPERAR: "S",
-    P.TRASPASOS_RECIBIR: "S",
+    P.TRASPASOS_RECIBIR: "AS",
     P.PIEZAS_REGISTRAR_SERIE: "SC",
     P.NO_ADEUDO_EMITIR: "AS",
-    P.VALES_VER: "ASC",
+    P.VALES_VER: "ASCR",
     P.VALES_CANCELAR: "ASC",
     P.VALES_CANCELAR_TODOS: "S",
     P.AUTORIZACIONES_RESOLVER: "S",
@@ -340,6 +358,15 @@ ROLES_8_2: dict[str, str] = {
     P.TRABAJADORES_NUMERO_EXTERNO: "",
     P.ALMACENES_ADMINISTRAR: "",
     P.TABLERO_VER: "AS",
+    # FEAT-011 (AC-30, AC-31)
+    P.BITACORA_VER: "ASC",
+    P.RESGUARDO_VER: "AS",
+    P.INVENTARIO_IMPORTAR: "C",
+    P.CATALOGO_LIMITES: "C",
+    P.PIEZAS_MARCAR_ESTADO: "AS",
+    P.ACCESO_USUARIOS: "",
+    P.ACCESO_ROLES: "",
+    P.AUDITORIA_VER: "",
 }
 LETRA_DE_ROL = {
     "Almacenista": "A",
@@ -358,9 +385,28 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
         ("GET", "/api/tablero/resumen", None, set()),
         ("GET", "/api/tablero/consumo", None, set()),
     ],
-    P.ACCESO_ADMINISTRAR: [
-        ("GET", "/api/roles", None, set()),
+    P.ACCESO_USUARIOS: [
         ("GET", "/api/usuarios", None, set()),
+        ("POST", "/api/usuarios", {}, set()),
+    ],
+    # Cambiar límites: el servicio lo exige además de `catalogo.administrar` (AC-30). Se prueba
+    # con crear una categoría con límite.
+    P.CATALOGO_LIMITES: [
+        (
+            "POST",
+            "/api/categorias",
+            {
+                "nombre": "Prueba de límites",
+                "tipo": "HERRAMIENTA",
+                "control": "CANTIDAD",
+                "retornable": False,
+                "limite_cantidad": 2,
+            },
+            {P.CATALOGO_ADMINISTRAR, P.CATALOGO_VER},
+        ),
+    ],
+    P.ACCESO_ROLES: [
+        ("GET", "/api/roles", None, set()),
         ("GET", "/api/permisos", None, set()),
         ("GET", f"/api/roles/{UUID_FALSO}", None, set()),
         ("POST", "/api/roles", {}, set()),
@@ -399,9 +445,13 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
         ("GET", f"/api/almacenes/{UUID_FALSO}/existencias", None, set()),
     ],
     P.INVENTARIO_ENTRADAS: [
+        ("POST", "/api/vales/evaluar", {"tipo": "ENTRADA", "renglones": []}, set()),
+    ],
+    # AC-30: importar desde Excel se separa de capturar a mano.
+    P.INVENTARIO_IMPORTAR: [
+        ("GET", "/api/importacion/plantilla", None, set()),
         ("POST", "/api/importacion/vista-previa", {}, set()),
         ("POST", "/api/importacion", {}, set()),
-        ("POST", "/api/vales/evaluar", {"tipo": "ENTRADA", "renglones": []}, set()),
     ],
     P.ENTREGAS_CREAR: [
         ("POST", "/api/autorizaciones", {}, set()),
@@ -440,7 +490,8 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
         ("POST", "/api/vales/evaluar", {"tipo": "NO_ADEUDO", "trabajador_id": UUID_FALSO}, set()),
     ],
     P.VALES_VER: [
-        ("GET", "/api/vales", None, set()),
+        # `GET /api/vales` (la lista) pide ademas un almacen asignado: RH, que tiene `vales.ver`
+        # (AC-31) y no tiene almacen, recibe 403 por esa regla de alcance, no por el permiso.
         ("GET", f"/api/vales/{UUID_FALSO}", None, set()),
         ("GET", "/api/vales/por-token/NO-EXISTE", None, set()),
         ("GET", f"/api/vales/{UUID_FALSO}/firma", None, set()),
@@ -479,12 +530,9 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
     ],
     P.REPORTES_EXISTENCIAS: [
         ("GET", "/api/reportes/existencias", None, set()),
-        ("GET", "/api/seguimiento/piezas", None, set()),
     ],
-    P.REPORTES_MOVIMIENTOS: [
-        ("GET", "/api/reportes/movimientos", None, set()),
-        ("GET", "/api/reportes/usuarios", None, set()),
-    ],
+    # Las rutas de ACEPTAN_ALGUNO (bitácora y seguimiento) no pueden ser muestra de un solo
+    # permiso; sus pruebas por permiso están en tests/consulta.
     P.REPORTES_ADEUDOS: [("GET", "/api/reportes/adeudos", None, set())],
     P.REPORTES_CONSUMO: [("GET", "/api/reportes/consumo", None, set())],
     P.ALMACENES_ASIGNAR_PERSONAL: [
@@ -518,6 +566,16 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
 # `trabajadores.ver_datos_personales` y `catalogo.costos` (datos reservados, sección d),
 # `vales.cancelar_todos` y `almacenes.todos` (alcance, más abajo).
 SIN_MUESTRA = {
+    # `acceso.administrar` no abre ningún endpoint: marca al administrador del sistema (AC-09).
+    P.ACCESO_ADMINISTRAR,
+    # FEAT-011: los endpoints que los usan se cablean aparte; al cablearlos, pasan a MUESTRAS.
+    P.BITACORA_VER,
+    P.RESGUARDO_VER,
+    # SG-05: la bitácora acepta `bitacora.ver` o `reportes.movimientos`; se prueba en
+    # tests/consulta/test_traspaso_origen_y_bitacora.py (SIN_SESION: el servicio lo verifica).
+    P.REPORTES_MOVIMIENTOS,
+    P.PIEZAS_MARCAR_ESTADO,
+    P.AUDITORIA_VER,
     P.TRABAJADORES_VER_DATOS_PERSONALES,
     P.CATALOGO_COSTOS,
     P.VALES_CANCELAR_TODOS,
@@ -548,7 +606,7 @@ def test_8_2_los_roles_iniciales_tienen_exactamente_sus_permisos(cliente_como, r
     permisos = set(cliente_como(rol).get("/api/sesion").json()["permisos"])
     letra = LETRA_DE_ROL[rol]
     if letra == "*":
-        esperado = set(CLAVES)  # el Administrador tiene todos los del catálogo
+        esperado = set(CLAVES_DISPONIBLES)  # todos los que funcionan en esta versión
     else:
         esperado = {p for p, roles in ROLES_8_2.items() if letra in roles}
     assert permisos == esperado, (
@@ -657,11 +715,12 @@ def test_AC_06_almacenes_todos_decide_si_se_ven_los_movimientos_de_todos_los_alm
         app, crear_usuario({P.REPORTES_MOVIMIENTOS, P.ALMACENES_TODOS}, almacen=None)
     )
     sin_almacen = _cliente_de(app, crear_usuario({P.REPORTES_MOVIMIENTOS}, almacen=None))
-    # Los datos de prueba son entradas de Kepler y Contratistas: Midrex no tiene movimientos.
-    assert solo_el_suyo.get("/api/reportes/movimientos").json()["elementos"] == []
     assert sin_almacen.get("/api/reportes/movimientos").json()["elementos"] == []
     visto = con_todos.get("/api/reportes/movimientos", params={"tamano": 100}).json()
-    assert visto["total"] > 0
+    suyo = solo_el_suyo.get("/api/reportes/movimientos", params={"tamano": 100}).json()
+    assert visto["total"] > 0 and visto["total"] > suyo["total"]
+    # Solo ve lo que toca a Midrex (SG-05): lo que sale, lo que llega y lo que viene en camino.
+    assert all(f["direccion"] in ("ENTRADA", "SALIDA", "EN_CAMINO") for f in suyo["elementos"])
     # Pedir otro almacén no da error: simplemente no devuelve nada (AC-06).
     r = solo_el_suyo.get("/api/reportes/movimientos", params={"almacen_id": UUID_FALSO})
     assert r.status_code == 200 and r.json()["elementos"] == []
@@ -772,7 +831,7 @@ def _recorrido(cliente: TestClient, c: dict, *, con_ficha: bool = True) -> dict[
     respuestas: dict[str, str] = {}
     for ruta in rutas:
         r = cliente.get(ruta)
-        assert r.status_code in (200, 403), f"{ruta}: {r.status_code} {r.text}"
+        assert r.status_code in (200, 403, 404), f"{ruta}: {r.status_code} {r.text}"
         respuestas[ruta] = r.text if r.status_code == 200 else ""
     for ruta, art in (("/api/articulos/", "GUANTE-CAR"),):
         lista = cliente.get("/api/articulos", params={"q": art})
@@ -875,7 +934,10 @@ def test_RG_12_la_importacion_ignora_el_costo_sin_permiso_y_lo_oculta(
     assert previa.status_code == 200 and "85.50" in previa.text
     # Sin costos: el almacén de la sesión, un aviso, y el costo no vuelve en NINGUNA respuesta.
     sin = _cliente_de(
-        app, crear_usuario({P.INVENTARIO_ENTRADAS, P.CATALOGO_ADMINISTRAR}, almacen="KEP")
+        app,
+        crear_usuario(
+            {P.INVENTARIO_ENTRADAS, P.INVENTARIO_IMPORTAR, P.CATALOGO_ADMINISTRAR}, almacen="KEP"
+        ),
     )
     previa = sin.post("/api/importacion/vista-previa", json=cuerpo)
     assert previa.status_code == 200, previa.text

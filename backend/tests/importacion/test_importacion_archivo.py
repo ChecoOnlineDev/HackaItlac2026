@@ -292,7 +292,9 @@ def test_I_06_el_archivo_exige_inventario_entradas(cliente_con):
 
 
 def test_RG_12_sin_catalogo_costos_el_costo_del_archivo_no_vuelve_en_la_respuesta(cliente_con):
-    sin_costos = cliente_con({P.INVENTARIO_ENTRADAS, P.ALMACENES_TODOS, P.CATALOGO_ADMINISTRAR})
+    sin_costos = cliente_con(
+        {P.INVENTARIO_ENTRADAS, P.INVENTARIO_IMPORTAR, P.ALMACENES_TODOS, P.CATALOGO_ADMINISTRAR}
+    )
     r = subir(sin_costos, libro([[unico("C"), "Cosa", "m", MANUAL, 1, "KEP", None, 777.77, None]]))
     assert r.status_code == 200, r.text
     vp = r.json()["vista_previa"]

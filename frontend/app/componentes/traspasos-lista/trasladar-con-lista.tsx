@@ -26,7 +26,7 @@ import { SelectorDestino } from "~/componentes/traspasos/selector-destino";
 import { Boton } from "~/componentes/ui/boton";
 import { Confirmacion } from "~/componentes/ui/confirmacion";
 import { IndicadorPasos } from "~/componentes/ui/indicador-pasos";
-import { listaDeFilas } from "./lectura";
+import { columnasReconocidas, listaDeFilas } from "./lectura";
 import { PasoArchivo } from "./paso-archivo";
 import { PasoColumnasTraspaso } from "./paso-columnas";
 import { TablaVistaTraspaso } from "./tabla-vista";
@@ -296,7 +296,8 @@ export function TrasladarConLista({ operaTodos, almacenInicialId, almacenNombre,
           nuevoArchivo();
           setTabla(t);
           setColumnas(c);
-          setPaso("columnas");
+          // TR-12: con las columnas reconocidas, la vista previa aparece sola.
+          setPaso(columnasReconocidas(c) ? "revision" : "columnas");
         }}
       />
     );
@@ -305,7 +306,12 @@ export function TrasladarConLista({ operaTodos, almacenInicialId, almacenNombre,
   } else if (paso === "revision") {
     contenido = (
       <div className="flex flex-col gap-4">
-        {cargandoVista && !vista ? <EsqueletoTablaVista columnas={6} /> : null}
+        {!vista && !errorVista ? <EsqueletoTablaVista columnas={6} /> : null}
+        {vista ? (
+          <Boton variante="texto" className="self-start" onClick={() => setPaso("columnas")}>
+            ¿Las columnas no son esas? Relacionarlas a mano
+          </Boton>
+        ) : null}
         {errorVista ? (
           <section role="alert" className="flex flex-col gap-2 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-4">
             <p className="flex items-start gap-2 text-base font-semibold">

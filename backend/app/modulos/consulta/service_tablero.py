@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.tiempo import ahora_utc, hoy_mx
 from app.modulos.acceso.models import Usuario
+from app.modulos.acceso.permisos import P
 from app.modulos.acceso.service import AccesoService
 from app.modulos.almacenes.exceptions import AlmacenNoEncontrado
 from app.modulos.almacenes.models import Almacen
@@ -95,6 +96,7 @@ class TableroService:
         """Las tarjetas de FEAT-008 4.2.2 dentro del alcance del usuario (TB-01)."""
         alcance = self._alcance(usuario, almacen_id)
         generado = ahora_utc()
+        ve_resguardo = P.RESGUARDO_VER in self.acceso.permisos_de(usuario)
         if alcance.vacio:
             return ResumenTableroOut(
                 alcance=self._alcance_out(alcance),
@@ -106,6 +108,7 @@ class TableroService:
                 solicitudes_compra_abiertas=0,
                 inspecciones_por_vencer=0,
                 piezas_serie_pendiente=0,
+                alto_valor_fuera=0 if ve_resguardo else None,
                 generado_en=generado,
             )
         x = alcance.almacen_id
@@ -124,6 +127,7 @@ class TableroService:
                 x, hoy, hoy + timedelta(days=DIAS_INSPECCION_POR_VENCER)
             ),
             piezas_serie_pendiente=self.tablero.piezas_serie_pendiente(x),
+            alto_valor_fuera=self.tablero.alto_valor_fuera(x) if ve_resguardo else None,
             generado_en=generado,
         )
 

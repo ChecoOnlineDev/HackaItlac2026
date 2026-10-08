@@ -130,6 +130,18 @@ def session(engine: Engine) -> Iterator[Session]:
     conexion.close()
 
 
+@pytest.fixture(autouse=True)
+def _sin_sesiones_sobrantes(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Las pruebas con commits reales (concurrencia, `create_app()` sin `get_session` falso) abren
+    sesiones de dispositivo que se quedan en la base; las pruebas de sesiones cuentan las filas de
+    un usuario y las verían de más. Se arma antes que `session`, así que corre después de su
+    rollback."""
+    yield
+    if "engine" in request.fixturenames:
+        with request.getfixturevalue("engine").begin() as conexion:
+            conexion.execute(text("DELETE FROM sesion_dispositivo"))
+
+
 @pytest.fixture
 def app(session: Session):
     from app.db import get_session

@@ -45,28 +45,54 @@ def test_I_01_la_entrada_registra_saldos_y_proveedor_no_lleva_existencia(compras
     assert all(m.saldo_origen is None for m in movs)  # PROVEEDOR no lleva existencia
 
 
-def test_I_01_las_compras_entran_por_kepler_y_solo_el_administrador_carga_otro_almacen(
+def test_EK_01_la_entrada_siempre_va_a_kepler_aunque_se_indique_otro_almacen(
     compras, cliente_como, session
 ):
-    # Compras es de Kepler (AC-06): no puede cargar otro almacén; el Administrador sí.
     articulo = crear_articulo(session)
     contratistas = almacen(session, "CON")
-    rechazo = compras.post(
-        VALES,
-        json=cuerpo_entrada(
-            [{"codigo": articulo.codigo, "cantidad": 3}], almacen_id=str(contratistas.id)
-        ),
-    )
-    assert rechazo.status_code == 409 and rechazo.json()["codigo"] == "ALMACEN_CAMBIO"
+    for cliente in (compras, cliente_como("Administrador")):
+        for campo in ("almacen_id", "destino_almacen_id"):
+            cuerpo = cuerpo_entrada(
+                [{"codigo": articulo.codigo, "cantidad": 3}], **{campo: str(contratistas.id)}
+            )
+            r = cliente.post(VALES, json=cuerpo)
+            assert r.status_code == 422, r.text
+            assert r.json()["codigo"] == "ENTRADA_SOLO_KEPLER"
+            assert "traspaso" in r.json()["mensaje"]
+            assert cliente.post("/api/vales/evaluar", json=cuerpo).status_code == 422
+    assert existencia(session, "CON", articulo) == 0 and existencia(session, "KEP", articulo) == 0
+
+
+def test_EK_01_el_administrador_sin_indicar_almacen_da_entrada_a_kepler(cliente_como, session):
+    articulo = crear_articulo(session)
     r = cliente_como("Administrador").post(
+        VALES, json=cuerpo_entrada([{"codigo": articulo.codigo, "cantidad": 3}])
+    )
+    assert r.status_code == 201 and r.json()["folio"].startswith("KEP-ING-")
+    assert existencia(session, "KEP", articulo) == 3
+
+
+def test_EK_01_indicar_kepler_expresamente_es_valido(compras, session):
+    articulo = crear_articulo(session)
+    kepler = almacen(session, "KEP")
+    r = compras.post(
         VALES,
         json=cuerpo_entrada(
-            [{"codigo": articulo.codigo, "cantidad": 3}], almacen_id=str(contratistas.id)
+            [{"codigo": articulo.codigo, "cantidad": 2}], almacen_id=str(kepler.id)
         ),
     )
-    assert r.status_code == 201 and r.json()["folio"].startswith("CON-ING-")
-    assert existencia(session, "CON", articulo) == 3
-    assert existencia(session, "KEP", articulo) == 0
+    assert r.status_code == 201 and existencia(session, "KEP", articulo) == 2
+
+
+def test_EK_01_el_almacen_central_se_resuelve_por_tipo_y_no_por_la_clave(compras, session):
+    # El destino sale del tipo CENTRAL, no de una clave escrita en el código.
+    from app.modulos.almacenes.service import AlmacenService
+
+    central = AlmacenService(session).obtener_central()
+    assert central.clave == "KEP" and central.tipo == "CENTRAL"
+    articulo = crear_articulo(session)
+    vale = abastecer(compras, articulo, 1)
+    assert session.get(Vale, uuid.UUID(vale["id"])).almacen_id == central.id
 
 
 def test_I_01_articulo_por_cantidad_repetido_en_el_vale_suma(compras, session):
@@ -362,9 +388,10 @@ def test_I_01_la_entrada_sin_renglones_se_rechaza(compras):
     assert r.status_code == 422
 
 
-def test_I_01_la_entrada_a_un_almacen_inexistente_da_404(cliente_como, session):
+def test_EK_01_la_entrada_a_un_almacen_inexistente_se_rechaza(cliente_como, session):
     articulo = crear_articulo(session)
     cuerpo = cuerpo_entrada(
         [{"codigo": articulo.codigo, "cantidad": 1}], almacen_id=str(uuid.uuid4())
     )
-    assert cliente_como("Administrador").post(VALES, json=cuerpo).status_code == 404
+    r = cliente_como("Administrador").post(VALES, json=cuerpo)
+    assert r.status_code == 422 and r.json()["codigo"] == "ENTRADA_SOLO_KEPLER"

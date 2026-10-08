@@ -23,7 +23,7 @@ from app.modulos.acceso.exceptions import (
     UltimoAdministrador,
 )
 from app.modulos.acceso.models import Rol, Usuario
-from app.modulos.acceso.permisos import CATALOGO, CLAVES, P
+from app.modulos.acceso.permisos import CATALOGO, CLAVES, PROTEGIDOS_DEL_ADMINISTRADOR, P
 from app.modulos.acceso.repository import RolRepository, UsuarioRepository
 from app.modulos.acceso.schemas import (
     PermisoOut,
@@ -61,6 +61,8 @@ def catalogo_de_permisos() -> list[PermisoOut]:
             es_de_informacion=p.es_de_informacion,
             mvp=p.mvp,
             llega_con=p.llega_con,
+            grupo=p.grupo or p.clave.split(".")[0],
+            disponible=p.disponible,
             requiere=list(REQUIERE.get(p.clave, ())),
         )
         for p in CATALOGO
@@ -179,6 +181,8 @@ class RolAdminService:
         quitadas = actuales - nuevas
         agregadas = nuevas - actuales
 
+        if rol.protegido:
+            self._proteger_administrador(quitadas)
         if P.ACCESO_ADMINISTRAR in quitadas:
             self._proteger_administracion(actor, rol)
 
@@ -227,6 +231,19 @@ class RolAdminService:
         self.session.commit()
 
     # --------------------------------------------------------------- reglas
+
+    @staticmethod
+    def _proteger_administrador(quitadas: set[str]) -> None:
+        """AC-32: el Administrador no pierde administrar, usuarios, roles ni los permisos de todos
+        los almacenes."""
+        descripcion = {p.clave: p.descripcion for p in CATALOGO}
+        perdidos = [c for c in PROTEGIDOS_DEL_ADMINISTRADOR if c in quitadas]
+        if perdidos:
+            raise RolProtegido(
+                "El rol Administrador no puede perder: "
+                + "; ".join(f"«{descripcion[c]}» ({c})" for c in perdidos)
+                + "."
+            )
 
     def _proteger_administracion(self, actor: Usuario, rol: Rol) -> None:
         """AC-09: quitar `acceso.administrar` a un rol. No se permite en el Administrador, a quien

@@ -18,7 +18,6 @@ _ALTA = (
     ("Categoría", "Herramienta manual", "Si la dejas vacía, el sistema sugiere una."),
     ("Cantidad", 12, "Número entero, hasta el tope por fila."),
     ("Unidad", "pieza", "Opcional, hasta 20 caracteres. Solo se usa al crear el artículo."),
-    ("Almacén", "KEP", "Clave o nombre del almacén. Vacío: el almacén por omisión."),
     ("Serie", "", "Solo para artículos por pieza. Vacía: la serie queda pendiente."),
     (
         "Código de la pieza",
@@ -30,7 +29,6 @@ _COSTO = ("Costo", 85.5, "Costo unitario del artículo nuevo. Solo con permiso d
 _REPOSICION = (
     ("Código", "MART-01", "Código de un artículo que ya existe. Obligatorio."),
     ("Cantidad", 12, "Número entero, hasta el tope por fila."),
-    ("Almacén", "KEP", "Clave o nombre del almacén. Vacío: el almacén por omisión."),
     ("Serie", "", "Solo para artículos por pieza."),
     ("Código de la pieza", "", "Solo para artículos por pieza: una fila por pieza."),
 )
@@ -38,7 +36,8 @@ _REPOSICION = (
 _NOTAS = {
     "ALTA": (
         "Alta: crea los artículos nuevos y suma a los que ya existen.",
-        "Las filas del mismo artículo y almacén se unen en una.",
+        "Las filas del mismo artículo se unen en una.",
+        "Todo entra a Kepler; de ahí se reparte por traspaso.",
         "Sin serie, la pieza entra con la serie pendiente; sin código de pieza, se genera.",
         "La cantidad es un número entero: en lugar de 0.25 kilos, escribe 250 gramos.",
         "Una fila cuya descripción dice SERVICIO no es un artículo y se excluye.",
@@ -47,6 +46,7 @@ _NOTAS = {
         "Reposición: solo suma a artículos que ya existen; nunca crea.",
         "Un código que no existe es un error: dalo de alta primero.",
         "Las columnas de nombre, marca, categoría y costo no se leen.",
+        "Todo entra a Kepler; de ahí se reparte por traspaso.",
         "La cantidad es un número entero: en lugar de 0.25 kilos, escribe 250 gramos.",
     ),
 }

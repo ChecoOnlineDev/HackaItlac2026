@@ -37,7 +37,7 @@ def importar(cliente, filas, esperado: int = 201, **extra):
 # ------------------------------------------------------------------------------ I-01
 
 
-def test_I_01_un_vale_de_entrada_por_almacen_con_folios_consecutivos_y_existencias_exactas(
+def test_EK_02_toda_la_importacion_entra_en_un_vale_a_kepler_y_la_columna_de_almacen_se_ignora(
     compras, session
 ):
     a, b, c = unico("A"), unico("B"), unico("C")
@@ -50,13 +50,11 @@ def test_I_01_un_vale_de_entrada_por_almacen_con_folios_consecutivos_y_existenci
         ],
     )
     assert primera["repetida"] is False
-    claves = [v["almacen"]["clave"] for v in primera["vales"]]
-    assert claves == ["CON", "KEP"]  # un vale por almacén
+    assert [v["almacen"]["clave"] for v in primera["vales"]] == ["KEP"]  # un solo vale, a Kepler
     vales = {v["almacen"]["clave"]: v for v in primera["vales"]}
-    assert vales["KEP"]["renglones"] == 2 and vales["KEP"]["unidades"] == 14
-    assert vales["CON"]["renglones"] == 1 and vales["CON"]["unidades"] == 7
+    assert vales["KEP"]["renglones"] == 3 and vales["KEP"]["unidades"] == 21
     assert vales["KEP"]["folio"].startswith("KEP-ING-")
-    assert vales["CON"]["folio"].startswith("CON-ING-")
+    assert any("columna de almacén" in aviso for aviso in primera["avisos"])
     assert primera["resumen"] == {
         "filas_importadas": 3,
         "filas_con_error": 0,
@@ -64,15 +62,15 @@ def test_I_01_un_vale_de_entrada_por_almacen_con_folios_consecutivos_y_existenci
         "existentes": 0,
         "unidos": 0,
         "excluidas": 0,
-        "vales": 2,
+        "vales": 1,
         "piezas": 0,
         "unidades": 21,
         "series_pendientes": 0,
     }
     assert existencia(session, "KEP", articulo(session, a)) == 10
     assert existencia(session, "KEP", articulo(session, b)) == 4
-    assert existencia(session, "CON", articulo(session, c)) == 7
-    assert existencia(session, "CON", articulo(session, a)) == 0
+    assert existencia(session, "KEP", articulo(session, c)) == 7
+    assert existencia(session, "CON", articulo(session, c)) == 0  # nunca entra fuera de Kepler
 
     # RG-06: la siguiente importación al mismo almacén sigue la numeración (sin huecos).
     segunda = importar(compras, [fila(a, cantidad=5, almacen="KEP")])
@@ -115,28 +113,24 @@ def test_I_01_un_almacen_con_mas_de_500_renglones_se_parte_en_varios_vales(compr
     assert salida["resumen"]["unidades"] == 501
 
 
-def test_AC_06_sin_almacenes_todos_solo_carga_a_su_almacen(cliente_con, session):
-    kepler = cliente_con({P.INVENTARIO_ENTRADAS, P.CATALOGO_ADMINISTRAR}, almacen="KEP")
-    ok, ajena = unico("OK"), unico("AJ")
-    salida = importar(
-        kepler,
-        [fila(ok, cantidad=2, almacen="KEP"), fila(ajena, cantidad=2, almacen="CON")],
+def test_AC_06_sin_almacenes_todos_solo_carga_quien_esta_en_kepler(cliente_con, session):
+    # EK-01: el destino es Kepler; quien trabaja en otro almacén no da entrada (AC-06).
+    ajeno = cliente_con(
+        {P.INVENTARIO_ENTRADAS, P.INVENTARIO_IMPORTAR, P.CATALOGO_ADMINISTRAR}, almacen="CON"
     )
-    assert salida["resumen"]["filas_importadas"] == 1
-    assert salida["filas_error"][0]["motivos"][0]["codigo"] == "ALMACEN_AJENO"
-    assert articulo(session, ok) is not None and articulo(session, ajena) is None
+    codigo = unico("AJ")
+    r = ajeno.post(IMPORTACION, json=confirmacion([fila(codigo, cantidad=2, almacen="CON")]))
+    assert r.status_code == 422, r.text  # ninguna fila buena
+    assert r.json()["detalles"]["filas_error"][0]["motivos"][0]["codigo"] == "ALMACEN_AJENO"
+    assert articulo(session, codigo) is None
 
 
-def test_AC_06_compras_es_de_kepler_y_no_carga_otros_almacenes(compras_de_kepler, session):
-    # Decisión de producto: solo el Administrador tiene `almacenes.todos`; Compras carga Kepler.
-    ok, ajena = unico("OK"), unico("AJ")
-    salida = importar(
-        compras_de_kepler,
-        [fila(ok, cantidad=2, almacen="KEP"), fila(ajena, cantidad=2, almacen="CON")],
-    )
-    assert salida["resumen"]["filas_importadas"] == 1
-    assert salida["filas_error"][0]["motivos"][0]["codigo"] == "ALMACEN_AJENO"
-    assert articulo(session, ok) is not None and articulo(session, ajena) is None
+def test_EK_01_compras_con_una_fila_de_otro_almacen_la_carga_en_kepler(compras_de_kepler, session):
+    codigo = unico("OK")
+    salida = importar(compras_de_kepler, [fila(codigo, cantidad=2, almacen="CON")])
+    assert salida["resumen"]["filas_importadas"] == 1 and salida["filas_error"] == []
+    assert existencia(session, "KEP", articulo(session, codigo)) == 2
+    assert existencia(session, "CON", articulo(session, codigo)) == 0
 
 
 # ------------------------------------------------------------------------------ I-06
@@ -189,10 +183,8 @@ def test_I_06_el_servidor_revisa_otra_vez_al_confirmar_aunque_la_vista_previa_di
 def test_RG_09_si_falla_una_entrada_no_se_guarda_nada_de_la_importacion(
     compras, session, monkeypatch
 ):
-    filas = [
-        fila(unico("A"), cantidad=2, almacen="CON"),
-        fila(unico("B"), cantidad=3, almacen="KEP"),
-    ]
+    # 501 filas se parten en dos vales (500 renglones cada uno como máximo).
+    filas = [fila(unico("M"), nombre=f"Masivo {i}", cantidad=1) for i in range(501)]
     antes = conteos(session)
     original = MovimientoService.confirmar
     llamadas = {"n": 0}
@@ -270,13 +262,13 @@ def test_RG_09_confirmar_dos_veces_el_mismo_lote_no_duplica_articulos_ni_entrada
     assert [v["folio"] for v in repetida["vales"]] == [
         v["folio"] for v in sorted(primera.json()["vales"], key=lambda v: v["folio"])
     ]
-    assert repetida["resumen"]["unidades"] == 6 and repetida["resumen"]["vales"] == 2
+    assert repetida["resumen"]["unidades"] == 6 and repetida["resumen"]["vales"] == 1
     assert conteos(session) == despues_de_la_primera
     assert existencia(session, "KEP", articulo(session, codigo)) == 5
 
 
 def test_RG_09_el_lote_de_otra_persona_no_se_puede_reusar(compras, cliente_con):
-    otra = cliente_con({P.INVENTARIO_ENTRADAS, P.ALMACENES_TODOS})
+    otra = cliente_con({P.INVENTARIO_ENTRADAS, P.INVENTARIO_IMPORTAR, P.ALMACENES_TODOS})
     lote = str(uuid.uuid4())
     assert (
         compras.post(
@@ -418,7 +410,9 @@ def test_RG_12_con_catalogo_costos_el_costo_queda_en_el_articulo_nuevo(compras, 
 def test_RG_12_sin_catalogo_costos_el_costo_se_ignora_y_el_articulo_entra_sin_costo(
     cliente_con, session
 ):
-    sin_costos = cliente_con({P.INVENTARIO_ENTRADAS, P.ALMACENES_TODOS, P.CATALOGO_ADMINISTRAR})
+    sin_costos = cliente_con(
+        {P.INVENTARIO_ENTRADAS, P.INVENTARIO_IMPORTAR, P.ALMACENES_TODOS, P.CATALOGO_ADMINISTRAR}
+    )
     codigo = unico("SINCOS")
     salida = importar(sin_costos, [fila(codigo, cantidad=2, costo="999")])
     assert salida["resumen"]["filas_importadas"] == 1

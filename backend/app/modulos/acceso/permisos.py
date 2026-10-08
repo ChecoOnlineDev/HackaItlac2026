@@ -50,6 +50,16 @@ class P:
     COMPRAS_SOLICITAR = "compras.solicitar"
     COMPRAS_ATENDER = "compras.atender"
 
+    # --- FEAT-011, sección D (AC-30) ---
+    BITACORA_VER = "bitacora.ver"
+    RESGUARDO_VER = "resguardo.ver"
+    INVENTARIO_IMPORTAR = "inventario.importar"
+    CATALOGO_LIMITES = "catalogo.limites"
+    PIEZAS_MARCAR_ESTADO = "piezas.marcar_estado"
+    ACCESO_USUARIOS = "acceso.usuarios"
+    ACCESO_ROLES = "acceso.roles"
+    AUDITORIA_VER = "auditoria.ver"
+
     # --- Sección 8.3 (los agregan las features o están pospuestos) ---
     REPORTES_VALOR_INVENTARIO = "reportes.valor_inventario"
     INVENTARIO_MINIMOS = "inventario.minimos"
@@ -67,10 +77,19 @@ class Permiso:
     llega_con: str = "MVP"
     # Permiso de información (AC-05): sin él, el dato no se envía.
     es_de_informacion: bool = False
+    # Grupo con el que la matriz de /roles junta el permiso. Vacío: el módulo de su clave.
+    grupo: str = ""
+    # False: está en el catálogo pero no tiene función en esta versión (se oculta de la matriz y
+    # ningún rol inicial lo recibe).
+    disponible: bool = True
 
 
 CATALOGO: tuple[Permiso, ...] = (
-    Permiso(P.ACCESO_ADMINISTRAR, "Roles, permisos y usuarios", True),
+    Permiso(
+        P.ACCESO_ADMINISTRAR,
+        "Administrador del sistema: siempre debe quedar alguien con este permiso",
+        True,
+    ),
     Permiso(P.TRABAJADORES_VER, "Ficha básica del trabajador", True),
     Permiso(P.TRABAJADORES_VER_DATOS_PERSONALES, "Ver CURP y NSS", True, es_de_informacion=True),
     Permiso(P.TRABAJADORES_ADMINISTRAR, "Alta, reingreso, credencial y cancelar una baja", True),
@@ -129,14 +148,79 @@ CATALOGO: tuple[Permiso, ...] = (
     Permiso(P.ETIQUETAS_IMPRIMIR, "Hojas de QR", True),
     Permiso(P.COMPRAS_SOLICITAR, "Pedir una compra urgente", True),
     Permiso(P.COMPRAS_ATENDER, "Atender las solicitudes de compra", True),
-    Permiso(P.REPORTES_VALOR_INVENTARIO, "Valor del inventario", False, "FEAT-002", True),
-    Permiso(P.INVENTARIO_MINIMOS, "Fijar mínimos por almacén", False, "FEAT-004"),
-    Permiso(P.PIEZAS_DAR_DE_BAJA, "Dar una pieza por perdida o de baja", False, "Pospuesto"),
-    Permiso(P.REVISION_VER, "Lista de revisión", False, "Pospuesto"),
+    Permiso(
+        P.BITACORA_VER,
+        "Ver la bitácora de un almacén: lo que sale, lo que llega y las entradas",
+        True,
+        "FEAT-011",
+        grupo="inventario",
+    ),
+    Permiso(
+        P.RESGUARDO_VER,
+        "Ver quién tiene qué: las piezas y herramientas en manos de cada trabajador",
+        True,
+        "FEAT-011",
+        grupo="trabajadores",
+    ),
+    Permiso(
+        P.INVENTARIO_IMPORTAR,
+        "Cargar inventario desde un archivo de Excel (capturar a mano es inventario.entradas)",
+        True,
+        "FEAT-011",
+        grupo="inventario",
+    ),
+    Permiso(
+        P.CATALOGO_LIMITES,
+        "Cambiar los límites de entrega de categorías y artículos",
+        True,
+        "FEAT-011",
+    ),
+    Permiso(
+        P.PIEZAS_MARCAR_ESTADO,
+        "Pasar una pieza a mantenimiento o calibración y devolverla al servicio",
+        True,
+        "FEAT-011",
+    ),
+    Permiso(
+        P.ACCESO_USUARIOS,
+        "Dar de alta y administrar usuarios, contraseñas y PIN",
+        True,
+        "FEAT-011",
+    ),
+    Permiso(P.ACCESO_ROLES, "Crear roles y cambiar sus permisos", True, "FEAT-011"),
+    Permiso(P.AUDITORIA_VER, "Ver el registro de cambios del sistema", True, "FEAT-011"),
+    Permiso(
+        P.REPORTES_VALOR_INVENTARIO,
+        "Valor del inventario",
+        False,
+        "FEAT-002",
+        True,
+        disponible=False,
+    ),
+    Permiso(P.INVENTARIO_MINIMOS, "Fijar mínimos por almacén", False, "FEAT-004", disponible=False),
+    Permiso(
+        P.PIEZAS_DAR_DE_BAJA,
+        "Dar una pieza por perdida o de baja",
+        False,
+        "Pospuesto",
+        disponible=False,
+    ),
+    Permiso(P.REVISION_VER, "Lista de revisión", False, "Pospuesto", disponible=False),
 )
 
 CLAVES: frozenset[str] = frozenset(p.clave for p in CATALOGO)
 CLAVES_MVP: frozenset[str] = frozenset(p.clave for p in CATALOGO if p.mvp)
+# Los que sí funcionan en esta versión: el Administrador recibe estos y la matriz solo ofrece estos.
+CLAVES_DISPONIBLES: frozenset[str] = frozenset(p.clave for p in CATALOGO if p.disponible)
+
+# AC-32: el rol Administrador (protegido) nunca pierde estos.
+PROTEGIDOS_DEL_ADMINISTRADOR: tuple[str, ...] = (
+    P.ACCESO_ADMINISTRAR,
+    P.ACCESO_USUARIOS,
+    P.ACCESO_ROLES,
+    P.ALMACENES_TODOS,
+    P.ALMACENES_ADMINISTRAR,
+)
 
 assert len(CLAVES) == len(CATALOGO), "Hay claves de permiso repetidas"
 

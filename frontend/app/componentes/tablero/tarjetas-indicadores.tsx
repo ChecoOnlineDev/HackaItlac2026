@@ -62,6 +62,14 @@ export function TarjetasIndicadores({ resumen, puedeVerSeguimiento }: Propiedade
         detalle="piezas en manos de trabajadores"
         ruta={puedeVerSeguimiento ? "/seguimiento?ubicacion=TRABAJADOR" : undefined}
       />
+      {typeof resumen.alto_valor_fuera === "number" ? (
+        <TarjetaIndicador
+          titulo="Alto valor fuera del almacén"
+          valor={resumen.alto_valor_fuera}
+          detalle="piezas de alto valor y alturas con un trabajador"
+          ruta="/seguimiento?alto_valor=true&ubicacion=TRABAJADOR"
+        />
+      ) : null}
       <TarjetaIndicador titulo="Sin existencia" valor={resumen.sin_existencia} detalle="artículos agotados" atencion />
       <TarjetaIndicador titulo="Traspasos en tránsito" valor={resumen.traspasos_en_transito} detalle="enviados y sin recibir" />
       <TarjetaIndicador titulo="Entregas de hoy" valor={resumen.entregas_hoy} detalle="vales de entrega del día" />

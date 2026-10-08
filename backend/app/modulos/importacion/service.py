@@ -54,7 +54,7 @@ from app.modulos.importacion.exceptions import (
     LoteEnUso,
     SinFilasValidas,
 )
-from app.modulos.importacion.lectura import clave, leer_xlsx, proponer_columnas, texto_de_celda
+from app.modulos.importacion.lectura import leer_xlsx, proponer_columnas, texto_de_celda
 from app.modulos.importacion.plantilla import generar_plantilla
 from app.modulos.importacion.repository import ImportacionRepository
 from app.modulos.importacion.schemas import (
@@ -153,7 +153,7 @@ class ImportacionService:
     @staticmethod
     def _huella(datos: ImportacionIn) -> str:
         """La huella del archivo (I-12): `sha256` del modo, las filas normalizadas (sin vacias,
-        sin espacios de mas y en un orden fijo) y el almacen por defecto."""
+        sin espacios de mas y en un orden fijo)."""
         filas = []
         for fila in datos.filas:
             celdas = [texto_de_celda(c) for c in fila]
@@ -166,7 +166,6 @@ class ImportacionService:
             {
                 "modo": datos.modo,
                 "filas": filas,
-                "almacen_por_defecto": clave(datos.almacen_por_defecto or ""),
             },
             ensure_ascii=False,
             separators=(",", ":"),

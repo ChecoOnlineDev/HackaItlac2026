@@ -36,6 +36,17 @@ class SeguimientoFilters(BaseModel):
     ubicacion: UbicacionSeguimiento | None = None
     # E-29: `true` deja las piezas sin número de serie; `false`, las que ya lo tienen.
     serie_pendiente: bool | None = None
+    # SG-04: `true` deja solo las piezas de alto valor y de alturas.
+    alto_valor: bool | None = None
+    formato: FormatoReporte = FormatoReporte.JSON
+
+
+class CantidadFilters(BaseModel):
+    """Filtros de la pestaña «Por cantidad» (SG-01): lo que se busca y el almacén (AC-06)."""
+
+    q: str | None = None
+    articulo_id: uuid.UUID | None = None
+    almacen_id: uuid.UUID | None = None
     formato: FormatoReporte = FormatoReporte.JSON
 
 
@@ -88,6 +99,11 @@ class PiezaSeguimientoItem(BaseModel):
     desde: FechaUtc | None
     # El vale de ese movimiento; `null` si es de un almacén fuera del alcance del usuario (AC-06).
     vale: ValeSeguimientoOut | None
+    # SG-04: la pieza es de una categoría de alto valor o de alturas.
+    alto_valor: bool = False
+    # SG-06: aviso cuando una pieza de alto valor la tiene un trabajador dado de baja o con el
+    # contrato vencido.
+    aviso: str | None = None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -106,7 +122,35 @@ class ResumenSeguimiento(BaseModel):
     en_resguardo: int
     en_transito: int
     no_aptas: int
+    # SG-01: cuántos artículos por cantidad hay en resguardo (otra pestaña), para que una lista de
+    # piezas vacía no parezca rota. Con el texto, el artículo y el almacén del filtro.
+    articulos_por_cantidad: int = 0
 
 
 class PaginaSeguimiento(PaginaReporte[PiezaSeguimientoItem]):
     resumen: ResumenSeguimiento
+
+
+class CantidadSeguimientoItem(BaseModel):
+    """Un artículo por cantidad en resguardo de un trabajador (SG-01)."""
+
+    trabajador: TrabajadorSeguimientoOut
+    articulo: ArticuloSeguimientoOut
+    unidad: str
+    cantidad: int
+    # Desde cuándo lo tiene: su entrega más reciente (UTC).
+    desde: FechaUtc | None
+    # El vale de esa entrega; `null` si es de un almacén fuera del alcance del usuario (AC-06).
+    vale: ValeSeguimientoOut | None
+    almacen: AlmacenSeguimientoOut | None
+
+
+class ResumenCantidad(BaseModel):
+    renglones: int
+    unidades: int
+    articulos: int
+    trabajadores: int
+
+
+class PaginaCantidad(PaginaReporte[CantidadSeguimientoItem]):
+    resumen: ResumenCantidad

@@ -17,7 +17,6 @@ from tests.ayudas_guion import alta_trabajador, entregar
 from tests.movimientos.ayudas import (
     abastecer,
     crear_articulo,
-    cuerpo_entrada,
     total_movimientos,
     total_vales,
 )
@@ -238,28 +237,32 @@ def test_SC_06_un_vale_de_entrada_cancelado_se_rechaza(como, session):
     assert r.status_code == 422 and r.json()["detalles"][0]["regla"] == "SC-06"
 
 
-def test_SC_06_un_vale_inexistente_o_de_otro_almacen_se_rechaza(como, session):
+def test_EK_05_SC_06_un_vale_inexistente_o_que_no_es_de_kepler_se_rechaza(como, session):
     compras, admin = como("compras"), como("admin")
-    articulo = crear_articulo(session)
+    # Una entrada vieja a Contratistas (de antes de EK-01): se simula moviendo el vale de sitio.
+    entrada = _entrada(compras, session)
     contratistas = session.scalar(select(Almacen.id).where(Almacen.clave == "CON"))
-    r = admin.post(
-        "/api/vales",
-        json=cuerpo_entrada(
-            [{"codigo": articulo.codigo, "cantidad": 2}], almacen_id=str(contratistas)
-        ),
-    )
-    assert r.status_code == 201, r.text
-    ajeno = r.json()
+    session.get(Vale, uuid.UUID(entrada["id"])).almacen_id = contratistas
+    session.flush()
     s = _llevar_a(compras, como("almacenista"), "COMPRADA")
-    for vale_id in (str(uuid.uuid4()), ajeno["id"]):
-        r = compras.post(
-            f"{RUTA}/{s['id']}/estado",
-            json={"estado": "INGRESADA", "vale_entrada_id": vale_id},
-        )
-        assert r.status_code == 422 and r.json()["detalles"][0]["regla"] == "SC-06", vale_id
-    # El Administrador opera todos los almacenes: sí puede ligar el de Contratistas.
-    s = estado(admin, s["id"], "INGRESADA", vale_entrada_id=ajeno["id"])
-    assert s["vale_entrada"]["folio"] == ajeno["folio"]
+    for vale_id in (str(uuid.uuid4()), entrada["id"]):
+        for cliente in (compras, admin):
+            r = cliente.post(
+                f"{RUTA}/{s['id']}/estado",
+                json={"estado": "INGRESADA", "vale_entrada_id": vale_id},
+            )
+            assert r.status_code == 422 and r.json()["detalles"][0]["regla"] == "SC-06", vale_id
+
+
+def test_EK_05_el_vale_de_entrada_de_kepler_se_liga_y_el_almacen_pide_recibir_por_traspaso(
+    como, session
+):
+    compras = como("compras")
+    vale = _entrada(compras, session)
+    assert vale["folio"].startswith("KEP-ING-")
+    s = _llevar_a(compras, como("almacenista"), "COMPRADA")
+    s = estado(compras, s["id"], "INGRESADA", vale_entrada_id=vale["id"])
+    assert s["vale_entrada"]["folio"] == vale["folio"]
 
 
 @pytest.mark.parametrize("destino", ["EN_COMPRA", "COMPRADA", "RECHAZADA"])

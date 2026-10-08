@@ -3,7 +3,7 @@ aviso amarillo y observación obligatoria; para los demás es rojo y el servidor
 
 import pytest
 
-from tests.movimientos.ayudas import abastecer, crear_articulo, total_vales
+from tests.movimientos.ayudas import abastecer_en, crear_articulo, total_vales
 from tests.movimientos.ayudas_traspasos import (
     EVALUAR,
     VALES,
@@ -17,7 +17,7 @@ from tests.movimientos.ayudas_traspasos import (
 @pytest.fixture
 def articulo(session, cliente_como):
     guantes = crear_articulo(session, retornable=False)
-    abastecer(cliente_como("Administrador"), guantes, 5, almacen_id=str(almacen_id(session, "KEP")))
+    abastecer_en(session, guantes, 5, "KEP")
     return guantes
 
 
@@ -76,9 +76,7 @@ def test_X_03_la_ruta_padre_hijo_sigue_en_verde_sin_observacion(
     destino,  # noqa: F811
 ):
     guantes = crear_articulo(session, retornable=False)
-    abastecer(
-        cliente_como("Administrador"), guantes, 3, almacen_id=str(almacen_id(session, origen))
-    )
+    abastecer_en(session, guantes, 3, origen)
     cuerpo = cuerpo_traspaso(session, destino, [renglon(guantes.codigo)])
     ev = cliente_almacen(origen).post(
         EVALUAR, json={k: v for k, v in cuerpo.items() if k != "id_cliente"}

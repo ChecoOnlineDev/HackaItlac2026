@@ -16,6 +16,20 @@ class RutaSoloAdministrador(SinPermiso):
     )
 
 
+class EntradaSoloKepler(DatosInvalidos):
+    """EK-01: la mercancía de proveedor entra solo al almacén central, también para quien tiene
+    `almacenes.todos`."""
+
+    codigo = "ENTRADA_SOLO_KEPLER"
+    mensaje_defecto = (
+        "La mercancía entra solo a Kepler. Para llevarla a otro almacén, haz un traspaso."
+    )
+
+    def __init__(self, mensaje: str | None = None) -> None:
+        texto = mensaje or self.mensaje_defecto
+        super().__init__(texto, {"regla": "EK-01", "campo": "almacen_id", "mensaje": texto})
+
+
 class ValeNoEncontrado(NoEncontrado):
     mensaje_defecto = "No se encontró el vale."
 

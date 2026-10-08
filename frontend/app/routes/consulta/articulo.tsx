@@ -6,6 +6,7 @@ import { Dato, Seccion, VolverAConsultar } from "~/componentes/consulta/bloques"
 import { textoControl } from "~/componentes/consulta/formato";
 import type { FichaArticulo } from "~/componentes/consulta/tipos";
 import { useCarga } from "~/componentes/consulta/use-carga";
+import { TablaQuienLoTiene } from "~/componentes/seguimiento/quien-lo-tiene";
 import { Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
 import { Boton } from "~/componentes/ui/boton";
 import { EstadoError } from "~/componentes/ui/estado-error";
@@ -39,7 +40,7 @@ function reglas(a: FichaArticulo): string[] {
 
 export default function FichaArticulo() {
   const { id } = useParams();
-  const { puede } = useSesion();
+  const { puede, puedeAlguno } = useSesion();
   const { datos: articulo, error, cargando, recargar } = useCarga<FichaArticulo>(id ? `/articulos/${id}` : null);
 
   if (cargando) {
@@ -90,7 +91,7 @@ export default function FichaArticulo() {
             Entregar
           </Boton>
         ) : null}
-        {articulo.control === "PIEZA" && puede("reportes.existencias") ? (
+        {articulo.control === "PIEZA" && puedeAlguno(["reportes.existencias", "resguardo.ver"]) ? (
           <Boton variante="contorno" nativeButton={false} render={<Link to={`/seguimiento?articulo=${articulo.id}`} />}>
             <MapPinnedIcon aria-hidden="true" />
             Ver todas sus piezas
@@ -149,26 +150,12 @@ export default function FichaArticulo() {
         {articulo.en_posesion.length === 0 ? (
           <EstadoVacio icono={UsersIcon} titulo="Nadie lo tiene ahora" descripcion="Ningún trabajador lo tiene en resguardo." />
         ) : (
-          <ul className="flex flex-col divide-y rounded-2xl border">
-            {articulo.en_posesion.map((t) => (
-              <li key={t.trabajador_id} className="flex items-center justify-between gap-3 px-4 py-3">
-                <div className="flex min-w-0 flex-col">
-                  {puede("trabajadores.ver") ? (
-                    <Link to={`/trabajadores/${t.trabajador_id}`} className="inline-flex min-h-10 items-center text-base font-semibold text-primary underline underline-offset-2">
-                      {t.nombre}
-                    </Link>
-                  ) : (
-                    <span className="text-base font-semibold">{t.nombre}</span>
-                  )}
-                  <span className="text-sm text-muted-foreground">Número {t.numero_empleado}</span>
-                </div>
-                <span className="flex shrink-0 flex-col items-end leading-tight">
-                  <span className="text-lg font-semibold tabular-nums">{t.cantidad}</span>
-                  <span className="text-xs text-muted-foreground">en resguardo</span>
-                </span>
-              </li>
-            ))}
-          </ul>
+          <TablaQuienLoTiene
+            poseedores={articulo.en_posesion}
+            puedeVerTrabajador={puede("trabajadores.ver")}
+            puedeVerVale={puede("vales.ver")}
+            puedeVerPieza={puede("catalogo.ver")}
+          />
         )}
       </Seccion>
 

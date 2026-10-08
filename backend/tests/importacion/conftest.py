@@ -4,7 +4,7 @@
   `catalogo.costos`, `almacenes.todos`). Compras es de Kepler y ya no carga otros almacenes (AC-06);
   esa regla se prueba con `cliente_con` y con `compras_de_kepler`.
 - `compras_de_kepler`: sesión de Compras (almacén asignado: Kepler).
-- `almacenista`: sesión del almacenista de Kepler (sin `inventario.entradas`).
+- `almacenista`: sesión del almacenista de Kepler (sin `inventario.importar`).
 - `cliente_con`: sesión de un rol nuevo con exactamente esos permisos y ese almacén.
 """
 

@@ -154,6 +154,10 @@ export interface HechoHistorial {
   destino: string | null;
   responsable: string | null;
   condicion: string | null;
+  /** SG-03: el almacén del vale y el trabajador que recibe (o devuelve) la pieza. */
+  almacen?: string | null;
+  trabajador?: string | null;
+  trabajador_id?: string | null;
   resultado: string | null;
   vigente_hasta: string | null;
   vigente_hasta_anterior: string | null;
@@ -173,6 +177,8 @@ export interface FichaPieza {
   articulo: ArticuloDePieza;
   inspeccion_vigente_hasta: string | null;
   inspeccion_vigente: boolean;
+  /** SG-06: alto valor en resguardo de un trabajador de baja o con el contrato vencido. */
+  aviso?: string | null;
   ultima_inspeccion: UltimaInspeccion | null;
   ubicacion: Ubicacion | null;
   historial: HechoHistorial[];
@@ -188,11 +194,25 @@ export interface ExistenciaAlmacen {
   disponible: number;
 }
 
+/** SG-02: una pieza en manos de un trabajador. */
+export interface PiezaPoseida {
+  id: string;
+  codigo: string;
+  numero_serie: string | null;
+}
+
 export interface Poseedor {
   trabajador_id: string;
   numero_empleado: string;
   nombre: string;
   cantidad: number;
+  /** Desde cuándo lo tiene (UTC); llega con la `Z`. */
+  desde?: string | null;
+  /** Null si el vale es de otro almacén. */
+  vale_id?: string | null;
+  folio?: string | null;
+  /** Solo en artículos por pieza. */
+  piezas?: PiezaPoseida[];
 }
 
 export interface FichaArticulo {

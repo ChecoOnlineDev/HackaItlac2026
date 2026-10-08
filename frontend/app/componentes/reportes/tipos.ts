@@ -34,10 +34,15 @@ export interface MovimientoReporte {
   codigo_articulo: string;
   articulo: string;
   pieza: string | null;
+  numero_serie?: string | null;
   cantidad: number;
   origen: string;
   destino: string;
+  /** Respecto al almacén filtrado (SG-05): ENTRADA, SALIDA o EN_CAMINO; null si no se filtró por almacén. */
+  direccion?: "ENTRADA" | "SALIDA" | "EN_CAMINO" | null;
+  direccion_texto?: string | null;
   responsable: string;
+  trabajador_id?: string | null;
   trabajador: string | null;
   autorizado_por: string | null;
   motivo: string | null;

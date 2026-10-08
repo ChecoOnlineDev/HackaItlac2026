@@ -5,7 +5,7 @@ import { AccionPrincipal } from "~/componentes/pantalla";
 import { Boton } from "~/componentes/ui/boton";
 import { CampoSelect } from "./campo-select";
 import { ayudaDeCampo, ETIQUETA_CAMPO, nombreDeColumna } from "./tabla";
-import { CAMPOS, camposDelModo, type CampoImportacion, type Columnas, type ModoImportacion, type Tabla } from "./tipos";
+import { CAMPOS, CAMPOS_RELACIONABLES, camposDelModo, type CampoImportacion, type Columnas, type ModoImportacion, type Tabla } from "./tipos";
 
 interface PropiedadesPasoColumnas {
   modo: ModoImportacion;
@@ -28,7 +28,7 @@ export function PasoColumnas({ modo, tabla, columnas, alCambiar, puedeCostos, al
     texto: `${nombreDeColumna(tabla.encabezados, i)}${tabla.filas[0]?.[i] ? ` — ej.: ${tabla.filas[0][i].slice(0, 24)}` : ""}`,
   }));
   const delModo = camposDelModo(modo);
-  const campos = CAMPOS.filter((c) => delModo.includes(c) && (c !== "costo" || puedeCostos));
+  const campos = CAMPOS_RELACIONABLES.filter((c) => delModo.includes(c) && (c !== "costo" || puedeCostos));
   const fijar = (campo: CampoImportacion, valor: string) => {
     const indice = valor === "" ? null : Number(valor);
     const siguiente = { ...columnas, [campo]: indice };

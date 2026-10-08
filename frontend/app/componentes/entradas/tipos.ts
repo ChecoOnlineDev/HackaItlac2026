@@ -95,11 +95,10 @@ export function nuevoBorrador(almacenId = ""): Borrador {
   return { id_cliente: nuevoId(), almacen_id: almacenId, renglones: [] };
 }
 
-/** Cuerpo de `evaluar` y de `confirmar` (confirmar agrega `id_cliente`). */
-export function cuerpoDeEntrada(b: Borrador, puedeElegirAlmacen: boolean) {
+/** Cuerpo de `evaluar` y de `confirmar` (confirmar agrega `id_cliente`). Sin almacén: siempre entra a Kepler (EK-01). */
+export function cuerpoDeEntrada(b: Borrador) {
   return {
     tipo: "ENTRADA" as const,
-    almacen_id: puedeElegirAlmacen && b.almacen_id ? b.almacen_id : undefined,
     renglones: b.renglones.map((r) => ({
       codigo: r.codigo,
       cantidad: r.cantidad,

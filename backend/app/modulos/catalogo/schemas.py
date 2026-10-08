@@ -6,7 +6,7 @@ así que la clave ni siquiera aparece en la respuesta.
 """
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated
@@ -16,12 +16,20 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    PlainSerializer,
     StringConstraints,
     model_validator,
 )
 
 from app.modulos.catalogo.models import Control, TipoCategoria
 
+
+def _a_utc(valor: datetime) -> str:
+    return valor.replace(tzinfo=UTC).isoformat().replace("+00:00", "Z")
+
+
+# Fecha de la base (UTC sin zona) enviada con la `Z`, para que el navegador la convierta bien.
+FechaUtc = Annotated[datetime, PlainSerializer(_a_utc, return_type=str)]
 Texto = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 Costo = Annotated[
     Decimal,
@@ -232,11 +240,27 @@ class ExistenciaAlmacenOut(BaseModel):
     disponible: int
 
 
+class PiezaPoseidaOut(BaseModel):
+    """Una pieza en manos de un trabajador (SG-02): código y serie (`null` si está pendiente)."""
+
+    id: uuid.UUID
+    codigo: str
+    numero_serie: str | None
+
+
 class PoseedorOut(BaseModel):
+    """Quién tiene el artículo (C-03, SG-02): cuánto, desde cuándo y con qué vale. `folio` y
+    `vale_id` van en `null` si el vale es de otro almacén (AC-06)."""
+
     trabajador_id: uuid.UUID
     numero_empleado: str
     nombre: str
     cantidad: int
+    desde: FechaUtc | None = None
+    vale_id: uuid.UUID | None = None
+    folio: str | None = None
+    # Solo en artículos por pieza: el código y la serie de cada pieza que tiene.
+    piezas: list[PiezaPoseidaOut] = []
 
 
 class ArticuloFichaOut(ArticuloOut):

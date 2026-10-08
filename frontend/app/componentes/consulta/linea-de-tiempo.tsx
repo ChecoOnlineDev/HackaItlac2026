@@ -22,7 +22,7 @@ function motivoDe(detalle: string | null): string | null {
 
 const CONDICIONES: Record<string, string> = { BUENO: "buen estado", DESGASTE: "desgaste por uso", DANADO: "dañado" };
 
-function Detalle({ hecho, puedeVerVales }: { hecho: HechoHistorial; puedeVerVales: boolean }) {
+function Detalle({ hecho, puedeVerVales, puedeVerTrabajadores }: { hecho: HechoHistorial; puedeVerVales: boolean; puedeVerTrabajadores: boolean }) {
   switch (hecho.tipo) {
     case "MOVIMIENTO":
       return (
@@ -34,6 +34,19 @@ function Detalle({ hecho, puedeVerVales }: { hecho: HechoHistorial; puedeVerVale
               <span>{hecho.destino}</span>
             </p>
           ) : null}
+          {hecho.trabajador ? (
+            <p className="text-base">
+              {hecho.destino?.startsWith(hecho.trabajador) ? "Se la dieron a " : "La devolvió "}
+              {puedeVerTrabajadores && hecho.trabajador_id ? (
+                <Link to={`/trabajadores/${hecho.trabajador_id}`} className="inline-flex min-h-10 items-center font-semibold text-primary underline underline-offset-2">
+                  {hecho.trabajador}
+                </Link>
+              ) : (
+                <span className="font-semibold">{hecho.trabajador}</span>
+              )}
+            </p>
+          ) : null}
+          {hecho.almacen ? <p className="text-sm text-muted-foreground">Almacén: {hecho.almacen}</p> : null}
           {hecho.folio ? (
             <p className="text-sm text-muted-foreground">
               Vale{" "}
@@ -81,10 +94,12 @@ interface PropiedadesLineaDeTiempo {
   historial: HechoHistorial[];
   /** Si puede abrir el vale de cada movimiento (`vales.ver`). */
   puedeVerVales?: boolean;
+  /** Si puede abrir la ficha del trabajador de cada movimiento (`trabajadores.ver`). */
+  puedeVerTrabajadores?: boolean;
 }
 
 /** Hechos de la vida de una pieza, del más reciente al más antiguo: quién y cuándo (hora de México). */
-export function LineaDeTiempo({ historial, puedeVerVales = false }: PropiedadesLineaDeTiempo) {
+export function LineaDeTiempo({ historial, puedeVerVales = false, puedeVerTrabajadores = false }: PropiedadesLineaDeTiempo) {
   if (historial.length === 0) {
     return <p className="text-sm text-muted-foreground">Esta pieza todavía no tiene historial.</p>;
   }
@@ -106,8 +121,8 @@ export function LineaDeTiempo({ historial, puedeVerVales = false }: PropiedadesL
                 {etiqueta} · {formatearFechaHora(instanteUtc(hecho.fecha))}
               </p>
               <p className="text-base font-semibold wrap-break-word">{hecho.titulo}</p>
-              <Detalle hecho={hecho} puedeVerVales={puedeVerVales} />
-              {hecho.usuario ? <p className="text-sm text-muted-foreground">Por {hecho.usuario}</p> : null}
+              <Detalle hecho={hecho} puedeVerVales={puedeVerVales} puedeVerTrabajadores={puedeVerTrabajadores} />
+              {hecho.usuario ? <p className="text-sm text-muted-foreground">{hecho.tipo === "MOVIMIENTO" ? "Lo registró" : "Por"} {hecho.usuario}</p> : null}
             </div>
           </li>
         );

@@ -4,6 +4,8 @@
 /** Catálogo fijo de permisos (docs/product/reglas-de-negocio.md, sección 8). */
 export const PERMISOS = [
   "acceso.administrar",
+  "acceso.usuarios",
+  "acceso.roles",
   "trabajadores.ver",
   "trabajadores.ver_datos_personales",
   "trabajadores.administrar",
@@ -14,6 +16,7 @@ export const PERMISOS = [
   "catalogo.costos",
   "inventario.ver",
   "inventario.entradas",
+  "inventario.importar",
   "entregas.crear",
   "devoluciones.crear",
   "traspasos.operar",
@@ -37,6 +40,8 @@ export const PERMISOS = [
   "compras.solicitar",
   "compras.atender",
   "tablero.ver",
+  "bitacora.ver",
+  "resguardo.ver",
 ] as const;
 
 export type Permiso = (typeof PERMISOS)[number];

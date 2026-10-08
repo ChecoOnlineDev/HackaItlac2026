@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from app.modulos.acceso.exceptions import UltimoAdministrador
 from app.modulos.acceso.models import Usuario
-from app.modulos.acceso.permisos import CLAVES, P
+from app.modulos.acceso.permisos import CLAVES, CLAVES_DISPONIBLES, P
 from app.modulos.acceso.repository import UsuarioRepository
 from app.modulos.acceso.service_roles import RolAdminService
 from app.modulos.almacenes.repository import AlmacenRepository
@@ -105,7 +105,7 @@ def test_AC_08_la_lista_de_roles_trae_usuarios_permisos_y_marcas(cliente_como):
     }
     admin = roles["Administrador"]
     assert admin["protegido"] is True and admin["inicial"] is True
-    assert admin["total_permisos"] == len(CLAVES)
+    assert admin["total_permisos"] == len(CLAVES_DISPONIBLES)
     assert admin["total_usuarios"] >= 1
     assert roles["Almacenista"]["protegido"] is False and roles["Almacenista"]["inicial"] is True
 
@@ -329,7 +329,9 @@ def test_AC_09_los_roles_iniciales_no_se_eliminan(cliente_como):
 
 def test_AC_09_nadie_se_quita_a_si_mismo_el_acceso_a_administrar(app, cliente_como, session):
     admin = cliente_como("Administrador")
-    rol = _crear_rol(admin, "Admin de turno", [P.ACCESO_ADMINISTRAR]).json()
+    rol = _crear_rol(
+        admin, "Admin de turno", [P.ACCESO_ADMINISTRAR, P.ACCESO_USUARIOS, P.ACCESO_ROLES]
+    ).json()
     _crear_usuario(admin, session, rol["id"])
     yo = _entrar(app, "usuario.nuevo")
     r = yo.put(f"/api/roles/{rol['id']}/permisos", json={"permisos": []})
@@ -461,14 +463,12 @@ def test_RG_07_un_rol_sin_almacenes_todos_exige_almacen_al_crear_usuarios(client
         ("GET", "/api/permisos", None),
         ("GET", "/api/roles", None),
         ("POST", "/api/roles", {"nombre": "Colado", "permisos": []}),
-        ("PUT", "/api/roles/{id}/permisos", {"permisos": [P.ACCESO_ADMINISTRAR]}),
+        ("PUT", "/api/roles/{id}/permisos", {"permisos": [P.ACCESO_ROLES]}),
         ("PATCH", "/api/roles/{id}", {"nombre": "Colado"}),
         ("DELETE", "/api/roles/{id}", None),
     ],
 )
-def test_AC_08_solo_acceso_administrar_toca_roles_y_permisos(
-    metodo, ruta, cuerpo, rol, cliente_como
-):
+def test_AC_08_solo_acceso_roles_toca_roles_y_permisos(metodo, ruta, cuerpo, rol, cliente_como):
     # El Supervisor tiene almacenes.asignar_personal y, aun así, no puede (AC-12).
     id_rol = _roles(cliente_como("Administrador"))["Almacenista"]["id"]
     r = cliente_como(rol).request(metodo, ruta.replace("{id}", id_rol), json=cuerpo)
@@ -479,7 +479,7 @@ def test_AC_04_se_verifica_la_clave_y_no_el_nombre_del_rol(app, cliente_como, se
     """Un rol que no se llama Administrador pero tiene `acceso.administrar` puede; y el
     Administrador sin ese permiso (si pudiera quitarse) no. Aquí: el rol copiado funciona."""
     admin = cliente_como("Administrador")
-    rol = _crear_rol(admin, "Segundo admin", [P.ACCESO_ADMINISTRAR]).json()
+    rol = _crear_rol(admin, "Segundo admin", [P.ACCESO_USUARIOS, P.ACCESO_ROLES]).json()
     _crear_usuario(admin, session, rol["id"])
     otro = _entrar(app, "usuario.nuevo")
     assert otro.get("/api/roles").status_code == 200

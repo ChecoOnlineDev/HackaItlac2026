@@ -46,12 +46,14 @@ export interface VistaPreviaTraspasoApi {
 /** Índice (desde 0) de la columna de cada dato; `null` si no viene. */
 export interface ColumnasTraspaso {
   codigo: number | null;
+  /** Solo de ayuda (TR-13): el servidor la compara con el catálogo y avisa si no coincide. */
+  nombre: number | null;
   cantidad: number | null;
   codigo_pieza: number | null;
   serie: number | null;
 }
 
-export const COLUMNAS_TRASPASO_VACIAS: ColumnasTraspaso = { codigo: null, cantidad: null, codigo_pieza: null, serie: null };
+export const COLUMNAS_TRASPASO_VACIAS: ColumnasTraspaso = { codigo: null, nombre: null, cantidad: null, codigo_pieza: null, serie: null };
 
 export interface ArchivoTraspasoApi {
   hoja: string | null;

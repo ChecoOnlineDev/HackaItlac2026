@@ -251,7 +251,7 @@ export function FlujoAccion({ solicitud, accion, alCerrar, alTerminar, alDesactu
       peligro: false,
     },
     ingresar: {
-      titulo: "Ingresar al almacén",
+      titulo: "Ingresar a Kepler",
       confirmar: "Ingresar",
       volver: "Volver",
       peligro: false,
@@ -299,7 +299,7 @@ export function FlujoAccion({ solicitud, accion, alCerrar, alTerminar, alDesactu
           <>
             <p className="flex items-start gap-2 rounded-xl border bg-muted p-3 text-sm">
               <InfoIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-marino" />
-              <span>Avisa que ya se compró. Cuando llegue, la ingresas al almacén.</span>
+              <span>Avisa que ya se compró. Cuando llegue, la ingresas a Kepler.</span>
             </p>
             <CampoNota
               etiqueta="Nota (opcional)"
@@ -316,12 +316,13 @@ export function FlujoAccion({ solicitud, accion, alCerrar, alTerminar, alDesactu
             <p className="flex items-start gap-2 rounded-xl border bg-muted p-3 text-sm">
               <InfoIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-marino" />
               <span>
-                Esto no suma existencias por sí solo: suben con el vale de entrada.{" "}
+                La entrada queda en Kepler: el almacén que la pidió la recibe después por traspaso. Esto no suma existencias por
+                sí solo: suben con el vale de entrada.{" "}
                 {puede("inventario.entradas") ? (
                   <>
                     Si aún no lo registras, hazlo en{" "}
-                    <Link to="/entradas/nueva" className="font-semibold text-primary underline underline-offset-2">
-                      Entradas
+                    <Link to="/entrada" className="font-semibold text-primary underline underline-offset-2">
+                      Dar entrada
                     </Link>
                     .
                   </>

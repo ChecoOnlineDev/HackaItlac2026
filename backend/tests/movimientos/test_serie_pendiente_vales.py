@@ -163,6 +163,8 @@ def test_X_01_operar_solo_envia_y_recibir_solo_recibe(
     assert solo_recibe.post(VALES, json=envio).status_code == 403
 
 
-@pytest.mark.parametrize("rol,puede", [("Supervisor", True), ("Almacenista", False)])
-def test_X_01_el_supervisor_recibe_y_el_almacenista_inicial_no(cliente_como, rol, puede):
+@pytest.mark.parametrize(
+    "rol,puede", [("Supervisor", True), ("Almacenista", True), ("Compras", False)]
+)
+def test_X_01_el_supervisor_y_el_almacenista_reciben_los_demas_roles_no(cliente_como, rol, puede):
     assert (cliente_como(rol).get(POR_RECIBIR).status_code == 200) is puede

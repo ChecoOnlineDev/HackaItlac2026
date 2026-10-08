@@ -148,9 +148,10 @@ def test_la_entrada_de_piezas_cumple_las_invariantes(compras, session):
 # ------------------------------------------------------------------- datos de prueba
 
 
-def test_los_datos_de_prueba_cargan_existencias_con_vales_de_entrada_reales(session):
+def test_EK_02_los_datos_de_prueba_entran_por_kepler_y_se_reparten_por_traspaso(session):
     kep = almacen(session, "KEP")
     for clave, renglones in CARGA_INICIAL.items():
+        assert clave == "KEP"  # la única entrada es a Kepler
         vale = session.scalar(select(Vale).where(Vale.id_cliente == id_cliente_de(clave)))
         assert (
             vale is not None and vale.tipo == "ENTRADA" and vale.folio.startswith(f"{clave}-ING-")
@@ -158,8 +159,25 @@ def test_los_datos_de_prueba_cargan_existencias_con_vales_de_entrada_reales(sess
         assert vale.responsable_id is not None
         movs = session.scalars(select(Movimiento).where(Movimiento.vale_id == vale.id)).all()
         assert len(movs) == len(renglones)
+    # Nada entró de Proveedor a otro almacén.
+    entradas = session.scalars(select(Vale).where(Vale.tipo == "ENTRADA")).all()
+    assert {v.almacen_id for v in entradas} == {kep.id}
+    # El reparto por traspaso dejó existencias en Contratistas y en los proyectos.
     lentes = session.scalar(select(Articulo).where(Articulo.codigo == "LENTE-CL"))
-    assert existencia(session, "KEP", lentes) >= 200 and kep
+    assert existencia(session, "KEP", lentes) == 200 and existencia(session, "CON", lentes) == 50
+    marro = session.scalar(select(Articulo).where(Articulo.codigo == "MARRO-B"))
+    assert existencia(session, "HYL", marro) == 2
+
+
+def test_los_proyectos_no_se_surten_de_epp_de_consumo(session):
+    """FEAT-011, E: el EPP queda en Kepler y Contratistas; a los proyectos va herramienta."""
+    epp = ("LENTE-CL", "TAPON-AU", "GUANTE-CAR", "RESP-6200", "CACHUCHA", "PETO", "POLAINAS")
+    for clave in ("MID", "HYL", "LAM", "MIN"):
+        for codigo in epp:
+            articulo = session.scalar(select(Articulo).where(Articulo.codigo == codigo))
+            assert existencia(session, clave, articulo) == 0, (clave, codigo)
+    cincel = session.scalar(select(Articulo).where(Articulo.codigo == "CINCEL"))
+    assert existencia(session, "HYL", cincel) > 0
 
 
 def test_los_datos_de_prueba_son_idempotentes(session):
