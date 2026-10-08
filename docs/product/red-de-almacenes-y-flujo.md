@@ -16,7 +16,7 @@
 |---|---|
 | **Cadena de surtido** | **Kepler → Contratistas → almacenes de proyecto** (Midrex, HYL, Laminador y Minas). Es la ruta oficial. |
 | **Kepler directo a un proyecto** | Las fuentes no lo describen como flujo normal. **Decisión: es una excepción y solo la hace el Administrador** (quien tiene `almacenes.todos`), con aviso amarillo y observación obligatoria (X-03). El supervisor no puede saltarse Contratistas. |
-| **Dónde se entrega el EPP** | **Decisión: en Contratistas, de forma general.** Las fuentes dicen que ahí «se queda el equipo de seguridad», y Kepler también lo entrega al contratar (caso de prueba del reto). La **herramienta especializada** de un proyecto se entrega en el **almacén de ese proyecto**. |
+| **Dónde se entrega el EPP** | **Decisión: en Contratistas, de forma general.** Las fuentes dicen que ahí «se queda el equipo de seguridad», y Kepler también lo entrega al contratar (caso de prueba del reto). La **herramienta especializada** de un proyecto se entrega en el **almacén de ese proyecto**. **Contratistas es donde empieza la entrega a trabajadores**; los almacenes de proyecto no se surten de EPP de consumo (la semilla de datos lo refleja). |
 | **Alta de almacenes** | Una persona con `almacenes.administrar` los crea. Orden: Kepler, luego Contratistas, luego cada proyecto. Se abre el proyecto al empezar el mantenimiento y se cierra al terminar. |
 
 ## 3. La red
@@ -81,7 +81,7 @@ En una sola transacción: crea el almacén, crea su **ubicación** (donde vivir�
 | 1 | Dar de alta **Kepler** (`CENTRAL`). | Administrador |
 | 2 | Dar de alta **Contratistas** (`SUBALMACEN`, depende de Kepler). | Administrador |
 | 3 | Asignar a cada almacén su **personal**: un supervisor y los almacenistas. Un usuario operativo sin almacén asignado no ve nada (AC-06, RG-07). | Administrador |
-| 4 | **Carga inicial de inventario** en Kepler: importación de Excel en modo Alta o entradas de proveedor (FEAT-007). | Compras |
+| 4 | **Carga inicial de inventario** en Kepler: importación de Excel en modo Alta o entradas de proveedor (FEAT-007). Kepler es el **único punto de entrada** del inventario (EK-01, EK-02): de ahí todo se reparte por traspaso. | Compras |
 | 5 | **Surtir Contratistas** con un traspaso desde Kepler (sección 5). | Supervisor de Kepler |
 | 6 | Cuando arranca un mantenimiento, dar de alta el almacén de **proyecto** (`MID`, `HYL`, `LAM` o `MIN`) dependiente de Contratistas y asignarle su personal. | Administrador |
 | 7 | **Surtir el proyecto** desde Contratistas (sección 6). | Supervisor de Contratistas |

@@ -25,21 +25,22 @@ Entrar
   -> Administrador -> Inicio: Lo que haces hoy + tablero de todos los almacenes con selector
 ```
 
-Menú (un grupo plegable por tarea; cada entrada aparece solo con su permiso y un grupo sin entradas visibles no se pinta; el grupo de la sección actual va abierto):
+Menú (FEAT-011, AC-35: unas 10 entradas; cada entrada aparece solo con su permiso y una sección sin pantallas visibles no se pinta). Cada sección es **una** entrada del menú y sus pantallas son las **pestañas** de una barra compartida; las URLs no cambian. Con una sola pestaña visible, la entrada lleva directo a esa pantalla. Solo «Operación del día» es un grupo plegable con entradas directas.
 
-| Grupo | Entradas |
+| Entrada | Pestañas (URL · permiso) |
 |---|---|
 | **Inicio** | Resumen |
-| **Operación** | Entregar · Devolver · Trasladar · Recibir traspaso · Pedir compra urgente · Mis compras urgentes |
-| **Consulta** | Consultar · Mis movimientos de hoy |
-| **Personas** | Trabajadores · Alta de trabajador · Personal del almacén |
-| **Inventario** | Inventario · Entradas de proveedor · Importar inventario · Categorías · Artículos · Puestos · Etiquetas |
-| **Compras** | Solicitudes de compra |
-| **Supervisión** | Autorizaciones · Seguimiento de piezas |
-| **Reportes** | Existencias · Movimientos · Adeudos · Consumo |
-| **Administración** | Almacenes · Usuarios · Roles y permisos |
+| **Operación del día** | Entregar (`entregas.crear`) · Devolver (`devoluciones.crear`) · Consultar (todos) |
+| **Traspasos** | Enviar `/trasladar` (`traspasos.operar`) · Recibir `/recibir` (`traspasos.recibir`) |
+| **Inventario** | Existencias `/inventario` (`inventario.ver`) · Bitácora `/reportes/movimientos` (`bitacora.ver` o `reportes.movimientos`) · Piezas y resguardos `/seguimiento` (`reportes.existencias` o `resguardo.ver`) · Dar entrada `/entrada` (`inventario.entradas` o `inventario.importar`) |
+| **Catálogo** | Artículos `/catalogo/articulos` · Categorías `/catalogo/categorias` · Puestos `/puestos` (`catalogo.administrar`) · Etiquetas `/etiquetas` (`etiquetas.imprimir`) |
+| **Trabajadores** | Trabajadores `/trabajadores` (`trabajadores.ver`) · Alta de trabajador `/trabajadores/nuevo` (`trabajadores.administrar`) |
+| **Compras** | Pedir una compra urgente `/compras/nueva` · Mis solicitudes `/compras/mias` (`compras.solicitar`) · Cola de Compras `/compras` (`compras.atender`) |
+| **Supervisión** | Autorizaciones `/autorizaciones` (`autorizaciones.resolver`) · Existencias · Adeudos · Consumo `/reportes/...` (su permiso `reportes.*`) |
+| **Personas y accesos** | Usuarios `/usuarios` (`acceso.usuarios`) · Roles y permisos `/roles` (`acceso.roles`) · Personal por almacén `/personal` (`almacenes.asignar_personal`) |
+| **Almacenes** | `/almacenes` (`almacenes.administrar`) |
 
-Los nombres nuevos (decididos en FEAT-008): «Entrada de proveedor» (antes Entradas), «Recibir traspaso» (antes Recibir), «Mis compras urgentes» (antes Compras urgentes) e «Importar inventario» (antes Importar). Las rutas no cambian. Ocultar un módulo a un rol se hace quitándole el permiso en Roles y permisos; las entradas que comparten un permiso (por ejemplo Categorías, Artículos y Puestos, `catalogo.administrar`) se ocultan juntas.
+«Mis movimientos de hoy» (`/mis-movimientos`) ya no está en el menú: se llega desde Consultar y desde la Bitácora con el filtro «Solo los míos». La barra de pestañas sale solo en la pantalla de cada pestaña, no en sus detalles (`/compras/<id>`, `/roles/<id>`, `/trabajadores/<id>`). Los enlaces anteriores (`/entradas/nueva`, `/importar`) siguen abriendo y redirigen a `/entrada`. Ocultar un módulo a un rol se hace quitándole el permiso en Roles y permisos.
 
 "Consultar" y la búsqueda están disponibles para todos; cada usuario ve solo lo que permiten los permisos de su rol (AC-05).
 
@@ -108,11 +109,11 @@ Dotación  -> agregar artículos activos y cantidad recomendada -> resumen de ca
 
 ## Flujo 4: Entrada de inventario (Compras)
 
-- **Entrada:** Entradas -> Nueva.
+- **Entrada:** «Dar entrada» (`/entrada`), método **Capturar a mano** (permiso `inventario.entradas`). Los enlaces anteriores `/entradas/nueva` y `/importar` redirigen aquí con su método (`?metodo=mano` o `?metodo=excel`).
 - **Pasos:**
 
 ```
-Elegir almacén (Kepler por defecto)
+Sin selector de almacén: la pantalla dice «Entra a Kepler» (el nombre sale de la API de almacenes) y «Para llevarlo a otro almacén, usa un traspaso» (EK-01, EK-03)
 Agregar renglones (escanear o buscar artículo)
   -> por cantidad: capturar cantidad
   -> por pieza: capturar o escanear el código de cada pieza, marca y serie (I-02); la serie puede quedar pendiente (E-xx)
@@ -121,13 +122,13 @@ Confirmar -> vale de entrada con folio
 ```
 
 - **Decisiones:** artículo inactivo se rechaza (I-09); código de pieza repetido se rechaza.
-- **Éxito:** existencias aumentan en el almacén elegido.
+- **Éxito:** existencias aumentan en Kepler. Para llegar a Contratistas o a un proyecto, la mercancía pasa por traspaso (Trasladar).
 - **Error:** el renglón con problema se marca; nada se guarda hasta corregirlo (RG-09).
 
 ## Flujo 5: Importación desde Excel (Compras)
 
-- **Entrada:** Importar.
-- **Precondiciones:** `inventario.entradas`. El alta que crea artículos pide además `catalogo.administrar` (I-10).
+- **Entrada:** «Dar entrada» (`/entrada`), método **Desde un Excel** (EK-04). La pantalla ofrece los dos métodos como dos botones grandes y muestra solo los que el rol puede usar; sin ninguno, «Tu rol no puede hacer esto».
+- **Precondiciones:** `inventario.importar` y también `inventario.entradas` (confirmar escribe un vale de entrada). El alta que crea artículos pide además `catalogo.administrar` (I-10).
 - **Pasos:**
 
 ```
@@ -135,16 +136,18 @@ Elegir el modo: Alta (carga inicial: crea artículos nuevos y suma a los que ya 
                 o Reposición (solo suma a artículos que ya existen)
    -> "Descargar plantilla" ofrece el ejemplo de ese modo
 Pegar la tabla copiada de Excel, o subir el archivo
-Indicar qué columna es cada dato
-   Alta: código (opcional), nombre, marca, categoría, cantidad, unidad (opcional), almacén, serie (opcional), costo, código de pieza (opcional)
-   Reposición: código, cantidad, almacén y, si es por pieza, código de pieza y serie
-Vista previa en tabla: una fila por renglón del archivo, con su estado
+   -> con las columnas obligatorias reconocidas, la vista previa aparece sola, con esqueleto de carga (TR-12)
+Indicar qué columna es cada dato (solo si no se reconocieron; «Relacionarlas a mano» vuelve a este paso)
+   Alta: código (opcional), nombre, marca, categoría, cantidad, unidad (opcional), serie (opcional), costo, código de pieza (opcional)
+   Reposición: código, cantidad y, si es por pieza, código de pieza y serie
+   Todo entra a Kepler (EK-01): una columna de almacén en el archivo se ignora con un aviso (EK-02)
+Vista previa en tabla, paginada de 12 en 12: una fila por renglón del archivo, con su estado
    Nuevo | Existente (suma) | Unido | Error, saldo antes -> después,
    y en el alta la categoría sugerida, que se puede cambiar por fila
    Resumen arriba: nuevos, existentes, unidos, errores y, si los hay, «n piezas sin serie»
    Una pieza sin serie sale en amarillo con «Serie pendiente»; una sin código de pieza, con «Código provisional: se asigna al confirmar»
    Aviso si el archivo ya se importó
-Confirmar -> un vale de entrada por almacén
+Confirmar -> un vale de entrada a Kepler
   -> si entraron piezas: pantalla de resultado con «Imprimir etiquetas de las piezas nuevas»
 ```
 
@@ -243,7 +246,8 @@ Confirmar -> vale de devolución con folio (V-11)
 ```
 Elegir almacén de destino (se ofrecen las rutas habituales: padre o hijo del almacén, X-03)
   -> otra ruta: solo con `almacenes.todos`; aviso amarillo y observación obligatoria (X-03). Para los demás, ni se ofrece; si el servidor la recibe, la marca en rojo (`RUTA_SOLO_ADMINISTRADOR`)
-Escanear artículos -> renglones con nivel (X-02, X-04)
+Escanear o buscar artículos -> solo se ofrece lo que hay en el almacén de origen, con «Disponible: N» (TR-11)
+  -> renglones con nivel (X-02, X-04); un código que no hay en el origen se rechaza con X-02
 Confirmar -> vale de traspaso con folio y QR; estado En tránsito (X-06)
 ```
 
@@ -259,10 +263,11 @@ Confirmar -> vale de traspaso con folio y QR; estado En tránsito (X-06)
 Elegir almacén de destino (igual que arriba: rutas habituales; la no habitual solo con `almacenes.todos`,
   con aviso amarillo y observación obligatoria, X-03)
   -> el destino es uno solo para todo el archivo
-Descargar la plantilla, o subir el archivo, o pegar la tabla copiada de Excel
-Indicar qué columna es cada dato (se proponen solas por el encabezado; se pueden cambiar)
-   código, cantidad y, si es por pieza, código de pieza o serie
-Vista previa en tabla: una fila por renglón del archivo, con su estado
+Descargar la plantilla (código, nombre, cantidad, código de pieza, serie), o subir el archivo, o pegar la tabla copiada de Excel
+Indicar qué columna es cada dato: solo si no se reconocen solas por el encabezado (TR-12);
+   si se reconocen, la vista previa aparece sola, con esqueleto de carga. «Relacionar columnas a mano» sigue disponible
+   código, nombre (de ayuda, TR-13), cantidad y, si es por pieza, código de pieza o serie
+Vista previa en tabla, de 12 en 12: una fila por renglón del archivo, con su estado
    Correcto | Aviso | Error, artículo, cantidad y lo disponible en el origen
    Resumen arriba: correctas, con aviso, con error
    Aviso si el archivo ya se usó para otro traspaso
@@ -273,7 +278,7 @@ Confirmar -> vale de traspaso con folio CLAVE-TRS y QR; estado En tránsito (X-0
 - **Decisiones:**
   - Cada fila pasa por la misma evaluación que un escaneo (X-02, X-04, X-09); el servidor decide el nivel y la pantalla solo lo muestra.
   - Un rojo bloquea **todo** el traspaso (RG-09). Para seguir, se corrige el archivo y se vuelve a subir, o se usa «Dejar fuera las filas con error», que pide confirmar y dice cuántas son y cuáles; las filas dejadas fuera no se envían.
-  - Una fila en amarillo avisa y no detiene. Las filas del mismo artículo por cantidad se unen en una; un artículo por pieza lleva una fila por pieza.
+  - Una fila en amarillo avisa y no detiene; por ejemplo, un nombre que no coincide con el del catálogo (TR-13). Las filas del mismo artículo por cantidad se unen en una; un artículo por pieza lleva una fila por pieza.
   - Más de 500 filas: se rechaza el archivo completo con el motivo en español llano.
   - Archivo ya usado: aviso en la vista previa; para confirmar hay que aceptarlo expresamente.
   - Tocar «Confirmar» dos veces, o perder la conexión y reintentar, no duplica el vale (el dispositivo manda su `id_lote`; una repetición devuelve el mismo vale).
@@ -374,6 +379,7 @@ Ajustar vigencia (supervisor o administrador) -> nueva fecha y motivo obligatori
 
 - **Entrada:** Reportes -> Existencias | Movimientos | Adeudos | Consumo.
 - **Pasos:** elegir filtros (almacén, periodo, trabajador, artículo y, en movimientos, tipo y usuario) -> tabla -> Descargar CSV.
+- **[NUEVO] Bitácora del almacén (SG-05):** «Movimientos» pasa a ser la bitácora de un almacén (con `bitacora.ver` o `reportes.movimientos`). Cada fila dice si fue **Entrada**, **Salida** o **En camino** respecto al almacén que se ve y enlaza al vale y al trabajador. Filtros nuevos: pieza o número de serie, y «Solo los míos». Un traspaso recibido aparece como entrada en el almacén destino y como salida en el de origen.
 - **Alcance:** cada usuario ve lo de su almacén, también con el filtro de usuario, que para el almacenista es solo informativo. Quien tiene `almacenes.todos` ve todos los almacenes y filtra por cualquier usuario para rastrear una desaparición (C-11).
 - **Vacío:** "No hay registros con esos filtros".
 
@@ -424,7 +430,7 @@ La solicitud de compra urgente (reglas SC-01 a SC-11). Quien pide la levanta des
 - **La cola:** arriba, tres tarjetas táctiles (Pendientes, En compra y Compradas por ingresar) con su conteo; tocar una filtra la lista y tocarla otra vez quita el filtro. La tarjeta de pendientes dice cuántas son urgentes. Debajo, la búsqueda (folio, artículo, descripción o motivo) siempre a la vista y "Filtros" (estado, urgencia, almacén y periodo, con su contador y sus chips). La lista llega ya ordenada por el servidor: primero lo pendiente, luego lo que está en compra, lo comprado y al final lo cerrado; en cada grupo, las urgentes primero y las más antiguas primero. En computadora y tableta es una tabla (folio, qué se pidió, cantidad, almacén, urgencia y estado, solicitante, fecha y acción); en celular, tarjetas. Una urgente pendiente se distingue por su franja y fondo rojos suaves y su insignia roja.
 - **Acción rápida:** en cada renglón, el botón de la acción principal que el servidor ofrece (Tomar, Comprada o Ingresar), con su confirmación. Nada se deduce del rol: los botones salen de `acciones` de la respuesta.
 - **El detalle (`/compras/:id`):** folio con sus insignias de estado y urgencia, qué se pidió (con el enlace al artículo del catálogo, si lo hay), cantidad, para qué se necesita, almacén, quién la pidió, fechas en hora de México, la nota de Compras (en una rechazada, "Por qué se rechazó") y el vale de entrada ligado, con enlace a `/vales/:id`. Abajo, la **línea de tiempo**: cada cambio de estado, del más antiguo al más reciente, con quién, cuándo y su nota (SC-08). Las acciones van en un pie fijo en celular y tableta, y al final del contenido en computadora; una es la principal (azul) y las demás, secundarias.
-- **Las acciones (SC-04):** Tomar (confirmación breve; pasa a En compra). Rechazar abre una hoja con la nota obligatoria y respuestas rápidas (SC-05). Marcar como comprada abre una hoja con una nota opcional (proveedor, día de llegada). Ingresar al almacén abre una hoja donde se liga, si se quiere, el vale de ENTRADA con el que se metió lo comprado: se elige de las últimas entradas o se escribe su folio (SC-06); la hoja avisa que ingresar no suma existencias por sí solo, porque suben con el vale que se registra en Entradas (SC-11). Tras cada acción aparece un aviso breve y la pantalla se actualiza sin salir.
+- **Las acciones (SC-04):** Tomar (confirmación breve; pasa a En compra). Rechazar abre una hoja con la nota obligatoria y respuestas rápidas (SC-05). Marcar como comprada abre una hoja con una nota opcional (proveedor, día de llegada). Ingresar a Kepler abre una hoja donde se liga, si se quiere, el vale de ENTRADA con el que se metió lo comprado: se elige de las últimas entradas **de Kepler** o se escribe su folio (SC-06). La hoja avisa que la entrada queda en Kepler y que el almacén que la pidió la recibe después por traspaso (EK-05), y que ingresar no suma existencias por sí solo, porque suben con el vale que se registra en «Dar entrada» (SC-11). Tras cada acción aparece un aviso breve y la pantalla se actualiza sin salir.
 - **Quien pide:** abre la misma pantalla `/compras/:id` desde su lista y no ve las acciones de Compras; si está pendiente y es quien la pidió, el supervisor de su almacén o el administrador, ve **Cancelar solicitud** (hoja con nota opcional, SC-07). Una solicitud de otro almacén responde "No encontramos esta solicitud".
 - **Errores:** los del servidor se escriben dentro de la misma ventana, junto a lo que falló: un vale que no sirve (422, SC-06) bajo la lista de vales; una solicitud que otra persona ya cambió (409, SC-04) como aviso en la ventana y el detalle se recarga.
 - **Vacío y error:** "No hay solicitudes de compra" (con filtros, "No hay solicitudes con ese filtro" y "Quitar filtros"); si no carga, mensaje y Reintentar. Sin el permiso, "Tu rol no puede hacer esto".
@@ -463,7 +469,7 @@ Parte de FEAT-008 (TB-01 a TB-03).
 - **Entrada:** `/` con sesión. El Inicio depende de los permisos, nunca del nombre del rol.
 - **Orden de la pantalla:** primero «Lo que haces hoy» (los botones de operación del rol, grandes), debajo las tarjetas y, al final, la gráfica de lo más usado.
 - **Quién ve el tablero:** quien tiene `tablero.ver` (Administrador, Supervisor y Almacenista de inicio). Con `almacenes.todos` (Administrador) ve todos los almacenes y un selector «Viendo: Todos los almacenes» con la lista de almacenes; el rótulo «Viendo: Midrex» avisa que el selector solo cambia lo que se mira, no el almacén en el que se opera. Sin `almacenes.todos`, ve solo su almacén, sin selector. Compras y RH no tienen tablero: su Inicio muestra lo suyo (solicitudes por atender, trabajadores y altas recientes).
-- **Tarjetas** (de `GET /api/tablero/resumen`): Existencias, Equipo importante en resguardo, Sin existencia, Traspasos en tránsito, Entregas de hoy, Solicitudes de compra abiertas, Inspecciones por vencer y Piezas con serie pendiente. Cada una dice en una línea qué cuenta. Tocar «Equipo importante en resguardo» abre `/seguimiento` con las piezas en manos de trabajadores; «Traspasos en tránsito», `/recibir`; «Solicitudes de compra abiertas», `/compras` o `/compras/mias` según el permiso. «Piezas con serie pendiente» abre `/seguimiento` con el filtro `serie_pendiente=true`. Las demás no navegan.
+- **Tarjetas** (de `GET /api/tablero/resumen`): Existencias, Equipo importante en resguardo, Sin existencia, Traspasos en tránsito, Entregas de hoy, Solicitudes de compra abiertas, Inspecciones por vencer y Piezas con serie pendiente. Cada una dice en una línea qué cuenta. Tocar «Equipo importante en resguardo» abre `/seguimiento` con las piezas en manos de trabajadores; «Traspasos en tránsito», `/recibir`; «Solicitudes de compra abiertas», `/compras` o `/compras/mias` según el permiso. «Piezas con serie pendiente» abre `/seguimiento` con el filtro `serie_pendiente=true`. «Alto valor fuera del almacén» (SG-04, solo con `resguardo.ver`) cuenta las piezas de alto valor y de alturas con un trabajador y abre `/seguimiento?alto_valor=true&ubicacion=TRABAJADOR`. Las demás no navegan.
 - **Gráfica «Lo más usado»** (de `GET /api/tablero/consumo`): filtros Almacén (solo con `almacenes.todos`), Periodo (Hoy, 7 días, Este mes, Mes pasado, Elegir fechas; por omisión Este mes) y Categoría (por omisión Consumibles de trabajo); «Limpiar filtros»; interruptor «Separar por almacén» solo con todos los almacenes. Se actualiza al cambiar cualquier filtro, con indicador de carga y sin borrar la anterior hasta que llega la nueva. Cada barra se toca y abre el artículo (`/articulos/:id`).
 - **Estados:** sin consumo en el rango, «No hubo consumo en estas fechas»; error con «Reintentar»; sin almacén asignado, el aviso «No tienes un almacén asignado» y las tarjetas en cero.
 - **Sin permiso:** quien no tiene `tablero.ver` no ve el tablero y `GET /api/tablero/*` responde 403.
@@ -502,6 +508,8 @@ Parte de FEAT-010 (TU-01 a TU-10). Es solo de interfaz: no usa la API ni cambia 
 
 ## Pantallas del MVP
 
+Con FEAT-011 las rutas no cambian, pero varias pantallas comparten la barra de pestañas de su sección del menú (ver «Navegación global»); `/mis-movimientos` ya no está en el menú.
+
 | Ruta | Pantalla | Roles iniciales |
 |---|---|---|
 | `/entrar` | Entrar | Todos |
@@ -516,14 +524,14 @@ Parte de FEAT-010 (TU-01 a TU-10). Es solo de interfaz: no usa la API ni cambia 
 | `/articulos/:id`, `/piezas/:id` | Fichas de artículo y de pieza | Almacenista, supervisor, Compras |
 | `/vales/:id` | Detalle de un vale, con la opción de cancelarlo o de cancelarlo y rehacerlo | Almacenista, supervisor, Compras |
 | `/mis-movimientos` | Mis movimientos de hoy | Almacenista, supervisor, Compras |
-| `/seguimiento` | Seguimiento de piezas: todas las piezas de un artículo, dónde está o quién tiene cada una, desde cuándo y con qué vale (C-13). Acepta `?articulo=<id>` y `?q=` | Administrador, supervisor y Compras (`reportes.existencias`); cada quien ve solo lo que le toca (AC-06) |
+| `/seguimiento` | «Quién tiene qué», con dos pestañas (SG-01): **Piezas** (dónde está o quién tiene cada pieza, desde cuándo y con qué vale, C-13) y **Por cantidad** (lo que cada trabajador tiene de artículos sin serie). Acepta `?vista=cantidad`, `?articulo=<id>`, `?q=`, `?alto_valor=true` y `?ubicacion=` | Administrador, supervisor y Compras (`reportes.existencias`) o quien tenga `resguardo.ver` (SG-04, el almacenista); cada quien ve solo lo que le toca (AC-06) |
 | `/autorizaciones` | Solicitudes pendientes | Supervisor |
 | `/compras/nueva`, `/compras/mias` | Pedir una compra urgente y ver las solicitudes de mi almacén (todas, para el administrador) | Almacenista, supervisor (`compras.solicitar`) |
 | `/personal` | Personal por almacén: asignar y mover usuarios entre almacenes | Supervisor, administrador (`almacenes.asignar_personal`) |
 | `/usuarios` | Usuarios: alta, edición, rol, almacén, activar o inactivar, restablecer contraseña y PIN | Administrador (`acceso.administrar`) |
 | `/roles`, `/roles/:id` | Roles y permisos: lista de roles y matriz de permisos de cada uno | Administrador (`acceso.administrar`) |
 | `/inventario` | Existencias | Compras, supervisor, almacenista |
-| `/entradas/nueva`, `/importar` | Entrada e importación | Compras |
+| `/entrada` (`/entradas/nueva` y `/importar` redirigen) | Dar entrada: capturar a mano o desde un Excel, siempre a Kepler | Compras |
 | `/catalogo/categorias`, `/catalogo/articulos` | Catálogo | Compras, supervisor |
 | `/puestos` | Puestos y su dotación recomendada | Compras, supervisor (`catalogo.ver`; editar, `catalogo.administrar`) |
 | `/etiquetas` | Hojas de QR | Compras, RH |

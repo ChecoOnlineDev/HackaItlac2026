@@ -337,10 +337,10 @@ El inventario del Almacenista sale de `inventario.ver` (solo su almacén), así 
 **Flujo principal: dar de alta inventario.**
 1. Entra con `compras` y su contraseña.
 2. Si el artículo no existe, entra a **Artículos** y lo crea: elige la categoría, el formulario toma la plantilla de reglas, ajusta límite y requisitos, y captura el costo (solo Compras puede). Guarda.
-3. Entra a **Entradas** → nueva entrada. Elige el almacén (Kepler por defecto, porque las compras entran por Kepler, I-01).
+3. Entra a **Dar entrada** (captura a mano o desde un Excel). Todo entra a Kepler, sin elegir almacén (EK-01); para llevarlo a otro almacén se usa un traspaso.
 4. Agrega renglones escaneando o buscando el artículo. Por cantidad: captura la cantidad. Por pieza: captura o escanea el código de cada pieza, su marca y su serie (I-02).
 5. Si la pieza requiere inspección, captura la inspección inicial o la deja pendiente (queda sin poder entregarse, I-03).
-6. Confirma. El sistema emite un vale de entrada con folio y suben las existencias del almacén elegido.
+6. Confirma. El sistema emite un vale de entrada con folio y suben las existencias de Kepler.
 7. Entra a **Etiquetas** para imprimir los QR de las piezas nuevas y de los estantes, desde el navegador.
 
 **Otros flujos frecuentes.**
