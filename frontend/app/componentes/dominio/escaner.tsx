@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { CameraIcon, CameraOffIcon, CornerDownLeftIcon, InfoIcon, XIcon } from "lucide-react";
+import { CameraIcon, CameraOffIcon, CheckIcon, CornerDownLeftIcon, InfoIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 
 import { practicaActiva } from "~/api/practica";
@@ -38,6 +38,10 @@ export const EVENTO_ESCANEO_SIMULADO = "tutorial:escanear";
 
 /** Mismo código leído en menos de este tiempo: se ignora. */
 export const VENTANA_REPETIDO_MS = 1500;
+
+/** Tras una lectura aceptada de la cámara o la pistola, el escáner ignora lecturas automáticas
+ * durante este tiempo, para no registrar de más. El campo de texto no se bloquea. */
+export const PAUSA_TRAS_LECTURA_MS = 2000;
 
 /** Entre una tecla y la siguiente de una pistola pasan menos de ~30 ms; una persona tarda más de 100. */
 const MAXIMO_ENTRE_TECLAS_MS = 60;
@@ -133,6 +137,10 @@ export function Escaner({
   const video = useRef<HTMLVideoElement>(null);
   const campo = useRef<HTMLInputElement>(null);
   const ultimaLectura = useRef<{ codigo: string; t: number; avisado: boolean } | null>(null);
+  const bloqueadoHasta = useRef(0);
+  const finDePausa = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Mientras dura la pausa tras una lectura, se avisa que la lectura fue correcta y se guarda.
+  const [enPausa, setEnPausa] = useState(false);
 
   // Siempre se usa la última versión de los callbacks sin reiniciar la cámara ni los oyentes.
   const alCodigo = useRef(onCodigo);
@@ -155,6 +163,12 @@ export function Escaner({
     if (!codigo) return;
     const ahora = performance.now();
     const previa = ultimaLectura.current;
+    // Pausa de seguridad tras cada lectura automática. Si el mismo código sigue a la vista, se
+    // sigue contando como visto para que no se lea otra vez al terminar la pausa.
+    if (origen !== "teclado" && ahora < bloqueadoHasta.current) {
+      if (previa && previa.codigo === codigo) previa.t = ahora;
+      return;
+    }
     if (previa && previa.codigo === codigo && ahora - previa.t < VENTANA_REPETIDO_MS) {
       if (origen === "camara") {
         // Mientras el código siga a la vista no se vuelve a leer; se avisa una sola vez.
@@ -169,10 +183,23 @@ export function Escaner({
       return;
     }
     ultimaLectura.current = { codigo, t: ahora, avisado: false };
+    if (origen !== "teclado") {
+      bloqueadoHasta.current = ahora + PAUSA_TRAS_LECTURA_MS;
+      setEnPausa(true);
+      if (finDePausa.current) clearTimeout(finDePausa.current);
+      finDePausa.current = setTimeout(() => setEnPausa(false), PAUSA_TRAS_LECTURA_MS);
+    }
     if (sonar.current) reproducir("ok");
     setUltimo((u) => ({ codigo, n: (u?.n ?? 0) + 1 }));
     alCodigo.current(codigo, origen);
   }, []);
+
+  useEffect(
+    () => () => {
+      if (finDePausa.current) clearTimeout(finDePausa.current);
+    },
+    [],
+  );
 
   // Se prepara el audio con el primer toque o tecla (los navegadores no dejan sonar antes).
   useEffect(() => {
@@ -401,6 +428,14 @@ export function Escaner({
               <p role="status" className="absolute inset-x-0 bottom-3 text-center text-sm font-semibold text-white">
                 Abriendo la cámara…
               </p>
+            ) : enPausa ? (
+              <p
+                role="status"
+                className="absolute inset-x-3 bottom-3 flex items-center justify-center gap-2 rounded-xl bg-marino px-3 py-2 text-center text-sm font-semibold text-white"
+              >
+                <CheckIcon aria-hidden="true" strokeWidth={3} className="size-4 shrink-0" />
+                Lectura correcta. Guardando…
+              </p>
             ) : (
               <p className="absolute inset-x-0 bottom-3 text-center text-sm font-semibold text-white drop-shadow">
                 Apunta al código; se lee solo.
@@ -484,7 +519,17 @@ export function Escaner({
         </p>
       ) : null}
 
-      <p className="text-xs text-muted-foreground">Con pistola lectora: apunta y dispara, sin tocar ningún campo.</p>
+      {enPausa ? (
+        <p
+          role="status"
+          className="flex items-center gap-2 rounded-xl border border-primary bg-accent px-3 py-1.5 text-sm font-semibold text-marino"
+        >
+          <CheckIcon aria-hidden="true" strokeWidth={3} className="size-4 shrink-0" />
+          Lectura correcta. Guardando…
+        </p>
+      ) : (
+        <p className="text-xs text-muted-foreground">Con pistola lectora: apunta y dispara, sin tocar ningún campo.</p>
+      )}
 
       {/* Anuncia la última lectura a los lectores de pantalla. */}
       <p className="sr-only" role="status" aria-live="polite">

@@ -75,6 +75,10 @@ El archivo `docs/recursos/comprasejer2026.xlsx` es lo único que tenemos de la e
 33. **Qué se evalúa en vivo.** ¿La prueba se hace en el servidor que entregamos o en el que ustedes indiquen? ¿Con celulares propios o del equipo?
 34. **Conexión.** ¿Habrá internet estable en la demostración? Nuestro sistema no funciona sin conexión.
 
+### Alcance de Compras (media)
+
+35. **¿Compras ve solo Kepler o todos los almacenes?** La conferencia dice que Compras es «solo para darle seguimiento al stock». *Por qué:* hoy Compras está asignado a Kepler, porque ahí entra la mercancía, y por eso ve existencias, bitácora y reportes únicamente de Kepler. Sí ve las solicitudes de compra de todos los almacenes. *Hoy:* solo Kepler. Si necesita ver el stock de Contratistas y de los proyectos, habría que darle un permiso de solo lectura sobre todos los almacenes, sin que pueda operarlos.
+
 ## Ejemplo de plantilla de traspaso
 
 Un archivo de Excel es **un traspaso**: un origen y un destino que se eligen en pantalla, no en el archivo. El ejemplo supone un traspaso de **Contratistas a Midrex**. Los códigos y los nombres son ilustrativos.
