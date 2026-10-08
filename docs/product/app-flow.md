@@ -115,13 +115,14 @@ Dotación  -> agregar artículos activos y cantidad recomendada -> resumen de ca
 ```
 Sin selector de almacén: la pantalla dice «Entra a Kepler» (el nombre sale de la API de almacenes) y «Para llevarlo a otro almacén, usa un traspaso» (EK-01, EK-03)
 Agregar renglones (escanear o buscar artículo)
+  -> no existe y hay catalogo.administrar: «Crear este artículo» (EK-07) y sigue como renglón nuevo
   -> por cantidad: capturar cantidad
   -> por pieza: capturar o escanear el código de cada pieza, marca y serie (I-02); la serie puede quedar pendiente (E-xx)
        -> requiere inspección: capturar la inspección inicial o dejarla pendiente (I-03)
 Confirmar -> vale de entrada con folio
 ```
 
-- **Decisiones:** artículo inactivo se rechaza (I-09); código de pieza repetido se rechaza.
+- **Decisiones:** artículo inactivo se rechaza (I-09); código de pieza repetido se rechaza. Si lo buscado no existe, quien tiene `catalogo.administrar` ve «Crear este artículo» (nombre, categoría, unidad; la categoría dice si es «Por cantidad» o «Por pieza» y el servidor genera el código): el artículo queda en el catálogo, el renglón se agrega y sigue la misma captura, sin salir de la pantalla (EK-07). Sin el permiso: «Este artículo no existe en el catálogo; pide que lo den de alta».
 - **Éxito:** existencias aumentan en Kepler. Para llegar a Contratistas o a un proyecto, la mercancía pasa por traspaso (Trasladar).
 - **Error:** el renglón con problema se marca; nada se guarda hasta corregirlo (RG-09).
 

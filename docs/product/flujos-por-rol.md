@@ -135,7 +135,7 @@ Hace todo lo de 3 y además:
 ## 7. Flujos del Administrador
 
 - **Personas y accesos [NUEVO]:** crea usuarios (rol, almacén, contraseña y PIN), cambia el almacén de alguien, restablece contraseña y PIN. Ve la lista «Sin almacén».
-- **Roles y permisos:** crea y edita roles, activa permisos por grupo. Cambios aplican en la siguiente petición (AC-10). **[NUEVO]** El Administrador no puede quitarse `almacenes.todos` ni `almacenes.administrar` (AC-26), y volver a correr el seed no pisa lo editado (AC-27). Aquí se decide quién **recibe** traspasos (AC-28).
+- **Roles y permisos:** crea y edita roles, activa permisos por grupo. Cambios aplican en la siguiente petición (AC-10). **[NUEVO]** El Administrador no puede quitarse `almacenes.todos` ni `almacenes.administrar` (AC-32), y volver a correr el seed no pisa lo editado (AC-33). Aquí se decide quién **recibe** traspasos (AC-34).
 - **Almacenes:** alta, edición, inactivar y reactivar. **[NUEVO]** El servidor valida que un proyecto dependa de un subalmacén (EK-06).
 - **Operar como cualquier almacén:** elige el almacén de origen en Entregar, Devolver y Trasladar.
 - **Ruta excepcional:** envía de Kepler a un proyecto con una observación obligatoria; queda auditado (X-03).

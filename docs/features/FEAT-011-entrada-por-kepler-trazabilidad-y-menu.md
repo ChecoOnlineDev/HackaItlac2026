@@ -37,6 +37,7 @@ Todavía no hay historias en `docs/stories/`: se escriben al aprobarse la featur
 - **EK-04.** Entrada de proveedor e importación se presentan como **una sola pantalla «Dar entrada»** con dos métodos: capturar a mano o subir un Excel. Conservan la diferencia entre Alta (crea artículos) y Reposición (solo suma).
 - **EK-05.** Una solicitud de compra urgente ingresada queda ligada a un vale de entrada de **Kepler**; el almacén que la pidió la recibe después por traspaso (SC-06 se ajusta). *Supuesto, ver decisiones abiertas.*
 - **EK-06.** Al crear o editar un almacén, el servidor valida el tipo del padre: un proyecto depende de un subalmacén y un subalmacén del central, para que la regla de ruta X-03 no se rompa por configuración.
+- **EK-07.** Crear un artículo desde «Dar entrada»: si lo buscado en «Capturar a mano» no existe, quien tiene `catalogo.administrar` ve «Crear este artículo» con un formulario corto (nombre, categoría y unidad). La categoría decide si es por cantidad o por pieza y el servidor genera el código `PREFIJO-NNNN` (el mismo consecutivo de la importación en modo Alta). El usuario sigue en la misma pantalla con el renglón agregado, listo para capturar cantidad o marca y serie. Sin el permiso solo ve «Este artículo no existe en el catálogo; pide que lo den de alta».
 
 ### B. Traspasos guiados
 
@@ -95,6 +96,7 @@ Todavía no hay historias en `docs/stories/`: se escriben al aprobarse la featur
 - Dado un usuario con `inventario.entradas`, cuando da entrada por captura o por Excel, entonces la mercancía entra a Kepler y no se ofrece otro almacén; y dado un intento de enviar otro destino por la API, entonces el servidor lo rechaza (EK-01, EK-03).
 - Dada una importación con una columna de almacén, entonces se ignora con aviso o se rechaza la fila, y nunca crea una entrada fuera de Kepler (EK-01, EK-02).
 - Dado un administrador que crea un proyecto con Kepler como padre, entonces el servidor lo rechaza (EK-06).
+- Dado un usuario con `catalogo.administrar` que busca en «Dar entrada» un artículo que no existe, cuando lo crea con una categoría por pieza, entonces queda en el catálogo con un código generado por el servidor y el renglón listo para capturar su pieza en la misma pantalla; y sin ese permiso solo ve el aviso de que pida darlo de alta (EK-07).
 - Dado un supervisor armando un traspaso con origen Contratistas, cuando busca o escanea, entonces solo ve lo que hay en Contratistas con su cantidad; y un artículo que no hay se rechaza con X-02 (TR-11).
 - Dado un Excel de traspaso con columnas reconocidas, cuando se carga, entonces la vista previa paginada de 12 aparece sola con esqueleto de carga, sin pasar por «Relacionar columnas» (TR-12).
 - Dado un Excel con una columna `nombre` distinta a la del catálogo, entonces la fila avisa pero no se bloquea (TR-13).
