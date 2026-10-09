@@ -1,4 +1,5 @@
 import type { ValorTablero } from "~/api/tablero";
+import { ChartColumnIcon, MapPinIcon } from "lucide-react";
 import { EstadoVacio } from "~/componentes/ui/estado-vacio";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
@@ -10,7 +11,8 @@ const pesos = (importe: string) => moneda.format(Number(importe));
 const APOYO = "Pesos mexicanos, sin IVA, al costo registrado";
 
 /** Pestaña «Valor»: importes que calcula el servidor, por categoría y (para quien ve todos los almacenes) por almacén. */
-export function PestanaValor({ valor }: { valor: ValorTablero }) {
+export function PestanaValor({ valor, administrativo = false }: { valor: ValorTablero; administrativo?: boolean }) {
+  const importe = (v: string) => `${pesos(v)}${administrativo ? " MXN" : ""}`;
   const sinNada = Number(valor.total) === 0 && valor.articulos_sin_costo === 0;
   if (sinNada) {
     return <EstadoVacio titulo="Todavía no hay valor que mostrar" descripcion="No hay existencias con costo registrado en este alcance." />;
@@ -19,13 +21,14 @@ export function PestanaValor({ valor }: { valor: ValorTablero }) {
   const maximo = Math.max(...categorias.map((c) => Number(c.valor)), 1);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="valor-tablero flex flex-col gap-5">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <TarjetaIndicador titulo="Valor total del inventario" valor={pesos(valor.total)} detalle={APOYO} />
-        <TarjetaIndicador titulo="Valor en almacén" valor={pesos(valor.en_almacen)} detalle={APOYO} />
-        <TarjetaIndicador titulo="Valor en resguardo de trabajadores" valor={pesos(valor.en_resguardo)} detalle={APOYO} />
-        {valor.en_transito !== null ? <TarjetaIndicador titulo="Valor en tránsito" valor={pesos(valor.en_transito)} detalle={APOYO} /> : null}
+        <TarjetaIndicador titulo="Valor total del inventario" valor={importe(valor.total)} detalle={administrativo ? undefined : APOYO} />
+        <TarjetaIndicador titulo="Valor en almacén" valor={importe(valor.en_almacen)} detalle={administrativo ? undefined : APOYO} />
+        <TarjetaIndicador titulo="Valor en resguardo de trabajadores" valor={importe(valor.en_resguardo)} detalle={administrativo ? undefined : APOYO} />
+        {valor.en_transito !== null ? <TarjetaIndicador titulo="Valor en tránsito" valor={importe(valor.en_transito)} detalle={administrativo ? undefined : APOYO} /> : null}
       </div>
+      {administrativo ? <p className="text-xs leading-relaxed text-muted-foreground">Importes expresados en pesos mexicanos (MXN), sin IVA y al costo registrado.</p> : null}
 
       {valor.articulos_sin_costo > 0 ? (
         <div className="sm:max-w-sm">
@@ -39,17 +42,17 @@ export function PestanaValor({ valor }: { valor: ValorTablero }) {
       ) : null}
 
       {categorias.length ? (
-        <Card size="sm">
+        <Card size="sm" className="bloque-categorias">
           <CardHeader>
-            <CardTitle className="text-base text-marino">Por categoría</CardTitle>
+            <CardTitle className="titulo-bloque text-base text-marino">{administrativo ? <ChartColumnIcon aria-hidden="true" size={20} /> : null}Por categoría</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="flex flex-col gap-3">
               {categorias.map((c) => (
                 <li key={c.categoria} className="flex flex-col gap-1">
-                  <div className="flex items-baseline justify-between gap-3 text-sm">
-                    <span className="min-w-0 truncate">{c.categoria}</span>
-                    <span className="shrink-0 font-semibold tabular-nums">{pesos(c.valor)}</span>
+                  <div className={administrativo ? "flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm" : "flex items-baseline justify-between gap-3 text-sm"}>
+                    <span className={administrativo ? "min-w-0 break-words" : "min-w-0 truncate"}>{c.categoria}</span>
+                    <span className="shrink-0 font-semibold tabular-nums">{importe(c.valor)}</span>
                   </div>
                   <div className="h-2 rounded-full bg-muted" aria-hidden="true">
                     <div className="h-2 rounded-full bg-marino" style={{ width: `${Math.max(2, (Number(c.valor) / maximo) * 100)}%` }} />
@@ -62,11 +65,28 @@ export function PestanaValor({ valor }: { valor: ValorTablero }) {
       ) : null}
 
       {valor.alcance.todos && valor.por_almacen.length ? (
-        <Card size="sm">
+        <Card size="sm" className="bloque-almacenes">
           <CardHeader>
-            <CardTitle className="text-base text-marino">Por almacén</CardTitle>
+            <CardTitle className="titulo-bloque text-base text-marino">{administrativo ? <MapPinIcon aria-hidden="true" size={20} /> : null}Por almacén</CardTitle>
           </CardHeader>
           <CardContent>
+            {administrativo ? <p className="nota-moneda">Importes en MXN</p> : null}
+            {administrativo ? (
+              <dl className="almacenes-movil">
+                {valor.por_almacen.map((a) => (
+                  <div key={a.almacen_id} className="almacen-movil">
+                    <dt>{a.nombre}</dt>
+                    <dd>
+                      <dl>
+                        <div><dt>En almacén</dt><dd>{pesos(a.en_almacen)}</dd></div>
+                        <div><dt>En resguardo</dt><dd>{pesos(a.en_resguardo)}</dd></div>
+                        <div><dt>Total</dt><dd>{pesos(a.total)}</dd></div>
+                      </dl>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
             <Table>
               <TableHeader>
                 <TableRow>

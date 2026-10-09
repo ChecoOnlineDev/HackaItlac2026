@@ -11,6 +11,7 @@ import { useGruposAbiertos } from "~/sesion/menu-estado";
 import { useSesion } from "~/sesion/sesion";
 import { EncabezadoGrupo, PanelGrupo } from "./grupo-menu";
 import { InstalarApp } from "./instalar-app";
+import { IdentidadUsuario } from "./identidad-usuario";
 
 /** Misma apariencia para toda opción; la activa lleva contorno azul, fondo suave y texto en azul marino. */
 const BASE = "flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors hover:bg-accent/60";
@@ -43,7 +44,7 @@ export function MenuHoja({ abierta, alCambiar }: { abierta: boolean; alCambiar: 
   };
 
   return (
-    <Hoja abierta={abierta} alCambiar={alCambiar} titulo="Menú">
+    <Hoja abierta={abierta} alCambiar={alCambiar} titulo="Menú" className="menu-imhotep">
       <nav aria-label="Secciones" className="flex flex-col gap-2">
         <Link
           ref={ref(activoId === "inicio")}
@@ -109,6 +110,7 @@ export function MenuHoja({ abierta, alCambiar }: { abierta: boolean; alCambiar: 
           );
         })}
       </nav>
+      <div className="mt-5 border-t pt-4"><IdentidadUsuario /></div>
       <InstalarApp className="mt-5" />
       <InterruptorTutorial className="mt-3" alIniciar={() => alCambiar(false)} />
     </Hoja>

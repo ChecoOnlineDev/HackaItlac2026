@@ -2,7 +2,7 @@ import { HomeIcon, LogOutIcon } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router";
 
-import { Avatar } from "~/componentes/ui/avatar";
+import { IdentidadUsuario } from "./identidad-usuario";
 import { Boton } from "~/componentes/ui/boton";
 import {
   Sidebar,
@@ -27,6 +27,7 @@ import { useGruposAbiertos } from "~/sesion/menu-estado";
 import { useContadores } from "~/sesion/contadores";
 import { useSesionActiva } from "~/sesion/sesion";
 
+
 /** Estado de la opción: activa (la sección donde estás) con contorno azul, y un hover más suave. */
 const CLASE_OPCION =
   "h-auto min-h-10 rounded-xl py-2 text-sm transition-colors hover:bg-accent/60 data-active:bg-accent data-active:font-semibold data-active:text-marino data-active:ring-1 data-active:ring-primary data-active:hover:bg-accent";
@@ -50,7 +51,7 @@ function Elemento({ elemento, activo, contador }: { elemento: Pick<ElementoMenu 
 
 /** Navegación de computadora: menú lateral con las secciones que permiten los permisos. */
 export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
-  const { sesion, puedeAlguno } = useSesionActiva();
+  const { sesion, puede, puedeAlguno } = useSesionActiva();
   const [confirmandoSalida, setConfirmandoSalida] = useState(false);
   const contadores = useContadores();
   const permitidos = menuPermitido(puedeAlguno);
@@ -61,14 +62,16 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
   const { abierto, alternar } = useGruposAbiertos(entradaActiva);
   const suma = (e: EntradaMenu) => e.contadores.reduce((total, c) => total + (contadores[c] ?? 0), 0) || undefined;
 
+  const ambito = sesion.almacen?.nombre || (puede("almacenes.todos") ? "Todos los almacenes" : "Ámbito no indicado");
+
   return (
-    <SidebarProvider>
+    <SidebarProvider className="navegacion-imhotep">
       <Sidebar collapsible="none" className="sticky top-0 h-dvh border-r">
         <SidebarHeader className="flex-row items-center gap-3 p-4">
           <img src="/logo-imhotep.png" alt="" width={44} height={41} className="h-auto w-11" />
           <div className="min-w-0">
             <p className="text-base font-semibold text-marino">IMHOTEP</p>
-            <p className="text-xs text-muted-foreground">{sesion.almacen?.nombre ?? "Todos los almacenes"}</p>
+            <p className="text-xs text-muted-foreground">{ambito}</p>
           </div>
         </SidebarHeader>
         <SidebarContent className="px-2">
@@ -120,13 +123,7 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
           )}
         </SidebarContent>
         <SidebarFooter className="gap-3 border-t p-4">
-          <div className="flex items-center gap-3">
-            <Avatar nombre={sesion.usuario.nombre} tamano="sm" />
-            <div className="min-w-0">
-              <p className="text-sm leading-tight font-semibold">{sesion.usuario.nombre}</p>
-              <p className="text-xs text-muted-foreground">{sesion.rol.nombre}</p>
-            </div>
-          </div>
+          <IdentidadUsuario />
           <InstalarApp />
           <InterruptorTutorial />
           <Boton variante="contorno" onClick={() => setConfirmandoSalida(true)}>

@@ -288,3 +288,16 @@ Los títulos pueden ocupar dos líneas; nada se corta con "…", salvo el nombre
 - Ilustraciones y pantallas de bienvenida. El tutorial guiado ([FEAT-010](../features/FEAT-010-tutorial-guiado.md)) no es una pantalla de bienvenida: resalta elementos de las pantallas reales, sin ilustraciones.
 - Gráficas fuera del tablero de inicio: los reportes son tablas. La única gráfica es «Lo más usado» (FEAT-008, [ADR-009](../architecture/decisions/ADR-009-graficas-con-recharts.md)).
 - Diseño del ticket impreso y del comprobante público ([FEAT-001](../features/FEAT-001-vale-como-prueba.md)).
+
+### Propuesta local IMHOTEP-002: tablero administrativo
+
+Pendiente de aprobación visual. En el Inicio de quien tiene `tablero.ver` y `almacenes.todos`, el menú lateral de escritorio usa azul profundo con un degradado discreto, texto claro y la opción activa en azul brillante. Al abrir otra pantalla vuelve al estilo habitual; no cambian las rutas ni las opciones.
+
+El tablero administrativo usa pestañas activas azules, filtros blancos con borde azulado y tarjetas blancas con un detalle azul suave e iconos de trazo. Los títulos y cifras usan azul oscuro; los acentos son azules compatibles. Los indicadores, permisos, cálculos y agrupaciones existentes se conservan. Las barras de valor por categoría mantienen su escala y muestran etiquetas que pueden ocupar más de una línea.
+
+Los importes conservan el formato mexicano con `$` y dos decimales. Las tarjetas y categorías indican MXN; el bloque por almacén indica la moneda una sola vez para evitar repetirla en cada celda. En celular, este desglose se presenta como una lista por almacén con los tres importes etiquetados; en tableta y escritorio conserva la tabla. Las métricas de unidades, artículos y piezas no llevan moneda. Los estilos se limitan a `.tablero-admin` y `.inicio-administrativo`; los demás módulos y el tablero de alcance individual conservan su apariencia.
+
+Refinamiento IMHOTEP-002-R3: en Valor administrativo, una nota común de moneda/IVA/costo sustituye las descripciones repetidas de indicadores. En el sidebar del Inicio administrativo, la identidad separa nombre, rol y ámbito de la sesión; la marca de demostración recibida se presenta como etiqueta discreta. El almacén seleccionado en filtros no cambia el ámbito asignado. Otros perfiles y secciones conservan su presentación.
+
+## Identidad global IMHOTEP-003
+Este alcance sustituye la restricción visual solo administrativa de la propuesta IMHOTEP-002: el sidebar y la hoja de navegación móvil comparten azul profundo en todas las rutas autenticadas y roles, respetando permisos. Los accesos del Inicio usan azul industrial con iconos/texto blancos. Tokens en app.css: azul-profundo #102F70, azul-industrial #0755A8, azul-activo #1769EA, azul-suave #E8F1FC y fondo-aplicacion #F5F8FD. Botones, formularios, tablas y pestañas consumen el tema común. Se preservan estados semánticos de errores y semáforos, superficies blancas y foco visible. IdentidadUsuario reutiliza nombre, rol y ámbito de la sesión, nunca el almacén elegido por filtros. La hoja de navegación puede desplazarse verticalmente; el encabezado operativo móvil crece si el nombre ocupa varias líneas. Las operaciones y contratos no cambian. Validación y límites en docs/features/IMHOTEP-003-reporte.md.

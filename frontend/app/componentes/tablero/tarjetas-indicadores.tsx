@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon, PackageIcon, TruckIcon, ClipboardListIcon, HandCoinsIcon, WarehouseIcon, UsersIcon, CircleDollarSignIcon, ShieldCheckIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
@@ -13,7 +13,7 @@ interface PropiedadesTarjeta {
   /** Número (se formatea) o texto ya formateado, como un importe. */
   valor: number | string;
   /** Qué cuenta, en pocas palabras. */
-  detalle: ReactNode;
+  detalle?: ReactNode;
   /** Si lleva, toda la tarjeta se toca y abre esa pantalla. */
   ruta?: string;
   /** Resalta la cifra cuando pide atención (por ejemplo, artículos sin existencia). */
@@ -22,15 +22,19 @@ interface PropiedadesTarjeta {
 
 /** Tarjeta de indicador: título, cifra grande y una línea que dice qué cuenta. */
 export function TarjetaIndicador({ titulo, valor, detalle, ruta, atencion }: PropiedadesTarjeta) {
+  const Icono = titulo.includes("tránsito") ? TruckIcon : titulo.includes("resguardo") ? UsersIcon : titulo.includes("almacén") ? WarehouseIcon : titulo.includes("Valor") ? CircleDollarSignIcon : titulo.includes("compra") ? HandCoinsIcon : titulo.includes("Inspecciones") ? ShieldCheckIcon : titulo.includes("Existencias") ? PackageIcon : ClipboardListIcon;
   const contenido = (
-    <Card size="sm" className={cn("h-full", ruta && "transition-colors group-hover/enlace:bg-accent/60")}>
+    <Card size="sm" className={cn("indicador-tablero h-full", ruta && "transition-colors group-hover/enlace:bg-accent/60")}>
       <CardContent className="flex h-full flex-col gap-1">
+        <span className="icono-indicador" aria-hidden="true"><Icono size={20} strokeWidth={1.8} /></span>
         <p className="text-sm font-medium text-muted-foreground">{titulo}</p>
-        <p className={cn("text-3xl leading-tight font-bold tabular-nums break-words", typeof valor === "number" && atencion && valor > 0 ? "text-destructive" : "text-marino")}>{typeof valor === "number" ? numero.format(valor) : valor}</p>
-        <p className="flex items-end justify-between gap-2 text-sm text-muted-foreground">
+        <p className={cn("text-3xl leading-tight font-bold tabular-nums break-words", typeof valor === "number" && atencion && valor > 0 ? "text-destructive" : "text-marino")}>
+          {typeof valor === "number" ? numero.format(valor) : valor.endsWith(" MXN") ? <>{valor.slice(0, -4)} <span className="unidad-moneda">MXN</span></> : valor}
+        </p>
+        {detalle != null || ruta ? <p className="flex items-end justify-between gap-2 text-sm text-muted-foreground">
           <span>{detalle}</span>
           {ruta ? <ArrowRightIcon aria-hidden="true" className="size-4 shrink-0 text-marino" /> : null}
-        </p>
+        </p> : null}
       </CardContent>
     </Card>
   );

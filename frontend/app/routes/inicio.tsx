@@ -22,9 +22,7 @@ function BotonInicio({ elemento, contador, ultimoImpar, esFlujo }: { elemento: E
       prefetch={esFlujo ? "render" : "intent"}
       className={cn(
         "relative flex min-h-28 flex-col items-center justify-center gap-2.5 rounded-2xl p-4 text-center text-base font-semibold shadow-xs transition-colors select-none active:translate-y-px",
-        esFlujo
-          ? "bg-primary text-primary-foreground hover:bg-primary/90"
-          : "border border-border bg-accent text-marino hover:bg-accent/70",
+        "acceso-inicio",
         ultimoImpar && "col-span-2 md:col-span-1",
       )}
     >
@@ -57,7 +55,7 @@ export default function Inicio() {
     document.title = "Inicio · IMHOTEP";
   }, []);
 
-  // Los botones azules son las operaciones del almacén; quien no opera uno (Compras, RH) ve botones suaves.
+  // La clasificación conserva los destinos y la precarga; todas las tarjetas comparten apariencia.
   const operaAlmacen = elementos.some((e) => e.inicio === "flujo" && e.id !== "consultar");
 
   // Con `tablero.ver` el Inicio muestra los botones de operación arriba y el tablero debajo. Sin él (Compras, RH), igual que antes.

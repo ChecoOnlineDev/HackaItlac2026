@@ -13,6 +13,7 @@ import { useSesionActiva } from "~/sesion/sesion";
 import { ConsumoMasUsado } from "./pestana-consumo";
 import { PestanaValor } from "./pestana-valor";
 import { TarjetasPiezas, TarjetasResumen } from "./tarjetas-indicadores";
+import "./tablero-admin.css";
 
 type Pestana = "resumen" | "valor" | "piezas" | "consumo";
 const CLAVE_GUARDADA = "tablero-pestana";
@@ -126,7 +127,7 @@ export function Tablero() {
         <Esqueleto tipo="tarjeta" cantidad={4} />
       ) : (
         <div aria-busy={valor.cargando} className={valor.cargando ? "opacity-70 transition-opacity" : "transition-opacity"}>
-          <PestanaValor valor={valor.datos} />
+          <PestanaValor valor={valor.datos} administrativo={puedeElegir} />
         </div>
       );
   } else {
@@ -135,7 +136,7 @@ export function Tablero() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <section aria-labelledby="titulo-tablero" className="flex flex-col gap-4">
+      <section aria-labelledby="titulo-tablero" className={`flex flex-col gap-4 ${puedeElegir ? "tablero-admin" : ""}`}>
         <h2 id="titulo-tablero" className="text-xl font-semibold text-marino">
           Tablero
           {alcance ? <span className="ml-2 text-base font-normal text-muted-foreground">· {alcance.nombre}</span> : null}
