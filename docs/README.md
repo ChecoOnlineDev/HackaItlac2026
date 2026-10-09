@@ -30,6 +30,8 @@ Regla de uso: **los documentos globales orientan, los briefs pequeños autorizan
 
 Fuentes del reto: [el PDF](HackaItlacTrack3_2026.pdf) y la carpeta [info_track/](info_track/). Las instrucciones para agentes están en [AGENTS.md](../AGENTS.md), en la raíz.
 
+Preparación de la exposición: [guion de cinco minutos, restricciones y mejoras prioritarias](guion-demo-cinco-minutos.md), con su [reporte de revisión](releases/reporte-preparacion-demo.md).
+
 ## Pasos a seguir
 
 1. **Aprobar el producto.** Leer [prd.md](product/prd.md) y [mvp-scope.md](product/mvp-scope.md). Lo que no convenza se corrige ahí antes de programar. Revisar en especial las decisiones abiertas de abajo.
