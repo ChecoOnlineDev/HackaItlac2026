@@ -18,7 +18,7 @@ Regla de uso: **los documentos globales orientan, los briefs pequeños autorizan
 | 6. UI/UX | [product/ui-ux.md](product/ui-ux.md) | ¿Cómo se ve y se comporta? | Escrito |
 | 7. TRD | [architecture/trd.md](architecture/trd.md) | ¿Cómo se construye? | Escrito |
 | 7. Complementos | [overview](architecture/overview.md), [datos](architecture/data-model.md), [API](architecture/api-contracts.md), [seguridad](architecture/security-model.md), [decisiones](architecture/decisions/) | Módulos, tablas, endpoints, controles y decisiones | Escrito |
-| 7. Entorno | [despliegue-local-cloudflare.md](architecture/despliegue-local-cloudflare.md) | ¿Cómo se publica con HTTPS y cómo se respalda? | Compose y respaldo probados; el túnel, sin token real |
+| 7. Entorno | [despliegue-local-cloudflare.md](architecture/despliegue-local-cloudflare.md), [despliegue-caddy.md](architecture/despliegue-caddy.md) | ¿Cómo se publica con HTTPS y cómo se respalda? | Compose y respaldo probados; el túnel, sin token real |
 | 8. Roadmap | [product/roadmap.md](product/roadmap.md) | ¿En qué orden? | Escrito |
 | 9. Historias | [stories/](stories/) | ¿Qué necesidad resuelve cada fase? | Fases 1 a 7 |
 | 10. Tareas | En el roadmap (Fase 0 y Fase 7) | ¿Qué cambia en el código? | El resto se planea por historia |
