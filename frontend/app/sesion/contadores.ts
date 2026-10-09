@@ -11,6 +11,7 @@ export interface Contadores {
   porAutorizar?: number;
   /** Solicitudes de compra pendientes (todas las de los almacenes). */
   porComprar?: number;
+  porInspeccionar?: number;
 }
 
 function contar(datos: unknown): number | undefined {
@@ -57,17 +58,19 @@ export function refrescarContadores(): void {
  * la cuenta simplemente no aparece (sin traspasos, "Recibir" va sin contador).
  */
 function useCargarContadores(): Contadores {
-  const { puede } = useSesion();
+  const { puede, sesion } = useSesion();
   const [contadores, setContadores] = useState<Contadores>({});
   const verTraspasos = puede("traspasos.operar");
   const verAutorizaciones = puede("autorizaciones.resolver");
   const verCompras = puede("compras.atender");
+  const verInspecciones = puede("inspecciones.ver");
+  const alcanceInspecciones = JSON.stringify([sesion?.usuario.id, sesion?.almacen?.id, sesion?.almacenes]);
 
   useEffect(() => {
     const control = new AbortController();
     const cargar = async () => {
       if (practicaActiva()) return; // TU-07: en práctica se quedan como estaban
-      const [porRecibir, porAutorizar, porComprar] = await Promise.all([
+      const [porRecibir, porAutorizar, porComprar, porInspeccionar] = await Promise.all([
         verTraspasos
           ? contarCompartido("por-recibir", () => apiGet("/traspasos/por-recibir", { solo_contar: true }))
           : undefined,
@@ -79,8 +82,14 @@ function useCargarContadores(): Contadores {
           ? // `solo_contar` responde `{total}` sin traer las filas.
             contarCompartido("compras-pendientes", () => apiGet("/solicitudes-compra", { estado: "PENDIENTE", solo_contar: true }))
           : undefined,
+        verInspecciones
+          ? contarCompartido(`inspecciones-${alcanceInspecciones}`, async () => {
+              const respuesta = await apiGet<{ conteos: { vencidas: number; por_vencer: number; sin_inspeccion: number } }>("/inspecciones/pendientes", { solo_contar: true });
+              return { total: respuesta.conteos.vencidas + respuesta.conteos.por_vencer + respuesta.conteos.sin_inspeccion };
+            })
+          : undefined,
       ]);
-      if (!control.signal.aborted) setContadores({ porRecibir, porAutorizar, porComprar });
+      if (!control.signal.aborted) setContadores({ porRecibir, porAutorizar, porComprar, porInspeccionar });
     };
     void cargar();
     const alRefrescar = () => void cargar();
@@ -98,7 +107,7 @@ function useCargarContadores(): Contadores {
       window.removeEventListener(EVENTO_CONTADORES, alRefrescar);
       window.clearInterval(intervalo);
     };
-  }, [verTraspasos, verAutorizaciones, verCompras]);
+  }, [verTraspasos, verAutorizaciones, verCompras, verInspecciones, alcanceInspecciones]);
 
   return contadores;
 }

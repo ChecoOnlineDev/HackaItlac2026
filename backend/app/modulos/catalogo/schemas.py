@@ -14,6 +14,7 @@ from typing import Annotated
 from pydantic import (
     AfterValidator,
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     PlainSerializer,
@@ -21,6 +22,7 @@ from pydantic import (
     model_validator,
 )
 
+from app.core.excepciones import DatosInvalidos
 from app.modulos.catalogo.models import Control, TipoCategoria
 
 
@@ -36,6 +38,18 @@ Costo = Annotated[
     Field(ge=0, max_digits=12, decimal_places=2),
     AfterValidator(lambda v: v.quantize(Decimal("0.01"))),
 ]
+
+
+def _aviso_inspeccion(valor):
+    if valor is not None and (type(valor) is not int or not 1 <= valor <= 90):
+        raise DatosInvalidos(
+            "El aviso debe ser un número entero entre 1 y 90 días.",
+            [{"campo": "dias_aviso_inspeccion", "regla": "P-10"}],
+        )
+    return valor
+
+
+AvisoInspeccion = Annotated[int | None, BeforeValidator(_aviso_inspeccion)]
 
 # Campos de regla compartidos por la plantilla de la categoría y el artículo (CF-02).
 CAMPOS_REGLA = (
@@ -62,6 +76,7 @@ def _sin_nulos(modelo: BaseModel, campos: tuple[str, ...]) -> None:
 class _ReglasBase(BaseModel):
     requiere_inspeccion: bool = False
     vigencia_inspeccion_dias: int | None = Field(default=None, gt=0)
+    dias_aviso_inspeccion: AvisoInspeccion = None
     requiere_autorizacion: bool = False
     motivo_uso_especial: str | None = Field(default=None, max_length=255)
     limite_cantidad: int | None = Field(default=None, gt=0)
@@ -72,6 +87,7 @@ class _ReglasBase(BaseModel):
 
 
 class CategoriaCreate(_ReglasBase):
+    alto_valor: bool = False
     model_config = ConfigDict(extra="forbid")
 
     nombre: Texto = Field(max_length=100)
@@ -81,6 +97,7 @@ class CategoriaCreate(_ReglasBase):
 
 
 class CategoriaUpdate(BaseModel):
+    alto_valor: bool | None = None
     """Todos los campos son opcionales: se cambia solo lo que viene (omitido no es `null`)."""
 
     model_config = ConfigDict(extra="forbid")
@@ -91,6 +108,7 @@ class CategoriaUpdate(BaseModel):
     retornable: bool | None = None
     requiere_inspeccion: bool | None = None
     vigencia_inspeccion_dias: int | None = Field(default=None, gt=0)
+    dias_aviso_inspeccion: AvisoInspeccion = None
     requiere_autorizacion: bool | None = None
     motivo_uso_especial: str | None = Field(default=None, max_length=255)
     limite_cantidad: int | None = Field(default=None, gt=0)
@@ -106,6 +124,7 @@ class CategoriaUpdate(BaseModel):
                 "tipo",
                 "control",
                 "retornable",
+                "alto_valor",
                 "requiere_inspeccion",
                 "requiere_autorizacion",
             ),
@@ -114,6 +133,8 @@ class CategoriaUpdate(BaseModel):
 
 
 class CategoriaOut(_ReglasBase):
+    alto_valor: bool = False
+    articulos_con_aviso_propio: int = 0
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
@@ -153,6 +174,7 @@ class ArticuloCreate(BaseModel):
     costo_unitario: Costo | None = None
     requiere_inspeccion: bool | None = None
     vigencia_inspeccion_dias: int | None = Field(default=None, gt=0)
+    dias_aviso_inspeccion: AvisoInspeccion = None
     requiere_autorizacion: bool | None = None
     motivo_uso_especial: str | None = Field(default=None, max_length=255)
     limite_cantidad: int | None = Field(default=None, gt=0)
@@ -176,6 +198,7 @@ class ArticuloUpdate(BaseModel):
     costo_unitario: Costo | None = None
     requiere_inspeccion: bool | None = None
     vigencia_inspeccion_dias: int | None = Field(default=None, gt=0)
+    dias_aviso_inspeccion: AvisoInspeccion = None
     requiere_autorizacion: bool | None = None
     motivo_uso_especial: str | None = Field(default=None, max_length=255)
     limite_cantidad: int | None = Field(default=None, gt=0)
@@ -204,6 +227,12 @@ class InactivacionIn(BaseModel):
 
 
 class ArticuloListItem(BaseModel):
+    alto_valor: bool = False
+    alto_valor_motivo: str | None = None
+    avisos: list[str] = []
+    dias_aviso_inspeccion: int | None = None
+    dias_aviso_inspeccion_resuelto: int = 7
+    origen_aviso_inspeccion: str = "GENERAL"
     id: uuid.UUID
     codigo: str
     nombre: str
@@ -224,6 +253,9 @@ class ArticuloListItem(BaseModel):
 
 
 class ArticuloOut(ArticuloListItem):
+    dias_aviso_inspeccion: int | None = None
+    dias_aviso_inspeccion_resuelto: int = 7
+    origen_aviso_inspeccion: str = "GENERAL"
     vigencia_inspeccion_dias: int | None
     motivo_uso_especial: str | None
     limite_cantidad: int | None
@@ -303,6 +335,7 @@ class EtiquetaOut(BaseModel):
     nombre: str | None = None
     numero_empleado: str | None = None
     puesto: str | None = None
+    numero_serie: str | None = None
 
 
 class EtiquetasOut(BaseModel):

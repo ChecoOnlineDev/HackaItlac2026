@@ -194,9 +194,9 @@ Llegan las primeras pruebas automáticas del frontend: **`vitest`** (dependencia
 
 `INSPECCION_AVISO_DIAS` (7; fuera de 1 a 90 la aplicación no arranca) y `ALTO_VALOR_COSTO_MINIMO` (10000; cambiarlo pide reiniciar, T-5). Todos se documentan en `.env.example`.
 
-### Dependencias por aprobar (maestro, sección 11)
+### Dependencias aprobadas (maestro, sección 11)
 
-AGENTS.md prohíbe agregar dependencias que la tarea no pida; estas las piden los briefs y esperan el visto bueno del usuario antes de construir.
+Aprobadas por el usuario el 9 de octubre de 2026. Las de Capacitor del contenedor y `vitest` ya están instaladas; las demás se instalan al construir su feature.
 
 | Dependencia | Para qué | Alternativa sin dependencia | FEAT |
 |---|---|---|---|

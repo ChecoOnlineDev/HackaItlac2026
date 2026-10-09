@@ -31,7 +31,7 @@ import { useFiltrosUrl } from "~/componentes/reportes/usar-filtros";
 import { Insignia } from "~/componentes/ui/insignia";
 
 // SG-05: la ve quien tiene la bitácora o el reporte de movimientos.
-export const handle: ManejadorRuta = { permisosAlguno: ["bitacora.ver", "reportes.movimientos"] };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permisosAlguno: ["bitacora.ver", "reportes.movimientos"] };
 
 const CLAVES = ["desde", "hasta", "almacen_id", "tipo", "trabajador_id", "articulo_id", "usuario_id", "pieza", "solo_mios"] as const;
 const OPCIONES_AUTOR = [{ valor: "true", texto: "Solo los míos" }];

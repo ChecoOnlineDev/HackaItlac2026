@@ -40,7 +40,7 @@ export const TEXTO_ESTADO: Record<EstadoSolicitud, string> = {
   PENDIENTE: "Pendiente",
   EN_COMPRA: "En compra",
   COMPRADA: "Comprada",
-  INGRESADA: "Ingresada",
+  INGRESADA: "Ingresada al almacén",
   RECHAZADA: "Rechazada",
   CANCELADA: "Cancelada",
 };

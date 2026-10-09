@@ -57,6 +57,23 @@ class AlmacenOut(AlmacenResumenOut):
     cerrado_en: datetime | None = None
     hijos: list[AlmacenHijoOut]
     resumen: ResumenAlmacenOut | None = None
+    despacho_epp_con_aprobacion: bool = True
+    proyectos_activos: int = 0
+    aviso: str | None = None
+
+
+class AutonomiaAlmacenIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    despacho_epp_con_aprobacion: bool
+    motivo: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("motivo")
+    @classmethod
+    def motivo_no_vacio(cls, valor: str) -> str:
+        if not valor.strip():
+            raise ValueError("Explica por qué cambias la aprobación del despacho.")
+        return valor.strip()
 
 
 _RE_CLAVE = re.compile(r"^[A-Z0-9]{2,10}$")
@@ -137,6 +154,7 @@ class AlmacenFilters(BaseModel):
     categoria_id: uuid.UUID | None = None
     # `None` trae activos e inactivos; los inactivos vienen marcados (CF-11).
     activo: bool | None = None
+    bajo_minimo: bool = False
 
 
 class ExistenciaOut(BaseModel):
@@ -154,6 +172,9 @@ class ExistenciaOut(BaseModel):
     cantidad: int
     # Lo que se puede entregar: no cuenta piezas No aptas, en mantenimiento ni en calibración.
     disponible: int
+    no_disponible: int = 0
+    minimo: int | None = None
+    bajo_minimo: bool = False
 
 
 class ExistenciasOut(BaseModel):

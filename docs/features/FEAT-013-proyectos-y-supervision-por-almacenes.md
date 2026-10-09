@@ -1,6 +1,6 @@
 # FEAT-013: Proyectos, asignación de trabajadores y supervisión por almacenes
 
-Estado: **aprobada por el usuario el 8 de octubre de 2026, sin construir.**
+Estado: **aprobada por el usuario el 8 de octubre de 2026; implementación parcial en código, con criterios y recorridos integrales pendientes (9 oct 2026).**
 
 Documento maestro: [iteración 01](../releases/iteration_01/README.md) (decisiones D-01 a D-05 y D-13). Si este brief lo contradice, manda el maestro hasta que se corrija uno de los dos en el mismo cambio. Decisión de arquitectura: [ADR-012](../architecture/decisions/ADR-012-proyectos-y-varios-almacenes-por-usuario.md). Reglas que usa: PR-01 a PR-14, AC-36 a AC-41 y TB-04 a TB-08. Cambia RG-07, AC-06, AC-12, AC-13, A-01, AL-03, TB-01, T-02, T-03 y E-24 (sección «Reglas existentes que cambian»). Extiende el valor del inventario que ya está en el código (FEAT-012, `GET /api/tablero/valor`, sin documento).
 
@@ -342,7 +342,7 @@ El script de datos de prueba (repetible, AC-33) agrega:
 
 ### Datos (migración nueva)
 
-Migración `0010_proyectos_y_conjunto_de_almacenes`, o el siguiente número libre si FEAT-015 o FEAT-014 entran antes (sección 7 del maestro). No pierde datos:
+Migración `0012_proyectos_y_conjunto_de_almacenes` según el orden del maestro (sección 7: FEAT-015 y FEAT-014 van antes; ver el plan de migraciones en data-model.md), o el siguiente número libre. El Supervisor ya tiene `reportes.valor_inventario` desde la migración `0009`: esta migración no lo agrega. No pierde datos:
 
 | Tabla o columna | Detalle |
 |---|---|

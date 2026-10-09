@@ -1,5 +1,6 @@
 import { PencilIcon, PlusIcon, SearchIcon, WarehouseIcon } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { Label } from "~/components/ui/label";
@@ -18,7 +19,7 @@ import { HojaFiltros } from "~/componentes/ui/hoja-filtros";
 import { Insignia } from "~/componentes/ui/insignia";
 import { ListaDesplegable } from "~/componentes/ui/lista-desplegable";
 
-export const handle: ManejadorRuta = { permiso: "almacenes.administrar" };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permiso: "almacenes.administrar" };
 
 interface Filtros extends Record<string, string> {
   estado: string;
@@ -28,6 +29,8 @@ const SIN_FILTROS: Filtros = { estado: "" };
 const normalizar = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
 export default function Almacenes() {
+  const [parametros, setParametros] = useSearchParams();
+  const sinProyecto = parametros.get("sin_proyecto") === "true";
   const [texto, setTexto] = useState("");
   const [filtros, setFiltros] = useState<Filtros>(SIN_FILTROS);
   const [modo, setModo] = useState<ModoHojaAlmacen | null>(null);
@@ -39,20 +42,22 @@ export default function Almacenes() {
   const visibles = useMemo(() => {
     const buscado = normalizar(texto.trim());
     return todos.filter((a) => {
+      if (sinProyecto && (a.tipo !== "PROYECTO" || a.estado !== "ACTIVO" || a.proyectos_activos !== 0)) return false;
       if (filtros.estado === "activos" && a.estado !== "ACTIVO") return false;
       if (filtros.estado === "cerrados" && a.estado !== "CERRADO") return false;
       if (!buscado) return true;
       return normalizar(`${a.clave} ${a.nombre}`).includes(buscado);
     });
-  }, [todos, texto, filtros.estado]);
+  }, [todos, texto, filtros.estado, sinProyecto]);
 
   const activos = Object.values(filtros).filter((v) => v !== "").length;
-  const hayFiltros = texto.trim() !== "" || activos > 0;
+  const hayFiltros = texto.trim() !== "" || activos > 0 || sinProyecto;
   const abierto = todos.find((a) => a.id === verId) ?? null;
 
   function quitarFiltros() {
     setTexto("");
     setFiltros(SIN_FILTROS);
+    parametros.delete("sin_proyecto"); setParametros(parametros);
   }
 
   const dependeDe = (a: FichaAlmacen) => (a.padre_clave ? `${todos.find((p) => p.id === a.padre_id)?.nombre ?? a.padre_clave} (${a.padre_clave})` : "No depende de otro");

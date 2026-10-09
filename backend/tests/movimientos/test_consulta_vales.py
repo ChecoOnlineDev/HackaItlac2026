@@ -28,7 +28,9 @@ def trabajador(session):
 def entrega(almacenista, compras, session, trabajador):
     guantes = crear_articulo(session)
     abastecer(compras, guantes, 10)
-    r = almacenista.post(VALES, json=cuerpo_entrega(trabajador, [renglon(guantes.codigo)]))
+    cuerpo = cuerpo_entrega(trabajador, [renglon(guantes.codigo)])
+    cuerpo["observacion"] = "Entrega de prueba sin proyecto asignado."
+    r = almacenista.post(VALES, json=cuerpo)
     assert r.status_code == 201
     return r.json()
 
@@ -129,7 +131,9 @@ def test_la_lista_va_paginada_del_mas_nuevo_al_mas_viejo(almacenista, compras, s
     abastecer(compras, guantes, 10)
     folios = []
     for _ in range(3):
-        r = almacenista.post(VALES, json=cuerpo_entrega(trabajador, [renglon(guantes.codigo)]))
+        cuerpo = cuerpo_entrega(trabajador, [renglon(guantes.codigo)])
+        cuerpo["observacion"] = "Entrega de prueba sin proyecto asignado."
+        r = almacenista.post(VALES, json=cuerpo)
         folios.append(r.json()["folio"])
     r = almacenista.get(f"{VALES}?trabajador_id={trabajador.id}&tamano=2&pagina=1")
     cuerpo = r.json()

@@ -54,6 +54,14 @@ interface PropiedadesTarjetas {
 
 const CUADRICULA = "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4";
 
+function TarjetaInspecciones({ resumen }: { resumen: ResumenTablero }) {
+  const { inspecciones_por_vencer: porVencer, inspecciones_vencidas: vencidas, inspecciones_sin_registro: sinRegistro } = resumen;
+  if (typeof porVencer !== "number") return null;
+  if (typeof vencidas !== "number" || typeof sinRegistro !== "number") return <TarjetaIndicador titulo="Inspecciones por vencer" valor={porVencer} detalle="según el aviso de cada artículo" ruta="/inspecciones?estado=POR_VENCER" atencion />;
+  const estado = vencidas ? "VENCIDA" : porVencer ? "POR_VENCER" : "SIN_INSPECCION";
+  return <TarjetaIndicador titulo="Inspecciones" valor={vencidas + porVencer + sinRegistro} detalle={`${vencidas} vencidas · ${porVencer} por vencer · ${sinRegistro} sin inspección`} ruta={`/inspecciones?estado=${estado}`} atencion />;
+}
+
 /** Pestaña «Resumen» / «Mi almacén»: cuatro tarjetas. Todas las cifras las calcula el servidor. */
 export function TarjetasResumen({ resumen }: PropiedadesTarjetas) {
   const { unidades, articulos } = resumen.existencias;
@@ -67,6 +75,10 @@ export function TarjetasResumen({ resumen }: PropiedadesTarjetas) {
       <TarjetaIndicador titulo="Entregas de hoy" valor={resumen.entregas_hoy} detalle="vales de entrega del día" />
       <TarjetaIndicador titulo="Traspasos en tránsito" valor={resumen.traspasos_en_transito} detalle="enviados y sin recibir" />
       <TarjetaIndicador titulo="Solicitudes de compra abiertas" valor={resumen.solicitudes_compra_abiertas} detalle="pendientes o en compra" />
+      <TarjetaInspecciones resumen={resumen} />
+      {resumen.inventario_unidades ? <TarjetaIndicador titulo="Unidades de inventario" valor={resumen.inventario_unidades.total} detalle={`${resumen.inventario_unidades.en_almacen} en almacén · ${resumen.inventario_unidades.en_resguardo} en resguardo`} /> : null}
+      {resumen.proyectos_por_vencer ? <TarjetaIndicador titulo="Proyectos por vencer" valor={resumen.proyectos_por_vencer.length} detalle="fin estimado vencido o dentro de 7 días" ruta="/proyectos?por_vencer=true" atencion /> : null}
+      {resumen.almacenes_sin_proyecto ? <TarjetaIndicador titulo="Almacenes sin proyecto activo" valor={resumen.almacenes_sin_proyecto.length} detalle="almacenes de tercer nivel activos" ruta="/almacenes?sin_proyecto=true" atencion /> : null}
     </div>
   );
 }
@@ -89,7 +101,7 @@ export function TarjetasPiezas({ resumen, puedeVerSeguimiento = false }: Propied
           ruta="/seguimiento?alto_valor=true&ubicacion=TRABAJADOR"
         />
       ) : null}
-      <TarjetaIndicador titulo="Inspecciones por vencer" valor={resumen.inspecciones_por_vencer} detalle="en los próximos 7 días" atencion />
+      <TarjetaInspecciones resumen={resumen} />
       {typeof resumen.piezas_serie_pendiente === "number" ? (
         <TarjetaIndicador
           titulo="Piezas con serie pendiente"

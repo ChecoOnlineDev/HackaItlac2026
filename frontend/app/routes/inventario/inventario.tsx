@@ -24,9 +24,10 @@ import { EstadoError } from "~/componentes/ui/estado-error";
 import { EstadoVacio } from "~/componentes/ui/estado-vacio";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { Insignia } from "~/componentes/ui/insignia";
+import { HojaMinimos } from "~/componentes/catalogo/hoja-minimos";
 import { useSesion } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "inventario.ver" };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permiso: "inventario.ver" };
 
 /** El almacén que se operó por última vez en este dispositivo (lo guarda Entregar). */
 function leerAlmacenRecordado(): string | null {
@@ -42,6 +43,8 @@ export default function Inventario() {
   const puedeVerArticulo = puede("catalogo.ver");
   // Desde Almacenes (administración) se llega con `?almacen=<id>` ya elegido.
   const [almacenElegido, setAlmacenElegido] = useState<string | null>(() => new URLSearchParams(window.location.search).get("almacen"));
+  const [bajoMinimo, setBajoMinimo] = useState(false);
+  const [minimosAbiertos, setMinimosAbiertos] = useState(false);
   const [categoria, setCategoria] = useState("");
   const [texto, setTexto] = useState("");
   const q = useRetraso(texto.trim());
@@ -60,7 +63,7 @@ export default function Inventario() {
 
   // Solo quien tiene `almacenes.todos` ve el inventario de varios almacenes; los demás, solo el suyo.
   const operaTodos = puede("almacenes.todos");
-  const lista = (almacenes.datos ?? []).filter((a) => operaTodos || a.id === sesion?.almacen?.id);
+  const lista = (almacenes.datos ?? []).filter((a) => operaTodos || a.id === sesion?.almacen?.id || sesion?.almacenes?.some((asignado) => asignado.id === a.id));
   // Por omisión, el almacén de quien entra; si opera todos, el último que operó; si no, el primero.
   const recordado = lista.find((a) => a.id === leerAlmacenRecordado())?.id;
   const almacenPorOmision = sesion?.almacen?.id ?? recordado ?? lista[0]?.id ?? "";
@@ -69,13 +72,13 @@ export default function Inventario() {
   const existencias = useConsulta(
     (signal) =>
       almacenId
-        ? apiGet<Existencias>(`/almacenes/${almacenId}/existencias`, { q, categoria_id: categoria, pagina, tamano: TAMANO_PAGINA }, signal)
+        ? apiGet<Existencias>(`/almacenes/${almacenId}/existencias`, { q, bajo_minimo: bajoMinimo || undefined, categoria_id: categoria, pagina, tamano: TAMANO_PAGINA }, signal)
         : Promise.resolve(null),
-    `${almacenId}|${q}|${categoria}|${pagina}`,
+    `${almacenId}|${q}|${categoria}|${pagina}|${bajoMinimo}`,
   );
 
   const filas = existencias.datos?.elementos ?? [];
-  const hayFiltros = q !== "" || categoria !== "";
+  const hayFiltros = q !== "" || categoria !== "" || bajoMinimo;
 
   const enlace = (id: string, nombre: string) =>
     puedeVerArticulo ? (
@@ -107,6 +110,7 @@ export default function Inventario() {
             onClick={() => {
               setTexto("");
               setCategoria("");
+              setBajoMinimo(false);
               setPagina(1);
             }}
           >
@@ -132,11 +136,13 @@ export default function Inventario() {
                 <TableHead scope="col">Categoría</TableHead>
                 <TableHead scope="col" className="text-right">Existencia</TableHead>
                 <TableHead scope="col" className="text-right">Disponible</TableHead>
+                <TableHead scope="col" className="text-right">No disponible</TableHead>
+                <TableHead scope="col" className="text-right">Mínimo</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filas.map((f) => (
-                <TableRow key={f.articulo_id} className={cn(!f.activo && "bg-muted/40 text-muted-foreground")}>
+                <TableRow key={f.articulo_id} className={cn(!f.activo && "bg-muted/40 text-muted-foreground", f.bajo_minimo && "bg-destructive/5")}>
                   <TableCell className="whitespace-normal">
                     {enlace(f.articulo_id, f.nombre)}
                     <span className="block text-xs text-muted-foreground">
@@ -153,7 +159,9 @@ export default function Inventario() {
                     </span>
                   </TableCell>
                   <TableCell className="text-right font-semibold">{f.cantidad}</TableCell>
-                  <TableCell className="text-right font-semibold">{f.disponible}</TableCell>
+                  <TableCell className={cn("text-right font-semibold", f.bajo_minimo && "text-destructive")}>{f.disponible}{f.bajo_minimo ? <span className="block text-xs">Por debajo del mínimo</span> : null}</TableCell>
+                  <TableCell className="text-right">{f.no_disponible ?? "—"}</TableCell>
+                  <TableCell className="text-right">{f.minimo ?? "Sin mínimo"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -178,9 +186,10 @@ export default function Inventario() {
                 </div>
                 <div className="rounded-xl bg-muted/60 px-3 py-2">
                   <dt className="text-xs text-muted-foreground">Disponible</dt>
-                  <dd className="text-xl font-semibold tabular-nums text-foreground">{f.disponible}</dd>
+                  <dd className={cn("text-xl font-semibold tabular-nums", f.bajo_minimo && "text-destructive")}>{f.disponible}</dd>
                 </div>
               </dl>
+              <p className={cn("text-sm", f.bajo_minimo && "text-destructive")}>Mínimo: {f.minimo ?? "Sin mínimo"} · No disponible: {f.no_disponible ?? "—"}{f.bajo_minimo ? " · Por debajo del mínimo" : ""}</p>
             </li>
           ))}
         </ul>
@@ -194,7 +203,7 @@ export default function Inventario() {
   const activos = (categoria ? 1 : 0) + (almacenCambiado ? 1 : 0);
 
   return (
-    <Pantalla titulo="Inventario" descripcion={almacenActual ? `Lo que hay en ${almacenActual.nombre}.` : "Lo que hay en cada almacén."}>
+    <Pantalla acciones={puede("inventario.minimos") && almacenId ? <Boton variante="contorno" onClick={() => setMinimosAbiertos(true)}>Configurar mínimos</Boton> : null} titulo="Inventario" descripcion={almacenActual ? `Lo que hay en ${almacenActual.nombre}.` : "Lo que hay en cada almacén."}>
       <div className="flex items-center gap-2">
         <CampoBusqueda
           etiqueta="Buscar artículo"
@@ -215,6 +224,7 @@ export default function Inventario() {
           alLimpiar={() => {
             setAlmacenElegido(null);
             setCategoria("");
+              setBajoMinimo(false);
             setPagina(1);
           }}
         >
@@ -244,7 +254,9 @@ export default function Inventario() {
         <strong className="font-semibold text-foreground">Existencia:</strong> todo lo que hay.{" "}
         <strong className="font-semibold text-foreground">Disponible:</strong> lo que se puede entregar hoy (sin piezas no aptas ni en mantenimiento).
       </p>
+      <Boton variante={bajoMinimo ? "normal" : "contorno"} aria-pressed={bajoMinimo} onClick={() => { setBajoMinimo((v) => !v); setPagina(1); }}>Por debajo del mínimo</Boton>
       {contenido}
+      {minimosAbiertos ? <HojaMinimos almacenId={almacenId} alCerrar={() => setMinimosAbiertos(false)} alGuardar={existencias.recargar} /> : null}
     </Pantalla>
   );
 }

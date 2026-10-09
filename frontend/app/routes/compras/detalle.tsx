@@ -7,7 +7,7 @@ import { esErrorApi } from "~/api/errores";
 import { useConsulta } from "~/componentes/catalogo/usar-consulta";
 import { BotonesAccion } from "~/componentes/compras/atender/botones-accion";
 import { FlujoAccion } from "~/componentes/compras/atender/flujo-accion";
-import { InsigniaEstadoSolicitud, InsigniaUrgencia } from "~/componentes/compras/atender/insignias";
+import { InsigniaEstadoCompra, InsigniaUrgencia } from "~/componentes/compras/insignias";
 import { LineaDeTiempoSolicitud } from "~/componentes/compras/atender/linea-de-tiempo";
 import type { AccionSolicitud, SolicitudCompra } from "~/componentes/compras/atender/tipos";
 import { instanteUtc } from "~/componentes/consulta/formato";
@@ -19,7 +19,7 @@ import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { useSesion } from "~/sesion/sesion";
 
 // La ven Compras (todas las solicitudes) y quien pide (las de su almacén); el servidor decide cuáles.
-export const handle: ManejadorRuta = { permisosAlguno: ["compras.atender", "compras.solicitar"] };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permisosAlguno: ["compras.atender", "compras.solicitar"] };
 
 function Dato({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
@@ -97,7 +97,7 @@ export default function DetalleDeSolicitud() {
       <div className="flex flex-col gap-4" aria-busy={cargando}>
         <section aria-label="Datos de la solicitud" className="flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-xs">
           <div className="flex flex-wrap items-center gap-2">
-            <InsigniaEstadoSolicitud estado={s.estado} />
+            <InsigniaEstadoCompra estado={s.estado} />
             <InsigniaUrgencia urgencia={s.urgencia} />
           </div>
           <div>

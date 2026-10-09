@@ -70,6 +70,17 @@ class RenglonEvaluado:
         return self.nivel == Nivel.NARANJA
 
 
+@dataclass(frozen=True)
+class RutaEvaluada:
+    """La ruta de un TRASPASO tal como la evaluó el servidor (X-03, X-16 a X-18): la interfaz
+    muestra esto y no decide nada. `clase` y `autoriza` son valores de `ClaseRuta` y
+    `QuienAutoriza`; `autorizadores_disponibles` solo se llena en X-17."""
+
+    clase: str
+    autoriza: str
+    autorizadores_disponibles: int | None = None
+
+
 @dataclass
 class Evaluacion:
     renglones: list[RenglonEvaluado] = field(default_factory=list)
@@ -82,6 +93,15 @@ class Evaluacion:
     admite_sin_renglones: bool = False
     # El vale mismo pide una observación (X-03: ruta no habitual del Administrador).
     pide_observacion_vale: bool = False
+    # Solo en TRASPASO: la clase de la ruta y quién la autoriza (FEAT-015).
+    ruta: RutaEvaluada | None = None
+    # X-17: la autorización de traslado indicada sirve para este vale.
+    autorizado_vale: bool = False
+    proyecto: dict[str, Any] | None = None
+    proyectos_del_trabajador: list[dict[str, Any]] = field(default_factory=list)
+    pide_proyecto: bool = False
+    requiere_aprobacion_despacho: bool = False
+    despacho_modo: str = "NO_APLICA"
     # Datos internos que el tipo le deja al motor (nunca salen al cliente).
     datos: dict[str, Any] = field(default_factory=dict)
 
@@ -104,6 +124,13 @@ class Evaluacion:
         if not self.renglones and not self.admite_sin_renglones:
             return False
         if self.nivel == Nivel.ROJO:
+            return False
+        if self.pide_proyecto and self.proyecto is None:
+            return False
+        if self.requiere_aprobacion_despacho and not self.autorizado_vale:
+            return False
+        # X-17: el traslado lateral de quien no es supervisor del origen pide la autorización.
+        if not self.autorizado_vale and any(m.regla == "X-17" for m in self.motivos_vale):
             return False
         return all(r.autorizado for r in self.renglones if r.nivel == Nivel.NARANJA)
 
@@ -145,6 +172,7 @@ class DatosVale:
 
     trabajador_id: uuid.UUID | None = None
     periodo_contrato_id: uuid.UUID | None = None
+    proyecto_id: uuid.UUID | None = None
     destino_almacen_id: uuid.UUID | None = None
     vale_origen_id: uuid.UUID | None = None
     estado: str = EstadoVale.EMITIDO

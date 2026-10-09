@@ -27,7 +27,7 @@ import { EstadoVacio } from "~/componentes/ui/estado-vacio";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { HojaFiltros } from "~/componentes/ui/hoja-filtros";
 
-export const handle: ManejadorRuta = { permiso: "compras.atender" };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permiso: "compras.atender" };
 
 const CLAVES = ["q", "estado", "urgencia", "almacen", "desde", "hasta"] as const;
 

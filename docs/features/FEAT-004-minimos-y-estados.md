@@ -1,5 +1,7 @@
 # FEAT-004: Mínimos, estados de pieza y alertas
 
+**Estado (8 oct 2026): servidor construido; interfaz y validación integral en curso.** Migración `0013_minimos`, configuración por almacén con `inventario.minimos`, disponibles/no disponibles, filtro de agotados y avisos E-14/X-05. El endpoint de estado admite mantenimiento y calibración con P-06; regreso sin inspección sólo cuando el artículo no la exige. Las pruebas específicas están en `backend/tests/test_minimos_feat004.py`; el cierre de esta feature exige terminar la pantalla y sus recorridos.
+
 ## Problema u oportunidad
 
 La empresa quiere una alerta antes de quedarse sin un equipo, y hay equipo que no está ni en el almacén ni con un trabajador porque se mandó a mantenimiento o a calibración (plática min 46–47 y 50). El MVP solo distingue Apto y No apto, y no conoce mínimos.

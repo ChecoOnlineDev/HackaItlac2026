@@ -2,8 +2,8 @@
 
 Descubre las rutas de la aplicación y comprueba:
 
-  (a) sin sesión toda ruta responde 401, salvo las públicas (`POST /api/sesion`, `GET /api/salud`
-      y la documentación de la API);
+  (a) sin sesión toda ruta responde 401, salvo las públicas (`POST /api/sesion`, `GET /api/salud`,
+      el comprobante por QR de FEAT-001 y la documentación de la API);
   (b) por introspección de las dependencias, toda ruta protegida declara un permiso por clave
       (`requiere_permiso`) o está en la lista explícita de las que solo piden sesión; y lo que
       declara el código coincide con la columna «Permiso» de `docs/architecture/api-contracts.md`;
@@ -92,9 +92,14 @@ RUTAS: list[tuple[str, str, APIRoute]] = [
 ]
 
 # Públicas por diseño: entrar con usuario y contraseña, renovar la sesión (la identifica el token
-# de renovación, no el de acceso, que para entonces ya pudo vencer) y comprobar que la aplicación
-# vive.
-PUBLICAS = {("POST", "/api/sesion"), ("POST", "/api/sesion/refresh"), ("GET", "/api/salud")}
+# de renovación, no el de acceso, que para entonces ya pudo vencer), comprobar que la aplicación
+# vive y abrir el comprobante protegido por un token no adivinable (FEAT-001).
+PUBLICAS = {
+    ("POST", "/api/sesion"),
+    ("POST", "/api/sesion/refresh"),
+    ("GET", "/api/salud"),
+    ("GET", "/api/publico/vales/{token}"),
+}
 # Rutas del propio framework (documentación interactiva): públicas, sin datos del negocio.
 PUBLICAS_DEL_FRAMEWORK = {
     "/api/docs",
@@ -104,12 +109,21 @@ PUBLICAS_DEL_FRAMEWORK = {
 }
 
 # Rutas que aceptan UNO DE VARIOS permisos y lo declaran en el router con `requiere_alguno(...)`
-# (403 si no tiene ninguno). Son las únicas con más de una clave en la dependencia.
+# (403 si no tiene ninguno).
 ACEPTAN_ALGUNO: dict[tuple[str, str], set[str]] = {
     ("GET", "/api/reportes/movimientos"): {P.BITACORA_VER, P.REPORTES_MOVIMIENTOS},
     ("GET", "/api/reportes/usuarios"): {P.BITACORA_VER, P.REPORTES_MOVIMIENTOS},
     ("GET", "/api/seguimiento/piezas"): {P.REPORTES_EXISTENCIAS, P.RESGUARDO_VER},
     ("GET", "/api/seguimiento/cantidad"): {P.REPORTES_EXISTENCIAS, P.RESGUARDO_VER},
+    ("PUT", "/api/usuarios/{id}/almacenes"): {P.ACCESO_USUARIOS, P.ALMACENES_ASIGNAR_PERSONAL},
+    ("GET", "/api/proyectos"): {"proyectos.ver", "proyectos.asignar"},
+    ("GET", "/api/proyectos/{id}"): {"proyectos.ver", "proyectos.asignar"},
+    ("POST", "/api/piezas/{pieza_id}/estado"): {P.PIEZAS_INSPECCIONAR, P.PIEZAS_MARCAR_ESTADO},
+    ("GET", "/api/bitacora"): {P.BITACORA_VER, P.REPORTES_MOVIMIENTOS},
+}
+
+REQUIEREN_TODOS: dict[tuple[str, str], set[str]] = {
+    ("GET", "/api/tablero/proyectos"): {P.TABLERO_VER, "proyectos.ver"},
 }
 
 # Rutas que piden SOLO sesión (api-contracts: «Sesión»). Cada una explica por qué no lleva un
@@ -122,6 +136,15 @@ SOLO_SESION: dict[tuple[str, str], str] = {
         "/api/sesion/todas",
     ): "Cierra todas las sesiones propias, en todos los dispositivos.",
     ("DELETE", "/api/sesion/otras"): "Cierra las sesiones propias de los demás dispositivos.",
+    ("PUT", "/api/sesion/almacen"): (
+        "Cambia el almacén activo solo entre los almacenes ya asignados al usuario (AC-39)."
+    ),
+    ("GET", "/api/notificaciones/clave-publica"): (
+        "Entrega la clave pública de suscripciones del dispositivo a una sesión abierta."
+    ),
+    ("DELETE", "/api/notificaciones/suscripciones/{id}"): (
+        "Revoca una suscripción propia de este dispositivo."
+    ),
     (
         "GET",
         "/api/sesion/dispositivos",
@@ -141,11 +164,18 @@ SOLO_SESION: dict[tuple[str, str], str] = {
         "Resuelve con la sesión o con el PIN de otro usuario: el servicio exige "
         "`autorizaciones.resolver` sobre quien autoriza."
     ),
+    ("POST", "/api/autorizaciones"): (
+        "El permiso depende del `tipo` del cuerpo: `entregas.crear` para un EXCEDENTE y "
+        "`traspasos.operar` para un TRASLADO (FEAT-015); el servicio lo verifica por clave."
+    ),
     ("POST", "/api/vales/evaluar"): (
         "El permiso depende del `tipo` del cuerpo (entregas.crear, devoluciones.crear, ...): "
         "el servicio lo verifica por clave antes de leer nada."
     ),
     ("POST", "/api/vales"): "Igual que evaluar: el permiso sale del `tipo` del vale.",
+    ("POST", "/api/vales/reservar-papel"): (
+        "El permiso depende del `tipo` del vale; el servicio lo verifica antes de reservar el folio."
+    ),
     ("GET", "/api/solicitudes-compra"): (
         "La ruta acepta `compras.solicitar` o `compras.atender`: el servicio verifica cualquiera "
         "de los dos (403 si no tiene ninguno) y limita lo que ve a su almacén (SC-03)."
@@ -237,6 +267,9 @@ def test_AC_01_cada_ruta_declara_un_permiso_por_clave_o_esta_en_la_lista_de_solo
     elif (metodo, camino) in ACEPTAN_ALGUNO:
         assert _pide_sesion(ruta), f"{metodo} {camino} no exige sesión"
         assert claves == ACEPTAN_ALGUNO[(metodo, camino)], f"{metodo} {camino}: {claves}"
+    elif (metodo, camino) in REQUIEREN_TODOS:
+        assert _pide_sesion(ruta), f"{metodo} {camino} no exige sesión"
+        assert claves == REQUIEREN_TODOS[(metodo, camino)], f"{metodo} {camino}: {claves}"
     else:
         assert _pide_sesion(ruta), f"{metodo} {camino} no exige sesión"
         assert len(claves) == 1, f"{metodo} {camino} debe exigir UN permiso por clave: {claves}"
@@ -247,7 +280,10 @@ def test_AC_01_la_lista_de_solo_sesion_no_tiene_rutas_que_ya_no_existen():
     existentes = {(m, c) for m, c, _ in RUTAS}
     assert set(SOLO_SESION) <= existentes
     assert set(ACEPTAN_ALGUNO) <= existentes
+    assert set(REQUIEREN_TODOS) <= existentes
     assert not set(SOLO_SESION) & set(ACEPTAN_ALGUNO)
+    assert not set(SOLO_SESION) & set(REQUIEREN_TODOS)
+    assert not set(ACEPTAN_ALGUNO) & set(REQUIEREN_TODOS)
     assert PUBLICAS <= existentes
 
 
@@ -344,11 +380,16 @@ ROLES_8_2: dict[str, str] = {
     P.VALES_CANCELAR_TODOS: "S",
     P.AUTORIZACIONES_RESOLVER: "S",
     P.PIEZAS_INSPECCIONAR: "AS",
+    P.INSPECCIONES_VER: "AS",
     P.PIEZAS_AJUSTAR_VIGENCIA: "S",
     P.REPORTES_EXISTENCIAS: "SC",
     P.REPORTES_MOVIMIENTOS: "SC",
     P.REPORTES_ADEUDOS: "SR",
     P.REPORTES_CONSUMO: "SC",
+    P.REPORTES_CIERRE: "S",
+    P.DEUDORES_VER: "SR",
+    P.INVENTARIO_AJUSTAR: "S",
+    P.INVENTARIO_MINIMOS: "C",
     P.ALMACENES_TODOS: "",
     P.ALMACENES_ASIGNAR_PERSONAL: "S",
     P.ETIQUETAS_IMPRIMIR: "SCR",
@@ -460,7 +501,17 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
         ("POST", "/api/importacion", {}, set()),
     ],
     P.ENTREGAS_CREAR: [
-        ("POST", "/api/autorizaciones", {}, set()),
+        (
+            "POST",
+            "/api/autorizaciones",
+            {
+                "tipo": "EXCEDENTE",
+                "trabajador_id": UUID_FALSO,
+                "renglones": [{"codigo": "NO-EXISTE", "cantidad": 1}],
+                "motivo": "prueba",
+            },
+            set(),
+        ),
         (
             "POST",
             "/api/vales/evaluar",
@@ -472,6 +523,17 @@ MUESTRAS: dict[str, list[tuple[str, str, dict | None, set[str]]]] = {
         ("POST", "/api/vales/evaluar", {"tipo": "DEVOLUCION", "renglones": []}, set())
     ],
     P.TRASPASOS_OPERAR: [
+        (
+            "POST",
+            "/api/autorizaciones",
+            {
+                "tipo": "TRASLADO",
+                "destino_almacen_id": UUID_FALSO,
+                "renglones": [{"codigo": "NO-EXISTE", "cantidad": 1}],
+                "motivo": "prueba",
+            },
+            set(),
+        ),
         (
             "POST",
             "/api/vales/evaluar",

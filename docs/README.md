@@ -23,7 +23,7 @@ Regla de uso: **los documentos globales orientan, los briefs pequeños autorizan
 | 9. Historias | [stories/](stories/) | ¿Qué necesidad resuelve cada fase? | Fases 1 a 7 |
 | 10. Tareas | En el roadmap (Fase 0 y Fase 7) | ¿Qué cambia en el código? | El resto se planea por historia |
 | Segunda ola | [features/](features/) | ¿Qué sigue después del núcleo? | Diez briefs ([FEAT-010](features/FEAT-010-tutorial-guiado.md), tutorial guiado de práctica, aprobado y sin construir; [FEAT-009](features/FEAT-009-traspasos-por-lista-de-excel.md), traspasos por lista de Excel, está aprobado y construido en el código, salvo TR-10); [FEAT-008](features/FEAT-008-administracion-de-almacenes-y-tablero.md) (almacenes, tablero y menú) aprobado, con sus documentos al día y ya construido |
-| Iteración 01 | [releases/iteration_01/README.md](releases/iteration_01/README.md) | ¿Qué cambia con la plática del 8 de octubre (despacho de EPP con aprobación, proyectos, traslados entre almacenes de tercer nivel, inspecciones, bitácora por vale, deudores, app de Android sin conexión)? | Aprobada, sin construir: FEAT-013 a FEAT-020 y ADR-012 a ADR-015 |
+| Iteración 01 | [releases/iteration_01/README.md](releases/iteration_01/README.md) | ¿Qué cambia con la plática del 8 de octubre (despacho de EPP con aprobación, proyectos, traslados entre almacenes de tercer nivel, inspecciones, bitácora por vale, deudores, app de Android sin conexión)? | Aprobada, con sus dependencias aprobadas el 9 de octubre: FEAT-013 a FEAT-020 y ADR-012 a ADR-015 (sin construir, salvo el contenedor de Android de FEAT-020). [FEAT-012](features/FEAT-012-valor-del-inventario.md) documenta el valor del inventario, ya construido |
 | Red de almacenes | [product/red-de-almacenes-y-flujo.md](product/red-de-almacenes-y-flujo.md) | ¿Cómo se da de alta, surte y cierra cada almacén? | Decidido; una pregunta abierta (recibir separado de enviar) |
 | Release | [releases/mvp-checklist.md](releases/mvp-checklist.md), [changelog](releases/changelog.md), [guía del almacenista](guia-almacenista.md), [guía por rol](guia-por-rol.md) | ¿Cuándo está terminado, qué trae y cómo se usa? | Escritos; la checklist se va marcando |
 | Plantillas | [templates/](templates/) | Historias, FEAT, FIX, TECH, ADR, reporte y prompts | Listas |
@@ -59,7 +59,7 @@ Preparación de la exposición: [guion de cinco minutos, restricciones y mejoras
 | Una mejora interna, de rendimiento o de seguridad | `technical/TECH-NNN-nombre.md` |
 | Una decisión costosa de revertir | `architecture/decisions/ADR-NNN-nombre.md` |
 
-Las carpetas `fixes/` y `technical/` se crean con su primer brief. Las plantillas están en [templates/](templates/).
+La carpeta `fixes/` ya existe con [FIX-001](fixes/FIX-001-etiquetas-de-piezas-sin-alcance.md) (las etiquetas de piezas no respetan el alcance por almacén; abierto). `technical/` se crea con su primer brief. Las plantillas están en [templates/](templates/).
 
 ## Decisiones abiertas
 

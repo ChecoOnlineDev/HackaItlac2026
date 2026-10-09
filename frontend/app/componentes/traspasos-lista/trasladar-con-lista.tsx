@@ -1,6 +1,8 @@
-import { ArrowLeftIcon, CircleAlertIcon, InfoIcon, TriangleAlertIcon, WifiOffIcon } from "lucide-react";
+import { ArrowLeftIcon, CircleAlertIcon, InfoIcon, LockIcon, TriangleAlertIcon, WifiOffIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBlocker } from "react-router";
+import { Link } from "react-router";
+import { BotonPdfVale } from "~/componentes/dominio/boton-pdf-vale";
 
 import { Checkbox } from "~/components/ui/checkbox";
 import { esErrorApi, mensajeDeError } from "~/api/errores";
@@ -17,10 +19,13 @@ import { formatearFechaHora } from "~/componentes/dominio/fechas";
 import { reproducir } from "~/componentes/dominio/sonido";
 import { EsqueletoTablaVista } from "~/componentes/importacion/tabla-vista-previa";
 import type { Tabla } from "~/componentes/importacion/tipos";
+import type { AutorizacionBorrador } from "~/componentes/entrega/borrador";
+import { HojaAutorizacion } from "~/componentes/entrega/hoja-autorizacion";
 import { SelectorAlmacen } from "~/componentes/entrega/selector-almacen";
 import type { AlmacenResumen, ValeConfirmadoApi } from "~/componentes/entrega/tipos";
 import { AccionPrincipal, Pantalla } from "~/componentes/pantalla";
-import { ObservacionRuta } from "~/componentes/traspasos/observacion-ruta";
+import { BandaAutorizacionTraslado, useSeguirAutorizacion } from "~/componentes/traspasos/autorizacion-traslado";
+import { ObservacionRuta, RESPUESTAS_RAPIDAS_TRASLADO } from "~/componentes/traspasos/observacion-ruta";
 import { ResultadoTraspaso } from "~/componentes/traspasos/resultado-traspaso";
 import { SelectorDestino } from "~/componentes/traspasos/selector-destino";
 import { Boton } from "~/componentes/ui/boton";
@@ -30,6 +35,7 @@ import { columnasReconocidas, listaDeFilas } from "./lectura";
 import { PasoArchivo } from "./paso-archivo";
 import { PasoColumnasTraspaso } from "./paso-columnas";
 import { TablaVistaTraspaso } from "./tabla-vista";
+import { BotonExcelLista } from "./boton-excel-lista";
 
 type Paso = "destino" | "archivo" | "columnas" | "revision" | "resultado";
 const PASOS: { paso: Paso; nombre: string }[] = [
@@ -69,6 +75,18 @@ export function TrasladarConLista({ operaTodos, almacenInicialId, almacenNombre,
   const [recarga, setRecarga] = useState(0);
 
   const [observacion, setObservacion] = useState("");
+  // X-17: la autorización que se pidió al supervisor del origen para este archivo.
+  const [autorizacion, setAutorizacion] = useState<AutorizacionBorrador | null>(null);
+  const [pidiendoAutorizacion, setPidiendoAutorizacion] = useState(false);
+  const idAutorizacion = useRef<string>(crypto.randomUUID());
+  const restanteMs = useSeguirAutorizacion(
+    autorizacion,
+    useCallback(
+      (id: string, estado: AutorizacionBorrador["estado"], por: string | null) =>
+        setAutorizacion((a) => (a?.id === id ? { ...a, estado, resuelta_por: por } : a)),
+      [],
+    ),
+  );
   const [errorObservacion, setErrorObservacion] = useState<string | null>(null);
   const [repetidoAceptado, setRepetidoAceptado] = useState(false);
   const [repetidoServidor, setRepetidoServidor] = useState<string | null>(null);
@@ -120,6 +138,8 @@ export function TrasladarConLista({ operaTodos, almacenInicialId, almacenNombre,
 
   const nuevoArchivo = useCallback(() => {
     idLote.current = crypto.randomUUID();
+    idAutorizacion.current = crypto.randomUUID();
+    setAutorizacion(null);
     setVista(null);
     setDejarFuera(false);
     setRepetidoAceptado(false);
@@ -139,6 +159,16 @@ export function TrasladarConLista({ operaTodos, almacenInicialId, almacenNombre,
   const filasConError = vista?.filas.filter((f) => f.nivel === "ROJO").map((f) => f.fila) ?? [];
   const confirmables = vista ? vista.resumen.ok + vista.resumen.avisos : 0;
   const repetidoFecha = vista?.archivo_repetido?.fecha ?? repetidoServidor;
+  // El servidor dice quién autoriza un traslado entre proyectos (X-16, X-17); aquí solo se muestra.
+  const esLateral = vista?.ruta.clase === "LATERAL";
+  const esEnvioPropio = esLateral && vista?.ruta.autoriza === "ENVIO_PROPIO";
+  const pideAutorizacion = esLateral && vista?.ruta.autoriza === "SUPERVISOR_ORIGEN" && autorizacion?.estado !== "APROBADA";
+  const renglonesParaAutorizar = (vista?.filas ?? [])
+    .filter((f) => f.nivel !== "ROJO")
+    .flatMap((f) => {
+      const codigo = f.pieza?.codigo ?? f.codigo;
+      return codigo ? [{ codigo, cantidad: f.cantidad, nombre: f.articulo }] : [];
+    });
 
   const razonParaNoConfirmar = (): string | null => {
     if (cargandoVista || !vista) return "Revisando la lista…";
@@ -148,7 +178,14 @@ export function TrasladarConLista({ operaTodos, almacenInicialId, almacenNombre,
       return `${plural(vista.resumen.errores, "fila tiene", "filas tienen")} error. Corrige el archivo o deja fuera esas filas.`;
     }
     if (confirmables === 0) return "No queda ninguna fila para enviar.";
-    if (vista.ruta.pide_observacion && !observacion.trim()) return "Escribe por qué se envía por esta ruta para continuar.";
+    if (pideAutorizacion) {
+      return autorizacion?.estado === "PENDIENTE"
+        ? "Espera la respuesta del supervisor."
+        : "Pide la autorización del supervisor para continuar.";
+    }
+    if (vista.ruta.pide_observacion && !observacion.trim()) {
+      return esEnvioPropio ? "Escribe para qué se manda este traslado." : "Escribe por qué se envía por esta ruta para continuar.";
+    }
     if (repetidoFecha && !repetidoAceptado) return "Marca que entiendes que este archivo ya se usó para continuar.";
     return null;
   };
@@ -170,6 +207,7 @@ export function TrasladarConLista({ operaTodos, almacenInicialId, almacenNombre,
         observacion: vista.ruta.pide_observacion ? observacion.trim() : null,
         dejar_fuera_errores: dejarFuera,
         confirmar_repetido: repetidoAceptado,
+        autorizacion_id: esLateral && autorizacion?.estado === "APROBADA" ? autorizacion.id : undefined,
       });
       reproducir("ok");
       setResultado(r);
@@ -214,6 +252,16 @@ export function TrasladarConLista({ operaTodos, almacenInicialId, almacenNombre,
       });
       return;
     }
+    if (causa.codigo === "AUTORIZACION_INVALIDA" || causa.codigo === "AUTORIZACION_PROPIA") {
+      setAutorizacion(null);
+      idAutorizacion.current = crypto.randomUUID();
+      setErrorEnvio({ tipo: "otro", mensaje: causa.message });
+      return;
+    }
+    if (causa.status === 422 && causa.detalles?.regla === "X-16") {
+      setErrorObservacion(causa.message || "Escribe para qué se manda este traslado.");
+      return;
+    }
     const detalle = Array.isArray(causa.detalles) ? (causa.detalles as { campo?: string; mensaje?: string }[]) : [];
     const deObservacion = detalle.find((d) => d.campo === "observacion");
     if (causa.status === 422 && deObservacion) {
@@ -246,6 +294,8 @@ export function TrasladarConLista({ operaTodos, almacenInicialId, almacenNombre,
           texto={`Traspaso a ${resultado.vale.destino.nombre}`}
           nota={
             <div className="flex flex-col gap-2 text-center">
+              <div className="flex flex-wrap justify-center gap-3"><Link className="rounded-xl border px-4 py-3 font-semibold" to={`/vales/${resultado.vale.id}`}>Ver el vale</Link><BotonPdfVale id={resultado.vale.id} /></div>
+              {vista ? <BotonExcelLista vista={vista} folio={resultado.vale.folio} observacion={observacion} filasExcluidas={fuera.map((f) => f.fila)} /> : null}
               <p>
                 Salieron {plural(resultado.resumen.unidades, "unidad", "unidades")} en {plural(resultado.vale.renglones, "renglón", "renglones")}. Lo enviado está en camino: quien reciba escanea el vale para abrir su recepción.
               </p>
@@ -331,7 +381,56 @@ export function TrasladarConLista({ operaTodos, almacenInicialId, almacenNombre,
 
         {vista ? (
           <>
-            {vista.ruta.habitual ? (
+            {esLateral && vista.ruta.nivel !== "ROJO" ? (
+              <>
+                <p role="status" className="flex items-start gap-2 text-sm font-semibold">
+                  <TriangleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-semaforo-amarillo" />
+                  {esEnvioPropio
+                    ? `Entre proyectos: tú lo autorizas (${vista.origen.nombre} a ${vista.destino.nombre})`
+                    : `Entre proyectos: lo autoriza el supervisor de ${vista.origen.nombre} (${vista.origen.nombre} a ${vista.destino.nombre})`}
+                </p>
+                {vista.ruta.pide_observacion ? (
+                  <ObservacionRuta
+                    titulo="¿Para qué se manda este traslado?"
+                    descripcion="Tú lo autorizas al enviarlo. Anota el motivo para poder confirmarlo; queda en el vale y en la revisión."
+                    respuestas={RESPUESTAS_RAPIDAS_TRASLADO}
+                    valor={observacion}
+                    alCambiar={(t) => {
+                      setErrorObservacion(null);
+                      setObservacion(t);
+                    }}
+                    error={errorObservacion}
+                    deshabilitado={enviando}
+                  />
+                ) : null}
+                {autorizacion ? (
+                  <BandaAutorizacionTraslado
+                    autorizacion={autorizacion}
+                    restanteMs={restanteMs}
+                    origenNombre={vista.origen.nombre}
+                    alCancelar={() => {
+                      setAutorizacion(null);
+                      idAutorizacion.current = crypto.randomUUID();
+                    }}
+                    alPedirOtra={() => {
+                      setAutorizacion(null);
+                      idAutorizacion.current = crypto.randomUUID();
+                    }}
+                    deshabilitado={enviando}
+                  />
+                ) : pideAutorizacion ? (
+                  <section aria-label="Pedir autorización" className="flex flex-col gap-3 rounded-2xl border border-semaforo-naranja bg-semaforo-naranja/10 p-4">
+                    <p className="flex items-start gap-2 text-base font-semibold">
+                      <LockIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-semaforo-naranja" />
+                      Falta que lo autorice el supervisor de {vista.origen.nombre}. La solicitud lleva las filas que no tienen error.
+                    </p>
+                    <Boton variante="normal" className="self-start" disabled={enviando || cargandoVista || renglonesParaAutorizar.length === 0} onClick={() => setPidiendoAutorizacion(true)}>
+                      Pedir autorización
+                    </Boton>
+                  </section>
+                ) : null}
+              </>
+            ) : vista.ruta.habitual ? (
               <p role="status" className="flex items-center gap-2 rounded-2xl border bg-muted p-3 text-sm">
                 <InfoIcon aria-hidden="true" className="size-5 shrink-0 text-marino" />
                 Ruta habitual: {vista.origen.nombre} a {vista.destino.nombre}
@@ -416,6 +515,7 @@ export function TrasladarConLista({ operaTodos, almacenInicialId, almacenNombre,
             ) : null}
 
             <TablaVistaTraspaso vista={vista} dejarFuera={dejarFuera} />
+            <BotonExcelLista vista={vista} observacion={observacion} filasExcluidas={dejarFuera ? filasConError : []} disabled={cargandoVista || enviando} />
           </>
         ) : null}
 
@@ -460,6 +560,26 @@ export function TrasladarConLista({ operaTodos, almacenInicialId, almacenNombre,
         </AccionPrincipal>
       ) : null}
 
+      {vista && destino && esLateral ? (
+        <HojaAutorizacion
+          abierta={pidiendoAutorizacion}
+          alCambiar={setPidiendoAutorizacion}
+          almacenId={operaTodos ? almacenId : null}
+          traslado={{
+            destinoId: destino.id,
+            idCliente: idAutorizacion.current,
+            origenNombre: vista.origen.nombre,
+            renglones: renglonesParaAutorizar,
+          }}
+          alSolicitar={(nueva: AutorizacionBorrador) => {
+            setAutorizacion(nueva);
+            idAutorizacion.current = crypto.randomUUID();
+            if (nueva.estado === "APROBADA") {
+              reproducir("ok");
+            }
+          }}
+        />
+      ) : null}
       <Confirmacion
         abierta={confirmandoDejarFuera}
         alCambiar={setConfirmandoDejarFuera}

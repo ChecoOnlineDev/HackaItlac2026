@@ -7,6 +7,7 @@ import { Campo } from "~/componentes/ui/campo";
 import { Hoja } from "~/componentes/ui/hoja";
 import { ListaDesplegable } from "~/componentes/ui/lista-desplegable";
 import { Label } from "~/components/ui/label";
+import { ControlAutonomia } from "~/componentes/supervision/control-autonomia";
 import { erroresDeAcceso } from "./errores";
 import {
   PERMISO_AUTORIZA,
@@ -159,6 +160,11 @@ export function HojaUsuario({ abierta, alCambiar, usuario, roles, almacenes, alG
       }
     >
       <form id="formulario-usuario" onSubmit={enviar} noValidate className="flex flex-col gap-4">
+        {usuario && usuario.despacho_autonomo !== undefined && roles.find((r) => r.id === usuario.rol.id)?.permisos.includes("entregas.crear") ? <ControlAutonomia
+          key={usuario.id} ruta={`/usuarios/${usuario.id}/autonomia`} campo="despacho_autonomo" valor={usuario.despacho_autonomo}
+          etiqueta="Despacha equipo de protección sin aprobación" bloqueado={guardando}
+          alGuardar={(valor) => alGuardar({ ...usuario, despacho_autonomo: valor }, false)}
+        /> : null}
         <Campo
           etiqueta="Nombre completo"
           value={nombre}

@@ -296,17 +296,22 @@ class RolAdminService:
             return []
         movidos: list[str] = []
         for usuario in self.usuarios.de_rol(rol.id):
-            if usuario.almacen_id is None:
+            conjunto = self.usuarios.almacenes_asignados(usuario.id)
+            if usuario.almacen_id is None and not conjunto:
                 continue
-            anterior = str(usuario.almacen_id)
+            anterior = str(usuario.almacen_id) if usuario.almacen_id else None
             usuario.almacen_id = None
+            self.usuarios.reemplazar_almacenes(usuario, set())
             movidos.append(usuario.usuario)
             self.auditoria.registrar(
                 usuario_id=actor.id,
                 accion="usuario.almacen",
                 entidad="usuario",
                 entidad_id=usuario.id,
-                antes={"almacen": {"id": anterior}},
+                antes={
+                    "almacen": {"id": anterior} if anterior else None,
+                    "almacenes_id": sorted(map(str, conjunto)),
+                },
                 despues={"almacen": None, "motivo": "El rol recibió almacenes.todos"},
             )
         return movidos

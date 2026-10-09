@@ -298,3 +298,14 @@ Permiso nuevo `inspecciones.ver` (A, S y Administrador), ya en el maestro (5.3).
 | 6 | ¿El supervisor con varios almacenes inspecciona sin cambiar su almacén activo? | **No**: FEAT-013 (AC-38) pone las inspecciones entre las escrituras que se hacen en el almacén activo. La lista abarca todo el conjunto (AC-37) y ofrece cambiar de almacén en un toque. Si se quisiera inspeccionar sin cambiar, hay que cambiar AC-38. |
 | 7 | Lista de puntos por categoría (para equipo que no es de alturas). | Fuera de esta feature; por ahora «No aplica». |
 | 8 | Hora de la notificación local en Android. | La hora de descarga del almacén (`almacen.hora_descarga`, FEAT-020). |
+
+
+## Evidencia de implementación local (8 de octubre de 2026)
+
+Backend implementado: herencia viva del aviso categoría/artículo/general (P-10), cola y conteos con agregación/paginación SQL (P-11), cinco puntos obligatorios con valores sí/no/no aplica y observación cuando Apta tiene una falla (P-14), fotos de hasta 3 MB protegidas por sesión y alcance, lotes de hasta 50 con confirmación independiente por pieza y reintentos por UUID/huella (P-16), y restricciones de tránsito/mantenimiento/calibración/Baja (P-17). La inspección inicial rechaza fechas futuras con `FECHA_FUTURA` e I-03. La salida de mantenimiento de un artículo que requiere inspección debe dejarlo No apto antes de revisarlo. La ficha y su historial incluyen puntos y foto.
+
+Migración: `0015_inspecciones_alertas`, sobre `0014_despacho_push`. Verificados upgrade, downgrade a 0014 y upgrade otra vez en `imhotep_test_feat016mig`; la base aislada fue eliminada al terminar.
+
+Pruebas específicas: seis casos FEAT-016 pasaron. Las 47 pruebas de inspecciones existentes y mínimos FEAT-004 pasaron. La regresión ampliada de catálogo/trazabilidad llegó a 77 casos aprobados y dos fallos de fixtures anteriores que no suministran el proyecto ahora obligatorio por PR-11; no se considera verde la suite completa.
+
+Pendientes: avisos locales Android y su recorrido físico (P-15, depende de FEAT-020), recorrido visual/manual con cada permiso, medir la cola a volumen de planta. La integración global de documentos y tablero está a cargo de la tarea principal. Este registro no acredita completados los criterios de Android.

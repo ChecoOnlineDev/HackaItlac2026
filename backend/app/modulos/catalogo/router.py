@@ -6,6 +6,7 @@ devuelven artículos usan `response_model_exclude_unset`: sin `catalogo.costos` 
 """
 
 import uuid
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -194,10 +195,23 @@ def registrar_serie(
 
 @router.get("/etiquetas", response_model=EtiquetasOut, response_model_exclude_none=True)
 def listar_etiquetas(
-    tipo: TipoEtiqueta, usuario: Imprimir, service: CatalogoServiceDep
+    tipo: TipoEtiqueta,
+    usuario: Imprimir,
+    service: CatalogoServiceDep,
+    articulo_id: Annotated[uuid.UUID | None, Query()] = None,
+    lote_id: Annotated[uuid.UUID | None, Query()] = None,
+    alta_desde: Annotated[date | None, Query()] = None,
+    alta_hasta: Annotated[date | None, Query()] = None,
 ) -> EtiquetasOut:
     """`etiquetas.imprimir` basta para los tres tipos. Lista de `{codigo, texto}` para imprimir."""
-    return service.listar_etiquetas(tipo, usuario)
+    return service.listar_etiquetas(
+        tipo,
+        usuario,
+        articulo_id=articulo_id,
+        lote_id=lote_id,
+        alta_desde=alta_desde,
+        alta_hasta=alta_hasta,
+    )
 
 
 # -------------------------------------------------------------------------------- puestos
@@ -240,3 +254,11 @@ def reemplazar_dotacion(
 ) -> DotacionOut:
     """`catalogo.administrar`. Reemplaza la dotación; la cantidad no pasa del límite (D-04)."""
     return service.reemplazar_dotacion(puesto_id, datos, usuario)
+
+
+@router.get("/catalogo/configuracion")
+def configuracion_catalogo(
+    usuario: Annotated[Usuario, Depends(requiere_permiso(P.CATALOGO_VER))],
+    service: CatalogoServiceDep,
+):
+    return service.configuracion(usuario)

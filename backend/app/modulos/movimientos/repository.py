@@ -25,6 +25,7 @@ from app.modulos.catalogo.models import Articulo, EstadoPieza, Pieza
 from app.modulos.movimientos.models import (
     Existencia,
     Movimiento,
+    ReservaPapel,
     SerieFolio,
     TipoVale,
     Vale,
@@ -38,6 +39,7 @@ Clave = tuple[uuid.UUID, uuid.UUID]  # (ubicacion_id, articulo_id)
 class FiltroVales:
     tipo: str | None = None
     almacen_id: uuid.UUID | None = None
+    almacenes_id: frozenset[uuid.UUID] | None = None
     desde: datetime | None = None  # UTC, inclusive
     hasta: datetime | None = None  # UTC, exclusivo
     trabajador_id: uuid.UUID | None = None
@@ -47,6 +49,17 @@ class FiltroVales:
 
 
 class MovimientoRepository:
+    def bloquear_almacenes(self, ids):
+        return list(
+            self.session.scalars(
+                select(Almacen)
+                .where(Almacen.id.in_(ids))
+                .order_by(Almacen.id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        )
+
     def __init__(self, session: Session) -> None:
         self.session = session
 
@@ -60,6 +73,27 @@ class MovimientoRepository:
 
     def vale_por_token(self, token: str) -> Vale | None:
         return self.session.scalar(select(Vale).where(Vale.token == token))
+
+    def reserva_papel_por_id_cliente(self, id_cliente: uuid.UUID) -> ReservaPapel | None:
+        return self.session.scalar(
+            select(ReservaPapel).where(ReservaPapel.id_cliente == id_cliente)
+        )
+
+    def reserva_papel_por_token(self, token: str) -> ReservaPapel | None:
+        return self.session.scalar(select(ReservaPapel).where(ReservaPapel.token == token))
+
+    def reserva_papel(
+        self, reserva_id: uuid.UUID, *, bloquear: bool = False
+    ) -> ReservaPapel | None:
+        q = select(ReservaPapel).where(ReservaPapel.id == reserva_id)
+        if bloquear:
+            q = q.with_for_update()
+        return self.session.scalar(q)
+
+    def add_reserva_papel(self, reserva: ReservaPapel) -> ReservaPapel:
+        self.session.add(reserva)
+        self.session.flush()
+        return reserva
 
     def add_vale(self, vale: Vale) -> Vale:
         self.session.add(vale)
@@ -108,6 +142,14 @@ class MovimientoRepository:
         ).all()
         return [(m, a, p) for m, a, p in filas]
 
+    def tiene_regla(self, vale_id: uuid.UUID, regla: str) -> bool:
+        """Comprueba una regla de cualquier renglón con JSON_CONTAINS, sin cargar el detalle."""
+        return self.session.scalar(
+            select(Movimiento.id)
+            .where(Movimiento.vale_id == vale_id, Movimiento.reglas.contains([regla]))
+            .limit(1)
+        ) is not None
+
     def listar(
         self, filtro: FiltroVales
     ) -> tuple[list[tuple[Vale, Almacen, Trabajador | None, Usuario, int]], int]:
@@ -116,6 +158,13 @@ class MovimientoRepository:
             condiciones.append(Vale.tipo == filtro.tipo)
         if filtro.almacen_id is not None:
             condiciones.append(Vale.almacen_id == filtro.almacen_id)
+        if filtro.almacenes_id is not None:
+            condiciones.append(
+                or_(
+                    Vale.almacen_id.in_(filtro.almacenes_id),
+                    Vale.destino_almacen_id.in_(filtro.almacenes_id),
+                )
+            )
         if filtro.desde is not None:
             condiciones.append(Vale.creado_en >= filtro.desde)
         if filtro.hasta is not None:

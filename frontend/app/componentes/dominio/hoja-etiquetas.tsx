@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { CodigoQR } from "./codigo-qr";
 import { CLASE_IMPRESION, EstiloImpresion } from "./estilo-impresion";
 import type { EtiquetaElemento } from "./tipos";
+import { CARTA, FORMATOS_ETIQUETA, type FormatoEtiqueta } from "./etiquetas-medidas";
 
 /** Ancho útil de la hoja carta con márgenes de 12 mm: 216 − 24 = 192 mm (≈ 726 px a 96 ppp). */
-const ANCHO_HOJA_PX = 726;
+const ANCHO_HOJA_PX = CARTA.ancho * 96 / 25.4;
 
 /** Etiquetas por hoja carta: 3 columnas × 6 filas. Solo para informar cuántas hojas saldrán. */
 export const ETIQUETAS_POR_HOJA = 18;
@@ -14,16 +15,19 @@ export const ETIQUETAS_POR_HOJA = 18;
 interface PropiedadesHojaEtiquetas {
   etiquetas: EtiquetaElemento[];
   className?: string;
+  formato?: FormatoEtiqueta;
+  inicio?: number;
 }
 
-function Etiqueta({ etiqueta }: { etiqueta: EtiquetaElemento }) {
+function Etiqueta({ etiqueta, formato }: { etiqueta: EtiquetaElemento; formato: FormatoEtiqueta }) {
+  const m = FORMATOS_ETIQUETA[formato];
   return (
-    <li className="flex h-[36mm] break-inside-avoid items-center gap-[3mm] overflow-hidden border border-dashed border-neutral-500 bg-white p-[3mm] text-black">
+    <li style={{ width: `${m.ancho}mm`, height: `${m.alto}mm` }} className={cn("flex break-inside-avoid gap-[2mm] overflow-hidden bg-white p-[2mm] text-black", formato === 9 ? "flex-col items-center" : "items-start", formato !== 30 && "border border-dashed border-neutral-500")}>
       {/* El QR contiene exactamente el código registrado. */}
-      <CodigoQR valor={etiqueta.codigo} tamano={104} nivel="M" titulo={`Código QR de ${etiqueta.codigo}`} className="size-[28mm]!" />
+      <div style={{ width: `${m.qr}mm`, height: `${m.qr}mm` }} className="shrink-0"><CodigoQR valor={etiqueta.codigo} tamano={m.qr * 96 / 25.4} nivel="M" margen={4} titulo={`Código QR de ${etiqueta.codigo}`} className="size-full!" /></div>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <p className="line-clamp-3 text-[11pt] leading-tight font-bold wrap-break-word">{etiqueta.texto}</p>
-        <p className="tabular-nums text-[10pt] font-semibold tracking-wide break-all">{etiqueta.codigo}</p>
+        <p style={{ fontSize: `${m.nombrePt}pt`, WebkitLineClamp: m.lineas }} className="line-clamp-3 leading-tight wrap-break-word">{etiqueta.texto}</p>
+        <p style={{ fontSize: `${m.codigoPt}pt` }} className="tabular-nums leading-tight break-all">{etiqueta.codigo}</p>
       </div>
     </li>
   );
@@ -38,7 +42,8 @@ function Etiqueta({ etiqueta }: { etiqueta: EtiquetaElemento }) {
  * <HojaEtiquetas etiquetas={seleccionadas} />
  * ```
  */
-export function HojaEtiquetas({ etiquetas, className }: PropiedadesHojaEtiquetas) {
+export function HojaEtiquetas({ etiquetas, className, formato = 18, inicio = 1 }: PropiedadesHojaEtiquetas) {
+  const m = FORMATOS_ETIQUETA[formato];
   const contenedor = useRef<HTMLDivElement>(null);
   const [escala, setEscala] = useState(1);
 
@@ -57,15 +62,16 @@ export function HojaEtiquetas({ etiquetas, className }: PropiedadesHojaEtiquetas
       <EstiloImpresion />
       <ol
         aria-label="Hoja de etiquetas"
-        style={{ zoom: escala }}
+        style={{ zoom: escala, width: `${CARTA.ancho}mm`, minHeight: `${CARTA.alto}mm`, padding: `${m.margenY}mm ${m.margenX}mm`, columnGap: `${m.separacion}mm` }}
         className={cn(
           CLASE_IMPRESION,
-          "mx-auto grid w-[726px] grid-cols-3 content-start gap-0 bg-white shadow-md ring-1 ring-black/10 print:w-full print:ring-0",
+          "mx-auto grid grid-cols-3 content-start bg-white shadow-md ring-1 ring-black/10 print:ring-0",
           "print:[zoom:1]!",
         )}
       >
-        {etiquetas.map((e) => (
-          <Etiqueta key={e.codigo} etiqueta={e} />
+        {Array.from({ length: inicio - 1 }, (_, i) => <li key={`blanco-${i}`} style={{ height: `${m.alto}mm` }} aria-hidden="true" />)}
+        {etiquetas.slice(0, formato - inicio + 1).map((e) => (
+          <Etiqueta key={e.codigo} etiqueta={e} formato={formato} />
         ))}
       </ol>
     </div>

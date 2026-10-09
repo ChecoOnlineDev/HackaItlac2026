@@ -33,6 +33,9 @@ from app.modulos.catalogo.models import Articulo, Pieza, TipoCodigo
 from app.modulos.catalogo.schemas import PuestoFilters, PuestoRefOut
 from app.modulos.catalogo.service_puestos import PuestoService
 from app.modulos.movimientos.models import Vale
+from app.modulos.proyectos.exceptions import ProyectoRequerido
+from app.modulos.proyectos.schemas import AsignacionIn
+from app.modulos.proyectos.service import ProyectoService
 from app.modulos.trabajadores.exceptions import (
     EstadoTrabajadorInvalido,
     PeriodoInvalido,
@@ -317,6 +320,23 @@ class TrabajadorService:
     # ============================================================= alta (T-03)
 
     def crear(self, datos: TrabajadorCreate, actor: Usuario) -> Trabajador:
+        """PR-11: proyecto, trabajador y contrato comparten transacción."""
+        try:
+            self.acceso.exigir_permiso(actor, P.TRABAJADORES_ADMINISTRAR)
+            self.acceso.exigir_permiso(actor, "proyectos.asignar")
+            if datos.proyecto_id is None:
+                raise ProyectoRequerido(detalles=[{"campo": "proyecto_id", "regla": "PR-11"}])
+            proyecto = ProyectoService(self.session).validar_asignable(
+                datos.proyecto_id, bloquear=True
+            )
+            return self._crear_con_proyecto(
+                datos.model_copy(update={"area_obra": proyecto.nombre}), actor
+            )
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def _crear_con_proyecto(self, datos: TrabajadorCreate, actor: Usuario) -> Trabajador:
         """Alta (T-03, T-10): trabajador Activo, su primer periodo y su ubicación. El número de
         empleado lo genera el servidor; solo `trabajadores.numero_externo` puede escribir uno. Si
         la CURP (o, sin CURP, el nombre completo) ya es de alguien lanza `TrabajadorExiste` con la
@@ -383,6 +403,13 @@ class TrabajadorService:
                 "con_tallas": datos.tallas is not None,
                 "regla": "T-10" if trabajador.numero_externo else "T-03",
             },
+        )
+        ProyectoService(self.session).asignar_en_transaccion(
+            trabajador.id,
+            AsignacionIn(
+                proyecto_id=datos.proyecto_id, principal=True, inicio=max(hoy_mx(), datos.inicio)
+            ),
+            actor,
         )
         self.session.commit()
         return trabajador
@@ -457,6 +484,42 @@ class TrabajadorService:
     def registrar_periodo(
         self, trabajador_id: uuid.UUID, datos: PeriodoCreate, actor: Usuario
     ) -> Trabajador:
+        """PR-11: conserva proyecto asignable o cambia en la misma transacción."""
+        try:
+            self.acceso.exigir_permiso(actor, P.TRABAJADORES_ADMINISTRAR)
+            self.acceso.exigir_permiso(actor, "proyectos.asignar")
+            proyectos = ProyectoService(self.session)
+            asignaciones = proyectos.proyectos_activos_del_trabajador(trabajador_id)
+            opciones = [a for a in asignaciones if a.proyecto.asignable]
+            opciones.sort(key=lambda a: not a.principal)
+            elegido = datos.proyecto_id or (opciones[0].proyecto.id if opciones else None)
+            if elegido is None:
+                raise ProyectoRequerido(detalles=[{"campo": "proyecto_id", "regla": "PR-11"}])
+            proyecto = proyectos.validar_asignable(elegido, bloquear=True)
+            trabajador = self._registrar_periodo_con_proyecto(
+                trabajador_id, datos.model_copy(update={"area_obra": proyecto.nombre}), actor
+            )
+            if not any(a.proyecto.id == elegido for a in asignaciones):
+                self.session.flush()
+                anterior = next((a for a in asignaciones if a.principal), None)
+                proyectos.asignar_en_transaccion(
+                    trabajador_id,
+                    AsignacionIn(
+                        proyecto_id=elegido,
+                        inicio=max(hoy_mx(), datos.inicio),
+                        reemplaza_asignacion_id=anterior.id if anterior else None,
+                    ),
+                    actor,
+                )
+            self.session.commit()
+            return trabajador
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def _registrar_periodo_con_proyecto(
+        self, trabajador_id: uuid.UUID, datos: PeriodoCreate, actor: Usuario
+    ) -> Trabajador:
         """Reingreso o extensión (T-02): periodo nuevo y regreso a Activo. Los periodos
         anteriores y los pendientes se conservan (B-05)."""
         self._validar_periodo(datos.inicio, datos.fin)
@@ -500,7 +563,6 @@ class TrabajadorService:
                 "regla": "T-02",
             },
         )
-        self.session.commit()
         return trabajador
 
     # ========================================================== códigos (T-05)
@@ -674,6 +736,9 @@ class TrabajadorService:
             **breve.model_dump(),
             "periodo": PeriodoOut.model_validate(periodo) if periodo else None,
             "periodos": [PeriodoOut.model_validate(p) for p in periodos],
+            "proyectos": ProyectoService(self.session).proyectos_activos_del_trabajador(
+                trabajador.id
+            ),
             "situacion": situacion,
             "situacion_texto": TEXTO_SITUACION[situacion],
             "tallas": trabajador.tallas,
@@ -691,7 +756,12 @@ class TrabajadorService:
     ) -> tuple[list[TrabajadorListItem], int]:
         """Lista con vigencia y situación (T-07, T-08, B-09). Sin CURP ni NSS."""
         filas, total = self.trabajadores.listar(
-            q=filtros.q, situacion=filtros.situacion, limit=limit, offset=offset
+            q=filtros.q,
+            situacion=filtros.situacion,
+            limit=limit,
+            offset=offset,
+            proyecto_id=filtros.proyecto_id,
+            sin_proyecto=filtros.sin_proyecto,
         )
         periodos = self.trabajadores.periodos_de([f.trabajador.id for f in filas])
         hoy = hoy_mx()
@@ -724,6 +794,7 @@ class TrabajadorService:
                     situacion=situacion,
                     situacion_texto=TEXTO_SITUACION[situacion],
                     tiene_foto=t.foto_adjunto_id is not None,
+                    proyectos=ProyectoService(self.session).proyectos_activos_del_trabajador(t.id),
                 )
             )
         return elementos, total

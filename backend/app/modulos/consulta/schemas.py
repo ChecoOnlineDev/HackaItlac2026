@@ -169,6 +169,9 @@ class BusquedaArticuloItem(BaseModel):
     categoria: str
     control: str
     activo: bool
+    retornable: bool = False
+    en_almacen: int = 0
+    con_trabajadores: int | None = None
     # TR-11: con `almacen_id`, lo que hay en ese almacén; sin él, nulo.
     disponible: int | None = None
 
@@ -183,6 +186,7 @@ class BusquedaPiezaItem(BaseModel):
     estado_texto: str
     # Quién o dónde la tiene: "Kepler (KEP)" o "Juan Pérez (EMP-1001)".
     ubicacion: str | None
+    ubicacion_texto: str | None = None
     # TR-11: con `almacen_id`, siempre 1 (solo se ofrecen las que están en ese almacén).
     disponible: int | None = None
 
@@ -199,6 +203,9 @@ class BusquedaTrabajadorItem(BaseModel):
     nombre: str
     estado: str
     estado_texto: str
+    puesto: str | None = None
+    vigencia: dict[str, bool | str] | None = None
+    credencial: str | None = None
 
 
 class BusquedaOut(BaseModel):
@@ -216,6 +223,7 @@ class BusquedaOut(BaseModel):
 
 
 class ArticuloPiezaOut(BaseModel):
+    alto_valor: bool = False
     id: uuid.UUID
     codigo: str
     nombre: str
@@ -228,6 +236,8 @@ class ArticuloPiezaOut(BaseModel):
 
 
 class InspeccionOut(BaseModel):
+    puntos: dict[str, bool | None] | None = None
+    foto: dict | None = None
     id: uuid.UUID
     fecha: date
     resultado: str
@@ -257,6 +267,9 @@ class TipoHistorial(StrEnum):
 
 
 class HistorialItem(BaseModel):
+    id: uuid.UUID | None = None
+    puntos: dict[str, bool | None] | None = None
+    foto: dict | None = None
     """Un hecho de la vida de la pieza. Los campos que no aplican al `tipo` van en `null`."""
 
     tipo: TipoHistorial
@@ -287,6 +300,12 @@ class HistorialItem(BaseModel):
 
 
 class PiezaFichaOut(BaseModel):
+    vigencia_inspeccion_dias: int | None = None
+    dias_aviso_inspeccion: int = 7
+    origen_aviso_inspeccion: str = "GENERAL"
+    dias_restantes: int | None = None
+    vigencia_si_apta_hoy: date | None = None
+    inspeccion_posible: dict | None = None
     """C-02: estado, inspección, quién la tiene e historial completo (más reciente primero)."""
 
     id: uuid.UUID
@@ -347,6 +366,7 @@ class AdeudosFilters(BaseModel):
 
 
 class ConsumoFilters(BaseModel):
+    proyecto_id: uuid.UUID | None = None
     desde: date | None = None
     hasta: date | None = None
     almacen_id: uuid.UUID | None = None

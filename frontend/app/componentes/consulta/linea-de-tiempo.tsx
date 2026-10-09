@@ -5,6 +5,12 @@ import { Link } from "react-router";
 import { formatearFecha, formatearFechaHora } from "~/componentes/dominio/fechas";
 import { instanteUtc } from "./formato";
 import type { HechoHistorial, TipoHistorial } from "./tipos";
+import { useImagenAutenticada } from "~/movil/imagen";
+
+function FotoInspeccion({ url }: { url: string }) {
+  const src = useImagenAutenticada(url);
+  return src ? <img src={src} alt="Foto registrada durante la inspección" loading="lazy" className="max-h-60 rounded-xl object-contain" /> : <p className="text-sm text-muted-foreground">Cargando foto de la inspección…</p>;
+}
 
 const ICONOS: Record<TipoHistorial, { icono: LucideIcon; etiqueta: string }> = {
   MOVIMIENTO: { icono: ArrowLeftRightIcon, etiqueta: "Movimiento" },
@@ -69,6 +75,8 @@ function Detalle({ hecho, puedeVerVales, puedeVerTrabajadores }: { hecho: HechoH
             <p className="text-base">Vale hasta el {formatearFecha(hecho.vigente_hasta)}.</p>
           ) : null}
           {hecho.observacion ? <p className="text-base">Observación: {hecho.observacion}</p> : null}
+          {hecho.puntos ? <dl className="grid gap-1 text-sm">{Object.entries(hecho.puntos).map(([punto, valor]) => <div key={punto} className="flex gap-2"><dt>{punto.charAt(0).toUpperCase() + punto.slice(1)}:</dt><dd>{valor === true ? "Bien" : valor === false ? "Mal" : "No aplica"}</dd></div>)}</dl> : null}
+          {hecho.foto?.url ? <FotoInspeccion url={hecho.foto.url} /> : null}
         </>
       );
     case "CAMBIO_ESTADO":

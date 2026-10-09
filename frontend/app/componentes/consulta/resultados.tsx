@@ -55,7 +55,7 @@ export function ResultadosBusqueda({ busqueda, texto }: { busqueda: Busqueda; te
                 a={`/trabajadores/${t.id}`}
                 icono={<Avatar nombre={t.nombre} tamano="md" />}
                 principal={t.nombre}
-                secundario={`Número ${t.numero_empleado}`}
+                secundario={[`Número ${t.numero_empleado}`, t.puesto, t.vigencia?.texto, t.credencial ? `Credencial ${t.credencial}` : null].filter(Boolean).join(" · ")}
                 derecha={t.estado !== "ACTIVO" ? <Insignia estado="neutra">{t.estado_texto}</Insignia> : null}
               />
             ))}
@@ -72,7 +72,7 @@ export function ResultadosBusqueda({ busqueda, texto }: { busqueda: Busqueda; te
                 a={`/articulos/${a.id}`}
                 icono={<Icono><PackageIcon aria-hidden="true" className="size-5" /></Icono>}
                 principal={a.nombre}
-                secundario={[a.codigo, a.marca, a.categoria].filter(Boolean).join(" · ")}
+                secundario={[a.codigo, a.marca, a.categoria, a.en_almacen != null ? `${a.en_almacen} en almacén` : null, a.con_trabajadores != null ? `${a.con_trabajadores} con trabajadores` : null].filter(Boolean).join(" · ")}
                 derecha={!a.activo ? <Insignia estado="neutra">Inactivo</Insignia> : null}
               />
             ))}
@@ -89,7 +89,7 @@ export function ResultadosBusqueda({ busqueda, texto }: { busqueda: Busqueda; te
                 a={`/piezas/${p.id}`}
                 icono={<Icono><WrenchIcon aria-hidden="true" className="size-5" /></Icono>}
                 principal={`${p.articulo} · ${p.codigo}`}
-                secundario={[p.numero_serie ? `Serie ${p.numero_serie}` : null, p.ubicacion ? `La tiene: ${p.ubicacion}` : null].filter(Boolean).join(" · ")}
+                secundario={[p.numero_serie ? `Serie ${p.numero_serie}` : null, p.ubicacion_texto ?? p.ubicacion].filter(Boolean).join(" · ")}
                 derecha={p.estado !== "APTO" ? <Insignia estado="rojo">{p.estado_texto}</Insignia> : null}
               />
             ))}

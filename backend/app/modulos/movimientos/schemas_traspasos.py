@@ -5,11 +5,12 @@ Sin costos (RG-12). Es el único contrato propio de TRASPASO y RECEPCION: sus cu
 """
 
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel
 
 from app.modulos.movimientos.models import EstadoVale
-from app.modulos.movimientos.schemas import AlmacenResumenOut, FechaUtc, PersonaOut
+from app.modulos.movimientos.schemas import AlmacenResumenOut, FechaUtc, PersonaOut, ValidoOut
 
 
 class RenglonPorRecibirOut(BaseModel):
@@ -45,6 +46,10 @@ class TraspasoPorRecibirOut(BaseModel):
     origen: AlmacenResumenOut
     destino: AlmacenResumenOut
     envio: PersonaOut
+    # X-20: de qué clase de ruta viene (un traslado lateral se rotula «Traslado desde Midrex»).
+    ruta: Literal["HABITUAL", "LATERAL", "NO_HABITUAL"]
+    # Quién lo validó (A-04, X-16): la autorización de un traslado, o el envío propio.
+    valido: ValidoOut | None = None
     creado_en: FechaUtc
     # Lo que todavía no llega, en piezas y unidades.
     pendiente_total: int

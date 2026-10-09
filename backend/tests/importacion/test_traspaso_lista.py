@@ -380,6 +380,10 @@ def test_TR_05_X_03_sin_almacenes_todos_toda_la_lista_es_rojo_y_confirmar_es_403
         "nivel": "ROJO",
         "pide_observacion": False,
         "mensaje": v["ruta"]["mensaje"],
+        "clase": "NO_HABITUAL",
+        "autoriza": "NADIE",
+        "autorizada": False,
+        "autorizadores_disponibles": None,
     }
     assert v["puede_confirmar"] is False
     antes = conteos(session)

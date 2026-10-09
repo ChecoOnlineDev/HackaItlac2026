@@ -32,7 +32,7 @@ import { HojaFiltros } from "~/componentes/ui/hoja-filtros";
 import { useSesion } from "~/sesion/sesion";
 
 // SG-04: «quién tiene qué» también se ve con `resguardo.ver`.
-export const handle: ManejadorRuta = { permisosAlguno: ["reportes.existencias", "resguardo.ver"] };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permisosAlguno: ["reportes.existencias", "resguardo.ver"] };
 
 const CLAVES = ["q", "articulo", "almacen", "estado", "ubicacion", "serie_pendiente", "alto_valor"] as const;
 const MINIMO_BUSQUEDA = 2;

@@ -7,7 +7,8 @@ se repite ninguna. La importacion NO escribe vales ni existencias: confirma con
 `MovimientoService.confirmar(tipo=TRASPASO)`, en una sola transaccion (RG-09):
 
     permiso -> lote ya confirmado (200) -> revision -> tope de 500 -> almacen cerrado -> ruta
-    (X-03) -> archivo repetido -> filas en rojo (todo o nada, o dejar fuera) -> vale -> auditoria.
+    (X-03, X-16 a X-18; con `autorizacion_id` la valida `movimientos`) -> archivo repetido ->
+    filas en rojo (todo o nada, o dejar fuera) -> vale -> auditoria.
 
 El `id_cliente` del vale sale del `id_lote` (uuid5): repetir el lote devuelve el mismo vale.
 """
@@ -33,6 +34,8 @@ from app.modulos.almacenes.exceptions import AlmacenCerrado
 from app.modulos.almacenes.models import Almacen, EstadoAlmacen
 from app.modulos.almacenes.service import AlmacenService
 from app.modulos.auditoria.service import AuditoriaService
+from app.modulos.autorizaciones.exceptions import AutorizacionInvalida, AutorizacionPropia
+from app.modulos.autorizaciones.service import AutorizacionService, RenglonVale
 from app.modulos.catalogo.models import Articulo, Pieza, TipoCodigo
 from app.modulos.catalogo.service import CatalogoService
 from app.modulos.importacion.analisis_traspasos import (
@@ -76,7 +79,13 @@ from app.modulos.importacion.schemas_traspasos import (
 )
 from app.modulos.movimientos.exceptions import RutaSoloAdministrador
 from app.modulos.movimientos.models import EstadoVale, Nivel, TipoVale
-from app.modulos.movimientos.schemas import CANTIDAD_MAXIMA, ConfirmarIn, RenglonIn, ValeIn
+from app.modulos.movimientos.schemas import (
+    CANTIDAD_MAXIMA,
+    ConfirmarIn,
+    RenglonIn,
+    RutaEvaluacionOut,
+    ValeIn,
+)
 from app.modulos.movimientos.service import MovimientoService
 
 # Un vale admite hasta 500 renglones (`ValeIn.renglones`): un traspaso no se parte (TR-07).
@@ -84,6 +93,8 @@ RENGLONES_MAXIMOS = 500
 INTENTOS = 3
 ERRNO_INTERBLOQUEO = 1213
 ACCION_AUDITORIA = "importacion.traspaso"
+# Reglas de la ruta, de la más específica a la menos (TR-05); X-18 solo informa.
+REGLAS_DE_RUTA = ("X-17", "X-16", "X-03", "X-18")
 LARGO_CONSTANCIA = 380
 
 
@@ -113,6 +124,9 @@ class _Revision:
         self.leidas: list[FilaLeida] = []
         self.filas: list[FilaAnalizada] = []
         self.ruta_motivo: MotivoFila | None = None
+        self.ruta: RutaEvaluacionOut | None = None
+        self.autorizada = False
+        self.autorizacion_error: str | None = None
         self.motivos_vale: list[MotivoFila] = []
         self.cerrado: Almacen | None = None
         self.avisos: list[str] = []
@@ -138,6 +152,7 @@ class TraspasoImportService:
         self.acceso = AccesoService(session)
         self.catalogo = CatalogoService(session)
         self.movimientos = MovimientoService(session)
+        self.autorizaciones = AutorizacionService(session)
         self.almacenes = AlmacenService(session)
         self.auditoria = AuditoriaService(session)
 
@@ -241,7 +256,34 @@ class TraspasoImportService:
             if almacen.estado == EstadoAlmacen.CERRADO:
                 rev.cerrado = rev.cerrado or almacen
         self._evaluar(usuario, rev)
+        self._revisar_autorizacion(usuario, rev, datos.autorizacion_id)
         return rev
+
+    def _revisar_autorizacion(
+        self, usuario: Usuario, rev: _Revision, autorizacion_id: uuid.UUID | None
+    ) -> None:
+        """X-17 y X-19: ¿sirve la `autorizacion_id` para las filas que no están en rojo? Solo
+        informa (la vista previa); al confirmar la valida de nuevo `movimientos`, que es quien la
+        gasta, junto con el vale."""
+        if (
+            autorizacion_id is None
+            or rev.ruta is None
+            or rev.ruta.autoriza != "SUPERVISOR_ORIGEN"
+            or not rev.confirmables
+        ):
+            return
+        renglones = [
+            RenglonVale(f.pieza.codigo if f.pieza else f.articulo.codigo, f.cantidad)  # type: ignore[union-attr]
+            for f in rev.confirmables
+        ]
+        try:
+            self.autorizaciones.validar_traslado_para_vale(
+                autorizacion_id, rev.origen.id, rev.destino.id, renglones, usuario
+            )
+        except (AutorizacionInvalida, AutorizacionPropia, NoEncontrado) as exc:
+            rev.autorizacion_error = exc.mensaje
+            return
+        rev.autorizada = True
 
     def _evaluar(self, usuario: Usuario, rev: _Revision) -> None:
         """Pasa las filas por el evaluador de movimientos, de 500 en 500 (cada artículo y cada
@@ -267,9 +309,19 @@ class TraspasoImportService:
             )
             evaluacion = self.movimientos.evaluar(usuario, cuerpo)
             if numero == 0:
+                rev.ruta = evaluacion.ruta
                 for m in evaluacion.motivos:
-                    if m.regla == "X-03":
-                        rev.ruta_motivo = MotivoFila("X-03", "RUTA", m.mensaje, m.nivel.value)
+                    if m.regla in REGLAS_DE_RUTA:
+                        # TR-05: la ruta se evalúa una vez; manda la más específica (X-17, X-16,
+                        # X-03). X-18 solo informa.
+                        actual = rev.ruta_motivo.regla if rev.ruta_motivo else None
+                        if m.regla != "X-18" and (
+                            actual is None
+                            or REGLAS_DE_RUTA.index(m.regla) < REGLAS_DE_RUTA.index(actual)
+                        ):
+                            rev.ruta_motivo = MotivoFila(m.regla, "RUTA", m.mensaje, m.nivel.value)
+                    elif m.regla == "X-20":  # aviso que no bloquea
+                        rev.avisos.append(m.mensaje)
                     else:
                         rev.motivos_vale.append(
                             MotivoFila(m.regla, codigo_de_motivo(m.regla, False), m.mensaje)
@@ -361,12 +413,16 @@ class TraspasoImportService:
 
     def _ruta(self, rev: _Revision) -> RutaOut:
         motivo = rev.ruta_motivo
-        assert motivo is not None
+        assert motivo is not None and rev.ruta is not None
         return RutaOut(
             habitual=motivo.nivel == Nivel.VERDE.value,
             nivel=motivo.nivel,
             pide_observacion=motivo.nivel == Nivel.AMARILLO.value,
             mensaje=motivo.mensaje,
+            clase=rev.ruta.clase,
+            autoriza=rev.ruta.autoriza,
+            autorizadores_disponibles=rev.ruta.autorizadores_disponibles,
+            autorizada=rev.autorizada,
         )
 
     def _salida_vista(self, rev: _Revision) -> VistaPreviaTraspasoOut:
@@ -394,8 +450,10 @@ class TraspasoImportService:
                 and errores == 0
                 and not motivos
                 and ruta.nivel != Nivel.ROJO.value
+                and (ruta.autoriza != "SUPERVISOR_ORIGEN" or ruta.autorizada)  # X-17
                 and not rev.excedido
             ),
+            autorizacion_error=rev.autorizacion_error,
             archivo_repetido=None if fecha is None else ArchivoRepetidoTraspasoOut(fecha=fecha),
             resumen=ResumenVistaTraspasoOut(
                 total=len(rev.filas),
@@ -508,6 +566,7 @@ class TraspasoImportService:
             almacen_id=rev.origen.id,
             destino_almacen_id=rev.destino.id,
             observacion=observacion,
+            autorizacion_id=datos.autorizacion_id,
             renglones=[
                 RenglonIn(
                     codigo=(f.pieza.codigo if f.pieza else f.articulo.codigo),  # type: ignore[union-attr]
@@ -516,7 +575,9 @@ class TraspasoImportService:
                 for f in buenas
             ],
         )
-        vale, creado = self.movimientos.confirmar(usuario, cuerpo, aislar=False, commit=False)
+        vale, creado = self.movimientos.confirmar(
+            usuario, cuerpo, aislar=False, commit=False, lote_id=datos.id_lote
+        )
         if not creado:  # pragma: no cover - ya se reviso el lote al empezar
             raise ImportacionCambio()
 
@@ -540,6 +601,11 @@ class TraspasoImportService:
                 "origen": rev.origen.clave,
                 "destino": rev.destino.clave,
                 "huella": huella,
+                **(
+                    {"autorizacion_id": str(datos.autorizacion_id)}
+                    if datos.autorizacion_id and rev.autorizada
+                    else {}
+                ),
                 **({"repetido": True} if datos.confirmar_repetido else {}),
                 **(
                     {"filas_dejadas_fuera": [f.fila for f in rojas], "dejar_fuera_errores": True}
@@ -591,9 +657,15 @@ class TraspasoImportService:
                 }
             )
         if ruta.pide_observacion and not (datos.observacion or "").strip():
-            mensaje = "Anota por qué se envía por una ruta que no es la habitual."
+            assert rev.ruta_motivo is not None
+            regla = rev.ruta_motivo.regla  # X-16 (envío propio) o X-03 (ruta no habitual)
+            mensaje = (
+                "Escribe para qué se manda este traslado."
+                if regla == "X-16"
+                else "Anota por qué se envía por una ruta que no es la habitual."
+            )
             raise DatosInvalidos(
-                mensaje, [{"campo": "observacion", "mensaje": mensaje, "regla": "X-03"}]
+                mensaje, [{"campo": "observacion", "mensaje": mensaje, "regla": regla}]
             )
 
     @staticmethod

@@ -24,6 +24,7 @@ export interface RolAcceso {
 }
 
 export interface UsuarioAcceso {
+  despacho_autonomo?: boolean;
   id: string;
   nombre: string;
   usuario: string;

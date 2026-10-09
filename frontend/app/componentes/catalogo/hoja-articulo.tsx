@@ -74,7 +74,7 @@ export function HojaArticulo({ abierta, alCambiar, articulo, categorias, puedeCo
   function tomarPlantilla(c: Categoria) {
     setControl(c.control);
     setRetornable(c.retornable);
-    setReglas(reglasAEstado(c));
+    setReglas((actual) => ({ ...reglasAEstado(c), avisoInspeccion: articulo ? actual.avisoInspeccion : "" }));
   }
 
   useEffect(() => {
@@ -279,6 +279,7 @@ export function HojaArticulo({ abierta, alCambiar, articulo, categorias, puedeCo
         ) : null}
 
         <h3 className="mt-2 text-base font-semibold text-marino">Reglas de entrega</h3>
+        {articulo?.dias_aviso_inspeccion_resuelto ? <p className="text-sm text-muted-foreground">Aviso actual: {articulo.dias_aviso_inspeccion_resuelto} días ({articulo.origen_aviso_inspeccion === "ARTICULO" ? "de este artículo" : articulo.origen_aviso_inspeccion === "CATEGORIA" ? "de la categoría" : "general"}). Deja el campo vacío para heredar.</p> : null}
         <FormularioReglas valor={reglas} alCambiar={setReglas} control={control} errores={errores} />
       </form>
     </Hoja>

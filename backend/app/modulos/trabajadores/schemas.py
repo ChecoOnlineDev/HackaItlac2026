@@ -7,6 +7,7 @@ from enum import StrEnum
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 from app.modulos.catalogo.schemas import ArticuloDotacionOut, PuestoRefOut
+from app.modulos.proyectos.schemas import AsignacionOut
 
 
 class Situacion(StrEnum):
@@ -53,7 +54,8 @@ class TrabajadorCreate(BaseModel):
     confirmar_distinta: bool = False
     puesto_id: uuid.UUID | None = None
     puesto: str | None = Field(default=None, min_length=1, max_length=100, validate_default=True)
-    area_obra: str = Field(min_length=1, max_length=100)
+    area_obra: str | None = None  # PR-11: se ignora; sale del proyecto.
+    proyecto_id: uuid.UUID | None = None
     inicio: date
     fin: date
     referencia: str | None = Field(default=None, max_length=100)
@@ -111,7 +113,8 @@ class PeriodoCreate(BaseModel):
     fin: date
     puesto: str | None = Field(default=None, min_length=1, max_length=100)
     puesto_id: uuid.UUID | None = None
-    area_obra: str | None = Field(default=None, min_length=1, max_length=100)
+    area_obra: str | None = None  # PR-11: ignorado; nombre del proyecto.
+    proyecto_id: uuid.UUID | None = None
     referencia: str | None = Field(default=None, max_length=100)
 
     @field_validator("referencia", mode="before")
@@ -136,6 +139,8 @@ class CodigoCreate(BaseModel):
 class FiltrosTrabajadores(BaseModel):
     q: str | None = None
     situacion: Situacion | None = None
+    proyecto_id: uuid.UUID | None = None
+    sin_proyecto: bool = False
 
 
 # ------------------------------------------------------------------- salida
@@ -209,6 +214,7 @@ class FichaBreveOut(BaseModel):
 
 
 class FichaOut(FichaBreveOut):
+    proyectos: list[AsignacionOut] = Field(default_factory=list)
     """Ficha completa. `curp` y `nss` solo existen en la respuesta si el usuario tiene
     `trabajadores.ver_datos_personales` (RG-13): sin el permiso la clave ni aparece."""
 
@@ -224,6 +230,7 @@ class FichaOut(FichaBreveOut):
 
 
 class TrabajadorListItem(BaseModel):
+    proyectos: list[AsignacionOut] = Field(default_factory=list)
     id: uuid.UUID
     numero_empleado: str
     numero_externo: bool = False

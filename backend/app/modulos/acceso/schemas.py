@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, field_validator
 
 
 def _a_utc(valor: datetime) -> str:
@@ -46,6 +46,8 @@ class SesionOut(BaseModel):
     rol: RolSesionOut
     almacen: AlmacenSesionOut | None
     permisos: list[str]
+    almacenes: list[AlmacenSesionOut] = Field(default_factory=list)
+    almacen_activo: AlmacenSesionOut | None = None
 
 
 class DispositivoOut(BaseModel):
@@ -92,11 +94,39 @@ class PersonalOut(BaseModel):
     rol: RolSesionOut
     almacen: AlmacenSesionOut | None
     activo: bool
+    almacenes: list[AlmacenSesionOut] = Field(default_factory=list)
+    almacen_activo: AlmacenSesionOut | None = None
+
+
+class AsignarAlmacenesIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    almacenes_id: list[uuid.UUID] = Field(max_length=100)
+    almacen_activo_id: uuid.UUID | None = None
+
+
+class AlmacenActivoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    almacen_id: uuid.UUID
 
 
 class UsuarioOut(PersonalOut):
     tiene_pin: bool
     creado_en: datetime
+    despacho_autonomo: bool = False
+
+
+class AutonomiaUsuarioIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    despacho_autonomo: bool
+    motivo: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("motivo")
+    @classmethod
+    def motivo_no_vacio(cls, valor: str) -> str:
+        if not valor.strip():
+            raise ValueError("Explica por qué cambias la aprobación del despacho.")
+        return valor.strip()
 
 
 class AsignarAlmacenIn(BaseModel):

@@ -13,12 +13,15 @@ from sqlalchemy.orm import Session
 
 from app.core.paginacion import Pagina, Paginacion
 from app.core.tiempo import ZONA_MX, hoy_mx
+from app.modulos.acceso.alcance_almacenes import dentro_del_alcance
 from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import P
 from app.modulos.acceso.service import AccesoService
+from app.modulos.catalogo.alto_valor import calcular_alto_valor
 from app.modulos.catalogo.codigos import CodigoService, normalizar
 from app.modulos.catalogo.exceptions import PiezaNoEncontrada
 from app.modulos.catalogo.models import Articulo, Categoria, Pieza, TipoCodigo
+from app.modulos.catalogo.service import CatalogoService
 from app.modulos.consulta import exportacion
 from app.modulos.consulta.exceptions import RangoFechasInvalido
 from app.modulos.consulta.repository import ConsultaRepository, Pendiente
@@ -61,9 +64,10 @@ from app.modulos.consulta.schemas import (
     UsuariosOpcionesOut,
 )
 from app.modulos.consulta.service_seguimiento import SeguimientoService
+from app.modulos.inspecciones.service import InspeccionService
 from app.modulos.trabajadores.models import Trabajador
 from app.modulos.trabajadores.repository import TrabajadorRepository
-from app.modulos.trabajadores.service import TrabajadorService, calcular_vigencia
+from app.modulos.trabajadores.service import TrabajadorService, calcular_vigencia, elegir_periodo
 
 LONGITUD_MINIMA_BUSQUEDA = 2
 TEXTO_OTRO_ALMACEN = "Otro almacén"
@@ -137,13 +141,17 @@ def direccion_para(fila: Any, almacen_id: uuid.UUID | None) -> str | None:
     aún no llega, y `None` si no se filtró por almacén o no lo toca directamente."""
     if almacen_id is None:
         return None
-    desde_aqui = fila.origen_almacen_id == almacen_id
-    hacia_aqui = fila.destino_almacen_id == almacen_id
+    desde_aqui = dentro_del_alcance(fila.origen_almacen_id, almacen_id)
+    hacia_aqui = dentro_del_alcance(fila.destino_almacen_id, almacen_id)
     if hacia_aqui and not desde_aqui:
         return "ENTRADA"
     if desde_aqui and not hacia_aqui:
         return "SALIDA"
-    if not desde_aqui and not hacia_aqui and fila.vale_destino_almacen_id == almacen_id:
+    if (
+        not desde_aqui
+        and not hacia_aqui
+        and dentro_del_alcance(fila.vale_destino_almacen_id, almacen_id)
+    ):
         return "EN_CAMINO"
     return None
 
@@ -152,7 +160,7 @@ def direccion_para(fila: Any, almacen_id: uuid.UUID | None) -> str | None:
 class Alcance:
     """Qué almacén puede ver el usuario (AC-06, C-11). `vacio` = no puede ver ninguno."""
 
-    almacen_id: uuid.UUID | None
+    almacen_id: uuid.UUID | frozenset[uuid.UUID] | None
     vacio: bool = False
 
 
@@ -172,11 +180,12 @@ class ConsultaService:
         asignado ni `almacenes.todos`, no ve nada."""
         if self.acceso.puede_operar_todos_los_almacenes(usuario):
             return Alcance(almacen_id)
-        if usuario.almacen_id is None:
+        asignados = self.acceso.almacenes_del_usuario(usuario.id)
+        if not asignados:
             return Alcance(None, vacio=True)
-        if almacen_id is not None and almacen_id != usuario.almacen_id:
+        if almacen_id is not None and almacen_id not in asignados:
             return Alcance(None, vacio=True)
-        return Alcance(usuario.almacen_id)
+        return Alcance(almacen_id if almacen_id is not None else frozenset(asignados))
 
     @staticmethod
     def _pagina[T](elementos: list[T], total: int) -> PaginaReporte[T]:
@@ -323,7 +332,9 @@ class ConsultaService:
             return True
         permisos = permisos if permisos is not None else self.acceso.permisos_de(usuario)
         return self.consultas.pieza_visible(
-            pieza_id, usuario.almacen_id, P.TRABAJADORES_VER in permisos
+            pieza_id,
+            frozenset(self.acceso.almacenes_del_usuario(usuario.id)),
+            P.TRABAJADORES_VER in permisos,
         )
 
     def _escaneo_pieza(
@@ -347,7 +358,7 @@ class ConsultaService:
                 not alcance.vacio
                 and ubicacion is not None
                 and ubicacion.tipo == "ALMACEN"
-                and ubicacion.almacen_id == alcance.almacen_id
+                and dentro_del_alcance(ubicacion.almacen_id, alcance.almacen_id)
             )
             disponible = 1 if en_el_almacen else 0
         resumen = ResumenPieza(
@@ -438,8 +449,27 @@ class ConsultaService:
             filas, total = self.consultas.buscar_articulos(
                 texto, pagina.offset, pagina.limit, en_almacen_id=en_almacen
             )
+            alcance_cantidades = self._alcance(usuario, almacen_id)
+            cantidades = (
+                self.consultas.cantidades_busqueda(
+                    [f.id for f in filas], alcance_cantidades.almacen_id
+                )
+                if not alcance_cantidades.vacio
+                else {}
+            )
             articulos = Pagina(
-                elementos=[BusquedaArticuloItem.model_validate(dict(f._mapping)) for f in filas],
+                elementos=[
+                    BusquedaArticuloItem.model_validate(
+                        {
+                            **dict(f._mapping),
+                            "en_almacen": cantidades.get(f.id, (0, 0))[0],
+                            "con_trabajadores": cantidades.get(f.id, (0, 0))[1]
+                            if f.retornable
+                            else None,
+                        }
+                    )
+                    for f in filas
+                ],
                 total=total,
             )
             filas, total = self.consultas.buscar_piezas(
@@ -447,7 +477,7 @@ class ConsultaService:
                 pagina.offset,
                 pagina.limit,
                 todos=self.acceso.puede_operar_todos_los_almacenes(usuario),  # AC-06
-                almacen_id=usuario.almacen_id,
+                almacen_id=frozenset(self.acceso.almacenes_del_usuario(usuario.id)),
                 ver_trabajadores=P.TRABAJADORES_VER in permisos,
                 en_almacen_id=en_almacen,
             )
@@ -462,6 +492,18 @@ class ConsultaService:
                         estado=f.estado,
                         estado_texto=TEXTO_ESTADO_PIEZA.get(f.estado, f.estado),
                         ubicacion=_texto_ubicacion(f, "ub") or None,
+                        ubicacion_texto=(
+                            f"En tránsito a {f.destino_transito}"
+                            if f.ub_tipo == "VIRTUAL"
+                            and f.ub_virtual == "EN_TRANSITO"
+                            and f.destino_transito
+                            else f"En resguardo de {_texto_ubicacion(f, 'ub')}"
+                            if f.ub_tipo == "TRABAJADOR"
+                            else f"En {f.ub_almacen}"
+                            if f.ub_tipo == "ALMACEN"
+                            else _texto_ubicacion(f, "ub")
+                        )
+                        or None,
                         disponible=1 if en_almacen is not None else None,
                     )
                     for f in filas
@@ -470,6 +512,9 @@ class ConsultaService:
             )
         if P.TRABAJADORES_VER in permisos:
             filas, total = self.consultas.buscar_trabajadores(texto, pagina.offset, pagina.limit)
+            periodos_busqueda = TrabajadorRepository(self.session).periodos_de(
+                [f.id for f in filas]
+            )
             trabajadores = Pagina(
                 elementos=[
                     BusquedaTrabajadorItem(
@@ -478,6 +523,24 @@ class ConsultaService:
                         nombre=f.nombre,
                         estado=f.estado,
                         estado_texto=TEXTO_ESTADO_TRABAJADOR.get(f.estado, f.estado),
+                        puesto=(
+                            periodo.puesto
+                            if (
+                                periodo := elegir_periodo(periodos_busqueda.get(f.id, []), hoy_mx())
+                            )
+                            else None
+                        ),
+                        vigencia={
+                            "vigente": (
+                                vigencia := calcular_vigencia(
+                                    f.estado, periodos_busqueda.get(f.id, []), hoy_mx()
+                                )
+                            ).vigente,
+                            "texto": "Vigente"
+                            if vigencia.vigente
+                            else vigencia.motivo or "No vigente",
+                        },
+                        credencial=f.credencial,
                     )
                     for f in filas
                 ],
@@ -503,7 +566,32 @@ class ConsultaService:
             raise PiezaNoEncontrada()
         pieza, articulo = encontrada
         ultima = self.consultas.ultima_inspeccion(pieza.id)
+        dias_aviso, origen_aviso = CatalogoService(self.session).aviso_inspeccion(articulo)
+        lugar = self._ubicacion_de(pieza)
+        impedimento = None
+        if pieza.estado == "BAJA":
+            impedimento = ("La pieza está dada de baja.", "P-17")
+        elif pieza.estado in ("EN_MANTENIMIENTO", "EN_CALIBRACION"):
+            impedimento = ("Primero retira la pieza de mantenimiento o calibración.", "P-17")
+        elif lugar and lugar.tipo == "EN_TRANSITO":
+            impedimento = ("Recibe la pieza antes de inspeccionarla.", "P-17")
+        elif not self.acceso.tiene_permiso(usuario, P.PIEZAS_INSPECCIONAR):
+            impedimento = ("No tienes permiso para inspeccionar.", "AC-06")
         return PiezaFichaOut(
+            vigencia_inspeccion_dias=articulo.vigencia_inspeccion_dias,
+            dias_aviso_inspeccion=dias_aviso,
+            origen_aviso_inspeccion=origen_aviso,
+            dias_restantes=(pieza.inspeccion_vigente_hasta - hoy_mx()).days
+            if pieza.inspeccion_vigente_hasta
+            else None,
+            vigencia_si_apta_hoy=hoy_mx() + timedelta(days=articulo.vigencia_inspeccion_dias)
+            if articulo.vigencia_inspeccion_dias
+            else None,
+            inspeccion_posible={
+                "puede": impedimento is None,
+                "motivo": impedimento[0] if impedimento else None,
+                "regla": impedimento[1] if impedimento else None,
+            },
             id=pieza.id,
             codigo=pieza.codigo,
             numero_serie=pieza.numero_serie,
@@ -535,9 +623,11 @@ class ConsultaService:
             return TEXTO_OTRO_ALMACEN
         return _texto_ubicacion(fila, prefijo)
 
-    @staticmethod
-    def _articulo_de_pieza(articulo: Articulo) -> ArticuloPiezaOut:
+    def _articulo_de_pieza(self, articulo: Articulo) -> ArticuloPiezaOut:
+        catalogo = CatalogoService(self.session)
+        alto, _ = calcular_alto_valor(articulo, catalogo.obtener_categoria(articulo.categoria_id))
         return ArticuloPiezaOut(
+            alto_valor=alto,
             id=articulo.id,
             codigo=articulo.codigo,
             nombre=articulo.nombre,
@@ -549,10 +639,11 @@ class ConsultaService:
             vigencia_inspeccion_dias=articulo.vigencia_inspeccion_dias,
         )
 
-    @staticmethod
-    def _inspeccion_out(inspeccion, usuario: str) -> InspeccionOut:
+    def _inspeccion_out(self, inspeccion, usuario: str) -> InspeccionOut:
         return InspeccionOut(
             id=inspeccion.id,
+            puntos=inspeccion.puntos,
+            foto=InspeccionService(self.session).foto_referencia(inspeccion.id),
             fecha=inspeccion.fecha,
             resultado=inspeccion.resultado,
             resultado_texto=TEXTO_RESULTADO_INSPECCION.get(
@@ -623,6 +714,9 @@ class ConsultaService:
             items.append(
                 HistorialItem(
                     tipo=TipoHistorial.INSPECCION,
+                    id=inspeccion.id,
+                    puntos=inspeccion.puntos,
+                    foto=InspeccionService(self.session).foto_referencia(inspeccion.id),
                     fecha=inspeccion.creado_en,
                     titulo=f"Inspección: {texto}",
                     detalle=" ".join(partes),
@@ -842,15 +936,16 @@ class ConsultaService:
         if P.ALMACENES_TODOS in permisos or P.TRABAJADORES_ADMINISTRAR in permisos:
             almacen_id = filtros.almacen_id
         else:
-            if usuario.almacen_id is None:
+            asignados = self.acceso.almacenes_del_usuario(usuario.id)
+            if not asignados:
                 return [], 0
-            if filtros.almacen_id is not None and filtros.almacen_id != usuario.almacen_id:
+            if filtros.almacen_id is not None and filtros.almacen_id not in asignados:
                 return [], 0
-            almacen_id = usuario.almacen_id
+            almacen_id = filtros.almacen_id or frozenset(asignados)
 
         pendientes = self.consultas.pendientes()
         if almacen_id is not None:
-            pendientes = [p for p in pendientes if p.almacen_id == almacen_id]
+            pendientes = [p for p in pendientes if dentro_del_alcance(p.almacen_id, almacen_id)]
 
         vigencias = self._vigencias({p.trabajador for p in pendientes})
         if filtros.solo_no_vigentes:
@@ -956,6 +1051,7 @@ class ConsultaService:
             categoria_id=filtros.categoria_id,
             articulo_id=filtros.articulo_id,
             trabajador_id=filtros.trabajador_id,
+            proyecto_id=filtros.proyecto_id,
         )
         trabajadores = self.consultas.trabajadores_por_id(
             {f.trabajador_id for f in filas if f.trabajador_id is not None}

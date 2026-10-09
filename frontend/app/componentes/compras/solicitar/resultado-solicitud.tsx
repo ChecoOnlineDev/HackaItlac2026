@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { Link } from "react-router";
 
 import { Boton } from "~/componentes/ui/boton";
-import { InsigniaEstadoCompra } from "./insignias";
+import { InsigniaEstadoCompra } from "~/componentes/compras/insignias";
 import { ResumenSolicitud } from "./resumen";
 import type { SolicitudCompra } from "./tipos";
 

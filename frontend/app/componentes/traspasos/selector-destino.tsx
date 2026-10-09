@@ -3,7 +3,7 @@ import { useId } from "react";
 
 import { apiGet } from "~/api/cliente";
 import { useConsulta } from "~/componentes/catalogo/usar-consulta";
-import type { AlmacenResumen } from "~/componentes/entrega/tipos";
+import type { AlmacenResumen, RutaEvaluadaApi } from "~/componentes/entrega/tipos";
 import { ListaDesplegable } from "~/componentes/ui/lista-desplegable";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
@@ -17,7 +17,20 @@ interface PropiedadesSelectorDestino {
   deshabilitado?: boolean;
   /** Solo ofrece las rutas habituales: las demás las hace únicamente quien tiene `almacenes.todos` (X-03). */
   soloHabituales?: boolean;
+  /**
+   * La ruta que el servidor evaluó para el destino elegido (FEAT-015). Con ella el grupo «Entre proyectos» dice
+   * quién autoriza; sin ella (todavía no se evalúa nada), solo dice «Entre proyectos».
+   */
+  ruta?: RutaEvaluadaApi | null;
   className?: string;
+}
+
+/** El texto del grupo «Entre proyectos»: lo decide `ruta.autoriza`, que viene del servidor. */
+function textoEntreProyectos(ruta: RutaEvaluadaApi | null | undefined, origenNombre: string | undefined): string {
+  if (ruta?.clase !== "LATERAL") return "Entre proyectos";
+  if (ruta.autoriza === "ENVIO_PROPIO") return "Entre proyectos (las autorizas tú)";
+  if (ruta.autoriza === "SUPERVISOR_ORIGEN") return `Entre proyectos (las autoriza el supervisor de ${origenNombre ?? "este almacén"})`;
+  return "Entre proyectos";
 }
 
 /**
@@ -25,7 +38,7 @@ interface PropiedadesSelectorDestino {
  * en los dos sentidos) y después las demás, que el servidor avisa como poco habituales (X-03). Solo ordena la
  * lista; quien decide el nivel de la ruta es el servidor.
  */
-export function SelectorDestino({ origenId, valor, alCambiar, deshabilitado, soloHabituales = false, className }: PropiedadesSelectorDestino) {
+export function SelectorDestino({ origenId, valor, alCambiar, deshabilitado, soloHabituales = false, ruta, className }: PropiedadesSelectorDestino) {
   const id = useId();
   const consulta = useConsulta((signal) => apiGet<AlmacenRedApi[]>("/almacenes", undefined, signal), "almacenes-red");
 
@@ -36,10 +49,15 @@ export function SelectorDestino({ origenId, valor, alCambiar, deshabilitado, sol
   const origen = consulta.datos.find((a) => a.id === origenId);
   const esHabitual = (a: AlmacenRedApi) => Boolean(origen) && (origen!.padre_id === a.id || a.padre_id === origen!.id);
   const habituales = activos.filter(esHabitual);
-  const otros = soloHabituales ? [] : activos.filter((a) => !esHabitual(a));
+  // Entre dos almacenes de tercer nivel (tipo PROYECTO) la ruta es lateral (X-18). Aquí solo se agrupa;
+  // quién la autoriza lo dice el servidor al evaluar.
+  const esLateral = (a: AlmacenRedApi) => origen?.tipo === "PROYECTO" && a.tipo === "PROYECTO" && !esHabitual(a);
+  const laterales = activos.filter(esLateral);
+  const otros = soloHabituales ? [] : activos.filter((a) => !esHabitual(a) && !esLateral(a));
   const opcion = (grupo: string) => (a: AlmacenRedApi) => ({ valor: a.id, texto: `${a.nombre} (${a.clave})`, grupo });
   const opciones = [
     ...habituales.map(opcion("Rutas habituales")),
+    ...laterales.map(opcion(textoEntreProyectos(ruta, origen?.nombre))),
     ...otros.map(opcion("Otras rutas (piden una observación)")),
   ];
 

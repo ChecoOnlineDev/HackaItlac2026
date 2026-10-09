@@ -1,6 +1,6 @@
 # FEAT-014: Despacho de EPP con aprobación, autonomía y notificaciones push
 
-Estado: **aprobada por el usuario el 8 de octubre de 2026, sin construir.** Es parte de la [iteración 01](../releases/iteration_01/README.md) (decisiones D-06, D-07, D-08 y D-14) y **amplía el alcance** del MVP (sección 6 del documento maestro). Si este brief contradice al documento maestro, manda el maestro. Reglas nuevas: **DE-01 a DE-16** y **NT-01 a NT-09**. Cambia F-04, A-01, A-02, A-03, A-05, A-07 y SM-03. Decisión técnica en [ADR-013](../architecture/decisions/ADR-013-notificaciones-push-por-pwa.md).
+Estado: **aprobada por el usuario el 8 de octubre de 2026; implementación parcial en código, con criterios y recorridos integrales pendientes (9 oct 2026).** Es parte de la [iteración 01](../releases/iteration_01/README.md) (decisiones D-06, D-07, D-08 y D-14) y **amplía el alcance** del MVP (sección 6 del documento maestro). Si este brief contradice al documento maestro, manda el maestro. Reglas nuevas: **DE-01 a DE-16** y **NT-01 a NT-09**. Cambia F-04, A-01, A-02, A-03, A-05, A-07 y SM-03. Decisión técnica en [ADR-013](../architecture/decisions/ADR-013-notificaciones-push-por-pwa.md).
 
 ## Problema u oportunidad
 
@@ -59,7 +59,7 @@ Cada almacén tiene dos supervisores y dos almacenistas. El sistema **no sabe de
 
 | ID | Regla | Origen |
 |---|---|---|
-| DE-01 | **Cuándo se pide.** Toda ENTREGA con al menos un renglón de artículo de EPP necesita la aprobación del despacho cuando el despacho es con aprobación: `almacen.despacho_epp_con_aprobacion = true` **y** quien captura no tiene `usuario.despacho_autonomo = true` **y** quien captura no tiene `autorizaciones.resolver` en ese almacén (DE-07). Una entrega solo de herramienta no la pide. Nunca la piden la devolución (SM-05), el traspaso, la recepción, la cancelación, el no adeudo ni la entrada. El EPP que se entrega al contratar a alguien, antes de que entre a un mantenimiento, también la pide (pregunta 1 de la sección 10 del maestro; supuesto). | Plática 8 oct (pedido 5); D-06 |
+| DE-01 | **Cuándo se pide.** Toda ENTREGA con al menos un renglón de artículo de EPP necesita la aprobación del despacho cuando el despacho es con aprobación: `almacen.despacho_epp_con_aprobacion = true` **y** quien captura no tiene `usuario.despacho_autonomo = true` **y** quien captura no tiene `autorizaciones.resolver` en ese almacén (DE-07). Una entrega solo de herramienta no la pide. Nunca la piden la devolución (SM-05), el traspaso, la recepción, la cancelación, el no adeudo ni la entrada. El EPP que se entrega al contratar a alguien, antes de que entre a un mantenimiento, también la pide (pregunta 1 de la sección 12 del maestro; supuesto). | Plática 8 oct (pedido 5); D-06 |
 | DE-02 | **El semáforo no cambia.** La evaluación de cada renglón da el mismo nivel que hoy (verde, amarillo, naranja o rojo). Aparte, la evaluación dice si el vale necesita aprobación (`requiere_aprobacion_despacho`) y marca cada renglón de EPP con `requiere_aprobacion: true`; la pantalla lo muestra como una etiqueta «Necesita aprobación», no como un color. El vale no se puede confirmar (`puede_confirmar: false`) mientras haya un renglón que necesite aprobación sin aprobar. | D-06; SM-03 |
 | DE-03 | **Orden del flujo.** Capturar al trabajador, capturar los artículos (con el semáforo de siempre), «Enviar a aprobación», esperar, ver la respuesta (total o parcial), quitar lo rechazado, firma del trabajador y confirmar. **La firma nunca va antes de aprobar**: el paso de firma no se abre mientras falte la aprobación, y si después de firmar cambia algo que invalida la aprobación (DE-13), la firma se borra y el trabajador firma de nuevo lo que recibe. Si los renglones no cambian, la firma se conserva aunque haya que pedir otra aprobación. | D-08 |
 | DE-04 | **Una sola solicitud por vale.** «Enviar a aprobación» crea una `autorizacion` de `tipo = DESPACHO` que incluye **todos** los renglones de EPP del vale y **todos** los renglones en naranja (E-07, E-26, E-08), sean de EPP o de herramienta. Así el supervisor resuelve todo junto y el vale sigue llevando un solo `autorizacion_id`. Los renglones de herramienta en verde o amarillo viajan como contexto. Un renglón en rojo no se envía (A-06): la solicitud entera responde 422 `RENGLON_NO_AUTORIZABLE` y hay que quitarlo antes. Si el vale pide aprobación del despacho, no se acepta una solicitud de `tipo = EXCEDENTE` (422 `RENGLON_NO_AUTORIZABLE` con `regla: "DE-04"`); si no la pide, una de `tipo = DESPACHO` tampoco (422 con `regla: "DE-01"`: «Este despacho no necesita aprobación; vuelve a evaluar»). Cada solicitud lleva un `id_cliente` que genera el dispositivo: un doble toque no crea dos solicitudes. | Propuesta; A-06 |
@@ -355,7 +355,7 @@ Invariantes nuevas: una autorización `DESPACHO` APROBADA tiene al menos un reng
 
 Variables de `.env` (en `.env.example`): `VAPID_CLAVE_PUBLICA`, `VAPID_CLAVE_PRIVADA` (secreto), `VAPID_CONTACTO` (`mailto:` del responsable del sistema). Se generan una vez con un comando nuevo de mantenimiento (`uv run python -m app.mantenimiento generar-claves-vapid`, que solo imprime el par). Sin ellas, la aplicación arranca y los avisos quedan apagados (con `ENTORNO=produccion` solo avisa en el registro).
 
-**Dependencia a aprobar:** `pywebpush` (cifrado del contenido según RFC 8291 y firma VAPID; trae `py-vapid` y `http-ece`). La alternativa sin dependencia nueva es firmar el token VAPID con PyJWT y `cryptography` (ya instalados), cifrar con `cryptography` y enviar con `httpx`; es más código propio en una parte delicada (cifrado). Recomendación: `pywebpush`. Ver ADR-013.
+**Dependencia aprobada por el usuario el 9 de octubre de 2026:** `pywebpush` (cifrado del contenido según RFC 8291 y firma VAPID; trae `py-vapid` y `http-ece`). La alternativa sin dependencia nueva es firmar el token VAPID con PyJWT y `cryptography` (ya instalados), cifrar con `cryptography` y enviar con `httpx`; es más código propio en una parte delicada (cifrado). Recomendación: `pywebpush`. Ver ADR-013.
 
 ### API
 
@@ -411,7 +411,7 @@ Contenido de un aviso (lo lee el service worker; menos de 4 KB):
 - **HTTPS.** Web Push necesita un contexto seguro: funciona por el túnel de Cloudflare y en `localhost` para desarrollo; no por la IP de la red local sin HTTPS.
 - **Salida a Internet.** El servidor necesita poder conectarse por HTTPS a los servicios de push de los navegadores (Google, Mozilla, Apple, Microsoft). El túnel solo cubre la entrada.
 - **Service worker.** Hoy solo sirve para instalar y para los archivos estáticos (security-model). Gana tres manejadores (`push`, `notificationclick`, `pushsubscriptionchange`) y sigue sin guardar nada de `/api/*`.
-- **Permisos en el router.** Todos los endpoints nuevos declaran su permiso en el router; la lista de rutas que lo verifican en el servicio (AGENTS.md) no crece.
+- **Permisos en el router.** Los endpoints nuevos declaran su permiso en el router, con una excepción que fija el maestro (sección 5.4): `POST /api/autorizaciones` pide solo sesión en el router y el servicio verifica según `tipo` (`entregas.crear` para EXCEDENTE y DESPACHO, `traspasos.operar` para TRASLADO); entra a la lista de rutas que lo verifican en el servicio (AGENTS.md).
 - **Textos** en español llano: «Necesita aprobación», «Enviar a aprobación», «Aprobada por…», nunca «autorización DESPACHO» ni «push».
 
 ## Riesgos
@@ -419,7 +419,7 @@ Contenido de un aviso (lo lee el service worker; menos de 4 KB):
 - **El supervisor no tiene tiempo** (principio de las reglas, plática del 3 de octubre). Si aprobar todo el EPP lo satura, la operación se detiene. Mitigación: resolución múltiple, agrupación de avisos y autonomía por almacén o almacenista (incongruencia 4 del maestro).
 - **El push no llega** (sin señal, Doze de Android, iPhone sin instalar, permiso negado). Mitigación: contador, lista, `avisados`, PIN en el mostrador (NT-08, DE-10).
 - **Fila en el mostrador** el primer día de un mantenimiento. Mitigación: «Atender a otro mientras» y «En espera» (DE-15).
-- **Dependencia nueva** (`pywebpush`) por aprobar; sin ella, cifrado propio.
+- **Dependencia nueva** (`pywebpush`), aprobada el 9 de octubre de 2026.
 - **Choque con FEAT-013 y FEAT-015** en `movimientos` y `autorizaciones` (evaluación de la ENTREGA, `tipo`, resolución). Se integran en el orden del maestro.
 - **Pruebas que cambian.** Las de autorizaciones y entregas que suponen EPP sin aprobación (`test_autorizaciones*`, guion del PDF) necesitan almacén autónomo o una aprobación en medio. Se ajustan, no se borran. El guion del PDF (p. 2) pide «entregar EPP»: la prueba de integración debe incluir el paso de aprobación.
 - **Avisos que se acumulan** en un supervisor de dos almacenes. Mitigación: etiqueta por almacén.
@@ -449,7 +449,7 @@ Contenido de un aviso (lo lee el service worker; menos de 4 KB):
 - [api-contracts.md](../architecture/api-contracts.md): Vales, Autorizaciones, Almacenes, Usuarios, sección nueva Notificaciones y errores `REQUIERE_APROBACION_DESPACHO` y `APROBACION_INVALIDA`.
 - [data-model.md](../architecture/data-model.md): columnas nuevas, `suscripcion_push`, invariantes y dueño del módulo `notificaciones`.
 - [security-model.md](../architecture/security-model.md): el service worker gana los manejadores de push; amenazas nuevas (contenido visible en la pantalla bloqueada, suscripción ligada a la sesión y revocada al salir, clave VAPID privada en `.env`, conexiones salientes a los servicios de push); la autonomía como permiso de alto impacto con auditoría.
-- [trd.md](../architecture/trd.md): `pywebpush` vuelve (si se aprueba); `BackgroundTasks` para los avisos; la sección 17 deja de excluir las notificaciones push (siguen excluidas las colas y las tareas programadas); la consulta periódica sigue siendo el respaldo.
+- [trd.md](../architecture/trd.md): `pywebpush` vuelve (aprobada el 9 de octubre de 2026); `BackgroundTasks` para los avisos; la sección 17 deja de excluir las notificaciones push (siguen excluidas las colas y las tareas programadas); la consulta periódica sigue siendo el respaldo.
 - [mvp-scope.md](../product/mvp-scope.md): ya refleja la entrada de las notificaciones push y el riesgo aceptado (no se cambia aquí).
 - [overview.md](../architecture/overview.md) y [AGENTS.md](../../AGENTS.md): módulo nuevo `notificaciones`.
 - [ui-ux.md](../product/ui-ux.md): etiqueta «Necesita aprobación», pantalla de espera, tarjeta de solicitud con Aprobar/Rechazar por renglón, estado de los avisos.
@@ -463,12 +463,12 @@ Contenido de un aviso (lo lee el service worker; menos de 4 KB):
 2. **¿El Administrador recibe avisos?** Por omisión no (NT-02). Opción: una preferencia por usuario «Recibir avisos de todos los almacenes».
 3. **Turnos.** Los dos supervisores reciben todo a toda hora; el de día puede recibir avisos de madrugada. Opción: «Pausar avisos en este equipo» por horario. Por ahora, el «No molestar» del celular.
 4. **Vigencia de la aprobada (DE-09).** Se propone recorrer `vence_en` a 15 minutos desde la aprobación; hoy la aprobada vence a los 15 minutos de **creada**, y una aprobación de último minuto deja segundos para firmar. Cambia el comportamiento de `validar_para_vale`.
-5. **Dependencia `pywebpush` o cifrado propio.** Recomendación: `pywebpush`. Falta aprobarla (AGENTS.md: no se agregan dependencias sin aprobación).
+5. **Dependencia `pywebpush` o cifrado propio.** **Resuelta el 9 de octubre de 2026:** se usa `pywebpush`, aprobada por el usuario.
 6. **Aviso al almacenista** cuando se resuelve su solicitud. Por ahora no: espera en pantalla y en «En espera».
 7. **«Volver a avisar»** a mitad de la vigencia sin crear otra solicitud. Por ahora no: se reenvía al vencer.
 8. **Cambiar el proyecto invalida la aprobación (DE-13).** Se supone que sí, porque el consumo cuenta para el proyecto (D-13). Falta confirmarlo.
-9. **Preguntas al track (sección 10 del maestro):** si el EPP al contratar también pide aprobación (se supone que sí) y si 15 minutos es un tiempo de espera aceptable en el mostrador.
-10. **`autorizacion.id_cliente`.** Hace falta para DE-04 y no está en la tabla 5.1 del maestro; hay que agregarla allí o resolver el doble toque buscando una pendiente igual del mismo solicitante y trabajador en el último minuto.
+9. **Preguntas al track (sección 12 del maestro):** si el EPP al contratar también pide aprobación (se supone que sí) y si 15 minutos es un tiempo de espera aceptable en el mostrador.
+10. **`autorizacion.id_cliente`.** **Resuelta:** hace falta para DE-04 y el maestro ya la trae en la sección 5.1 (columnas que salieron al escribir los briefs).
 11. **Aprobación parcial de un EXCEDENTE.** Se propone que también sea parcial (DE-06). Hoy es todo o nada.
 12. **`despacho.autonomia` es un permiso.** Como cualquier permiso, un Administrador podría dárselo al Supervisor desde `/roles` sin cambiar código. D-07 dice «por ahora, solo el Administrador»: ¿se protege (como AC-32) o se deja configurable?
 13. **Tope de borradores en espera** por dispositivo: se propone 10.
@@ -481,3 +481,33 @@ Contenido de un aviso (lo lee el service worker; menos de 4 KB):
 4. **Interfaz del supervisor:** lista, detalle `/autorizaciones/:id`, selección múltiple. En este punto todo funciona con el contador.
 5. **Notificaciones** (`notificaciones`, service worker, «Activar avisos», prueba). Si falta tiempo, se corta aquí: el despacho con aprobación funciona sin push.
 6. **Autonomía en pantalla** (`/almacenes`, `/usuarios`).
+
+
+## Estado de implementación del servidor — 9 de octubre de 2026
+
+Implementados el control por categoría EPP, los modos de despacho, la aprobación única de la
+entrega mixta, las resoluciones parciales DESPACHO y EXCEDENTE, la idempotencia de la solicitud,
+la vigencia desde la resolución y la resolución múltiple con resultado independiente por solicitud.
+La confirmación vuelve a evaluar bajo bloqueos y no consume existencias ni aprobación ante un
+rechazo, cantidad superior o cambio de trabajador, almacén o proyecto. Los movimientos de EPP
+registran DE-01, DE-07 o DE-14 y la aprobación se usa dentro de la misma transacción del vale.
+La propia captura del supervisor se imprime como `valido.medio = DESPACHO_PROPIO`.
+
+La migración `0014_despacho_push` agrega las columnas de autonomía, la identidad de solicitud,
+la resolución por renglón y las suscripciones por familia. La suscripción tiene también
+`ultima_etiqueta` para asociar el aviso previo con el almacén. Hay API de clave pública,
+suscripción, revocación y prueba limitada a una cada diez segundos por dispositivo.
+El envío Web Push utiliza pywebpush, cifrado aes128gcm, VAPID, timeout de cinco segundos,
+sesión propia después del commit y revocación ante 404/410. El aviso del traslado lateral se
+programa después de confirmar el traslado y exige `traspasos.recibir` en el destino.
+
+El servidor admite endpoints HTTPS de Google FCM, Mozilla, Apple y Microsoft; rechaza hosts
+arbitrarios, credenciales en la URL y direcciones IP. El adaptador no sigue redirecciones.
+`backend/app/modulos/notificaciones/README.md` explica la configuración y generación de claves.
+Las claves no se generaron ni escribieron en `.env` durante la implementación.
+
+Las pruebas en `backend/tests/test_despacho_feat014.py` cubren HTTP, inventario, resolución
+concurrente con dos conexiones MySQL, claves y cifrado reales con transporte HTTP reemplazado,
+permisos, sesiones y agrupación. La recepción de un aviso en un equipo real con la PWA cerrada
+queda pendiente de configurar VAPID y validar el service worker y el permiso del navegador.
+Este estado describe el servidor; no certifica los criterios de interfaz ni la recepción física.

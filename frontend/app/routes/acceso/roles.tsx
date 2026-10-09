@@ -17,7 +17,7 @@ import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { Insignia } from "~/componentes/ui/insignia";
 import { ListaDesplegable } from "~/componentes/ui/lista-desplegable";
 
-export const handle: ManejadorRuta = { permiso: "acceso.roles" };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permiso: "acceso.roles" };
 
 const OPCIONES_ESTADO = [
   { valor: "activos", texto: "Activos" },

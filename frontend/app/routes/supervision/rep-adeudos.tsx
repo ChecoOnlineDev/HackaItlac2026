@@ -11,7 +11,7 @@ import { comoUtc, TAMANO_REPORTE, type AdeudoReporte, type FiltroActivo, type Pa
 import { useFiltrosUrl } from "~/componentes/reportes/usar-filtros";
 import { Insignia } from "~/componentes/ui/insignia";
 
-export const handle: ManejadorRuta = { permiso: "reportes.adeudos" };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permiso: "reportes.adeudos" };
 
 const CLAVES = ["almacen_id", "solo_no_vigentes"] as const;
 

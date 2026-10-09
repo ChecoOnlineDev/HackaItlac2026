@@ -11,6 +11,8 @@ export interface CuerpoTraspaso {
   destino_almacen_id?: string;
   vale_origen_id?: string;
   id_cliente: string;
+  /** Autorización de traslado aprobada (X-19). */
+  autorizacion_id?: string;
   renglones: { codigo: string; cantidad: number }[];
 }
 

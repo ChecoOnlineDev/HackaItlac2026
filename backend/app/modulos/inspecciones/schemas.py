@@ -4,8 +4,17 @@ import uuid
 from datetime import UTC, date, datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, PlainSerializer, StringConstraints
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PlainSerializer,
+    StrictBool,
+    StringConstraints,
+    model_validator,
+)
 
+from app.core.excepciones import DatosInvalidos
 from app.modulos.inspecciones.models import ResultadoInspeccion
 
 
@@ -24,27 +33,52 @@ class PuntosIn(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    etiquetas: bool | None = None
-    costuras: bool | None = None
-    cintas: bool | None = None
-    herrajes: bool | None = None
-    conectores: bool | None = None
+    @model_validator(mode="before")
+    @classmethod
+    def cinco_puntos(cls, valor):
+        claves = {"etiquetas", "costuras", "cintas", "herrajes", "conectores"}
+        if (
+            not isinstance(valor, dict)
+            or set(valor) != claves
+            or any(v is not None and type(v) is not bool for v in valor.values())
+        ):
+            raise DatosInvalidos(
+                "Completa los cinco puntos de inspección.", [{"campo": "puntos", "regla": "P-14"}]
+            )
+        return valor
+
+    etiquetas: StrictBool | None
+    costuras: StrictBool | None
+    cintas: StrictBool | None
+    herrajes: StrictBool | None
+    conectores: StrictBool | None
 
 
 class InspeccionCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    @model_validator(mode="before")
+    @classmethod
+    def puntos_obligatorios(cls, valor):
+        if isinstance(valor, dict) and "puntos" not in valor:
+            raise DatosInvalidos(
+                "Completa los cinco puntos de inspección.", [{"campo": "puntos", "regla": "P-14"}]
+            )
+        return valor
+
     resultado: ResultadoInspeccion
-    puntos: PuntosIn | None = None
+    puntos: PuntosIn
+    id_cliente: uuid.UUID | None = None
+    foto: str | None = None
     observacion: Observacion | None = None
 
 
 class MarcarNoAptaIn(BaseModel):
-    """P-03. Solo se puede marcar No apta; el mantenimiento y la calibración son de FEAT-004."""
+    """P-03/P-06: cambiar condición; volver al servicio no sustituye una inspección."""
 
     model_config = ConfigDict(extra="forbid")
 
-    estado: Literal["NO_APTO"] = "NO_APTO"
+    estado: Literal["NO_APTO", "APTO", "EN_MANTENIMIENTO", "EN_CALIBRACION"] = "NO_APTO"
     observacion: Observacion
 
 
@@ -62,11 +96,14 @@ class PiezaEstadoOut(BaseModel):
 
 
 class InspeccionOut(BaseModel):
+    repetida: bool = False
+    id_cliente: uuid.UUID | None = None
+    foto: dict | None = None
     id: uuid.UUID
     pieza_id: uuid.UUID
     fecha: date
     resultado: ResultadoInspeccion
-    puntos: dict[str, bool] | None
+    puntos: dict[str, bool | None] | None
     observacion: str | None
     vigente_hasta: date | None
     usuario_id: uuid.UUID
@@ -103,7 +140,7 @@ class HistorialItem(BaseModel):
     # INSPECCION
     resultado: ResultadoInspeccion | None = None
     fecha_inspeccion: date | None = None
-    puntos: dict[str, bool] | None = None
+    puntos: dict[str, bool | None] | None = None
     vigente_hasta: date | None = None
     # ESTADO
     estado_anterior: str | None = None
@@ -115,3 +152,14 @@ class HistorialItem(BaseModel):
     motivo: str | None = None
     # INSPECCION y ESTADO
     observacion: str | None = None
+
+
+class PiezaLoteIn(InspeccionCreate):
+    codigo: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+    id_cliente: uuid.UUID
+
+
+class InspeccionLoteIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id_lote: uuid.UUID
+    piezas: list[dict] = Field(min_length=1, max_length=50)

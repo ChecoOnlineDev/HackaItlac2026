@@ -1,16 +1,27 @@
 import { formatearFechaHora } from "~/componentes/dominio/fechas";
+import { haceCuanto } from "~/componentes/dominio/formato";
 
 /** "hace 5 minutos", "hace 3 horas", "hace 2 días" a partir de un instante ISO (UTC). */
-export function haceCuanto(iso: string, ahora: number = Date.now()): string {
-  const antes = new Date(iso).getTime();
-  if (Number.isNaN(antes)) return "";
-  const minutos = Math.max(0, Math.floor((ahora - antes) / 60_000));
-  if (minutos < 1) return "hace un momento";
-  if (minutos < 60) return `hace ${minutos} ${minutos === 1 ? "minuto" : "minutos"}`;
-  const horas = Math.floor(minutos / 60);
-  if (horas < 24) return `hace ${horas} ${horas === 1 ? "hora" : "horas"}`;
-  const dias = Math.floor(horas / 24);
-  return `hace ${dias} ${dias === 1 ? "día" : "días"}`;
+export { haceCuanto } from "~/componentes/dominio/formato";
+
+/** Cómo se validó un envío, en español llano: `ENVIO_PROPIO`, `REMOTA` (desde el celular del supervisor) o `PIN`. */
+export function textoMedioValido(medio: string | null | undefined): string | null {
+  switch (medio) {
+    case "ENVIO_PROPIO":
+      return "envío propio";
+    case "REMOTA":
+      return "desde su celular";
+    case "PIN":
+      return "con su PIN";
+    default:
+      return null;
+  }
+}
+
+/** "Pedro (envío propio)": quién validó el envío y cómo. */
+export function textoValido(valido: { autorizo: { nombre: string }; medio: string | null }): string {
+  const medio = textoMedioValido(valido.medio);
+  return medio ? `${valido.autorizo.nombre} (${medio})` : valido.autorizo.nombre;
 }
 
 /** "enviado hace 3 horas (05/10/2026 14:32)". */

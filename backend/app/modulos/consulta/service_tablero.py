@@ -19,6 +19,7 @@ from app.modulos.almacenes.models import Almacen
 from app.modulos.catalogo.exceptions import CategoriaNoEncontrada
 from app.modulos.consulta.exceptions import RangoFechasDemasiadoLargo
 from app.modulos.consulta.repository_tablero import TableroRepository
+from app.modulos.consulta.repository_tablero_proyectos import TableroProyectosRepository
 from app.modulos.consulta.schemas_tablero import (
     DIAS_MAXIMOS_RANGO,
     NOMBRE_SIN_ALMACEN,
@@ -48,10 +49,11 @@ class AlcanceTablero:
     es_todos: bool
     vacio: bool
     puede_elegir: bool
+    asignados: frozenset[uuid.UUID] | None = None
 
     @property
-    def almacen_id(self) -> uuid.UUID | None:
-        return self.almacen.id if self.almacen else None
+    def almacen_id(self) -> uuid.UUID | frozenset[uuid.UUID] | None:
+        return self.almacen.id if self.almacen else self.asignados
 
 
 class TableroService:
@@ -72,22 +74,42 @@ class TableroService:
             if almacen is None:
                 raise AlmacenNoEncontrado()
             return AlcanceTablero(almacen, es_todos=False, vacio=False, puede_elegir=True)
-        almacen = self.tablero.almacen(usuario.almacen_id) if usuario.almacen_id else None
+        asignados = frozenset(self.acceso.almacenes_del_usuario(usuario.id))
+        if almacen_id is not None and almacen_id not in asignados:
+            return AlcanceTablero(None, es_todos=False, vacio=True, puede_elegir=bool(asignados))
+        if almacen_id is None and len(asignados) > 1:
+            return AlcanceTablero(
+                None, es_todos=False, vacio=False, puede_elegir=True, asignados=asignados
+            )
+        id_elegido = almacen_id or next(iter(asignados), None)
+        almacen = self.tablero.almacen(id_elegido) if id_elegido else None
         if almacen is None:
             return AlcanceTablero(None, es_todos=False, vacio=True, puede_elegir=False)
-        return AlcanceTablero(almacen, es_todos=False, vacio=False, puede_elegir=False)
+        return AlcanceTablero(almacen, es_todos=False, vacio=False, puede_elegir=len(asignados) > 1)
 
-    @staticmethod
-    def _alcance_out(alcance: AlcanceTablero) -> AlcanceOut:
+    def _alcance_out(self, alcance: AlcanceTablero, usuario: Usuario | None = None) -> AlcanceOut:
+        disponibles = (
+            self.acceso.alcance_del_usuario(usuario.id)
+            if usuario is not None
+            else (frozenset() if alcance.vacio else alcance.almacen_id)
+        )
+        if isinstance(disponibles, set):
+            disponibles = frozenset(disponibles)
         if alcance.es_todos:
             nombre = NOMBRE_TODOS
+        elif alcance.asignados:
+            nombre = f"Tus {len(alcance.asignados)} almacenes"
         else:
             nombre = alcance.almacen.nombre if alcance.almacen else NOMBRE_SIN_ALMACEN
         return AlcanceOut(
-            almacen_id=alcance.almacen_id,
+            almacen_id=alcance.almacen.id if alcance.almacen else None,
             nombre=nombre,
             es_todos=alcance.es_todos,
             puede_elegir=alcance.puede_elegir,
+            almacenes=[
+                AlmacenRefOut(id=a.id, clave=a.clave, nombre=a.nombre)
+                for a in TableroProyectosRepository(self.session).almacenes(disponibles)
+            ],
         )
 
     # ========================================================================== resumen
@@ -99,37 +121,84 @@ class TableroService:
         ve_resguardo = P.RESGUARDO_VER in self.acceso.permisos_de(usuario)
         if alcance.vacio:
             return ResumenTableroOut(
-                alcance=self._alcance_out(alcance),
+                alcance=self._alcance_out(alcance, usuario),
                 existencias=ExistenciasTarjeta(unidades=0, articulos=0),
                 resguardo_equipo_importante=0,
                 sin_existencia=0,
                 traspasos_en_transito=0,
                 entregas_hoy=0,
                 solicitudes_compra_abiertas=0,
-                inspecciones_por_vencer=0,
+                inspecciones_por_vencer=0
+                if self.acceso.tiene_permiso(usuario, P.INSPECCIONES_VER)
+                else None,
                 piezas_serie_pendiente=0,
                 alto_valor_fuera=0 if ve_resguardo else None,
                 generado_en=generado,
+                almacenes_sin_proyecto=[]
+                if self.acceso.tiene_permiso(usuario, P.ALMACENES_ADMINISTRAR)
+                else None,
+                proyectos_por_vencer=[]
+                if self.acceso.tiene_permiso(usuario, "proyectos.ver")
+                else None,
             )
         x = alcance.almacen_id
         hoy = hoy_mx()
         inicio, fin = rango_utc(hoy, hoy)  # TB-03: «hoy» es el día de México
         unidades, articulos = self.tablero.existencias(x)
+        from app.modulos.consulta.repository_valor import ValorRepository
+
+        unidades_resguardo = sum(
+            int(f.cantidad) for f in ValorRepository(self.session).en_resguardo(x)
+        )
+        inspecciones = None
+        if P.INSPECCIONES_VER in self.acceso.permisos_de(usuario):
+            from app.modulos.inspecciones.service_pendientes import PendientesService
+
+            inspecciones = PendientesService(self.session).contar_resumen(usuario, almacen_id)
         return ResumenTableroOut(
-            alcance=self._alcance_out(alcance),
+            alcance=self._alcance_out(alcance, usuario),
             existencias=ExistenciasTarjeta(unidades=unidades, articulos=articulos),
             resguardo_equipo_importante=self.tablero.resguardo_equipo_importante(x),
             sin_existencia=self.tablero.sin_existencia(x),
             traspasos_en_transito=self.tablero.traspasos_en_transito(x),
             entregas_hoy=self.tablero.entregas(x, inicio, fin),
             solicitudes_compra_abiertas=self.tablero.solicitudes_abiertas(x),
-            inspecciones_por_vencer=self.tablero.inspecciones_por_vencer(
-                x, hoy, hoy + timedelta(days=DIAS_INSPECCION_POR_VENCER)
-            ),
+            inspecciones_por_vencer=inspecciones["por_vencer"] if inspecciones else None,
+            inspecciones_vencidas=inspecciones["vencidas"] if inspecciones else None,
+            inspecciones_sin_registro=inspecciones["sin_inspeccion"] if inspecciones else None,
             piezas_serie_pendiente=self.tablero.piezas_serie_pendiente(x),
             alto_valor_fuera=self.tablero.alto_valor_fuera(x) if ve_resguardo else None,
             generado_en=generado,
+            inventario_unidades=dict(
+                en_almacen=unidades,
+                en_resguardo=unidades_resguardo,
+                total=unidades + unidades_resguardo,
+            ),
+            **self._tarjetas_proyectos(usuario, x, hoy),
         )
+
+    def _tarjetas_proyectos(self, usuario, alcance, hoy):
+        repository = TableroProyectosRepository(self.session)
+        almacenes = None
+        if self.acceso.tiene_permiso(usuario, P.ALMACENES_ADMINISTRAR):
+            almacenes = [
+                dict(id=a.id, clave=a.clave, nombre=a.nombre)
+                for a in repository.almacenes_sin_proyecto(alcance)
+            ]
+        proyectos = None
+        if self.acceso.tiene_permiso(usuario, "proyectos.ver"):
+            proyectos = [
+                dict(
+                    id=p.id,
+                    clave=p.clave,
+                    nombre=p.nombre,
+                    fin_estimado=p.fin_estimado,
+                    almacen=dict(id=a.id, clave=a.clave, nombre=a.nombre),
+                )
+                for p in repository.proyectos_por_vencer(alcance, hoy + timedelta(days=7))
+                if (a := self.tablero.almacen(p.almacen_id)) is not None
+            ]
+        return dict(almacenes_sin_proyecto=almacenes, proyectos_por_vencer=proyectos)
 
     # ========================================================================== consumo
 

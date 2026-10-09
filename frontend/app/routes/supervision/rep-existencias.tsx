@@ -15,7 +15,7 @@ import {
 import { useFiltrosUrl } from "~/componentes/reportes/usar-filtros";
 import { Insignia } from "~/componentes/ui/insignia";
 
-export const handle: ManejadorRuta = { permiso: "reportes.existencias" };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permiso: "reportes.existencias" };
 
 const CLAVES = ["almacen_id", "categoria_id"] as const;
 

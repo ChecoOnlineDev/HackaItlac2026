@@ -48,7 +48,7 @@ La alternativa 1, **Web Push con VAPID desde la PWA**, con la **consulta periód
 - **Agrupación y cierre:** una etiqueta por almacén; el aviso nuevo reemplaza al anterior y solo el primero de cada minuto suena. Al resolverse una solicitud, los demás reciben un aviso de **reemplazo** silencioso con la misma etiqueta (no un push invisible, que los navegadores no permiten) (NT-05, NT-06).
 - **Contenido:** almacén, trabajador, cuántos artículos y quién lo pide; sin costos, CURP, NSS ni foto (NT-03).
 - **Claves:** `VAPID_CLAVE_PUBLICA`, `VAPID_CLAVE_PRIVADA` y `VAPID_CONTACTO` en `.env`. Sin ellas los avisos quedan apagados y todo lo demás funciona.
-- **Librería:** `pywebpush` (cifrado del contenido según RFC 8291 y firma VAPID), **pendiente de aprobar** como dependencia. Si no se aprueba, el token VAPID se firma con PyJWT y `cryptography` (ya instalados), se cifra con `cryptography` y se envía con `httpx`.
+- **Librería:** `pywebpush` (cifrado del contenido según RFC 8291 y firma VAPID), **aprobada por el usuario el 9 de octubre de 2026** como dependencia.
 - **Respaldo:** el contador del menú, la lista de Autorizaciones y el PIN en el mostrador no cambian y ninguna regla depende de que el aviso llegue (NT-08).
 
 ## Justificación
@@ -77,7 +77,7 @@ Es la única opción que cumple lo que pidió el track (el aviso llega con la ap
 - **Envíos perdidos al reiniciar:** si el proceso se reinicia justo después de guardar la solicitud, los avisos de esa solicitud no salen; la solicitud sí queda y aparece en el contador.
 - **Aviso visible obligatorio:** cada push debe mostrar algo. Cerrar un aviso en los demás equipos se hace con un reemplazo silencioso, no desapareciéndolo sin rastro.
 - **Secreto nuevo:** la clave VAPID privada vive en `.env`. Si cambia, todas las suscripciones dejan de servir hasta que cada dispositivo se vuelva a registrar (lo hace solo al abrir la aplicación).
-- **Una dependencia más** (`pywebpush` con `py-vapid` y `http-ece`), o más código propio de cifrado si no se aprueba.
+- **Una dependencia más** (`pywebpush` con `py-vapid` y `http-ece`), ya aprobada.
 - El service worker deja de ser solo de instalación y estáticos: gana los manejadores `push`, `notificationclick` y `pushsubscriptionchange`, y hay que probarlo en cada plataforma.
 
 ## Señales para reevaluar

@@ -20,8 +20,9 @@ import {
   type BorradorRecepcion,
 } from "~/componentes/traspasos/borradores";
 import { idDeTraspasoPorToken } from "~/componentes/traspasos/buscar-traspaso";
-import { desdeCuando, textoRenglones, tokenDeLectura } from "~/componentes/traspasos/formato";
+import { desdeCuando, textoRenglones, textoValido, tokenDeLectura } from "~/componentes/traspasos/formato";
 import { MotivosDelVale } from "~/componentes/traspasos/motivos-vale";
+import { ObservacionRuta } from "~/componentes/traspasos/observacion-ruta";
 import { RenglonRecepcion } from "~/componentes/traspasos/renglon-recepcion";
 import { vibrarError, vibrarOk } from "~/componentes/traspasos/retroalimentacion";
 import { ResultadoTraspaso } from "~/componentes/traspasos/resultado-traspaso";
@@ -37,7 +38,7 @@ import { Insignia } from "~/componentes/ui/insignia";
 import { refrescarContadores } from "~/sesion/contadores";
 import { useSesionActiva } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "traspasos.recibir" };
+export const handle: ManejadorRuta = { dispositivo: "celular", permiso: "traspasos.recibir" };
 
 /** Renglones que se dibujan de una vez; el resto se carga al pedirlo. */
 const TRAMO = 60;
@@ -283,6 +284,9 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
   const [confirmandoDiferencias, setConfirmandoDiferencias] = useState(false);
   // RG-14: con diferencias la observación es obligatoria. Se pide en la hoja y se conserva para un reintento.
   const observacionRef = useRef<string | null>(null);
+  // X-21: si quien recibe es quien envió, el servidor pide explicar por qué. Esta es esa explicación.
+  const [observacionMisma, setObservacionMisma] = useState("");
+  const [errorObservacionMisma, setErrorObservacionMisma] = useState<string | null>(null);
   const [abriendo, setAbriendo] = useState(false);
 
   // Búsqueda, filtro y carga incremental: con 100 a 500 renglones solo se dibuja un tramo.
@@ -359,6 +363,7 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
   // Con listas largas el cuerpo es grande: se espera más para no reenviarlo en cada marca de una ráfaga.
   const ev = useEvaluar(cuerpo, lineas.length > 40 ? 450 : 150);
   const evaluacion: EvaluacionApi | null = ev.evaluacion;
+  const esMismaPersona = Boolean(evaluacion?.motivos.some((m) => m.regla === "X-21"));
   const mapaEvaluado = useMemo(() => {
     const m = new Map<string, EvaluacionApi["renglones"][number]>();
     for (const r of evaluacion?.renglones ?? []) m.set(claveDeCodigo(r.codigo), r);
@@ -513,7 +518,8 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
     setAvisoCambio(null);
     const faltaron = faltantes.length;
     try {
-      const observacion = faltaron > 0 ? observacionRef.current : null;
+      const partes = [esMismaPersona ? observacionMisma.trim() : "", faltaron > 0 ? (observacionRef.current ?? "") : ""].filter(Boolean);
+      const observacion = partes.length > 0 ? partes.join(" · ") : null;
       const vale = await apiPost<ValeConfirmadoApi>("/vales", { ...cuerpo, id_cliente: b.idCliente, ...(observacion ? { observacion } : {}) });
       vibrarOk();
       borrarBorradorRecepcion();
@@ -532,6 +538,8 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
         void alRecargar();
       } else if (causa.codigo === "ALMACEN_CAMBIO") {
         setErrorEnvio({ tipo: "almacen", mensaje: causa.message });
+      } else if (causa.status === 422 && causa.detalles?.regla === "X-21") {
+        setErrorObservacionMisma(causa.message || "Explica por qué también recibes este traspaso.");
       } else {
         setErrorEnvio({ tipo: "otro", mensaje: causa.message });
       }
@@ -555,6 +563,7 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
     if (ev.error && !ev.actual) return ev.error.sinConexion ? "Sin conexión: no podemos revisar todavía." : "No pudimos revisar la recepción.";
     if (!evaluacion || !ev.actual || ev.evaluando) return "Revisando la recepción…";
     if (rojos > 0) return `Quita ${rojos === 1 ? "el código en rojo" : `los ${rojos} códigos en rojo`} para continuar.`;
+    if (esMismaPersona && !observacionMisma.trim()) return "Explica por qué también recibes este traspaso para continuar.";
     // Solo falta la observación (RG-14): se pide al confirmar, en la hoja de diferencias.
     const soloFaltaObservacion = evaluacion.motivos.filter((m) => m.nivel === "ROJO").every((m) => m.regla === "RG-14");
     if (!evaluacion.puede_confirmar && !soloFaltaObservacion) return evaluacion.motivos.find((m) => m.nivel === "ROJO")?.mensaje ?? "Revisa la recepción para continuar.";
@@ -572,6 +581,7 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
         <p className="flex flex-wrap items-center gap-2">
           <span className="text-lg font-semibold tracking-wide text-marino">{traspaso.folio}</span>
           {conDiferencias ? <Insignia estado="amarillo">Recibido en parte</Insignia> : <Insignia estado="info">En camino</Insignia>}
+          {traspaso.ruta === "LATERAL" ? <Insignia estado="neutra">Traslado desde {traspaso.origen.nombre}</Insignia> : null}
         </p>
         <p className="flex flex-wrap items-center gap-1.5 text-base font-semibold">
           {traspaso.origen.nombre}
@@ -581,6 +591,7 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
         <p className="text-sm text-muted-foreground">
           Lo envió {traspaso.envio.nombre}, {desdeCuando(traspaso.creado_en)} · {textoRenglones(lineas.length)}
         </p>
+        {traspaso.valido ? <p className="text-sm text-muted-foreground">Validó: {textoValido(traspaso.valido)}</p> : null}
         {traspaso.recepciones.length > 0 ? (
           <p className="text-sm text-muted-foreground">
             Ya recibido antes: {traspaso.recepciones.map((r) => `${r.folio} (${r.recibio.nombre})`).join(", ")}.
@@ -627,6 +638,21 @@ function Recepcion({ traspaso, usuarioId, operaTodos, almacenSesionId, enLinea, 
       ) : null}
 
       <MotivosDelVale sinRegla motivos={(evaluacion?.motivos ?? []).filter((m) => m.regla !== "X-13" && m.regla !== "RG-14")} />
+
+      {esMismaPersona ? (
+        <ObservacionRuta
+          titulo="¿Por qué también lo recibes tú?"
+          descripcion="Tú enviaste este traspaso. Anota por qué lo recibes también; queda en el vale y en la revisión."
+          respuestas={["Soy el único en el almacén", "El otro turno no estaba", "Otro motivo"]}
+          valor={observacionMisma}
+          alCambiar={(texto) => {
+            setErrorObservacionMisma(null);
+            setObservacionMisma(texto);
+          }}
+          error={errorObservacionMisma}
+          deshabilitado={enviando}
+        />
+      ) : null}
 
       {errorEnvio && errorEnvio.tipo !== "almacen" ? (
         <section role="alert" className="flex flex-col gap-1 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-4">

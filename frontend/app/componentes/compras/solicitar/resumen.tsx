@@ -1,6 +1,6 @@
 import { cn } from "cn";
 
-import { InsigniaUrgencia } from "./insignias";
+import { InsigniaUrgencia } from "~/componentes/compras/insignias";
 import { textoCantidad, type Urgencia } from "./tipos";
 
 interface Propiedades {

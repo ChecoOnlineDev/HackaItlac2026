@@ -1,3 +1,4 @@
+import { coincideBusqueda } from "~/componentes/ui/busqueda-diferida";
 // Capa de práctica del tutorial guiado (FEAT-010, TU-02, TU-06, TU-07).
 //
 // Mientras la práctica está activa, el cliente de la API (`cliente.ts`, función `pedir`) NO llama a la red:
@@ -402,11 +403,10 @@ function ubicacionDe(p: PiezaPractica) {
 }
 
 function buscar(q: string, conDisponible = false): Busqueda {
-  const t = sinAcentos(q);
   const f = fichaTrabajador();
-  const articulos = ARTICULOS.filter((a) => sinAcentos(`${a.nombre} ${a.codigo}`).includes(t)).map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, marca: a.marca, categoria: a.categoria, control: a.control, activo: true, ...(conDisponible ? { disponible: 50 } : {}) }));
-  const piezas = PIEZAS.filter((p) => sinAcentos(`${p.articulo.nombre} ${p.codigo} ${p.serie}`).includes(t)).map((p) => ({ id: p.id, codigo: p.codigo, numero_serie: p.serie, articulo_id: p.articulo.id, articulo: p.articulo.nombre, estado: "DISPONIBLE", estado_texto: "Disponible", ubicacion: ubicacionDe(p).texto, ...(conDisponible ? { disponible: 0 } : {}) }));
-  const trabajadores = sinAcentos(`${f.nombre} ${f.numero_empleado}`).includes(t) ? [{ id: f.id, numero_empleado: f.numero_empleado, nombre: f.nombre, estado: f.estado, estado_texto: f.estado_texto }] : [];
+  const articulos = ARTICULOS.filter((a) => coincideBusqueda(`${a.nombre} ${a.marca} ${a.codigo}`, q)).map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, marca: a.marca, categoria: a.categoria, control: a.control, activo: true, ...(conDisponible ? { disponible: 50 } : {}) }));
+  const piezas = PIEZAS.filter((p) => coincideBusqueda(`${p.articulo.nombre} ${p.codigo} ${p.serie}`, q)).map((p) => ({ id: p.id, codigo: p.codigo, numero_serie: p.serie, articulo_id: p.articulo.id, articulo: p.articulo.nombre, estado: "DISPONIBLE", estado_texto: "Disponible", ubicacion: ubicacionDe(p).texto, ...(conDisponible ? { disponible: 0 } : {}) }));
+  const trabajadores = coincideBusqueda(`${f.nombre} ${f.numero_empleado}`, q) ? [{ id: f.id, numero_empleado: f.numero_empleado, nombre: f.nombre, estado: f.estado, estado_texto: f.estado_texto }] : [];
   const sin = articulos.length + piezas.length + trabajadores.length === 0;
   return {
     q,

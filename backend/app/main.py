@@ -27,6 +27,8 @@ from app.modulos.consulta.router import router as consulta_router
 from app.modulos.importacion.router import router as importacion_router
 from app.modulos.inspecciones.router import router as inspecciones_router
 from app.modulos.movimientos.router import router as movimientos_router
+from app.modulos.notificaciones.router import router as notificaciones_router
+from app.modulos.proyectos.router import router as proyectos_router
 from app.modulos.solicitudes_compra.router import router as solicitudes_compra_router
 from app.modulos.trabajadores.router import router as trabajadores_router
 from app.version_app import VersionAppMiddleware
@@ -39,6 +41,8 @@ ROUTERS = (
     catalogo_router,
     trabajadores_router,
     movimientos_router,
+    notificaciones_router,
+    proyectos_router,
     solicitudes_compra_router,
     autorizaciones_router,
     inspecciones_router,

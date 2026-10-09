@@ -42,12 +42,4 @@ export function useConsulta<T>(pedir: (signal: AbortSignal) => Promise<T>, clave
   return { datos, cargando, error, recargar };
 }
 
-/** Texto de búsqueda que se aplica un instante después de dejar de escribir. */
-export function useRetraso(valor: string, ms = 300): string {
-  const [retrasado, setRetrasado] = useState(valor);
-  useEffect(() => {
-    const id = setTimeout(() => setRetrasado(valor), ms);
-    return () => clearTimeout(id);
-  }, [valor, ms]);
-  return retrasado;
-}
+export { useRetraso } from "~/componentes/ui/busqueda-diferida";

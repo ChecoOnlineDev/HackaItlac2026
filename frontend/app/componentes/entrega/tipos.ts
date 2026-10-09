@@ -11,6 +11,11 @@ export interface AlmacenResumen {
   clave: string;
   nombre: string;
 }
+export interface ProyectoResumen {
+  id: string;
+  clave: string;
+  nombre: string;
+}
 
 /** Ficha del trabajador (`GET /api/trabajadores/{id}` o la `trabajador` de la evaluación). */
 export interface FichaTrabajadorApi extends DatosFichaTrabajador {
@@ -18,14 +23,32 @@ export interface FichaTrabajadorApi extends DatosFichaTrabajador {
   estado_texto?: string;
 }
 
+/** Quién autoriza un traspaso según el servidor (FEAT-015, X-16 a X-19). La pantalla solo lo muestra. */
+export type AutorizaTraspaso = "NADIE" | "ENVIO_PROPIO" | "SUPERVISOR_ORIGEN" | "ADMINISTRADOR";
+
+/** La ruta de un traspaso, evaluada por el servidor. */
+export interface RutaEvaluadaApi {
+  clase: "HABITUAL" | "LATERAL" | "NO_HABITUAL" | "MISMO";
+  autoriza: AutorizaTraspaso;
+  /** Cuántas personas pueden autorizar, sin contar a quien envía. */
+  autorizadores_disponibles: number;
+}
+
 /** `POST /api/vales/evaluar`. */
 export interface EvaluacionApi {
+  /** Solo en un traspaso. */
+  ruta?: RutaEvaluadaApi;
   nivel: NivelSemaforo;
   puede_confirmar: boolean;
   /** Motivos que valen para todo el vale (por ejemplo E-02 o E-12). */
   motivos: MotivoRegla[];
   almacen: AlmacenResumen;
   trabajador: FichaTrabajadorApi | null;
+  proyecto?: ProyectoResumen | null;
+  proyectos_del_trabajador?: ProyectoResumen[];
+  pide_proyecto?: boolean;
+  requiere_aprobacion_despacho?: boolean;
+  despacho?: { modo: "CON_APROBACION" | "AUTONOMO_ALMACEN" | "AUTONOMO_USUARIO" | "SUPERVISOR" | "NO_APLICA" };
   /** Algún renglón pide observación (E-09): hace falta anotarla en el vale antes de confirmar. */
   pide_observacion?: boolean;
   /** Si la autorización enviada no sirve, por qué (A-03). */
@@ -55,13 +78,19 @@ export interface AutorizacionApi {
   estado: EstadoAutorizacionApi;
   medio: "PIN" | "REMOTA" | null;
   motivo: string;
-  trabajador_id: string;
+  tipo?: "EXCEDENTE" | "DESPACHO" | "TRASLADO";
+  /** Nulo en un traslado. */
+  trabajador_id: string | null;
   almacen_id: string;
   solicitada_por: PersonaApi;
   resuelta_por: PersonaApi | null;
   creado_en: string;
   resuelta_en: string | null;
   vence_en: string;
+  /** La hora del servidor, para la cuenta regresiva sin fiarse del reloj del dispositivo. */
+  servidor_ahora?: string;
+  avisados?: number;
+  renglones_resueltos?: { renglon: number; codigo: string; cantidad: number; decision: "APROBADO" | "RECHAZADO"; motivo: string | null }[] | null;
 }
 
 /** Un renglón del vale tal como lo manda el servidor en el detalle. */
@@ -85,6 +114,7 @@ export interface RenglonValeApi {
 
 /** `GET /api/vales/{id}` y `GET /api/vales/por-token/{token}`. */
 export interface ValeDetalleApi {
+  despacho?: { modo: "APROBADO" | "PROPIO" | "AUTONOMO" | null; aprobo: PersonaApi | null } | null;
   id: string;
   folio: string;
   token: string;
@@ -95,7 +125,7 @@ export interface ValeDetalleApi {
   trabajador: { id: string; numero_empleado: string; nombre: string; puesto: string | null; area_obra: string | null } | null;
   responsable: PersonaApi;
   observacion: string | null;
-  firma_modo: "PANTALLA" | "SESION" | null;
+  firma_modo: "PANTALLA" | "SESION" | "PAPEL" | null;
   tiene_firma: boolean;
   valido: {
     autorizacion_id: string;

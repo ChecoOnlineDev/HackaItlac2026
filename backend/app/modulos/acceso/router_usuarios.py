@@ -18,6 +18,7 @@ from app.modulos.acceso.permisos import P
 from app.modulos.acceso.repository import FiltrosUsuarios
 from app.modulos.acceso.schemas import (
     AsignarAlmacenIn,
+    AutonomiaUsuarioIn,
     PersonalOut,
     RestablecerContrasenaIn,
     UsuarioCreate,
@@ -37,6 +38,17 @@ ServiceDep = Annotated[UsuarioAdminService, Depends(get_service)]
 
 QuienAdministra = Annotated[Usuario, Depends(requiere_permiso(P.ACCESO_USUARIOS))]
 QuienAsignaPersonal = Annotated[Usuario, Depends(requiere_permiso(P.ALMACENES_ASIGNAR_PERSONAL))]
+QuienCambiaAutonomia = Annotated[Usuario, Depends(requiere_permiso(P.DESPACHO_AUTONOMIA))]
+
+
+@router.patch("/usuarios/{id}/autonomia", response_model=UsuarioOut)
+def cambiar_autonomia(
+    id: uuid.UUID,
+    datos: AutonomiaUsuarioIn,
+    actor: QuienCambiaAutonomia,
+    service: ServiceDep,
+) -> UsuarioOut:
+    return service.cambiar_autonomia(id, datos, actor)
 
 
 @router.get("/personal", response_model=Pagina[PersonalOut])

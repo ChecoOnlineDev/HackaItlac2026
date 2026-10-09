@@ -1,4 +1,5 @@
 import { CircleCheckIcon, CircleXIcon, ClockIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { formatearFechaHora } from "~/componentes/dominio/fechas";
 import { Boton } from "~/componentes/ui/boton";
@@ -18,6 +19,12 @@ interface PropiedadesBandaAutorizacion {
  */
 export function BandaAutorizacion({ autorizacion, alQuitarRenglones, deshabilitado }: PropiedadesBandaAutorizacion) {
   const { estado } = autorizacion;
+  const [ahora, setAhora] = useState(Date.now());
+  useEffect(() => {
+    if (estado !== "PENDIENTE") return;
+    const timer = window.setInterval(() => setAhora(Date.now()), 10000);
+    return () => clearInterval(timer);
+  }, [estado]);
 
   if (estado === "PENDIENTE") {
     return (
@@ -27,7 +34,9 @@ export function BandaAutorizacion({ autorizacion, alQuitarRenglones, deshabilita
           En espera del supervisor
         </p>
         <Cargando variante="en-linea" texto="Esperando su respuesta…" className="justify-start p-0" />
-        <p className="text-sm text-muted-foreground">Llegó a su celular. Vence a las {formatearFechaHora(autorizacion.vence_en).slice(11)}.</p>
+        <p className="text-sm text-muted-foreground">Solicitud registrada. Vence a las {formatearFechaHora(autorizacion.vence_en).slice(11)}.</p>
+        {autorizacion.avisados === 0 ? <p className="text-sm font-semibold">Ningún supervisor tiene los avisos activos: búscalo o llámalo.</p> : null}
+        {autorizacion.solicitado_en && ahora - autorizacion.solicitado_en >= 300000 ? <p className="text-sm">El supervisor aún no responde. Puedes buscarlo para que revise con su PIN.</p> : null}
         <Boton variante="contorno" onClick={alQuitarRenglones} disabled={deshabilitado}>
           Quitar renglón y continuar
         </Boton>

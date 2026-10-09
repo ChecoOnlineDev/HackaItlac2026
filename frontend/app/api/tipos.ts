@@ -3,6 +3,8 @@
 
 /** Catálogo fijo de permisos (docs/product/reglas-de-negocio.md, sección 8). */
 export const PERMISOS = [
+  "deudores.ver",
+  "proyectos.ver", "proyectos.administrar", "proyectos.asignar",
   "acceso.administrar",
   "acceso.usuarios",
   "acceso.roles",
@@ -15,6 +17,8 @@ export const PERMISOS = [
   "catalogo.administrar",
   "catalogo.costos",
   "inventario.ver",
+  "inventario.minimos",
+  "piezas.marcar_estado",
   "inventario.entradas",
   "inventario.importar",
   "entregas.crear",
@@ -27,7 +31,9 @@ export const PERMISOS = [
   "vales.cancelar",
   "vales.cancelar_todos",
   "autorizaciones.resolver",
+  "despacho.autonomia",
   "piezas.inspeccionar",
+  "inspecciones.ver",
   "piezas.ajustar_vigencia",
   "reportes.existencias",
   "reportes.movimientos",
@@ -70,6 +76,8 @@ export interface Sesion {
   rol: RolSesion;
   /** Es null para quien opera todos los almacenes (`almacenes.todos`) o no opera ninguno. */
   almacen: AlmacenSesion | null;
+  almacenes?: AlmacenSesion[];
+  almacen_activo?: AlmacenSesion | null;
   /** Claves de permiso. La interfaz arma menús y botones con esto, nunca con el nombre del rol. */
   permisos: string[];
 }

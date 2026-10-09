@@ -7,6 +7,7 @@ import { type RouteConfig, index, layout, route } from "@react-router/dev/routes
  */
 export default [
   route("entrar", "routes/entrar.tsx"),
+  route("v/:token", "routes/consulta/comprobante-publico.tsx"),
 
   // Todo lo que sigue exige sesión; el layout aplica la guardia y el menú según permisos.
   layout("routes/_app.tsx", [
@@ -19,7 +20,8 @@ export default [
       route("recibir/:id", "routes/operacion/recibir-detalle.tsx"),
       // inventario
       route("inventario", "routes/inventario/inventario.tsx"),
-      route("reportes/movimientos", "routes/supervision/rep-movimientos.tsx"),
+      route("reportes/movimientos", "routes/supervision/bitacora-redirect.tsx"),
+      route("bitacora", "routes/supervision/bitacora.tsx"),
       route("seguimiento", "routes/consulta/seguimiento.tsx"),
       route("entrada", "routes/inventario/dar-entrada.tsx"),
       // catálogo
@@ -38,8 +40,10 @@ export default [
       route("compras/:id", "routes/compras/detalle.tsx"),
       // supervisión
       route("autorizaciones", "routes/supervision/autorizaciones.tsx"),
+      route("autorizaciones/:id", "routes/supervision/autorizacion-detalle.tsx"),
       route("reportes/existencias", "routes/supervision/rep-existencias.tsx"),
       route("reportes/adeudos", "routes/supervision/rep-adeudos.tsx"),
+      route("deudores", "routes/supervision/deudores.tsx"),
       route("reportes/consumo", "routes/supervision/rep-consumo.tsx"),
       // personas y accesos
       route("usuarios", "routes/acceso/usuarios.tsx"),
@@ -50,17 +54,20 @@ export default [
 
     // Sin pestañas: entradas directas, detalles y enlaces anteriores.
     route("entregar", "routes/operacion/entregar.tsx"),
+    route("inspecciones", "routes/operacion/inspecciones.tsx"),
+    route("inspeccionar", "routes/operacion/inspeccionar.tsx"),
     route("devolver", "routes/operacion/devolver.tsx"),
     route("consultar", "routes/consulta/consultar.tsx"),
     route("articulos/:id", "routes/consulta/articulo.tsx"),
     route("piezas/:id", "routes/consulta/pieza.tsx"),
     route("vales/:id", "routes/consulta/vale.tsx"),
-    route("v/:token", "routes/consulta/vale-qr.tsx"),
+    route("vales/ver-qr/:token", "routes/consulta/vale-qr.tsx"),
     route("mis-movimientos", "routes/consulta/mis-movimientos.tsx"),
     // Enlaces anteriores: redirigen a /entrada con su método (EK-04).
     route("entradas/nueva", "routes/inventario/entrada-nueva.tsx"),
     route("importar", "routes/inventario/importar.tsx"),
     route("almacenes", "routes/acceso/almacenes.tsx"),
+    route("proyectos", "routes/personas/proyectos.tsx"),
     route("*", "routes/no-encontrada.tsx"),
   ]),
 

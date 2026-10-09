@@ -22,13 +22,17 @@ from app.modulos.archivos.repository import AdjuntoRepository
 MIME_PERMITIDOS: dict[TipoAdjunto, frozenset[str]] = {
     # La firma en pantalla la exporta el lienzo de la interfaz como PNG y se valida a fondo.
     TipoAdjunto.FIRMA: frozenset({"image/png"}),
+    TipoAdjunto.TICKET_FIRMADO: frozenset({"image/png", "image/jpeg", "image/webp"}),
+    TipoAdjunto.FOTO_INSPECCION: frozenset({"image/png", "image/jpeg", "image/webp"}),
     TipoAdjunto.FOTO_DANO: frozenset({"image/png", "image/jpeg", "image/webp"}),
     TipoAdjunto.FOTO_TRABAJADOR: frozenset({"image/png", "image/jpeg", "image/webp"}),
 }
 
 SUBCARPETA: dict[TipoAdjunto, str] = {
     TipoAdjunto.FIRMA: "firmas",
+    TipoAdjunto.TICKET_FIRMADO: "tickets_firmados",
     TipoAdjunto.FOTO_DANO: "fotos_dano",
+    TipoAdjunto.FOTO_INSPECCION: "fotos_inspecciones",
     TipoAdjunto.FOTO_TRABAJADOR: "fotos_trabajadores",
 }
 
@@ -56,11 +60,16 @@ class ArchivoService:
         subido_por: uuid.UUID,
         vale_id: uuid.UUID | None = None,
         movimiento_id: uuid.UUID | None = None,
+        inspeccion_id: uuid.UUID | None = None,
     ) -> Adjunto:
         """Valida (contenido, tamaño), guarda en el volumen y registra el adjunto (sin commit)."""
         if not contenido:
             raise ArchivoInvalido("El archivo está vacío.")
-        maximo = get_settings().archivo_tamano_maximo
+        maximo = (
+            3 * 1024 * 1024
+            if tipo == TipoAdjunto.FOTO_INSPECCION
+            else get_settings().archivo_tamano_maximo
+        )
         if len(contenido) > maximo:
             raise ArchivoInvalido(
                 f"El archivo pesa más de {maximo // (1024 * 1024)} MB.",
@@ -87,6 +96,7 @@ class ArchivoService:
                 sha256=volumen.sha256_de(contenido),
                 vale_id=vale_id,
                 movimiento_id=movimiento_id,
+                inspeccion_id=inspeccion_id,
                 subido_por=subido_por,
             )
         )

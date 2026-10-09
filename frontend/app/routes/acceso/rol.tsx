@@ -25,7 +25,7 @@ import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { Insignia } from "~/componentes/ui/insignia";
 import { useSesionActiva } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "acceso.roles" };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permiso: "acceso.roles" };
 
 function plural(n: number, uno: string, varios: string): string {
   return `${n} ${n === 1 ? uno : varios}`;

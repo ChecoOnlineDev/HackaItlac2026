@@ -9,7 +9,7 @@ import uuid
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 from app.modulos.acceso.schemas import FechaUtc
 
@@ -323,6 +323,12 @@ class ImportacionOut(BaseModel):
 
     modo: Modo
     id_lote: uuid.UUID
+
+    @computed_field
+    @property
+    def lote_id(self) -> uuid.UUID:
+        return self.id_lote
+
     repetida: bool
     resumen: ResumenImportacionOut
     articulos_creados: list[ArticuloCreadoOut]

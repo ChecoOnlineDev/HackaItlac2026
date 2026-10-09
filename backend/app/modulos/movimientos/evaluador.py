@@ -74,6 +74,7 @@ class HechosArticulo:
     limite_cantidad: int | None
     limite_periodo_dias: int | None
     cantidad_aviso: int | None
+    dias_aviso_inspeccion: int = 7
 
 
 @dataclass(frozen=True)
@@ -149,6 +150,7 @@ class HechosRenglonEntrega:
     dotacion: HechosDotacion = field(default_factory=HechosDotacion)
     # Tallas del trabajador (`{"camisa": "M", "calzado": "27"}`); vacío si no las tiene (E-10).
     tallas_trabajador: dict[str, str] | None = None
+    minimo_almacen: int | None = None
 
 
 @dataclass(frozen=True)
@@ -421,7 +423,7 @@ def regla_e11_inspeccion_por_vencer(h: HechosRenglonEntrega, hoy: date) -> Motiv
     if hasta is None or hasta < hoy:
         return None
     dias = (hasta - hoy).days
-    if dias > DIAS_AVISO_INSPECCION:
+    if dias > h.articulo.dias_aviso_inspeccion:
         return None
     cuando = "hoy" if dias == 0 else "mañana" if dias == 1 else f"en {dias} días"
     return Motivo(
@@ -461,6 +463,8 @@ def evaluar_renglon_entrega(
 
     `motivo_trabajador` es el de E-02 (rojo en todo el vale), que se copia a cada renglón.
     """
+    from app.modulos.movimientos.evaluador_minimos import regla_minimo
+
     motivos: list[Motivo] = []
 
     def agregar(motivo: Motivo | None) -> None:
@@ -483,6 +487,7 @@ def evaluar_renglon_entrega(
     agregar(regla_e10_talla(h))
     agregar(regla_e11_inspeccion_por_vencer(h, hoy))
     agregar(regla_e29_serie_pendiente(h))
+    agregar(regla_minimo("E-14", h.minimo_almacen, h.disponible, h.cantidad + h.pedido_previo))
     aviso = regla_e27_cantidad_inusual(h)
     agregar(aviso)
     resultado = ResultadoRenglon(motivos, requiere_confirmacion=aviso is not None)

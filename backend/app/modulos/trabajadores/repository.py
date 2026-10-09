@@ -11,6 +11,7 @@ from datetime import datetime
 from sqlalchemy import case, exists, func, literal, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.busqueda import por_palabras
 from app.modulos.almacenes.models import Almacen, Ubicacion, UbicacionVirtual
 from app.modulos.catalogo.models import Articulo, Control, Pieza
 from app.modulos.movimientos.models import Existencia, Movimiento, TipoVale, Vale
@@ -72,10 +73,9 @@ class TrabajadorRepository:
         return trabajador
 
     def buscar(self, q: str, limite: int) -> list[Trabajador]:
-        patron = f"%{_escapar_like(q.strip())}%"
         consulta = (
             select(Trabajador)
-            .where(or_(Trabajador.nombre.like(patron), Trabajador.numero_empleado.like(patron)))
+            .where(por_palabras(q, Trabajador.nombre, Trabajador.numero_empleado))
             .order_by(Trabajador.nombre)
             .limit(limite)
         )
@@ -158,7 +158,14 @@ class TrabajadorRepository:
         )
 
     def listar(
-        self, *, q: str | None, situacion: Situacion | None, limit: int, offset: int
+        self,
+        *,
+        q: str | None,
+        situacion: Situacion | None,
+        limit: int,
+        offset: int,
+        proyecto_id: uuid.UUID | None = None,
+        sin_proyecto: bool = False,
     ) -> tuple[list[FilaLista], int]:
         con_pendientes = self._hay_pendientes()
         no_adeudo = self._no_adeudo_emitido()
@@ -169,12 +176,25 @@ class TrabajadorRepository:
         )
         filtros = []
         if q and q.strip():
-            patron = f"%{_escapar_like(q.strip())}%"
-            filtros.append(
-                or_(Trabajador.nombre.like(patron), Trabajador.numero_empleado.like(patron))
-            )
+            filtros.append(por_palabras(q, Trabajador.nombre, Trabajador.numero_empleado))
         if situacion is not None:
             filtros.append(situacion_sql == situacion.value)
+
+        if proyecto_id is not None or sin_proyecto:
+            from app.modulos.proyectos.models import AsignacionProyecto, Proyecto
+
+            asignada = (
+                select(AsignacionProyecto.id)
+                .join(Proyecto, Proyecto.id == AsignacionProyecto.proyecto_id)
+                .where(
+                    AsignacionProyecto.trabajador_id == Trabajador.id,
+                    AsignacionProyecto.terminada_en.is_(None),
+                    Proyecto.estado == "ACTIVO",
+                )
+            )
+            if proyecto_id is not None:
+                asignada = asignada.where(Proyecto.id == proyecto_id)
+            filtros.append(~asignada.exists() if sin_proyecto else asignada.exists())
 
         total = self.session.scalar(select(func.count()).select_from(Trabajador).where(*filtros))
         consulta = (

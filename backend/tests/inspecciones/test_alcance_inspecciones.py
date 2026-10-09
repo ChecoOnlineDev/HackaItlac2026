@@ -18,6 +18,8 @@ from app.modulos.catalogo.service import CatalogoService
 from app.modulos.movimientos.models import Movimiento, TipoVale, Vale
 from app.modulos.trabajadores.models import Trabajador
 
+PUNTOS = {k: None for k in ("etiquetas", "costuras", "cintas", "herrajes", "conectores")}
+
 RUTA = "/api/piezas"
 
 
@@ -51,7 +53,9 @@ def armar(session):
 
 
 def _inspeccionar(cliente, pieza):
-    return cliente.post(f"{RUTA}/{pieza.id}/inspecciones", json={"resultado": "APTO"})
+    return cliente.post(
+        f"{RUTA}/{pieza.id}/inspecciones", json={"resultado": "APTO", "puntos": PUNTOS}
+    )
 
 
 def _marcar_no_apta(cliente, pieza):

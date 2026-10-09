@@ -15,6 +15,7 @@ import {
   registrarManejadorSesionVencida,
 } from "~/api/cliente";
 import { esErrorApi } from "~/api/errores";
+import { cancelarAvisos, registrarAvisosConPermiso } from "~/pwa/avisos";
 import type { Permiso, Sesion } from "~/api/tipos";
 
 type Estado = "cargando" | "autenticada" | "anonima";
@@ -39,6 +40,7 @@ interface ValorSesion {
   /** Cierra las sesiones de todos los dispositivos, también esta. Lanza si el servidor no responde. */
   cerrarTodas: () => Promise<void>;
   recargar: () => Promise<void>;
+  cambiarAlmacen: (almacenId: string) => Promise<void>;
 }
 
 /** Los borradores de vale guardan la ficha del trabajador y la firma: al salir o vencer la sesión se borran. */
@@ -124,6 +126,7 @@ export function SesionProvider({ children }: { children: ReactNode }) {
   );
 
   const cerrarSesion = useCallback(async () => {
+    await cancelarAvisos().catch(() => undefined);
     try {
       // Cierra solo la sesión de ESTE dispositivo; las de los demás siguen abiertas.
       await api("/sesion", { metodo: "DELETE", sinRedirigir: true });
@@ -136,11 +139,21 @@ export function SesionProvider({ children }: { children: ReactNode }) {
   }, [aplicar]);
 
   const cerrarTodas = useCallback(async () => {
+    await cancelarAvisos().catch(() => undefined);
     await api("/sesion/todas", { metodo: "DELETE", sinRedirigir: true });
     borrarBorradoresLocales();
     setMotivo("salio");
     aplicar(null);
   }, [aplicar]);
+
+  const cambiarAlmacen = useCallback(async (almacenId: string) => {
+    const nueva = await api<Sesion>("/sesion/almacen", { metodo: "PUT", cuerpo: { almacen_id: almacenId } });
+    aplicar(nueva);
+  }, [aplicar]);
+
+  useEffect(() => {
+    if (sesion?.permisos.includes("autorizaciones.resolver")) void registrarAvisosConPermiso().catch(() => undefined);
+  }, [sesion?.usuario.id, sesion?.permisos]);
 
   const valor = useMemo<ValorSesion>(() => {
     const permisos = new Set(sesion?.permisos ?? []);
@@ -154,8 +167,9 @@ export function SesionProvider({ children }: { children: ReactNode }) {
       cerrarSesion,
       cerrarTodas,
       recargar,
+      cambiarAlmacen,
     };
-  }, [estado, motivoSinSesion, sesion, iniciarSesion, cerrarSesion, cerrarTodas, recargar]);
+  }, [estado, motivoSinSesion, sesion, iniciarSesion, cerrarSesion, cerrarTodas, recargar, cambiarAlmacen]);
 
   return <ContextoSesion.Provider value={valor}>{children}</ContextoSesion.Provider>;
 }

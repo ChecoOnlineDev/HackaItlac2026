@@ -20,11 +20,19 @@ from tests.movimientos.ayudas import (
     almacen,
     crear_articulo,
     crear_trabajador,
-    cuerpo_entrega,
     existencia,
     total_vales,
 )
+from tests.movimientos.ayudas import (
+    cuerpo_entrega as _cuerpo_entrega,
+)
 from tests.movimientos.test_entrega import evaluar, motivos, pieza_en_kep, renglon
+
+
+def cuerpo_entrega(*args, **kw):
+    # PR-10: estas pruebas verifican autorizaciones, con trabajadores sin proyecto.
+    return _cuerpo_entrega(*args, observacion="Entrega de prueba sin proyecto", **kw)
+
 
 VALES = "/api/vales"
 AUT = "/api/autorizaciones"
@@ -166,7 +174,9 @@ def test_A_03_una_autorizacion_pendiente_rechazada_o_inexistente_no_sirve(
     ev = evaluar(almacenista, trabajador, [renglon(excedente.codigo)])
     pendiente = solicitar(almacenista, trabajador, ev)
     rechazada = solicitar(almacenista, trabajador, ev)
-    supervisor.post(f"{AUT}/{rechazada}/resolucion", json={"decision": "RECHAZAR"})
+    supervisor.post(
+        f"{AUT}/{rechazada}/resolucion", json={"decision": "RECHAZAR", "motivo": "No corresponde"}
+    )
     vales = total_vales(session)
     for id_ in (pendiente, rechazada):
         r = almacenista.post(
@@ -230,7 +240,7 @@ def test_A_03_si_cambia_la_cantidad_la_autorizacion_ya_no_la_cubre(
             trabajador, [renglon(excedente.codigo, 2)], autorizacion_id=autorizacion_id
         ),
     )
-    assert r.status_code == 409 and r.json()["codigo"] == "AUTORIZACION_INVALIDA"
+    assert r.status_code == 409 and r.json()["codigo"] == "APROBACION_INVALIDA"
     assert "no cubre" in r.json()["mensaje"]
     assert session.get(Autorizacion, uuid.UUID(autorizacion_id)).estado == "APROBADA"
 

@@ -35,6 +35,8 @@ class P:
     VALES_CANCELAR = "vales.cancelar"
     VALES_CANCELAR_TODOS = "vales.cancelar_todos"
     AUTORIZACIONES_RESOLVER = "autorizaciones.resolver"
+    DEUDORES_VER = "deudores.ver"
+    INSPECCIONES_VER = "inspecciones.ver"
     PIEZAS_INSPECCIONAR = "piezas.inspeccionar"
     PIEZAS_AJUSTAR_VIGENCIA = "piezas.ajustar_vigencia"
     PIEZAS_REGISTRAR_SERIE = "piezas.registrar_serie"
@@ -63,8 +65,14 @@ class P:
     # --- Sección 8.3 (los agregan las features o están pospuestos) ---
     REPORTES_VALOR_INVENTARIO = "reportes.valor_inventario"
     INVENTARIO_MINIMOS = "inventario.minimos"
+    INVENTARIO_AJUSTAR = "inventario.ajustar"
+    REPORTES_CIERRE = "reportes.cierre"
     PIEZAS_DAR_DE_BAJA = "piezas.dar_de_baja"
     REVISION_VER = "revision.ver"
+    PROYECTOS_VER = "proyectos.ver"
+    PROYECTOS_ADMINISTRAR = "proyectos.administrar"
+    PROYECTOS_ASIGNAR = "proyectos.asignar"
+    DESPACHO_AUTONOMIA = "despacho.autonomia"
 
 
 @dataclass(frozen=True)
@@ -85,6 +93,10 @@ class Permiso:
 
 
 CATALOGO: tuple[Permiso, ...] = (
+    Permiso(P.DESPACHO_AUTONOMIA, "Cambiar la aprobación del despacho de EPP", False, "FEAT-014"),
+    Permiso(P.PROYECTOS_VER, "Ver proyectos y sus trabajadores", False, "FEAT-013"),
+    Permiso(P.PROYECTOS_ADMINISTRAR, "Crear, editar y cerrar proyectos", False, "FEAT-013"),
+    Permiso(P.PROYECTOS_ASIGNAR, "Asignar trabajadores a proyectos", False, "FEAT-013"),
     Permiso(
         P.ACCESO_ADMINISTRAR,
         "Administrador del sistema: siempre debe quedar alguien con este permiso",
@@ -116,6 +128,8 @@ CATALOGO: tuple[Permiso, ...] = (
     Permiso(P.VALES_CANCELAR, "Cancelar los vales propios", True),
     Permiso(P.VALES_CANCELAR_TODOS, "Cancelar los vales de cualquiera", True),
     Permiso(P.AUTORIZACIONES_RESOLVER, "Autorizar o rechazar excedentes", True),
+    Permiso(P.DEUDORES_VER, "Ver deudores", True),
+    Permiso(P.INSPECCIONES_VER, "Ver inspecciones pendientes", True),
     Permiso(P.PIEZAS_INSPECCIONAR, "Inspeccionar y marcar No apta", True),
     Permiso(P.PIEZAS_AJUSTAR_VIGENCIA, "Ajustar la vigencia de una inspección", True),
     Permiso(
@@ -196,7 +210,9 @@ CATALOGO: tuple[Permiso, ...] = (
         "FEAT-012",
         True,
     ),
-    Permiso(P.INVENTARIO_MINIMOS, "Fijar mínimos por almacén", False, "FEAT-004", disponible=False),
+    Permiso(P.INVENTARIO_MINIMOS, "Fijar mínimos por almacén", True, "FEAT-004"),
+    Permiso(P.INVENTARIO_AJUSTAR, "Registrar faltantes del almacén", True, "FEAT-002"),
+    Permiso(P.REPORTES_CIERRE, "Ver el reporte de cierre del almacén", True, "FEAT-002"),
     Permiso(
         P.PIEZAS_DAR_DE_BAJA,
         "Dar una pieza por perdida o de baja",

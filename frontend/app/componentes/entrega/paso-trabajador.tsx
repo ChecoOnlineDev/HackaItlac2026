@@ -1,9 +1,10 @@
+import { EscanerBusqueda } from "~/componentes/dominio/escaner-busqueda";
 import { SearchXIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiGet } from "~/api/cliente";
 import { esErrorApi, mensajeDeError } from "~/api/errores";
-import { Escaner, type OrigenLectura } from "~/componentes/dominio/escaner";
+import type { OrigenLectura } from "~/componentes/dominio/escaner";
 import { FichaTrabajador } from "~/componentes/dominio/ficha-trabajador";
 import { reproducir } from "~/componentes/dominio/sonido";
 import { Cargando } from "~/componentes/ui/cargando";
@@ -146,7 +147,8 @@ export function PasoTrabajador({ trabajador, alIdentificar, activo = true, ancla
         <h2 className="text-lg">Escanea la credencial del trabajador</h2>
         <p className="text-sm text-muted-foreground">Si no la tiene a la mano, escribe su número o su nombre.</p>
       </div>
-      <Escaner
+      <EscanerBusqueda
+        grupo="trabajadores"
         ancla={anclas?.escaner}
         activo={activo && !buscando}
         onCodigo={(codigo, origen) => void alCodigo(codigo, origen)}

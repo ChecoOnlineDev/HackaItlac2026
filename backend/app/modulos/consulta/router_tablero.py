@@ -9,6 +9,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
+from app.db import SesionDep
 from app.modulos.acceso.dependencies import requiere_permiso
 from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import P
@@ -19,10 +20,27 @@ from app.modulos.consulta.schemas_tablero import (
     ResumenTableroOut,
     ValorInventarioOut,
 )
+from app.modulos.consulta.schemas_tablero_proyectos import (
+    ProyectosTableroFilters,
+    ProyectosTableroOut,
+)
+from app.modulos.consulta.service_tablero_proyectos import TableroProyectosService
 
 router = APIRouter(prefix="/tablero", tags=["tablero"])
 
 VerTablero = Annotated[Usuario, Depends(requiere_permiso(P.TABLERO_VER))]
+
+
+@router.get(
+    "/proyectos",
+    response_model=ProyectosTableroOut,
+    dependencies=[Depends(requiere_permiso("proyectos.ver"))],
+)
+def proyectos(
+    usuario: VerTablero, session: SesionDep, filtros: Annotated[ProyectosTableroFilters, Query()]
+) -> ProyectosTableroOut:
+    """TB-05: uso del proyecto por su almacén; costos agregados solo con permiso."""
+    return TableroProyectosService(session).uso(usuario, filtros)
 
 
 @router.get("/resumen", response_model=ResumenTableroOut)

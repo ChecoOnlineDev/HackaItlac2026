@@ -3,7 +3,7 @@
 `vale_origen_id` es el traspaso. Quien recibe es el responsable de lo recibido (X-08) y firma con
 su sesión (F-09). Folio `CLAVE-REC-000001` del almacén que recibe.
 
-Reglas: X-08, X-10 a X-13, F-09, RG-05 (en `evaluador_traspasos.py` las que se evalúan).
+Reglas: X-08, X-10 a X-13, X-21, F-09, RG-05 (en `evaluador_traspasos.py` las que se evalúan).
 
 Cómo se recibe (X-11): cada renglón es lo que se escaneó, con su cantidad. Para "recibir todo de
 una vez" la interfaz manda todos los renglones pendientes del traspaso (los trae
@@ -42,12 +42,14 @@ from app.modulos.movimientos.contexto import (
 )
 from app.modulos.movimientos.evaluador_traspasos import (
     HechosRenglonRecepcion,
+    clasificar_ruta,
     estado_despues_de_recibir,
     regla_estado_del_traspaso,
     regla_rg14_observacion,
     regla_x10_destino,
     regla_x12_pertenece,
     regla_x13_diferencias,
+    regla_x21_misma_persona,
 )
 from app.modulos.movimientos.exceptions import ValeNoEncontrado
 from app.modulos.movimientos.models import FirmaModo, Nivel, TipoVale, Vale
@@ -158,6 +160,11 @@ class RecepcionTipo(ManejadorTipo):
         estado = regla_estado_del_traspaso(traspaso.estado)
         if estado is not None:
             evaluacion.motivos_vale.append(estado)
+        if traspaso.responsable_id == ctx.usuario.id:
+            # X-21: quien envió también recibe. Se permite, con observación y revisión.
+            evaluacion.motivos_vale.append(regla_x21_misma_persona())
+            evaluacion.pide_observacion_vale = True
+            evaluacion.datos["misma_persona"] = True
         lineas: dict[Clave, LineaTraspaso] = {ln.clave: ln for ln in repo.lineas(traspaso.id)}
         pendiente_total = sum(ln.pendiente for ln in lineas.values())
 
@@ -209,13 +216,23 @@ class RecepcionTipo(ManejadorTipo):
         return evaluacion
 
     def exigir_al_confirmar(self, cuerpo: ValeIn, evaluacion: Evaluacion) -> None:
-        """RG-14: una recepción con diferencias sin observación es un 422 sobre ese campo."""
+        """RG-14: una recepción con diferencias sin observación es un 422 sobre ese campo. X-21:
+        igual si quien recibe es quien envió el traspaso."""
         for motivo in evaluacion.motivos_vale:
             if motivo.regla == "RG-14":
                 raise DatosInvalidos(
                     motivo.mensaje,
                     [{"campo": "observacion", "mensaje": motivo.mensaje, "regla": "RG-14"}],
                 )
+        if (
+            evaluacion.datos.get("misma_persona")
+            and evaluacion.nivel != Nivel.ROJO
+            and not (getattr(cuerpo, "observacion", None) or "").strip()
+        ):
+            mensaje = "Tú enviaste este traspaso. Explica por qué también lo recibes."
+            raise DatosInvalidos(
+                mensaje, [{"campo": "observacion", "mensaje": mensaje, "regla": "X-21"}]
+            )
 
     # ---------------------------------------------------------------- confirmación
 
@@ -360,6 +377,11 @@ class RecepcionTipo(ManejadorTipo):
                     origen=resumen(v.almacen_id),
                     destino=resumen(v.destino_almacen_id),
                     envio=persona(v.responsable_id),
+                    ruta=clasificar_ruta(
+                        hechos_de_almacen(almacenes[v.almacen_id]),
+                        hechos_de_almacen(almacenes[v.destino_almacen_id]),
+                    ).value,
+                    valido=servicio.valido_de(v),
                     creado_en=v.creado_en,
                     pendiente_total=sum(r.cantidad_pendiente for r in renglones),
                     renglones=renglones,

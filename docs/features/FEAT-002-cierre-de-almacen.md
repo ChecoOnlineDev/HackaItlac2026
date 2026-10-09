@@ -66,3 +66,7 @@ Como Compras, quiero ver el valor del inventario por almacén, para saber cuánt
 ## Documentos globales que podrían actualizarse
 
 `data-model.md`, `api-contracts.md`, `app-flow.md` (cierre de almacén), `reglas-de-negocio.md` (CP-01 a CP-05, C-09). Abrir, cerrar y reactivar ya están en esos documentos por FEAT-008 (AL-01 a AL-05, flujo 21 de `app-flow.md`); queda por documentar el reporte de cierre, el vale AJUSTE y el valor del inventario.
+
+## Estado de construcción (9 oct 2026)
+
+Servidor: AJUSTE con responsable/observación/sello/idempotencia, permisos configurables `inventario.ajustar` y `reportes.cierre`, reporte por rango con saldos históricos, clasificación y resguardo de trabajadores, y alias del valor del inventario construidos. El cierre real se validó sin bloquear por resguardo; sus otras restricciones siguen en FEAT-008. La atribución de devoluciones indistinguibles por cantidad es FIFO declarada en la respuesta; piezas y cancelaciones conservan su referencia exacta. Las pantallas de ajuste y reporte de cierre siguen pendientes; no se acredita la feature completa sólo por el servidor. Resultado y limitaciones: [reporte backend](../releases/iteration_01/reporte-backend-cierre-ajuste.md).

@@ -96,7 +96,9 @@ def crear_articulo(
     **reglas,
 ) -> Articulo:
     """Un artículo nuevo con su código registrado. `reglas`: límite_cantidad, requiere_..., etc."""
-    categoria = session.scalar(select(Categoria).order_by(Categoria.nombre).limit(1))
+    categoria = session.scalar(
+        select(Categoria).where(Categoria.tipo == "HERRAMIENTA").order_by(Categoria.nombre).limit(1)
+    )
     codigo = codigo or unico("ART")
     articulo = Articulo(
         id=uuid.uuid4(),

@@ -36,7 +36,16 @@ export interface FilaTraspasoApi {
 export interface VistaPreviaTraspasoApi {
   origen: AlmacenRefTraspaso;
   destino: AlmacenRefTraspaso;
-  ruta: { habitual: boolean; nivel: NivelFilaTraspaso; pide_observacion: boolean; mensaje: string };
+  ruta: {
+    habitual: boolean;
+    nivel: NivelFilaTraspaso;
+    pide_observacion: boolean;
+    mensaje: string;
+    /** FEAT-015 (TR-05): la clase y quién autoriza, como en la evaluación de un vale. */
+    clase?: "HABITUAL" | "LATERAL" | "NO_HABITUAL" | "MISMO";
+    autoriza?: "NADIE" | "ENVIO_PROPIO" | "SUPERVISOR_ORIGEN" | "ADMINISTRADOR";
+    autorizadores_disponibles?: number;
+  };
   archivo_repetido: { fecha: string } | null;
   resumen: { total: number; ok: number; avisos: number; errores: number; unidades: number; piezas: number; excedido: boolean };
   filas: FilaTraspasoApi[];
@@ -77,6 +86,8 @@ export interface CuerpoConfirmarTraspaso extends CuerpoVistaPreviaTraspaso {
   observacion: string | null;
   dejar_fuera_errores: boolean;
   confirmar_repetido: boolean;
+  /** Autorización de traslado aprobada por el supervisor del origen (X-17, X-19). */
+  autorizacion_id?: string;
 }
 
 export interface TraspasoImportadoApi {

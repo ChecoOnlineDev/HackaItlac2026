@@ -463,15 +463,15 @@ Cada punto cita dónde se ve hoy.
   - Flujo 12 (Consultar con lista mientras se escribe);
   - Flujo 16 (Etiquetas: formato, origen, PDF);
   - «Pantallas del MVP», con la clase de cada ruta.
-- Un ADR nuevo, compartido con FEAT-017, si se aprueba jsPDF: «PDF armado en el navegador».
+- Un ADR nuevo, compartido con FEAT-017: «PDF armado en el navegador» (jsPDF ya está aprobada; el ADR se escribe al construir).
 
 ## Decisiones abiertas
 
-1. **Dependencia jsPDF.** Se propone la misma que FEAT-017, cargada bajo demanda. Requiere tu aprobación (AGENTS.md, «Agregar dependencias»).
-2. **Fuente del PDF.** Se propone Poppins en TTF dentro de `frontend/public/` (unos 300 KB por dos pesos), para que el PDF se vea como la aplicación. La alternativa es Helvetica, sin peso extra.
+1. **Dependencia jsPDF.** **Resuelta: aprobada por el usuario el 9 de octubre de 2026.** Es la misma que FEAT-017, cargada bajo demanda, con la fuente Poppins en TTF.
+2. **Fuente del PDF. Resuelta: aprobada por el usuario el 9 de octubre de 2026.** Se usa Poppins en TTF dentro de `frontend/public/` (unos 300 KB por dos pesos), para que el PDF se vea como la aplicación. La alternativa es Helvetica, sin peso extra.
 3. **Formato de 30 igual a las hojas adhesivas comerciales.** Se propone la geometría de 1 × 2⅝ in, con los márgenes exactos de esas hojas, para imprimir directo en adhesivo. Falta confirmar con el track qué hojas compran, si es que compran.
 4. **Amarillo del semáforo.** Se propone `#A16207` para el icono y el texto, y `#CA8A04` para la franja y el fondo. Cambia la tabla de ui-ux.
-5. **Insignias de compras.** ¿Cuál familia se queda? Se propone la de la cola de Compras: Pendiente en gris, Urgente con rayo en rojo de error. Es la que distingue lo urgente con más fuerza.
+5. **Insignias de compras. Resuelta el 9 de octubre de 2026.** Se conserva la familia de la cola de Compras: Pendiente en gris, En compra/Comprada/Ingresada en azul suave, Rechazada/Cancelada en gris y Urgente con rayo rojo. Las dos vistas consumen ahora el mismo componente compartido.
 6. **Filtros visibles en computadora.** Se propone mostrarlos en una barra superior desde 1280 px. Cambia el «Patrón de reporte», que hoy los pone en la hoja en todos los tamaños.
 7. **«Dados de alta en un rango».** Se propone `trabajador.creado_en` (el alta en el sistema). Un reingreso no cuenta como alta. ¿Debe contar el inicio de un periodo nuevo?
 8. **Alcance de las etiquetas de piezas.** Hoy no se limita al almacén del usuario. ¿Se deja así, porque una etiqueta solo lleva código y nombre, o se aplica AC-06 como en la búsqueda?

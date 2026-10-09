@@ -23,7 +23,7 @@ import { Insignia } from "~/componentes/ui/insignia";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { useSesion } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "catalogo.ver" };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permiso: "catalogo.ver" };
 
 const OPCIONES_ESTADO = [
   { valor: "activos", texto: "Activos" },

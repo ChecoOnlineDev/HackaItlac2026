@@ -21,7 +21,7 @@ import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { refrescarContadores } from "~/sesion/contadores";
 import { useSesionActiva } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "traspasos.recibir" };
+export const handle: ManejadorRuta = { dispositivo: "celular", permiso: "traspasos.recibir" };
 
 /** Minúsculas y sin acentos, para buscar sin importar cómo se escribió. */
 function normalizar(texto: string): string {
@@ -76,7 +76,7 @@ export default function Recibir() {
   };
 
   const [busqueda, setBusqueda] = useState("");
-  const buscar = useRetraso(busqueda, 200);
+  const buscar = useRetraso(busqueda, 300);
   const [masAntiguosPrimero, setMasAntiguosPrimero] = useState(true);
   const todos = consulta.datos?.elementos;
   const lista = useMemo(() => {

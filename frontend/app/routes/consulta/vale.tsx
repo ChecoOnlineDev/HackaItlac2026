@@ -8,7 +8,7 @@ export const handle: ManejadorRuta = { permiso: "vales.ver" };
 export default function DetalleDeVale() {
   const { id = "" } = useParams();
   return (
-    <Pantalla titulo="Detalle del vale" descripcion="Renglones, responsable y código QR del vale.">
+    <Pantalla titulo="Detalle del vale" descripcion="Renglones, responsable y código QR del vale." ancho="completo">
       <DetalleVale ruta={`/vales/${encodeURIComponent(id)}`} />
     </Pantalla>
   );

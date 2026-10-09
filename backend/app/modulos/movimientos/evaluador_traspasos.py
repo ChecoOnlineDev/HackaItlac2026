@@ -4,13 +4,17 @@ Sin base de datos: reciben hechos ya cargados y devuelven motivos con el ID de l
 tipos `tipos/traspaso.py` y `tipos/recepcion.py` los unen en una evaluación.
 
 Salida (TRASPASO): X-02 (solo sale lo que está en el origen), X-03 (ruta), X-04 (pieza No apta),
-X-09 (artículo inactivo). Recepción (RECEPCION): X-10 (solo el destino recibe), X-12 (lo escaneado
-no pertenece al traspaso), X-13 (faltan renglones: quedan En tránsito) y el estado del traspaso.
+X-09 (artículo inactivo); la ruta entre dos almacenes de tercer nivel (X-18, traslado lateral) y
+sus reglas X-16, X-17 y X-20 (FEAT-015). Recepción (RECEPCION): X-10 (solo el destino recibe),
+X-12 (lo escaneado no pertenece al traspaso), X-13 (faltan renglones: quedan En tránsito),
+X-21 (envió y recibió la misma persona) y el estado del traspaso.
 """
 
 import uuid
 from dataclasses import dataclass
+from enum import StrEnum
 
+from app.modulos.almacenes.models import TipoAlmacen
 from app.modulos.movimientos.evaluador import (
     ESTADO_PIEZA_TEXTO,
     MENSAJE_PIEZA_AJENA,
@@ -34,6 +38,8 @@ class HechosAlmacen:
     nombre: str
     padre_id: uuid.UUID | None
     activo: bool
+    # `TipoAlmacen`: CENTRAL, SUBALMACEN o PROYECTO (tercer nivel).
+    tipo: str
 
 
 @dataclass(frozen=True)
@@ -55,6 +61,83 @@ def es_ruta_habitual(origen: HechosAlmacen, destino: HechosAlmacen) -> bool:
     arma con `almacen.padre_id` (Kepler -> Contratistas -> áreas): una ruta es habitual si un
     almacén es el padre del otro."""
     return origen.padre_id == destino.id or destino.padre_id == origen.id
+
+
+class ClaseRuta(StrEnum):
+    """Qué clase de ruta es un traspaso (X-03, X-18)."""
+
+    HABITUAL = "HABITUAL"  # padre-hijo
+    LATERAL = "LATERAL"  # de tercer nivel a tercer nivel (X-18)
+    NO_HABITUAL = "NO_HABITUAL"  # cualquier otra (solo con `almacenes.todos`)
+    MISMO = "MISMO"  # origen y destino son el mismo almacén
+
+
+class QuienAutoriza(StrEnum):
+    """Quién autoriza la ruta (`ruta.autoriza` de la evaluación)."""
+
+    NADIE = "NADIE"  # ruta habitual, o ruta que no se puede hacer
+    ENVIO_PROPIO = "ENVIO_PROPIO"  # X-16: el supervisor del origen, al enviar
+    SUPERVISOR_ORIGEN = "SUPERVISOR_ORIGEN"  # X-17: el supervisor del origen, con una solicitud
+    ADMINISTRADOR = "ADMINISTRADOR"  # X-03: quien tiene `almacenes.todos`
+
+
+def clasificar_ruta(origen: HechosAlmacen, destino: HechosAlmacen) -> ClaseRuta:
+    """X-03 y X-18: función pura. Mismo almacén; padre-hijo (habitual); los dos de tercer nivel
+    (lateral, compartan o no el subalmacén padre); cualquier otra, no habitual."""
+    if origen.id == destino.id:
+        return ClaseRuta.MISMO
+    if es_ruta_habitual(origen, destino):
+        return ClaseRuta.HABITUAL
+    if origen.tipo == TipoAlmacen.PROYECTO and destino.tipo == TipoAlmacen.PROYECTO:
+        return ClaseRuta.LATERAL
+    return ClaseRuta.NO_HABITUAL
+
+
+def regla_x18_lateral(origen: HechosAlmacen, destino: HechosAlmacen) -> Motivo:
+    """X-18: informa que es un traslado entre proyectos (verde: el nivel lo ponen X-16 o X-17).
+    Si cuelgan de subalmacenes distintos lo dice."""
+    texto = f"Traslado entre proyectos: de {origen.nombre} a {destino.nombre}."
+    if origen.padre_id != destino.padre_id:
+        texto += " Van por redes distintas."
+    return Motivo("X-18", Nivel.VERDE, texto)
+
+
+def regla_x16_envio_propio(origen: HechosAlmacen, destino: HechosAlmacen) -> Motivo:
+    """X-16: quien envía es el supervisor del origen: su envío es la autorización. Amarillo; el
+    vale pide observación (el motivo del traslado)."""
+    return Motivo(
+        "X-16",
+        Nivel.AMARILLO,
+        f"Traslado entre proyectos: de {origen.nombre} a {destino.nombre}. Tú lo autorizas al "
+        "enviarlo. Anota para qué se manda.",
+    )
+
+
+def regla_x17_con_autorizacion(
+    origen: HechosAlmacen, destino: HechosAlmacen, autorizadores: int
+) -> Motivo:
+    """X-17: quien envía no es supervisor del origen: el vale es naranja y no se confirma sin la
+    autorización de traslado aprobada (X-19)."""
+    texto = (
+        f"Este traslado de {origen.nombre} a {destino.nombre} lo autoriza el supervisor de "
+        f"{origen.nombre}."
+    )
+    if autorizadores <= 0:
+        texto += (
+            f" Nadie en {origen.nombre} puede autorizar ahora; también puede hacerlo el "
+            "Administrador."
+        )
+    return Motivo("X-17", Nivel.NARANJA, texto)
+
+
+def regla_x20_sin_receptor(destino: HechosAlmacen, receptores: int) -> Motivo | None:
+    """X-20: aviso amarillo (no bloquea ni pide observación) si en el destino no hay nadie activo
+    con `traspasos.recibir`."""
+    if receptores > 0:
+        return None
+    return Motivo(
+        "X-20", Nivel.AMARILLO, f"Nadie en {destino.nombre} puede recibir este traslado todavía."
+    )
 
 
 def regla_x03_ruta(
@@ -199,6 +282,16 @@ def regla_estado_del_traspaso(estado: str) -> Motivo | None:
     if estado == EstadoVale.RECIBIDO:
         return Motivo("X-12", Nivel.ROJO, "Este traspaso ya se recibió completo.")
     return None
+
+
+def regla_x21_misma_persona() -> Motivo:
+    """X-21: quien confirma la recepción es quien envió el traspaso. Se permite, con aviso
+    amarillo y observación obligatoria."""
+    return Motivo(
+        "X-21",
+        Nivel.AMARILLO,
+        "Tú enviaste este traspaso. Explica por qué también lo recibes.",
+    )
 
 
 def regla_x12_pertenece(h: HechosRenglonRecepcion) -> Motivo | None:

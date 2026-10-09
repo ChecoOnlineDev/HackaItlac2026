@@ -36,7 +36,12 @@ CATEGORIAS: dict[str, tuple[TipoCategoria, Control, bool, dict]] = {
     ),
     "Herramienta manual": (HERRAMIENTA, Control.CANTIDAD, True, {}),
     "Herramienta eléctrica": (HERRAMIENTA, Control.PIEZA, True, {}),
-    "Equipo de alto valor": (HERRAMIENTA, Control.PIEZA, True, {"limite_cantidad": 1}),
+    "Equipo de alto valor": (
+        HERRAMIENTA,
+        Control.PIEZA,
+        True,
+        {"limite_cantidad": 1, "alto_valor": True},
+    ),
     "Consumibles de trabajo": (
         HERRAMIENTA,
         Control.CANTIDAD,

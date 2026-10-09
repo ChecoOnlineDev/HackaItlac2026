@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
+from app.modulos.acceso.alcance_almacenes import condicion_almacenes
 from app.modulos.almacenes.models import Almacen, TipoUbicacion, Ubicacion
 from app.modulos.catalogo.models import Articulo, Control
 from app.modulos.consulta.repository import _patron
@@ -91,9 +92,11 @@ class CantidadRepository:
         if filtro.articulo_id is not None:
             consulta = consulta.where(Articulo.id == filtro.articulo_id)
         if filtro.almacen_id is not None:
-            consulta = consulta.where(ent.c.vale_almacen_id == filtro.almacen_id)
+            consulta = consulta.where(condicion_almacenes(ent.c.vale_almacen_id, filtro.almacen_id))
         if filtro.solo_almacen_id is not None:
-            consulta = consulta.where(ent.c.vale_almacen_id == filtro.solo_almacen_id)
+            consulta = consulta.where(
+                condicion_almacenes(ent.c.vale_almacen_id, filtro.solo_almacen_id)
+            )
         for palabra in filtro.palabras:
             patron = _patron(palabra)
             consulta = consulta.where(

@@ -144,15 +144,26 @@ class UsuarioAdminService:
             )
         anterior = self._almacen_de(usuario)
         nuevo = self._almacen_destino(almacen_id) if almacen_id is not None else None
-        if (anterior.id if anterior else None) != (nuevo.id if nuevo else None):
+        asignados = self.usuarios.almacenes_asignados(usuario.id)
+        conjunto = {nuevo.id} if nuevo else set()
+        if (anterior.id if anterior else None) != (
+            nuevo.id if nuevo else None
+        ) or asignados != conjunto:
             usuario.almacen_id = nuevo.id if nuevo else None
+            self.usuarios.reemplazar_almacenes(usuario, {nuevo.id} if nuevo else set())
             self.auditoria.registrar(
                 usuario_id=actor.id,
                 accion="usuario.almacen",
                 entidad="usuario",
                 entidad_id=usuario.id,
-                antes={"almacen": _almacen_auditoria(anterior)},
-                despues={"almacen": _almacen_auditoria(nuevo)},
+                antes={
+                    "almacen": _almacen_auditoria(anterior),
+                    "almacenes_id": sorted(map(str, asignados)),
+                },
+                despues={
+                    "almacen": _almacen_auditoria(nuevo),
+                    "almacenes_id": sorted(map(str, conjunto)),
+                },
             )
             self.session.commit()
         return self._personal(usuario, nuevo)
@@ -232,6 +243,8 @@ class UsuarioAdminService:
         if cambia_rol:
             usuario.rol = rol
         usuario.almacen_id = almacen.id if almacen else None
+        if "almacen_id" in campos or (cambia_rol and not self._opera_almacen(rol.id)):
+            self.usuarios.reemplazar_almacenes(usuario, {almacen.id} if almacen else set())
         if activo != usuario.activo:
             usuario.version_sesion = Usuario.version_sesion + 1  # inactivar o reactivar: sin sesión
         usuario.activo = activo
@@ -360,8 +373,10 @@ class UsuarioAdminService:
             "activo": usuario.activo,
         }
 
-    @staticmethod
-    def _personal(usuario: Usuario, almacen: Almacen | None) -> PersonalOut:
+    def _personal(self, usuario: Usuario, almacen: Almacen | None) -> PersonalOut:
+        asignados = [
+            self.almacenes.obtener(id) for id in self.usuarios.almacenes_asignados(usuario.id)
+        ]
         return PersonalOut(
             id=usuario.id,
             nombre=usuario.nombre,
@@ -369,12 +384,44 @@ class UsuarioAdminService:
             rol=RolSesionOut(id=usuario.rol.id, nombre=usuario.rol.nombre),
             almacen=AlmacenSesionOut.model_validate(almacen) if almacen else None,
             activo=usuario.activo,
+            almacenes=[
+                AlmacenSesionOut.model_validate(a)
+                for a in sorted(asignados, key=lambda a: a.nombre.casefold())
+            ],
+            almacen_activo=AlmacenSesionOut.model_validate(almacen) if almacen else None,
         )
 
-    @classmethod
-    def _usuario(cls, usuario: Usuario, almacen: Almacen | None) -> UsuarioOut:
+    def _usuario(self, usuario: Usuario, almacen: Almacen | None) -> UsuarioOut:
         return UsuarioOut(
-            **cls._personal(usuario, almacen).model_dump(),
+            **self._personal(usuario, almacen).model_dump(),
             tiene_pin=usuario.pin_hash is not None,
             creado_en=usuario.creado_en,
+            despacho_autonomo=usuario.despacho_autonomo,
         )
+
+    def cambiar_autonomia(self, usuario_id, datos, actor) -> UsuarioOut:
+        """DE-14: cambiar autonomía con motivo, sin modificar roles ni permisos."""
+        try:
+            usuario = self.usuarios.bloquear(usuario_id)
+            if usuario is None:
+                raise UsuarioNoEncontrado()
+            anterior = usuario.despacho_autonomo
+            if anterior != datos.despacho_autonomo:
+                usuario.despacho_autonomo = datos.despacho_autonomo
+                self.auditoria.registrar(
+                    usuario_id=actor.id,
+                    accion="usuario.autonomia",
+                    entidad="usuario",
+                    entidad_id=usuario.id,
+                    antes={"despacho_autonomo": anterior},
+                    despues={
+                        "despacho_autonomo": datos.despacho_autonomo,
+                        "motivo": datos.motivo,
+                        "regla": "DE-14",
+                    },
+                )
+            self.session.commit()
+            return self._usuario(usuario, self._almacen_de(usuario))
+        except Exception:
+            self.session.rollback()
+            raise

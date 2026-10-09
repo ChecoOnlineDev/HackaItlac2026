@@ -2,9 +2,9 @@
 
 Documento maestro de la iteración. Reúne lo que pidieron los dueños del track en la segunda plática ([ajustes_01.pdf](ajustes_01.pdf)), las decisiones que tomó el usuario al revisarlo y el reparto de identificadores, tablas y endpoints que usan los briefs. **Si un brief contradice este documento, manda este documento** hasta que se corrija uno de los dos en el mismo cambio.
 
-Estado: **aprobado por el usuario el 8 de octubre de 2026. FEAT-013 a FEAT-019 siguen sin construir; FEAT-020 tiene el contenedor Android en línea construido, con aceptación en equipo real y operación sin conexión pendientes.** Amplía el alcance del MVP (sección 6).
+Estado: **aprobado por el usuario el 8 de octubre de 2026. Al 9 de octubre se integraron localmente FEAT-001, 002, 004, 013 a 019 y partes de FEAT-020; quedan criterios, regresión integral y pruebas físicas. FEAT-020 aún no opera sin conexión.** Amplía el alcance del MVP (sección 6).
 
-La última sesión de Claude Code quedó en la documentación: creó los briefs, ADR y documentos globales de esta iteración, y alcanzó el límite de uso antes de terminar su revisión cruzada. Los cambios locales de esa sesión se conservaron. La captura de conversación muestra el avance documental y no demuestra implementación de las nuevas funciones. El trabajo retomado integra el rediseño visual y construye el primer hito del contenedor Android; no cierra las features completas ni reemplaza el orden de sus dependencias. Estado, evidencias y siguientes pasos en [reporte-capacitor.md](reporte-capacitor.md).
+La última sesión de Claude Code dejó briefs, ADR y cambios locales; la captura adjunta documenta aquella sesión, no demuestra por sí sola que una feature funcione. El trabajo retomado integró el rediseño visual y continuó la implementación funcional. El estado, las pruebas, los faltantes y las limitaciones vigentes están en [reporte-integracion-features.md](reporte-integracion-features.md) y [reporte-capacitor.md](reporte-capacitor.md).
 
 Rama de trabajo: `android/capacitor`. La app de Android **no es un proyecto aparte**: es la misma interfaz de `frontend/` empaquetada con Capacitor ([ADR-014](../../architecture/decisions/ADR-014-app-android-con-capacitor.md)); su carpeta nativa vive en `frontend/android/`.
 
@@ -59,6 +59,8 @@ Hoja 2:
 | [ADR-013](../../architecture/decisions/ADR-013-notificaciones-push-por-pwa.md) | Notificaciones push por Web Push | D-06, D-14 |
 | [ADR-014](../../architecture/decisions/ADR-014-app-android-con-capacitor.md) | Capacitor y no Flutter, mismo repositorio | D-15 |
 | [ADR-015](../../architecture/decisions/ADR-015-operacion-sin-conexion-del-almacenista.md) | Operación sin conexión; reemplaza en parte a ADR-004 | D-15 |
+| [FEAT-012](../../features/FEAT-012-valor-del-inventario.md) | Valor del inventario (ya construido; documento escrito a partir del código) | Base de D-05 |
+| [FIX-001](../../fixes/FIX-001-etiquetas-de-piezas-sin-alcance.md) | Las etiquetas de piezas no respetan el alcance por almacén | Hallazgo de FEAT-019 |
 | [FEAT-013](../../features/FEAT-013-proyectos-y-supervision-por-almacenes.md) | Proyectos, asignación, supervisor con varios almacenes, uso y valor por proyecto | D-01 a D-05, D-13 |
 | [FEAT-014](../../features/FEAT-014-despacho-de-epp-con-aprobacion.md) | Despacho de EPP con aprobación, autonomía y notificaciones | Track 5; D-06 a D-08, D-14 |
 | [FEAT-015](../../features/FEAT-015-traslados-entre-almacenes-de-tercer-nivel.md) | Traslado entre almacenes de tercer nivel con autorización | Track 1; D-09 |
@@ -68,7 +70,7 @@ Hoja 2:
 | [FEAT-019](../../features/FEAT-019-busqueda-etiquetas-y-diseno-por-dispositivo.md) | Búsqueda con espera, QR en PDF, diseño por dispositivo y estética | D-18 a D-20 |
 | [FEAT-020](../../features/FEAT-020-app-android-sin-conexion.md) | App de Android del almacenista y operación sin conexión | D-15 |
 
-FEAT-012 ya está tomado: es el **valor del inventario** que está en el código (`GET /api/tablero/valor`, permiso `reportes.valor_inventario`, reglas VI-01 a VI-07 en los comentarios del código) y **no tiene documento**. Ver sección 9.
+FEAT-012 es el **valor del inventario** que ya está en el código (`GET /api/tablero/valor`, permiso `reportes.valor_inventario`, reglas VI-01 a VI-07). Su documento se escribió el 9 de octubre de 2026 a partir del código: [FEAT-012](../../features/FEAT-012-valor-del-inventario.md).
 
 ## 4. Reparto de identificadores de reglas
 
@@ -89,7 +91,7 @@ Para que dos briefs no usen el mismo ID. Cada regla se escribe completa en su FE
 | UX-01 a UX-12 | Búsqueda, etiquetas, diseño por dispositivo y estética | FEAT-019 |
 | OF-01 a OF-30 | App de Android y operación sin conexión | FEAT-020 |
 
-Reglas existentes que **cambian**: RG-07, RG-15, AC-06, AC-07 y A-05 (excepción para autorizarse a sí mismo en DE-07 y X-16), AC-12, AC-13, A-01, A-03 (igual o menor cantidad y aprobación parcial), F-04, T-02, T-03, E-11, E-24 (el vale imprime el proyecto de la entrega), X-01 (estaba atrasada: el Almacenista sí trae `traspasos.recibir`), X-03, AL-03 (`CON_PROYECTOS_ACTIVOS`; `CON_USUARIOS` cuenta el conjunto), TB-01, P-01, P-04, C-05, C-06, C-08 (filtro por proyecto), C-09, I-14 (alto valor por costo), SG-04, SG-06, 5.1 (definiciones), 5.4 (parámetros) y la sección 8 (permisos). Las reglas RG-08, RG-09 y RG-11 **no cambian** para la operación en línea; para los vales capturados sin conexión tienen la excepción de OF-17 a OF-22.
+Reglas existentes que **cambian**: RG-07, RG-15, AC-06, AC-07 y A-05 (excepción para autorizarse a sí mismo en DE-07 y X-16), AC-12, AC-13, A-01, A-03 (igual o menor cantidad y aprobación parcial), F-04, T-02, T-03, E-11, E-24 (el vale imprime el proyecto de la entrega), X-01 (estaba atrasada: el Almacenista sí trae `traspasos.recibir`), X-03, AL-03 (`CON_PROYECTOS_ACTIVOS`; `CON_USUARIOS` cuenta el conjunto), TB-01, P-01, P-04, C-05, C-06, C-08 (filtro por proyecto), C-09, I-14 (alto valor por costo), SG-04, SG-06, 5.1 (definiciones), 5.4 (parámetros) y la sección 8 (permisos). Al escribir las reglas salieron además: SM-03, A-02 y A-07 (FEAT-014), I-03 (FEAT-016), E-18 (FEAT-019), C-04 y SG-05 (FEAT-017, la bitácora por renglón queda como «Detalle por renglón»), TR-05 (ruta lateral, FEAT-015) y una nota en RG-12 (T-2 y AV-05). Las reglas RG-08, RG-09 y RG-11 **no cambian** para la operación en línea; para los vales capturados sin conexión tienen la excepción de OF-17 a OF-22.
 
 ## 5. Modelo de datos y API de la iteración
 
@@ -153,7 +155,7 @@ Los doce módulos de [AGENTS.md](../../../AGENTS.md) pasan a quince: `proyectos`
 | `sincronizacion.operar` | Inscribir un equipo y operar sin conexión | A | 020 |
 | `sincronizacion.administrar` | Ver equipos inscritos, revocarlos y resolver conflictos de sincronización | S (de su almacén) | 020 |
 
-Cambios en roles iniciales: el **Supervisor** recibe `reportes.valor_inventario` (D-05). El permiso deja de estar «no disponible» en la tabla 8.3 (el código ya lo trae disponible desde la migración `0009_permiso_valor_inventario`; el documento está atrasado).
+Roles iniciales: el **Supervisor** ya tiene `reportes.valor_inventario` en el código (migración `0009` y datos de prueba), junto con Compras y el Administrador; D-05 solo pide documentarlo y usarlo en su Inicio. El permiso deja de estar «no disponible» en la tabla 8.3 (el código ya lo trae disponible desde la migración `0009_permiso_valor_inventario`; el documento está atrasado).
 
 ### 5.4 Endpoints nuevos o que cambian
 
@@ -177,7 +179,7 @@ Cambios a endpoints existentes que salieron al escribir los briefs:
 | Endpoint | Cambio | FEAT |
 |---|---|---|
 | `GET /api/trabajadores` | Filtros `proyecto_id` y `sin_proyecto` | 013 |
-| `GET /api/tablero/valor` | Campos `unidades_*`; hoy no tiene contrato en api-contracts (FEAT-012 sin documento) | 013 |
+| `GET /api/tablero/valor` | Campos `unidades_*`; su contrato actual ya está en api-contracts y su brief es FEAT-012 | 013 |
 | `GET /api/almacenes?resumen=true` | `proyectos_activos` y `aviso_sin_proyecto` | 013 |
 | `POST /api/autorizaciones` | El router pide solo sesión y el servicio verifica según `tipo` (`entregas.crear` para EXCEDENTE y DESPACHO, `traspasos.operar` para TRASLADO); entra a la lista de excepciones de AGENTS.md | 014, 015 |
 | `POST /api/autorizaciones/{id}/retiro` | Retirar una solicitud pendiente (decisión abierta de FEAT-014) | 014 |
@@ -239,15 +241,15 @@ FEAT-013 y FEAT-014 tocan los dos la evaluación de la ENTREGA; si se construyen
 
 ## 9. Incongruencias encontradas al revisar
 
-1. **FEAT-012 sin documento.** El código tiene el valor del inventario (`service_valor.py`, reglas VI-01 a VI-07 en sus comentarios, migración `0009`) pero no hay `docs/features/FEAT-012-*.md`. La tabla 8.2 de las reglas sigue diciendo que `reportes.valor_inventario` está «no disponible» (AC-31). Hay que escribir FEAT-012 a partir del código antes de que FEAT-013 lo extienda.
+1. **FEAT-012 sin documento (resuelto).** El código tiene el valor del inventario (`service_valor.py`, reglas VI-01 a VI-07 en sus comentarios, migración `0009`) pero no hay `docs/features/FEAT-012-*.md`. La tabla 8.2 de las reglas sigue diciendo que `reportes.valor_inventario` está «no disponible» (AC-31). **Resuelto el 9 de octubre de 2026:** [FEAT-012](../../features/FEAT-012-valor-del-inventario.md) ya está escrito a partir del código y las reglas VI-01 a VI-07 están en las reglas de negocio.
 2. **Estado de los traspasos.** [docs/README.md](../../README.md) y [mvp-scope.md](../../product/mvp-scope.md) dicen que FEAT-009 (traspasos por Excel) y `traspasos.recibir` están «sin construir», pero el código sí los tiene: `importacion/router_traspasos.py` con sus pruebas (`test_traspaso_lista.py`), `trasladar-con-lista.tsx` y `recibir-detalle.tsx` con filtro y progreso (commit `ed7ce82`). Falta TR-10 (descargar la lista). Está construido en el código, pero no se ha probado funcionando en el entorno desplegado: la lista de verificación de FEAT-015 lo cierra. Además, X-01 dice que el Almacenista no trae `traspasos.recibir` de inicio, mientras que la tabla 8.2, AC-31 y el script de datos de prueba sí se lo dan.
-6. **Búsquedas.** [ui-ux.md](../../product/ui-ux.md) dice que todas las búsquedas esperan 300 ms (`useRetraso`), pero Consultar, Entregar, Devolver y Trasladar buscan solo con Enter, y Recibir usa 200 ms. FEAT-019 lo unifica.
-7. **Etiquetas de piezas fuera del alcance.** `GET /api/etiquetas?tipo=piezas` lista piezas de todos los almacenes sin aplicar AC-06. Es un error del código actual; conviene un FIX aparte (FEAT-019, riesgo).
-8. **Aviso de inspección fijo.** E-11 usa la constante `DIAS_AVISO_INSPECCION = 7` en `movimientos/evaluador.py`. FEAT-016 la vuelve configurable.
-9. **Inspecciones en tránsito.** Hoy se puede inspeccionar una pieza en tránsito o en mantenimiento; P-17 lo rechaza. Es un cambio de comportamiento.
-3. **Alto valor por nombre.** `consulta/repository_seguimiento.py` identifica el alto valor por el **nombre** de la categoría (`CATEGORIAS_ALTO_VALOR`). Si alguien renombra la categoría, la tarjeta del Inicio deja de contar. FEAT-018 lo cambia por la marca `categoria.alto_valor` y el costo mínimo (AV-01).
-4. **El principio del supervisor sin tiempo.** Las reglas dicen que el supervisor casi no tiene tiempo y que no valida cada vale (plática del 3 de octubre, min 42; F-04). La plática del 8 de octubre pide aprobar todo el EPP. Manda la plática nueva; el interruptor de autonomía (D-07) conserva la salida para los almacenes donde no haga falta.
-5. **Firma antes de aprobar.** Las notas del track ponen la firma antes de mandar la solicitud. Se cambió el orden (D-08) para que la firma cubra solo lo aprobado.
+3. **Búsquedas.** [ui-ux.md](../../product/ui-ux.md) dice que todas las búsquedas esperan 300 ms (`useRetraso`), pero Consultar, Entregar, Devolver y Trasladar buscan solo con Enter, y Recibir usa 200 ms. FEAT-019 lo unifica.
+4. **Etiquetas de piezas fuera del alcance.** `GET /api/etiquetas?tipo=piezas` lista piezas de todos los almacenes sin aplicar AC-06. Es un error del código actual: [FIX-001](../../fixes/FIX-001-etiquetas-de-piezas-sin-alcance.md).
+5. **Aviso de inspección fijo.** E-11 usa la constante `DIAS_AVISO_INSPECCION = 7` en `movimientos/evaluador.py`. FEAT-016 la vuelve configurable.
+6. **Inspecciones en tránsito.** Hoy se puede inspeccionar una pieza en tránsito o en mantenimiento; P-17 lo rechaza. Es un cambio de comportamiento.
+7. **Alto valor por nombre.** `consulta/repository_seguimiento.py` identifica el alto valor por el **nombre** de la categoría (`CATEGORIAS_ALTO_VALOR`). Si alguien renombra la categoría, la tarjeta del Inicio deja de contar. FEAT-018 lo cambia por la marca `categoria.alto_valor` y el costo mínimo (AV-01).
+8. **El principio del supervisor sin tiempo.** Las reglas dicen que el supervisor casi no tiene tiempo y que no valida cada vale (plática del 3 de octubre, min 42; F-04). La plática del 8 de octubre pide aprobar todo el EPP. Manda la plática nueva; el interruptor de autonomía (D-07) conserva la salida para los almacenes donde no haga falta.
+9. **Firma antes de aprobar.** Las notas del track ponen la firma antes de mandar la solicitud. Se cambió el orden (D-08) para que la firma cubra solo lo aprobado.
 
 ## 10. Decisiones transversales tomadas al escribir los briefs
 
@@ -258,21 +260,21 @@ Propuestas; quedan firmes cuando el usuario revise las «Decisiones abiertas» d
 | T-1 | **Qué es un proyecto «vigente»** | Para **entregar**, cuenta cualquier proyecto ACTIVO del trabajador, aunque haya pasado su fin estimado (PR-06, PR-08). Para **asignar** a un trabajador se ofrecen los ACTIVOS vigentes o por iniciar, no los vencidos. | FEAT-013, PR-02 |
 | T-2 | **El costo que se deduce de un total** | Un total en pesos que cubre un solo artículo revela su costo unitario al dividirlo entre las unidades (RG-12). Donde un grupo tiene un solo artículo con costo, el valor en pesos se muestra como «—» para quien no tiene `catalogo.costos`. Aplica al Inicio del supervisor (TB-04 a TB-08), al resumen del vale (BT-05) y al consumo (DU-08). | FEAT-013, 017, 018 |
 | T-3 | **Deuda contra consumo** | El consumo cuenta para el **proyecto** (D-13); la deuda es con el **almacén** que entregó (DU-02, AC-06). El supervisor de Midrex ve lo que sus trabajadores deben a Contratistas solo como número, sin el detalle del otro almacén. | FEAT-018 |
-| T-4 | **Push al almacén que recibe** | La notificación informativa de un traslado (X-20) solo llega a quien activó avisos, que hoy es quien tiene `autorizaciones.resolver`. Para que llegue al almacenista que recibe de noche, NT-01 ofrece «Activar avisos» también a quien tiene `traspasos.recibir`. | FEAT-014, 015 |
+| T-4 | **Push al almacén que recibe** | La notificación informativa de un traslado (X-20) solo llega a quien activó avisos, que hoy es quien tiene `autorizaciones.resolver`. Para que llegue al almacenista que recibe de noche, NT-01 ofrece «Activar avisos» también a quien tiene `traspasos.recibir`. Con eso `POST /api/notificaciones/suscripciones` acepta `autorizaciones.resolver` o `traspasos.recibir` (`requiere_alguno`). | FEAT-014, 015 |
 | T-5 | **Tope de alto valor** | `ALTO_VALOR_COSTO_MINIMO` vive en `.env`: cambiarlo exige reiniciar y no tiene pantalla. Basta para el MVP; una pantalla de ajustes generales queda pospuesta. | FEAT-018 |
 | T-6 | **Inspeccionar en otro almacén del conjunto** | La lista de inspecciones abarca todo el conjunto (AC-37), pero inspeccionar es una escritura en el almacén activo (AC-38): la pantalla ofrece cambiar de almacén. | FEAT-016 |
 | T-7 | **Prueba del guion del PDF** | Al construir FEAT-014, la prueba de integración del guion incluye el paso de aprobación del despacho (o corre en un almacén con autonomía), en el mismo cambio. | FEAT-014 |
 
-## 11. Dependencias por aprobar
+## 11. Dependencias aprobadas
 
-AGENTS.md prohíbe agregar dependencias que la tarea no pida. La petición actual de implementar la app Capacitor autoriza las dependencias de su contenedor: `@capacitor/core`, `@capacitor/cli`, `@capacitor/android`, `@capacitor/app`, `@capacitor/network`, `@capacitor/filesystem`, `@capacitor/share` y Vitest ya se incorporaron. Las demás dependencias de esta tabla siguen como planeación de sus features; revisar la autorización y el alcance de la tarea que las implemente, sin pedir de nuevo aprobación para las ya solicitadas.
+**Aprobadas por el usuario el 9 de octubre de 2026.** AGENTS.md prohíbe agregar dependencias que la tarea no pida; estas las piden los briefs de la iteración y ya tienen el visto bueno, así que la tarea que construya cada feature las instala sin volver a preguntar. Las del contenedor de Capacitor (`@capacitor/core`, `@capacitor/cli`, `@capacitor/android`, `@capacitor/app`, `@capacitor/network`, `@capacitor/filesystem`, `@capacitor/share`) y `vitest` ya están instaladas. Faltan por instalar, cuando se construya su feature: `pywebpush`, `jspdf`, `jspdf-autotable`, la fuente en TTF, `@capacitor-community/sqlite`, `@capacitor/local-notifications` y el complemento de tareas en segundo plano. La columna «Alternativa» queda solo como referencia de lo que se descartó.
 
-| Dependencia | Para qué | Alternativa sin dependencia | FEAT |
+| Dependencia | Para qué | Alternativa descartada | FEAT |
 |---|---|---|---|
 | `pywebpush` (backend) | Firmar y cifrar las notificaciones Web Push | Hacerlo con `cryptography`, PyJWT y `httpx`, que ya están | 014 |
 | `jspdf` y `jspdf-autotable` (frontend) | PDF del vale, del lote y de las etiquetas, también sin conexión en Android | `fpdf2` en el servidor (no funciona sin conexión) | 017, 019 |
 | Fuente Poppins en TTF (archivo, no paquete) | jsPDF no lee WOFF | Usar la fuente Helvetica que trae jsPDF | 017, 019 |
-| `@capacitor/core`, `@capacitor/cli`, `@capacitor/android`, `@capacitor-community/sqlite`, `@capacitor/network`, `@capacitor/local-notifications`, `@capacitor/filesystem`, `@capacitor/share` y un complemento de tareas en segundo plano | App de Android, base local cifrada, conexión, notificaciones locales, guardar y compartir el PDF | Ninguna: son la app | 020 |
+| `@capacitor/core`, `@capacitor/cli`, `@capacitor/android`, `@capacitor/app`, `@capacitor-community/sqlite`, `@capacitor/network`, `@capacitor/local-notifications`, `@capacitor/filesystem`, `@capacitor/share` y un complemento de tareas en segundo plano | App de Android, base local cifrada, conexión, notificaciones locales, guardar y compartir el PDF | Ninguna: son la app | 020 |
 | `vitest` (desarrollo, frontend) | Correr en TypeScript los mismos casos de prueba del evaluador que corre pytest (OF-16) | Probar el evaluador local solo a mano | 020 |
 
 ## 11 bis. Notas de FEAT-020 que afectan a otros documentos

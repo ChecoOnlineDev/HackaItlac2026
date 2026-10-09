@@ -1,3 +1,4 @@
+import { formatearMoneda } from "~/componentes/dominio/formato";
 // Tipos y textos del catálogo. Fuente: docs/architecture/api-contracts.md y los esquemas del servidor.
 
 export type TipoCategoria = "EPP" | "HERRAMIENTA";
@@ -5,6 +6,7 @@ export type Control = "PIEZA" | "CANTIDAD";
 
 /** Las reglas que comparten la plantilla de una categoría y un artículo (CF-02). */
 export interface Reglas {
+  dias_aviso_inspeccion?: number | null;
   requiere_inspeccion: boolean;
   vigencia_inspeccion_dias: number | null;
   requiere_autorizacion: boolean;
@@ -16,6 +18,8 @@ export interface Reglas {
 }
 
 export interface Categoria extends Reglas {
+  alto_valor?: boolean;
+  articulos_con_aviso_propio?: number;
   id: string;
   nombre: string;
   tipo: TipoCategoria;
@@ -25,6 +29,9 @@ export interface Categoria extends Reglas {
 }
 
 export interface ArticuloLista {
+  alto_valor?: boolean;
+  alto_valor_motivo?: string | null;
+  avisos?: string[];
   id: string;
   codigo: string;
   nombre: string;
@@ -44,6 +51,8 @@ export interface ArticuloLista {
 }
 
 export interface Articulo extends ArticuloLista, Reglas {
+  dias_aviso_inspeccion_resuelto?: number;
+  origen_aviso_inspeccion?: "ARTICULO" | "CATEGORIA" | "GENERAL";
   motivo_inactivacion: string | null;
   creado_en: string;
 }
@@ -54,6 +63,9 @@ export interface ExistenciaAlmacen {
   nombre: string;
   cantidad: number;
   disponible: number;
+  minimo?: number | null;
+  bajo_minimo?: boolean;
+  no_disponible?: number;
 }
 
 export interface Poseedor {
@@ -94,6 +106,9 @@ export interface ExistenciaInventario {
   activo: boolean;
   cantidad: number;
   disponible: number;
+  minimo?: number | null;
+  bajo_minimo?: boolean;
+  no_disponible?: number;
 }
 
 export interface Existencias {
@@ -145,7 +160,7 @@ export function textoCosto(valor: string | number | null | undefined): string {
   if (valor === null || valor === undefined || valor === "") return "Sin costo";
   const n = Number(valor);
   if (Number.isNaN(n)) return "Sin costo";
-  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n);
+  return formatearMoneda(n);
 }
 
 export function nombreConMarca(a: { nombre: string; marca: string | null; modelo?: string | null }): string {

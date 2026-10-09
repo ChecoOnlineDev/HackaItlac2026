@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { textoMedioValido } from "~/componentes/traspasos/formato";
 import { cn } from "cn";
 import { BanIcon, PrinterIcon } from "lucide-react";
 
@@ -9,7 +10,7 @@ import { CLASE_IMPRESION, EstiloImpresion } from "./estilo-impresion";
 import { formatearFechaHora } from "./fechas";
 import type { Condicion } from "./tipos";
 
-export type TipoVale = "ENTRADA" | "ENTREGA" | "DEVOLUCION" | "TRASPASO" | "RECEPCION" | "NO_ADEUDO" | "CANCELACION";
+export type TipoVale = "ENTRADA" | "ENTREGA" | "DEVOLUCION" | "TRASPASO" | "RECEPCION" | "NO_ADEUDO" | "CANCELACION" | "AJUSTE";
 
 export const NOMBRE_TIPO_VALE: Record<TipoVale, string> = {
   ENTRADA: "Entrada de inventario",
@@ -19,6 +20,7 @@ export const NOMBRE_TIPO_VALE: Record<TipoVale, string> = {
   RECEPCION: "Recepción de traspaso",
   NO_ADEUDO: "Constancia de no adeudo",
   CANCELACION: "Cancelación de vale",
+  AJUSTE: "Ajuste por faltante de almacén",
 };
 
 const NOMBRE_CONDICION: Record<Condicion, string> = {
@@ -55,6 +57,7 @@ export interface RenglonVale {
  * (api-contracts.md, Vales). NO tiene campos de costo, a propósito: ningún vale muestra costos (F-12).
  */
 export interface ValeDetalle {
+  despacho?: { modo: "APROBADO" | "PROPIO" | "AUTONOMO" | null; aprobo: { nombre: string } | null } | null;
   folio: string;
   tipo: TipoVale;
   /** Instante UTC en ISO; se muestra en hora de México. */
@@ -67,7 +70,7 @@ export interface ValeDetalle {
   trabajador?: { nombre: string; numero_empleado: string; puesto?: string | null; area_obra?: string | null } | null;
   responsable: { nombre: string };
   /** Quien autorizó (un renglón naranja), si hubo autorización. */
-  autorizacion?: { autorizado_por: { nombre: string }; motivo?: string | null } | null;
+  autorizacion?: { autorizado_por: { nombre: string }; motivo?: string | null; medio?: string | null } | null;
   observacion?: string | null;
   /**
    * Firma del trabajador: la imagen (`data:image/png;base64,…` o una dirección). `imagen` va en null
@@ -246,6 +249,7 @@ export function ValeImprimible({ vale, botonImprimir = true, acciones, className
             {vale.autorizacion ? (
               <Dato etiqueta="Validó">
                 {vale.autorizacion.autorizado_por.nombre}
+                {textoMedioValido(vale.autorizacion.medio) ? ` (${textoMedioValido(vale.autorizacion.medio)})` : ""}
                 {vale.autorizacion.motivo ? <span className="block text-sm font-normal text-neutral-700">Motivo: {vale.autorizacion.motivo}</span> : null}
               </Dato>
             ) : null}

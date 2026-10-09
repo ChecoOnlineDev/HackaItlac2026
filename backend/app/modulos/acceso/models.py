@@ -52,8 +52,11 @@ class Usuario(Base):
     # Solo quien puede autorizar tiene PIN; es un secreto distinto de la contraseña.
     pin_hash: Mapped[str | None] = mapped_column(String(255))
     rol_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("rol.id"), nullable=False)
-    # Almacén asignado (uno solo). Puede ir vacío si el rol tiene `almacenes.todos` (RG-07).
+    # Almacén activo; el conjunto asignado está en usuario_almacen (AC-36).
     almacen_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("almacen.id"))
+    despacho_autonomo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("0")
+    )
     activo: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=text("1")
     )
@@ -76,6 +79,17 @@ class Usuario(Base):
     )
 
     rol: Mapped[Rol] = relationship(lazy="joined")
+
+
+class UsuarioAlmacen(Base):
+    """AC-36: almacenes asignados; usuario.almacen_id conserva el activo."""
+
+    __tablename__ = "usuario_almacen"
+
+    usuario_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("usuario.id", ondelete="CASCADE"), primary_key=True
+    )
+    almacen_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("almacen.id"), primary_key=True)
 
 
 class SesionDispositivo(Base):

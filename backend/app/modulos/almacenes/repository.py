@@ -4,10 +4,10 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
-from app.modulos.acceso.models import Usuario
+from app.modulos.acceso.models import Usuario, UsuarioAlmacen
 from app.modulos.almacenes.models import (
     Almacen,
     TipoAlmacen,
@@ -16,6 +16,7 @@ from app.modulos.almacenes.models import (
     UbicacionVirtual,
 )
 from app.modulos.catalogo.models import Articulo, Categoria, Control, EstadoPieza, Pieza
+from app.modulos.catalogo.models_minimos import Minimo
 from app.modulos.movimientos.models import (
     EstadoVale,
     Existencia,
@@ -24,6 +25,7 @@ from app.modulos.movimientos.models import (
     TipoVale,
     Vale,
 )
+from app.modulos.proyectos.models import Proyecto
 from app.modulos.solicitudes_compra.models import (
     EstadoSolicitud,
     SerieSolicitudCompra,
@@ -64,6 +66,7 @@ class FiltroExistencias:
     q: str | None = None
     categoria_id: uuid.UUID | None = None
     activo: bool | None = None
+    bajo_minimo: bool = False
     offset: int = 0
     limit: int = 50
 
@@ -162,24 +165,49 @@ class AlmacenRepository:
     def usuarios_activos_por_almacen(
         self, almacen_id: uuid.UUID | None = None
     ) -> dict[uuid.UUID, int]:
-        consulta = (
-            select(Usuario.almacen_id, func.count())
+        asignados = (
+            select(Usuario.id.label("usuario_id"), Usuario.almacen_id)
             .where(Usuario.almacen_id.is_not(None), Usuario.activo.is_(True))
-            .group_by(Usuario.almacen_id)
+            .union(
+                select(UsuarioAlmacen.usuario_id, UsuarioAlmacen.almacen_id)
+                .join(Usuario, Usuario.id == UsuarioAlmacen.usuario_id)
+                .where(Usuario.activo.is_(True))
+            )
+            .subquery()
         )
+        consulta = select(asignados.c.almacen_id, func.count()).group_by(asignados.c.almacen_id)
         if almacen_id is not None:
-            consulta = consulta.where(Usuario.almacen_id == almacen_id)
+            consulta = consulta.where(asignados.c.almacen_id == almacen_id)
         return {a: int(n) for a, n in self.session.execute(consulta).all()}
 
     def usuarios_activos(self, almacen_id: uuid.UUID, limite: int) -> list[Usuario]:
         return list(
             self.session.scalars(
                 select(Usuario)
-                .where(Usuario.almacen_id == almacen_id, Usuario.activo.is_(True))
+                .where(
+                    Usuario.activo.is_(True),
+                    or_(
+                        Usuario.almacen_id == almacen_id,
+                        select(UsuarioAlmacen.usuario_id)
+                        .where(
+                            UsuarioAlmacen.usuario_id == Usuario.id,
+                            UsuarioAlmacen.almacen_id == almacen_id,
+                        )
+                        .exists(),
+                    ),
+                )
                 .order_by(Usuario.nombre)
                 .limit(limite)
             )
         )
+
+    def proyectos_activos(self, almacen_id, *, bloquear=False) -> list[Proyecto]:
+        consulta = select(Proyecto).where(Proyecto.estado == "ACTIVO")
+        if almacen_id is not None:
+            consulta = consulta.where(Proyecto.almacen_id == almacen_id)
+        if bloquear:
+            consulta = consulta.with_for_update().execution_options(populate_existing=True)
+        return list(self.session.scalars(consulta.order_by(Proyecto.clave)))
 
     def traspasos_en_transito_por_almacen(
         self, almacen_id: uuid.UUID | None = None
@@ -291,7 +319,24 @@ class AlmacenRepository:
         self, ubicacion_id: uuid.UUID, filtro: FiltroExistencias
     ) -> tuple[list, int]:
         """Artículos con existencia en esa ubicación: `(filas, total)`, ordenados por nombre."""
-        condiciones = [Existencia.ubicacion_id == ubicacion_id, Existencia.cantidad > 0]
+        almacen_id = self.session.scalar(
+            select(Ubicacion.almacen_id).where(Ubicacion.id == ubicacion_id)
+        )
+        cantidad = func.coalesce(Existencia.cantidad, 0)
+        aptas = (
+            select(func.count(Pieza.id))
+            .where(
+                Pieza.ubicacion_id == ubicacion_id,
+                Pieza.articulo_id == Articulo.id,
+                Pieza.estado == EstadoPieza.APTO,
+            )
+            .correlate(Articulo)
+            .scalar_subquery()
+        )
+        disponible = case((Articulo.control == Control.PIEZA, aptas), else_=cantidad)
+        condiciones = [(cantidad > 0) | Minimo.articulo_id.is_not(None)]
+        if filtro.bajo_minimo:
+            condiciones.extend([Minimo.cantidad.is_not(None), disponible < Minimo.cantidad])
         if filtro.q:
             patron = f"%{_escapar_like(filtro.q.strip())}%"
             condiciones.append(
@@ -306,17 +351,20 @@ class AlmacenRepository:
             condiciones.append(Articulo.activo == filtro.activo)
 
         base = (
-            select(Articulo, Categoria.nombre, Existencia.cantidad, self._disponible())
-            .join(Existencia, Existencia.articulo_id == Articulo.id)
+            select(Articulo, Categoria.nombre, cantidad, disponible, Minimo.cantidad)
+            .outerjoin(
+                Existencia,
+                and_(
+                    Existencia.articulo_id == Articulo.id, Existencia.ubicacion_id == ubicacion_id
+                ),
+            )
+            .outerjoin(
+                Minimo, and_(Minimo.articulo_id == Articulo.id, Minimo.almacen_id == almacen_id)
+            )
             .join(Categoria, Categoria.id == Articulo.categoria_id)
             .where(*condiciones)
         )
-        total = self.session.scalar(
-            select(func.count())
-            .select_from(Articulo)
-            .join(Existencia, Existencia.articulo_id == Articulo.id)
-            .where(*condiciones)
-        )
+        total = self.session.scalar(select(func.count()).select_from(base.subquery()))
         filas = self.session.execute(
             base.order_by(Articulo.nombre, Articulo.codigo)
             .offset(filtro.offset)

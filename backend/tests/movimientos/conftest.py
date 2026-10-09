@@ -25,7 +25,7 @@ from app.modulos.auditoria.models import Auditoria
 from app.modulos.autorizaciones.models import Autorizacion
 from app.modulos.catalogo.models import Articulo, Codigo, EstadoPieza, Pieza
 from app.modulos.catalogo.service import CatalogoService
-from app.modulos.movimientos.models import Existencia, Movimiento, SerieFolio, Vale
+from app.modulos.movimientos.models import CadenaSello, Existencia, Movimiento, SerieFolio, Vale
 from app.modulos.trabajadores.models import PeriodoContrato, Trabajador
 from tests.conftest import iniciar_sesion_en
 
@@ -135,6 +135,9 @@ def limpieza(sesion_independiente) -> Iterator[Limpieza]:
     """Guarda el contador de folios y, al final, borra lo creado por la prueba."""
     datos = Limpieza()
     antes = sesion_independiente()
+    cadenas = {
+        c.almacen_id: (c.ultimo_vale_id, c.ultimo_hash) for c in antes.scalars(select(CadenaSello))
+    }
     for fila in antes.scalars(select(SerieFolio)):
         datos.series[(fila.almacen_id, fila.tipo)] = fila.ultimo
     antes.close()
@@ -149,7 +152,19 @@ def limpieza(sesion_independiente) -> Iterator[Limpieza]:
         autorizaciones = [
             a for a in s.scalars(select(Vale.autorizacion_id).where(Vale.id.in_(vales))) if a
         ]
-        s.execute(update(Vale).where(Vale.id.in_(vales)).values(firma_adjunto_id=None))
+        # Solo en la base de pruebas: restituir el extremo previo antes de borrar los vales
+        # creados por los hilos. En producción nunca se elimina un eslabón.
+        for cadena in s.scalars(select(CadenaSello)):
+            if cadena.almacen_id in cadenas:
+                cadena.ultimo_vale_id, cadena.ultimo_hash = cadenas[cadena.almacen_id]
+            else:
+                s.delete(cadena)
+        s.flush()
+        s.execute(
+            update(Vale)
+            .where(Vale.id.in_(vales))
+            .values(firma_adjunto_id=None, sello_anterior_id=None)
+        )
         s.execute(delete(Adjunto).where(Adjunto.vale_id.in_(vales)))
         s.execute(delete(Movimiento).where(Movimiento.vale_id.in_(vales)))
         s.execute(delete(Codigo).where(Codigo.ref_id.in_(vales)))

@@ -11,6 +11,7 @@ import type { ValeDetalleApi } from "./tipos";
 export function aValeImprimible(api: ValeDetalleApi, firmaImagen?: string | null): ValeDetalle {
   return {
     folio: api.folio,
+    despacho: api.despacho,
     tipo: api.tipo,
     creado_en: api.creado_en,
     token: api.token,
@@ -26,7 +27,7 @@ export function aValeImprimible(api: ValeDetalleApi, firmaImagen?: string | null
         }
       : null,
     responsable: { nombre: api.responsable.nombre },
-    autorizacion: api.valido ? { autorizado_por: { nombre: api.valido.autorizo.nombre }, motivo: api.valido.motivo } : null,
+    autorizacion: api.valido ? { autorizado_por: { nombre: api.valido.autorizo.nombre }, motivo: api.valido.motivo, medio: api.valido.medio } : null,
     observacion: api.observacion,
     firma: firmaImagen
       ? { imagen: firmaImagen }

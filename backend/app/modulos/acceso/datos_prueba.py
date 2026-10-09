@@ -22,6 +22,7 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
     "Almacenista": frozenset(
         {
             P.TRABAJADORES_VER,
+            P.PROYECTOS_VER,
             P.TRABAJADORES_INICIAR_BAJA,
             P.CATALOGO_VER,
             P.INVENTARIO_VER,
@@ -30,6 +31,7 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.NO_ADEUDO_EMITIR,
             P.VALES_VER,
             P.VALES_CANCELAR,
+            P.INSPECCIONES_VER,
             P.PIEZAS_INSPECCIONAR,
             P.PIEZAS_MARCAR_ESTADO,
             P.TRASPASOS_RECIBIR,
@@ -41,7 +43,10 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
     ),
     "Supervisor": frozenset(
         {
+            P.INVENTARIO_AJUSTAR,
+            P.REPORTES_CIERRE,
             P.TRABAJADORES_VER,
+            P.PROYECTOS_VER,
             P.TRABAJADORES_INICIAR_BAJA,
             P.CATALOGO_VER,
             P.CATALOGO_ADMINISTRAR,
@@ -56,6 +61,7 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.VALES_CANCELAR,
             P.VALES_CANCELAR_TODOS,
             P.AUTORIZACIONES_RESOLVER,
+            P.INSPECCIONES_VER,
             P.PIEZAS_INSPECCIONAR,
             P.PIEZAS_AJUSTAR_VIGENCIA,
             P.PIEZAS_MARCAR_ESTADO,
@@ -64,6 +70,7 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.REPORTES_EXISTENCIAS,
             P.REPORTES_MOVIMIENTOS,
             P.REPORTES_ADEUDOS,
+            P.DEUDORES_VER,
             P.REPORTES_CONSUMO,
             P.ALMACENES_ASIGNAR_PERSONAL,
             P.ETIQUETAS_IMPRIMIR,
@@ -79,6 +86,7 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
             P.CATALOGO_COSTOS,
             P.CATALOGO_LIMITES,
             P.INVENTARIO_VER,
+            P.INVENTARIO_MINIMOS,
             P.INVENTARIO_ENTRADAS,
             P.INVENTARIO_IMPORTAR,
             P.BITACORA_VER,
@@ -96,11 +104,14 @@ PERMISOS_INICIALES: dict[str, frozenset[str]] = {
     "Recursos Humanos": frozenset(
         {
             P.TRABAJADORES_VER,
+            P.PROYECTOS_VER,
             P.TRABAJADORES_VER_DATOS_PERSONALES,
             P.TRABAJADORES_ADMINISTRAR,
+            P.PROYECTOS_ASIGNAR,
             P.TRABAJADORES_INICIAR_BAJA,
             P.VALES_VER,
             P.REPORTES_ADEUDOS,
+            P.DEUDORES_VER,
             P.ETIQUETAS_IMPRIMIR,
         }
     ),

@@ -53,10 +53,16 @@ def listar(
     pagina: PaginacionDep,
     q: str | None = None,
     situacion: Situacion | None = None,
+    proyecto_id: uuid.UUID | None = None,
+    sin_proyecto: bool = False,
 ) -> Pagina[TrabajadorListItem]:
     """`trabajadores.ver`. Lista con vigencia y situación; filtros `q` y `situacion`."""
     elementos, total = service.listar(
-        FiltrosTrabajadores(q=q, situacion=situacion), limit=pagina.limit, offset=pagina.offset
+        FiltrosTrabajadores(
+            q=q, situacion=situacion, proyecto_id=proyecto_id, sin_proyecto=sin_proyecto
+        ),
+        limit=pagina.limit,
+        offset=pagina.offset,
     )
     return Pagina(elementos=elementos, total=total)
 

@@ -15,7 +15,7 @@ import uuid
 from datetime import date
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Header, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, Response, status
 
 from app.core.paginacion import Pagina, PaginacionDep
 from app.db import SesionDep
@@ -29,6 +29,7 @@ from app.modulos.movimientos.schemas import (
     EvaluacionOut,
     EvaluarIn,
     NoAdeudoIn,
+    ReservaPapelOut,
     ValeConfirmadoOut,
     ValeDetalleOut,
     ValeFilters,
@@ -36,6 +37,7 @@ from app.modulos.movimientos.schemas import (
 )
 from app.modulos.movimientos.schemas_cancelacion import CancelacionOut
 from app.modulos.movimientos.service import MovimientoService
+from app.modulos.notificaciones.service import enviar_aviso_autorizacion, enviar_aviso_traslado
 
 router = APIRouter(tags=["movimientos"])
 
@@ -58,12 +60,23 @@ def evaluar(cuerpo: EvaluarIn, usuario: UsuarioActual, service: ServiceDep) -> E
     return service.evaluar(usuario, cuerpo)
 
 
+@router.post(
+    "/vales/reservar-papel", response_model=ReservaPapelOut, status_code=status.HTTP_201_CREATED
+)
+def reservar_papel(
+    cuerpo: ConfirmarIn, usuario: UsuarioActual, service: ServiceDep
+) -> ReservaPapelOut:
+    """F-02: reserva folio y QR para imprimir; no mueve existencias ni crea el vale."""
+    return service.reservar_papel(usuario, cuerpo)
+
+
 @router.post("/vales", response_model=ValeConfirmadoOut, status_code=status.HTTP_201_CREATED)
 def confirmar(
     cuerpo: ConfirmarIn,
     usuario: UsuarioActual,
     service: ServiceDep,
     respuesta: Response,
+    tareas: BackgroundTasks,
     user_agent: Annotated[str | None, Header()] = None,
 ) -> ValeConfirmadoOut:
     """Permiso según el tipo. Confirma el vale en una sola transacción. 201 con el vale nuevo;
@@ -72,19 +85,30 @@ def confirmar(
     vale, creado = service.confirmar(usuario, cuerpo, dispositivo=user_agent)
     if not creado:
         respuesta.status_code = status.HTTP_200_OK
+    elif cuerpo.autorizacion_id:
+        tareas.add_task(enviar_aviso_autorizacion, cuerpo.autorizacion_id, "USADA")
+    if creado and cuerpo.tipo == TipoVale.TRASPASO:
+        tareas.add_task(enviar_aviso_traslado, vale.id)
     return vale
 
 
 @router.get("/vales/por-token/{token}", response_model=ValeDetalleOut)
-def ver_por_token(token: str, usuario: UsuarioVer, service: ServiceDep) -> ValeDetalleOut:
+def ver_por_token(
+    token: str, usuario: UsuarioVer, service: ServiceDep, renglones: bool = True
+) -> ValeDetalleOut:
     """`vales.ver`. El vale que abre su QR."""
-    return service.obtener_por_token(usuario, token)
+    return service.obtener_por_token(usuario, token, incluir_renglones=renglones)
 
 
 @router.get("/vales/{vale_id}", response_model=ValeDetalleOut)
-def ver(vale_id: uuid.UUID, usuario: UsuarioVer, service: ServiceDep) -> ValeDetalleOut:
+def ver(
+    vale_id: uuid.UUID,
+    usuario: UsuarioVer,
+    service: ServiceDep,
+    renglones: bool = True,
+) -> ValeDetalleOut:
     """`vales.ver`. Detalle con renglones; sin costos (F-12)."""
-    return service.obtener(usuario, vale_id)
+    return service.obtener(usuario, vale_id, incluir_renglones=renglones)
 
 
 @router.get("/vales/{vale_id}/firma")

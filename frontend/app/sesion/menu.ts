@@ -58,17 +58,18 @@ export interface ElementoMenu {
    */
   inicio: "flujo" | "siempre" | "gestion";
   /** Cuenta que muestra el botón (traspasos por recibir, solicitudes por autorizar). */
-  contador?: "porRecibir" | "porAutorizar" | "porComprar";
+  contador?: "porRecibir" | "porAutorizar" | "porComprar" | "porInspeccionar";
 }
 
 export const MENU: readonly ElementoMenu[] = [
+  { id: "inspecciones", titulo: "Inspecciones", ruta: "/inspecciones", icono: ClipboardCheck, permisosAlguno: ["inspecciones.ver"], seccion: "operacion", inicio: "siempre", contador: "porInspeccionar" },
   { id: "entregar", titulo: "Entregar", ruta: "/entregar", icono: PackageCheck, permisosAlguno: ["entregas.crear"], seccion: "operacion", inicio: "flujo" },
   { id: "devolver", titulo: "Devolver", ruta: "/devolver", icono: Undo2, permisosAlguno: ["devoluciones.crear"], seccion: "operacion", inicio: "flujo" },
   { id: "consultar", titulo: "Consultar", tituloSolo: "Consultar", ruta: "/consultar", icono: Search, seccion: "operacion", inicio: "flujo" },
   { id: "trasladar", titulo: "Enviar traspasos", pestana: "Enviar", tituloSolo: "Enviar traspasos", ruta: "/trasladar", icono: Truck, permisosAlguno: ["traspasos.operar"], seccion: "traspasos", inicio: "flujo" },
   { id: "recibir", titulo: "Recibir traspasos", pestana: "Recibir", tituloSolo: "Recibir traspasos", ruta: "/recibir", icono: Inbox, permisosAlguno: ["traspasos.recibir"], seccion: "traspasos", inicio: "flujo", contador: "porRecibir" },
   { id: "inventario", titulo: "Existencias", ruta: "/inventario", icono: Boxes, permisosAlguno: ["inventario.ver"], seccion: "inventario", inicio: "gestion" },
-  { id: "rep-movimientos", titulo: "Bitácora", ruta: "/reportes/movimientos", icono: FileClock, permisosAlguno: ["bitacora.ver", "reportes.movimientos"], seccion: "inventario", inicio: "gestion" },
+  { id: "rep-movimientos", titulo: "Bitácora", ruta: "/bitacora", icono: FileClock, permisosAlguno: ["bitacora.ver", "reportes.movimientos"], seccion: "inventario", inicio: "gestion" },
   { id: "seguimiento", titulo: "Piezas y resguardos", ruta: "/seguimiento", icono: MapPinned, permisosAlguno: ["reportes.existencias", "resguardo.ver"], seccion: "inventario", inicio: "siempre" },
   { id: "entrada", titulo: "Dar entrada", ruta: "/entrada", icono: PackagePlus, permisosAlguno: ["inventario.entradas", "inventario.importar"], seccion: "inventario", inicio: "gestion" },
   { id: "articulos", titulo: "Artículos", ruta: "/catalogo/articulos", icono: Package, permisosAlguno: ["catalogo.administrar"], seccion: "catalogo", inicio: "gestion" },
@@ -82,12 +83,13 @@ export const MENU: readonly ElementoMenu[] = [
   { id: "solicitudes-compra", titulo: "Cola de Compras", ruta: "/compras", icono: ClipboardList, permisosAlguno: ["compras.atender"], seccion: "compras", inicio: "gestion", contador: "porComprar" },
   { id: "autorizaciones", titulo: "Autorizaciones", ruta: "/autorizaciones", icono: ShieldCheck, permisosAlguno: ["autorizaciones.resolver"], seccion: "supervision", inicio: "siempre", contador: "porAutorizar" },
   { id: "rep-existencias", titulo: "Reporte de existencias", pestana: "Existencias", tituloSolo: "Reporte de existencias", ruta: "/reportes/existencias", icono: ClipboardList, permisosAlguno: ["reportes.existencias"], seccion: "supervision", inicio: "gestion" },
-  { id: "rep-adeudos", titulo: "Reporte de adeudos", pestana: "Adeudos", tituloSolo: "Reporte de adeudos", ruta: "/reportes/adeudos", icono: FileBarChart, permisosAlguno: ["reportes.adeudos"], seccion: "supervision", inicio: "gestion" },
+  { id: "rep-adeudos", titulo: "Deudores", pestana: "Deudores", tituloSolo: "Deudores", ruta: "/deudores", icono: FileBarChart, permisosAlguno: ["deudores.ver"], seccion: "supervision", inicio: "gestion" },
   { id: "rep-consumo", titulo: "Reporte de consumo", pestana: "Consumo", tituloSolo: "Reporte de consumo", ruta: "/reportes/consumo", icono: FileBarChart, permisosAlguno: ["reportes.consumo"], seccion: "supervision", inicio: "gestion" },
   { id: "usuarios", titulo: "Usuarios", ruta: "/usuarios", icono: UserRoundCog, permisosAlguno: ["acceso.usuarios"], seccion: "personas", inicio: "gestion" },
   { id: "roles", titulo: "Roles y permisos", ruta: "/roles", icono: KeyRound, permisosAlguno: ["acceso.roles"], seccion: "personas", inicio: "gestion" },
   { id: "personal", titulo: "Personal por almacén", ruta: "/personal", icono: UserCog, permisosAlguno: ["almacenes.asignar_personal"], seccion: "personas", inicio: "gestion" },
   { id: "almacenes", titulo: "Almacenes", ruta: "/almacenes", icono: Warehouse, permisosAlguno: ["almacenes.administrar"], seccion: "almacenes", inicio: "gestion" },
+  { id: "proyectos", titulo: "Proyectos", ruta: "/proyectos", icono: Warehouse, permisosAlguno: ["proyectos.ver", "proyectos.asignar"], seccion: "almacenes", inicio: "gestion" },
   // «Mis movimientos de hoy» ya no está en el menú: se llega desde Consultar y desde la Bitácora («Solo los míos»).
   { id: "mis-movimientos", titulo: "Mis movimientos de hoy", ruta: "/mis-movimientos", icono: History, permisosAlguno: ["vales.ver"], seccion: null, inicio: "gestion" },
 ];

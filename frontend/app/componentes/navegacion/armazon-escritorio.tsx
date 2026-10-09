@@ -133,7 +133,7 @@ export function ArmazonEscritorio({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <main className="mx-auto w-full max-w-6xl flex-1 p-6 xl:p-8">{children}</main>
+        <main className="mx-auto w-full min-w-0 max-w-[1600px] flex-1 p-6 xl:p-8">{children}</main>
       </SidebarInset>
       <ConfirmarSalida abierta={confirmandoSalida} alCambiar={setConfirmandoSalida} />
     </SidebarProvider>

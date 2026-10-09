@@ -65,6 +65,10 @@ def _reglas_checks() -> list[CheckConstraint]:
             "limite_periodo_dias IS NULL OR limite_periodo_dias > 0", name="periodo_positivo"
         ),
         CheckConstraint("cantidad_aviso IS NULL OR cantidad_aviso > 0", name="aviso_positivo"),
+        CheckConstraint(
+            "dias_aviso_inspeccion IS NULL OR dias_aviso_inspeccion BETWEEN 1 AND 90",
+            name="dias_aviso_inspeccion_valido",
+        ),
     ]
 
 
@@ -87,6 +91,7 @@ class Categoria(Base):
         Boolean, nullable=False, default=False, server_default=text("0")
     )
     vigencia_inspeccion_dias: Mapped[int | None] = mapped_column(Integer)
+    dias_aviso_inspeccion: Mapped[int | None] = mapped_column(Integer)
     requiere_autorizacion: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("0")
     )
@@ -96,6 +101,9 @@ class Categoria(Base):
     limite_periodo_dias: Mapped[int | None] = mapped_column(Integer)
     # Vacío significa que no hay aviso de cantidad inusual (E-27).
     cantidad_aviso: Mapped[int | None] = mapped_column(Integer)
+    alto_valor: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("0")
+    )
     activo: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=text("1")
     )
@@ -131,6 +139,7 @@ class Articulo(Base):
         Boolean, nullable=False, default=False, server_default=text("0")
     )
     vigencia_inspeccion_dias: Mapped[int | None] = mapped_column(Integer)
+    dias_aviso_inspeccion: Mapped[int | None] = mapped_column(Integer)
     requiere_autorizacion: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("0")
     )

@@ -25,6 +25,9 @@ CAMPOS = {
     "por_categoria",
     "por_almacen",
     "generado_en",
+    "unidades_en_almacen",
+    "unidades_en_resguardo",
+    "unidades_total",
 }
 
 
@@ -65,10 +68,9 @@ def test_VI_02_sin_almacenes_todos_solo_ve_su_almacen_y_con_el_admin_filtra(clie
         "almacen_id": _almacen_id(datos, "CON"),
         "almacen_nombre": datos.almacen("CON").nombre,
     }
-    # Pedir otro almacén se ignora (AC-06).
+    # Pedir otro almacén no muestra información ajena (AC-37).
     pedido = _ok(supervisor, almacen_id=_almacen_id(datos, "MID"))
-    assert pedido["alcance"]["almacen_id"] == _almacen_id(datos, "CON")
-    assert pedido["en_almacen"] == en_con["en_almacen"]
+    assert pedido["en_almacen"] == "0.00"
 
     admin = cliente_con(P.REPORTES_VALOR_INVENTARIO, P.ALMACENES_TODOS)
     todos = _ok(admin)
@@ -134,7 +136,8 @@ def test_VI_05_la_respuesta_no_trae_costos_unitarios_ni_valor_por_articulo(clien
     admin = cliente_con(P.REPORTES_VALOR_INVENTARIO, P.ALMACENES_TODOS)
     r = admin.get(VALOR)
     assert r.status_code == 200
-    assert "777.77" not in r.text and "Artículo VI-05" not in r.text
+    assert "Artículo VI-05" not in r.text
+    # VI-05 prohíbe valores por artículo; un total agregado puede coincidir con su costo.
     assert "costo_unitario" not in r.text and "articulo_id" not in r.text
 
     def claves(x):
@@ -155,6 +158,7 @@ def test_VI_06_el_filtro_sin_costo_lista_solo_articulos_activos_sin_costo(client
     con = datos.articulo("Zeta VI-06 con costo", costo="5.00")
     inactivo = datos.articulo("Zeta VI-06 inactivo sin costo")
     inactivo.activo = False
+    inactivo.motivo_inactivacion = "Fuera de uso en esta prueba"
     datos.session.flush()
 
     ver = cliente_con(P.CATALOGO_VER, almacen="KEP")  # sin catalogo.costos

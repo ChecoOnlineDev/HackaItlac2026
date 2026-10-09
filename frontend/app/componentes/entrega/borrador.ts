@@ -5,6 +5,7 @@
 
 import { practicaActiva } from "~/api/practica";
 import type { FichaTrabajadorApi, FirmaCapturada, ValeConfirmadoApi } from "./tipos";
+import type { ReservaPapel } from "./firma-papel";
 
 /** Un renglón capturado: solo el código, la cantidad y, si se pidió, la observación. */
 export interface RenglonBorrador {
@@ -20,11 +21,15 @@ export interface AutorizacionBorrador {
   /** Códigos de los renglones que se pidió autorizar. */
   codigos: string[];
   vence_en: string;
+  tipo?: "DESPACHO" | "EXCEDENTE" | "TRASLADO";
+  avisados?: number;
+  solicitado_en?: number;
+  renglones_resueltos?: import("./tipos").AutorizacionApi["renglones_resueltos"];
   /** Quién resolvió, si ya se resolvió. */
   resuelta_por?: string | null;
 }
 
-export type PasoEntrega = "trabajador" | "articulos" | "firma" | "resultado";
+export type PasoEntrega = "trabajador" | "articulos" | "aprobacion" | "firma" | "resultado";
 
 export interface BorradorEntrega {
   version: 1;
@@ -36,6 +41,7 @@ export interface BorradorEntrega {
   /** Almacén en el que se capturó (AC-13). */
   almacenId: string | null;
   trabajador: FichaTrabajadorApi | null;
+  proyectoId?: string;
   renglones: RenglonBorrador[];
   /** "¿Por qué se entrega esto?" (E-09): una observación para todo el vale. Se borra junto con el borrador. */
   observacion?: string;
@@ -43,6 +49,9 @@ export interface BorradorEntrega {
   cantidadesConfirmadas: Record<string, number>;
   autorizacion: AutorizacionBorrador | null;
   firma: FirmaCapturada | null;
+  firmaModo?: "PANTALLA" | "PAPEL";
+  reservaPapel?: ReservaPapel;
+  fotoPapel?: string;
   /** Solo en el paso `resultado`: el vale que ya emitió el servidor. */
   resultado: ValeConfirmadoApi | null;
   actualizadoEn: number;

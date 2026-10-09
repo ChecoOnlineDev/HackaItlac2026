@@ -13,11 +13,13 @@ from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import P
 from app.modulos.almacenes.dependencies import AlmacenServiceDep
 from app.modulos.almacenes.exceptions import AlmacenNoEncontrado
+from app.modulos.almacenes.router_minimos import router as router_minimos
 from app.modulos.almacenes.schemas import (
     AlmacenCreate,
     AlmacenFilters,
     AlmacenOut,
     AlmacenUpdate,
+    AutonomiaAlmacenIn,
     CambioEstadoIn,
     ExistenciasOut,
 )
@@ -25,8 +27,22 @@ from app.modulos.almacenes.schemas import (
 router = APIRouter(prefix="/almacenes", tags=["almacenes"])
 
 
+router.include_router(router_minimos)
+
+
 UsuarioInventario = Annotated[Usuario, Depends(requiere_permiso(P.INVENTARIO_VER))]
 UsuarioAdministrar = Annotated[Usuario, Depends(requiere_permiso(P.ALMACENES_ADMINISTRAR))]
+UsuarioAutonomia = Annotated[Usuario, Depends(requiere_permiso(P.DESPACHO_AUTONOMIA))]
+
+
+@router.patch("/{almacen_id}/autonomia", response_model=AlmacenOut)
+def cambiar_autonomia(
+    almacen_id: uuid.UUID,
+    datos: AutonomiaAlmacenIn,
+    usuario: UsuarioAutonomia,
+    service: AlmacenServiceDep,
+) -> AlmacenOut:
+    return service.cambiar_autonomia(almacen_id, datos, usuario)
 
 
 @router.get("", response_model=list[AlmacenOut])
@@ -49,7 +65,8 @@ def listar_almacenes(
     almacenes = service.listar(resumen=resumen)
     if P.ALMACENES_TODOS in permisos or P.TRASPASOS_OPERAR in permisos:
         return almacenes
-    return [a for a in almacenes if a.id == usuario.almacen_id]
+    asignados = acceso.almacenes_del_usuario(usuario.id)
+    return [a for a in almacenes if a.id in asignados]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=AlmacenOut)
@@ -106,6 +123,6 @@ def existencias_del_almacen(
 
     AC-06: sin `almacenes.todos`, solo las del almacén asignado; las de otro, como si no existiera.
     """
-    if not acceso.puede_operar_todos_los_almacenes(usuario) and almacen_id != usuario.almacen_id:
+    if not acceso.en_alcance(usuario, almacen_id):
         raise AlmacenNoEncontrado()
     return service.existencias(almacen_id, filtros, pagina)

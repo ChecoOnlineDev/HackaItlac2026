@@ -20,6 +20,7 @@ import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 
+from app.config import get_settings
 from app.modulos.almacenes.models import Almacen, EstadoAlmacen, TipoAlmacen
 from app.modulos.catalogo.models import Articulo, Categoria, Control, TipoCodigo
 from app.modulos.importacion.categorias_sugeridas import (
@@ -511,6 +512,16 @@ class Analizador:
                 avisos.append("El artículo ya existe: su costo no se cambia.")
                 costo = None
 
+        if costo is not None and costo >= get_settings().alto_valor_costo_minimo:
+            avisos.append("Por su costo cuenta como alto valor.")
+        if control == Control.CANTIDAD and (
+            (categoria and categoria.alto_valor)
+            or (costo is not None and costo >= get_settings().alto_valor_costo_minimo)
+        ):
+            avisos.append(
+                "Conviene controlarlo por pieza, con serie, para saber quién tiene cada uno."
+            )
+
         if motivos:
             visibles = {c: v for c, v in f.items() if self.ctx.puede_costos or c != "costo"}
             res.malas.append(FilaMala(numero, visibles, motivos, sugerida))
@@ -685,7 +696,17 @@ class Analizador:
             elegida = e.elegidas.mapa.get(clave(en_archivo))
         else:
             elegida = None
-            if nombre:
+            costo = _costo(f["costo"]) if self.ctx.puede_costos and f.get("costo") else None
+            if (
+                costo is not None
+                and costo >= get_settings().alto_valor_costo_minimo
+                and clave("Equipo de alto valor") in e.categorias
+            ):
+                sugerida = Sugerida(
+                    e.categorias[clave("Equipo de alto valor")],
+                    "Su costo es de " + str(get_settings().alto_valor_costo_minimo) + " o más",
+                )
+            elif nombre:
                 sugerencia = sugerir(nombre)
                 existente = e.categorias.get(clave(sugerencia.categoria)) if sugerencia else None
                 if sugerencia is not None and existente is not None:

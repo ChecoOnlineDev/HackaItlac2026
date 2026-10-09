@@ -33,3 +33,13 @@ class RenglonNoAutorizable(AppError):
 
     codigo = "RENGLON_NO_AUTORIZABLE"
     mensaje_defecto = "Un renglón en rojo no se puede enviar a autorización."
+
+
+class AprobacionInvalida(AutorizacionInvalida):
+    codigo = "APROBACION_INVALIDA"
+    mensaje_defecto = "La aprobación no cubre los artículos de esta entrega."
+
+
+class RequiereAprobacionDespacho(Conflicto):
+    codigo = "REQUIERE_APROBACION_DESPACHO"
+    mensaje_defecto = "Pide la aprobación del despacho antes de entregar el EPP."

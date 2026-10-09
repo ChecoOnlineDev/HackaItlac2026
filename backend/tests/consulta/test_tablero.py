@@ -63,10 +63,12 @@ def test_TB_01_sin_tablero_ver_el_servidor_responde_403(cliente_con, app, ruta):
     assert TestClient(app).get(ruta).status_code == 401
 
 
-def test_TB_01_sin_almacenes_todos_ignora_almacen_id_y_usa_el_de_la_sesion(cliente_con, datos):
+def test_TB_01_sin_almacenes_todos_no_expone_almacen_fuera_del_conjunto(cliente_con, datos):
     en_con = cliente_con(P.TABLERO_VER, almacen="CON")
     base = _ok(en_con, RESUMEN)
-    assert base["alcance"] == {
+    assert {
+        k: base["alcance"][k] for k in ("almacen_id", "nombre", "es_todos", "puede_elegir")
+    } == {
         "almacen_id": _almacen_id(datos, "CON"),
         "nombre": datos.almacen("CON").nombre,
         "es_todos": False,
@@ -78,16 +80,19 @@ def test_TB_01_sin_almacenes_todos_ignora_almacen_id_y_usa_el_de_la_sesion(clien
     datos.existencia(datos.ub_almacen("CON"), articulo, 5)
 
     pedido_a_mid = _ok(en_con, RESUMEN, almacen_id=_almacen_id(datos, "MID"))
-    assert pedido_a_mid["alcance"]["almacen_id"] == _almacen_id(datos, "CON")  # lo ignoró
-    assert pedido_a_mid["existencias"]["unidades"] == base["existencias"]["unidades"] + 5
-    assert pedido_a_mid["existencias"]["articulos"] == base["existencias"]["articulos"] + 1
+    assert pedido_a_mid["existencias"] == {"unidades": 0, "articulos": 0}
+    despues = _ok(en_con, RESUMEN)
+    assert despues["existencias"]["unidades"] == base["existencias"]["unidades"] + 5
+    assert despues["existencias"]["articulos"] == base["existencias"]["articulos"] + 1
 
 
 def test_TB_01_con_almacenes_todos_ve_todo_y_puede_elegir_uno(cliente_con, datos):
     todos = cliente_con(P.TABLERO_VER, P.ALMACENES_TODOS)
     base_todos = _ok(todos, RESUMEN)
     base_mid = _ok(todos, RESUMEN, almacen_id=_almacen_id(datos, "MID"))
-    assert base_todos["alcance"] == {
+    assert {
+        k: base_todos["alcance"][k] for k in ("almacen_id", "nombre", "es_todos", "puede_elegir")
+    } == {
         "almacen_id": None,
         "nombre": "Todos los almacenes",
         "es_todos": True,
@@ -127,9 +132,9 @@ def test_TB_01_un_almacen_que_no_existe_es_404_y_sin_almacen_el_tablero_llega_va
         "traspasos_en_transito",
         "entregas_hoy",
         "solicitudes_compra_abiertas",
-        "inspecciones_por_vencer",
     ):
         assert cuerpo[campo] == 0, campo
+    assert cuerpo["inspecciones_por_vencer"] is None
     vacio = _ok(sin_almacen, CONSUMO)
     assert vacio["barras"] == [] and vacio["sin_registros"] is True
 
@@ -214,8 +219,8 @@ def test_TB_01_resguardo_de_equipo_importante_cuenta_piezas_entregadas_desde_el_
 def test_TB_01_inspecciones_por_vencer_cuenta_de_hoy_a_siete_dias_sin_las_vencidas(
     cliente_con, datos
 ):
-    en_kep = cliente_con(P.TABLERO_VER, almacen="KEP")
-    en_con = cliente_con(P.TABLERO_VER, almacen="CON")
+    en_kep = cliente_con(P.TABLERO_VER, P.INSPECCIONES_VER, almacen="KEP")
+    en_con = cliente_con(P.TABLERO_VER, P.INSPECCIONES_VER, almacen="CON")
     base_kep = _ok(en_kep, RESUMEN)["inspecciones_por_vencer"]
     base_con = _ok(en_con, RESUMEN)["inspecciones_por_vencer"]
 
@@ -412,9 +417,7 @@ def test_TB_02_separar_por_almacen_reparte_cada_barra_y_la_suma_es_su_total(clie
     assert en_mid["almacen"]["clave"] == "MID"
 
 
-def test_TB_01_en_consumo_sin_almacenes_todos_solo_cuenta_su_almacen_y_ignora_el_filtro(
-    cliente_con, datos
-):
+def test_TB_01_en_consumo_sin_almacenes_todos_no_cuenta_almacenes_ajenos(cliente_con, datos):
     en_kep = cliente_con(P.TABLERO_VER, almacen="KEP")
     disco = _consumible(datos, "Disco alcance TB-01")
     categoria = _categoria(datos, disco)
@@ -432,10 +435,12 @@ def test_TB_01_en_consumo_sin_almacenes_todos_solo_cuenta_su_almacen_y_ignora_el
         almacen_id=_almacen_id(datos, "MID"),
         separar_por_almacen="true",
     )
-    assert cuerpo["total_general"] == 3
-    assert cuerpo["almacen"]["clave"] == "KEP"
+    assert cuerpo["total_general"] == 0
+    assert cuerpo["almacen"] is None
     assert cuerpo["separar_por_almacen"] is False
-    assert cuerpo["barras"][0]["por_almacen"] == []
+    assert cuerpo["barras"] == []
+    propio = _ok(en_kep, CONSUMO, desde=str(DIA), hasta=str(DIA), categoria_id=str(categoria.id))
+    assert propio["total_general"] == 3
 
 
 def test_TB_02_la_suma_de_las_barras_coincide_con_el_reporte_de_consumo(cliente_con, datos):

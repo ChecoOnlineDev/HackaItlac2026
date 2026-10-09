@@ -8,6 +8,14 @@ con su sesión (F-09).
 Reglas: X-01 a X-04, X-06, X-07, X-09, F-09 (en `evaluador_traspasos.py` las que se evalúan).
 Fuera de alcance: X-05 (aviso por mínimo, FEAT-004), X-14 (cancelar lo hace CANCELACION).
 
+Traslado lateral (FEAT-015, X-16 a X-20): entre dos almacenes de tercer nivel la ruta la autoriza el
+supervisor del origen. Si quien envía lo es, su envío es la autorización (X-16: amarillo y
+observación); si no, el vale es naranja (X-17) y se confirma con `autorizacion_id` de tipo TRASLADO
+(la valida el motor con `AutorizacionService.validar_traslado_para_vale`). Los avisos de X-20 (nadie
+en el destino puede recibir) no bloquean. La push informativa al destino (X-20, reglas NT) la manda
+el módulo `notificaciones` de FEAT-014 después del commit; mientras no exista, el punto de enganche
+es `MovimientoService._confirmar_una_vez`, justo después del `commit`.
+
 Cuerpo: `destino_almacen_id` y los renglones (código de la pieza, o del artículo y cantidad). No
 lleva trabajador, ni credencial, ni condición, ni costos.
 
@@ -29,14 +37,22 @@ from app.modulos.movimientos.contexto import (
     MovimientoNuevo,
     PlanBloqueo,
     RenglonEvaluado,
+    RutaEvaluada,
 )
 from app.modulos.movimientos.evaluador import Motivo
+from app.modulos.movimientos.evaluador_minimos import regla_minimo
 from app.modulos.movimientos.evaluador_traspasos import (
+    ClaseRuta,
     HechosAlmacen,
     HechosRenglonTraspaso,
-    es_ruta_habitual,
+    QuienAutoriza,
+    clasificar_ruta,
     evaluar_renglon_traspaso,
     regla_x03_ruta,
+    regla_x16_envio_propio,
+    regla_x17_con_autorizacion,
+    regla_x18_lateral,
+    regla_x20_sin_receptor,
 )
 from app.modulos.movimientos.exceptions import RutaSoloAdministrador
 from app.modulos.movimientos.models import EstadoVale, FirmaModo, Nivel, TipoVale
@@ -66,6 +82,7 @@ def hechos_de_almacen(almacen: Almacen) -> HechosAlmacen:
         nombre=almacen.nombre,
         padre_id=almacen.padre_id,
         activo=almacen.estado == EstadoAlmacen.ACTIVO,
+        tipo=almacen.tipo,
     )
 
 
@@ -147,20 +164,12 @@ class TraspasoTipo(ManejadorTipo):
 
         destino = repo.almacen(cuerpo.destino_almacen_id)
         if destino is None:
-            ruta = Motivo("X-03", Nivel.ROJO, "El almacén de destino no existe.")
+            evaluacion.motivos_vale = [
+                Motivo("X-03", Nivel.ROJO, "El almacén de destino no existe.")
+            ]
+            evaluacion.ruta = RutaEvaluada(ClaseRuta.NO_HABITUAL, QuienAutoriza.NADIE)
         else:
-            origen_h, destino_h = hechos_de_almacen(ctx.almacen), hechos_de_almacen(destino)
-            # X-03: otra ruta que no es padre-hijo solo con `almacenes.todos`.
-            puede = AccesoService(ctx.session).puede_operar_todos_los_almacenes(ctx.usuario)
-            ruta = regla_x03_ruta(origen_h, destino_h, puede_ruta_excepcional=puede)
-            if destino.id != ctx.almacen.id and not es_ruta_habitual(origen_h, destino_h):
-                evaluacion.datos["ruta_no_habitual"] = {
-                    "puede": puede,
-                    "origen": _resumen_almacen(ctx.almacen),
-                    "destino": _resumen_almacen(destino),
-                }
-                evaluacion.pide_observacion_vale = puede
-        evaluacion.motivos_vale = [ruta]
+            self._evaluar_ruta(ctx, evaluacion, destino)
 
         for numero, renglon in enumerate(cuerpo.renglones, start=1):
             ident = carga.identificar(renglon.codigo)
@@ -178,12 +187,31 @@ class TraspasoTipo(ManejadorTipo):
                 ubicacion_origen_id=ctx.ubicacion_almacen.id,
                 existencia_origen=existencia,
             )
+            motivos = evaluar_renglon_traspaso(hechos)
+            if articulo is not None:
+                previo = sum(
+                    r.cantidad
+                    for r in evaluacion.renglones
+                    if r.articulo_id == articulo.id
+                    and (r.pieza is None or r.pieza.get("estado") == "APTO")
+                )
+                salida_disponible = renglon.cantidad + previo
+                if pieza is not None and pieza.estado != "APTO":
+                    salida_disponible = previo
+                aviso = regla_minimo(
+                    "X-05",
+                    carga.almacenes.minimo(ctx.ubicacion_almacen.id, articulo.id),
+                    carga.disponible(ctx.ubicacion_almacen.id, articulo),
+                    salida_disponible,
+                )
+                if aviso is not None:
+                    motivos.append(aviso)
             evaluacion.renglones.append(
                 RenglonEvaluado(
                     renglon=numero,
                     codigo=renglon.codigo,
                     cantidad=renglon.cantidad,
-                    motivos=evaluar_renglon_traspaso(hechos),
+                    motivos=motivos,
                     articulo_id=articulo.id if articulo else None,
                     pieza_id=pieza.id if pieza else None,
                     articulo=vista_articulo(hechos.articulo) if hechos.articulo else None,
@@ -195,11 +223,75 @@ class TraspasoTipo(ManejadorTipo):
             )
         return evaluacion
 
+    def _evaluar_ruta(self, ctx: ContextoVale, evaluacion: Evaluacion, destino: Almacen) -> None:
+        """X-03, X-16 a X-18 y X-20: la ruta del traspaso y quién la autoriza. Llena
+        `motivos_vale`, `ruta` y las marcas que usa `exigir_al_confirmar`."""
+        acceso = AccesoService(ctx.session)
+        origen_h, destino_h = hechos_de_almacen(ctx.almacen), hechos_de_almacen(destino)
+        clase = clasificar_ruta(origen_h, destino_h)
+        # X-03: otra ruta que no es padre-hijo solo con `almacenes.todos`.
+        puede_todos = acceso.puede_operar_todos_los_almacenes(ctx.usuario)
+        motivos: list[Motivo] = []
+        autorizadores = None
+
+        if clase == ClaseRuta.LATERAL:
+            motivos.append(regla_x18_lateral(origen_h, destino_h))  # X-18, antes que X-03
+            if acceso.es_supervisor_de(ctx.usuario, ctx.almacen.id):
+                autoriza = QuienAutoriza.ENVIO_PROPIO  # X-16: su envío es la autorización
+                motivos.append(regla_x16_envio_propio(origen_h, destino_h))
+                evaluacion.pide_observacion_vale = True
+                evaluacion.datos["envio_propio"] = True
+            elif puede_todos:  # un rol con `almacenes.todos` y sin `autorizaciones.resolver`
+                autoriza = QuienAutoriza.ADMINISTRADOR
+                motivos.append(regla_x03_ruta(origen_h, destino_h, puede_ruta_excepcional=True))
+                self._marcar_ruta_no_habitual(ctx, evaluacion, destino, puede=True)
+            else:  # X-17: hace falta una autorización de traslado
+                autoriza = QuienAutoriza.SUPERVISOR_ORIGEN
+                autorizadores = acceso.contar_con_permiso_en(
+                    P.AUTORIZACIONES_RESOLVER,
+                    ctx.almacen.id,
+                    incluir_todos=True,
+                    excluir_usuario_id=ctx.usuario.id,
+                )
+                motivos.append(regla_x17_con_autorizacion(origen_h, destino_h, autorizadores))
+            receptores = acceso.contar_con_permiso_en(P.TRASPASOS_RECIBIR, destino.id)
+            if (aviso := regla_x20_sin_receptor(destino_h, receptores)) is not None:
+                motivos.append(aviso)
+        else:
+            motivos.append(regla_x03_ruta(origen_h, destino_h, puede_ruta_excepcional=puede_todos))
+            autoriza = QuienAutoriza.NADIE
+            if clase == ClaseRuta.NO_HABITUAL:
+                self._marcar_ruta_no_habitual(ctx, evaluacion, destino, puede=puede_todos)
+                if puede_todos:
+                    autoriza = QuienAutoriza.ADMINISTRADOR
+        evaluacion.motivos_vale = motivos
+        evaluacion.ruta = RutaEvaluada(clase, autoriza, autorizadores)
+
+    @staticmethod
+    def _marcar_ruta_no_habitual(
+        ctx: ContextoVale, evaluacion: Evaluacion, destino: Almacen, *, puede: bool
+    ) -> None:
+        evaluacion.datos["ruta_no_habitual"] = {
+            "puede": puede,
+            "origen": _resumen_almacen(ctx.almacen),
+            "destino": _resumen_almacen(destino),
+        }
+        evaluacion.pide_observacion_vale = puede
+
     # ---------------------------------------------------------------- confirmación
 
     def exigir_al_confirmar(self, cuerpo: ValeIn, evaluacion: Evaluacion) -> None:
-        """X-03: una ruta que no es padre-hijo la confirma solo quien tiene `almacenes.todos`
+        """X-16: el envío propio de un traslado lateral pide la observación del motivo (422).
+        X-03: una ruta que no es padre-hijo la confirma solo quien tiene `almacenes.todos`
         (403 `RUTA_SOLO_ADMINISTRADOR`) y con observación en el vale (422)."""
+        if (
+            evaluacion.datos.get("envio_propio")
+            and not (getattr(cuerpo, "observacion", None) or "").strip()
+        ):
+            mensaje = "Escribe para qué se manda este traslado."
+            raise DatosInvalidos(
+                mensaje, [{"campo": "observacion", "mensaje": mensaje, "regla": "X-16"}]
+            )
         ruta = evaluacion.datos.get("ruta_no_habitual")
         if ruta is None:
             return

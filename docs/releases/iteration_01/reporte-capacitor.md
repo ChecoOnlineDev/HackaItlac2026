@@ -8,9 +8,11 @@ Se integró el rediseño de `56da615` de la rama `codex/imhotep-002-dashboard`: 
 
 Se construyó el contenedor Capacitor para la SPA existente, con API fija `https://imhotep-production.checodev.top`, versión `0.1.0`, cabecera de versión, comprobación del servidor OF-02, sesión por peticiones nativas, imágenes autenticadas, conexión, navegación Atrás, compartir archivos e impresión Android. No se implementó operación sin conexión.
 
+Como primer fragmento aislado de OF-06/OF-07 se añadió una primitiva frontend para crear y verificar el PIN local con PBKDF2-SHA256 (600 000 iteraciones y sal aleatoria), rechazar formatos/secuencias/fechas triviales y calcular el bloqueo tras cinco fallos y el borrado tras diez. Sus pruebas unitarias pasan. **No persiste la credencial ni el estado de intentos, no está conectada a la interfaz o al inicio de sesión y no habilita entrada sin conexión.** No reemplaza SQLite cifrada ni el resguardo de la llave con Android Keystore.
+
 ## Archivos modificados
 
-- Contenedor: `frontend/capacitor.config.ts`, `frontend/android/`, `frontend/scripts/android.mjs`, `frontend/app/movil/`, `frontend/package.json`, `frontend/pnpm-lock.yaml`, `frontend/.env.example` y `frontend/vitest.config.ts`.
+- Contenedor y primitiva local OF-06/07: `frontend/capacitor.config.ts`, `frontend/android/`, `frontend/scripts/android.mjs`, `frontend/app/movil/` (incluye `credencial-local.ts` y sus pruebas), `frontend/package.json`, `frontend/pnpm-lock.yaml`, `frontend/.env.example` y `frontend/vitest.config.ts`.
 - Integración web: `frontend/app/api/cliente.ts` y sus pruebas, `app/pwa/registrar.ts`, `app/root.tsx`, avatar, QR y vale imprimible; estilos, navegación, identidad y tablero del rediseño.
 - Servidor: `backend/app/version_app.py`, `backend/app/config.py`, `backend/app/main.py`, `backend/tests/seguridad/test_version_app.py`, `.env.example` y `.gitignore`.
 - Documentación: `AGENTS.md`, `frontend/README.md`, FEAT-020, maestro de iteración, este reporte, notas de estado en arquitectura/API/seguridad/flujos/UI y reportes visuales IMHOTEP-002 a IMHOTEP-004.
@@ -31,8 +33,12 @@ Se construyó el contenedor Capacitor para la SPA existente, con API fija `https
 - `pnpm test` → pasó: 14 pruebas en 3 archivos, incluidas configuración HTTPS, cabecera/cliente y retención/limpieza de exportaciones.
 - `pnpm android:sync` → pasó la construcción web para el origen HTTPS real y la sincronización nativa.
 - `pnpm build` → pasó la construcción web.
+- `pnpm exec vitest run app/movil/credencial-local.test.ts` → 4 pruebas pasaron para la primitiva OF-06/OF-07; no prueban persistencia, interfaz ni operación offline integrada.
+- `pnpm typecheck` y `pnpm build` → pasaron después de añadir la primitiva de PIN local.
+- Validación de esta continuación (2026-10-09): `pnpm typecheck`, `pnpm build`, `pnpm test` (47 pruebas), `VITE_API_ORIGEN=https://imhotep-production.checodev.top pnpm android:sync` y `frontend/android/gradlew.bat assembleDebug` → pasaron. APK debug actualizado en `frontend/android/app/build/outputs/apk/debug/app-debug.apk`; el bundle incluye el origen HTTPS indicado por el usuario.
+- `adb devices` no encontró equipos conectados; no se pudo instalar ni demostrar inicio de sesión autenticado en Android/Zebra. El APK es de depuración y la app sigue siendo en línea.
 - Desde `backend/`, `$env:ENTORNO='desarrollo'; $env:TEST_DB_SUFFIX='codex_capacitor'; uv run pytest tests/seguridad/test_version_app.py tests/seguridad/test_arranque_seguro.py -q` → 25 pruebas pasaron (versión OF-02 y configuración de arranque seguro; no son pruebas de sesión HTTP reales).
-- `uv run pytest -x -q` con ese entorno → **no pasó**: 248 pruebas pasaron y una falló en `tests/consulta/test_valor_inventario.py::test_VI_05_la_respuesta_no_trae_costos_unitarios_ni_valor_por_articulo` (306.65 s); se detuvo en el primer fallo. La aserción busca ausencia del texto `777.77`, pero ese importe aparece en un agregado legítimo de categoría tras añadir una unidad con ese costo. Otro agente confirmó que la prueba, `service_valor.py` y `repository_valor.py` no tienen cambios en esta entrega: la condición es previa. No se modificó inventario ni esa prueba para hacerla pasar. La parte restante de la suite no se ejecutó en esa corrida.
+- Regresión completa (2026-10-09): `uv run pytest -q --tb=short` → **no pasó**: 2,067 aprobadas, 303 fallidas y 21 errores en 31:45. Los fallos abarcan contratos/permisos y varios módulos; un error capturado en teardown no pudo borrar `periodo_contrato` por la FK desde `vale.periodo_contrato_id`. Esta corrida no se ha triageado por completo; no se declara la suite verde.
 - `uv run pytest tests/seguridad -q` con el mismo entorno → **72 pruebas pasaron** en 69.60 s; un aviso de obsolescencia de Starlette. Incluye sesiones revocables, renovación, rotación, concurrencia, datos reservados, tamaño y versión. Son pruebas del servidor y no reemplazan la sesión desde un APK instalado.
 - `uv run ruff check .` → pasó. Comprobación de formato de los cuatro archivos backend cambiados → pasó.
 - `git diff --check` → pasó.
@@ -46,8 +52,8 @@ Se construyó el contenedor Capacitor para la SPA existente, con API fija `https
 ## Riesgos o deuda pendiente
 
 - **FEAT-020 no está completa.** Falta demostrar entrada, renovación, cierre/revocación y ausencia de tokens en JavaScript en equipo real con HTTPS. Falta comprobar cámara, lector Zebra, formularios, imágenes, Compartir e impresión. La compilación no demuestra estos recorridos.
-- Inscripción, dispositivo/secretos, SQLite cifrada, PIN local, paquete, evaluador, cola, subida de lotes, conflictos, descarga programada, notificaciones locales y revocación permanecen pendientes.
-- FEAT-013 a FEAT-019 permanecen sin construir. Sus proyectos, aprobaciones, alertas, bitácora/PDF, deudores y reglas nuevas son dependencias de la app sin conexión. Mantener el orden de la sección 7 del maestro.
+- Inscripción, dispositivo/secretos, SQLite cifrada, persistencia e integración UI de la credencial local OF-06/OF-07, paquete, evaluador, cola, subida de lotes, conflictos, descarga programada, notificaciones locales y revocación permanecen pendientes. La primitiva PBKDF2 y su política de intentos no equivalen a esos flujos.
+- FEAT-013 a FEAT-019 tienen implementación sustancial local; siguen incompletas sus listas de aceptación, recorridos visuales y pruebas físicas indicadas en el reporte de integración. Son dependencias funcionales de la app sin conexión. Mantener el orden de la sección 7 del maestro.
 - La sesión anterior dejó decisiones abiertas: `dispositivo_usuario`, secreto del equipo, idempotencia de inspecciones, comprobante público, Kepler, devolución por verificar y política de seguridad al subir. Resolver antes de migrar o implementar esos comportamientos.
 - La auditoría del maestro sigue detectando FEAT-012 sin brief y contradicciones entre estado documentado y código de FEAT-008/009/011, alcance de etiquetas, búsquedas y alto valor. Este hito no las resuelve ni certifica todas las features anteriores.
 - La suite backend completa no queda certificada: se detuvo por la aserción previa de VI-05. La regresión de seguridad sí pasó completa; corregir la prueba de valor en una tarea propia, preservando su intención de no revelar costos por artículo.

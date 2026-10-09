@@ -9,22 +9,25 @@ atienden endpoints (`crear_categoria`, `actualizar_articulo`, ...) hacen el comm
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import date
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.core.errores_bd import ERRNO_CHECK, ERRNO_LLAVE_FORANEA_PADRE, ERRNO_UNICO, violacion
 from app.core.excepciones import AppError, DatosInvalidos, SinPermiso
 from app.core.ids import nuevo_id
 from app.core.paginacion import Pagina, Paginacion
+from app.core.tiempo import ZONA_MX
 from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import P
 from app.modulos.acceso.service import AccesoService
 from app.modulos.almacenes.service import AlmacenService
 from app.modulos.auditoria.service import AuditoriaService
+from app.modulos.catalogo.alto_valor import calcular_alto_valor
 from app.modulos.catalogo.codigos import CodigoRepetido, CodigoService
 from app.modulos.catalogo.exceptions import (
     ArticuloNoEncontrado,
@@ -87,7 +90,15 @@ class _SinCambio:
 
 SIN_CAMBIO = _SinCambio()
 
-CAMPOS_CATEGORIA = ("nombre", "tipo", "control", "retornable", *CAMPOS_REGLA)
+CAMPOS_CATEGORIA = (
+    "nombre",
+    "tipo",
+    "control",
+    "retornable",
+    "dias_aviso_inspeccion",
+    "alto_valor",
+    *CAMPOS_REGLA,
+)
 # Lo único que un PATCH puede tocar de un artículo (el código y la inactivación tienen su ruta).
 CAMPOS_EDITABLES_ARTICULO = (
     "nombre",
@@ -99,6 +110,7 @@ CAMPOS_EDITABLES_ARTICULO = (
     "talla",
     "unidad",
     "costo_unitario",
+    "dias_aviso_inspeccion",
     *CAMPOS_REGLA,
 )
 CAMPOS_AUDITADOS_ARTICULO = ("codigo", *CAMPOS_EDITABLES_ARTICULO, "activo", "motivo_inactivacion")
@@ -213,6 +225,11 @@ class CatalogoService:
             raise CategoriaNoEncontrada()
         return categoria
 
+    def _salida_categoria(self, categoria):
+        salida = CategoriaOut.model_validate(categoria)
+        salida.articulos_con_aviso_propio = self.categorias.contar_avisos_propios(categoria.id)
+        return salida
+
     def listar_categorias(
         self, filtros: CategoriaFilters, pagina: Paginacion
     ) -> Pagina[CategoriaOut]:
@@ -220,7 +237,7 @@ class CatalogoService:
             activo=filtros.activo, offset=pagina.offset, limit=pagina.limit
         )
         return Pagina[CategoriaOut](
-            elementos=[CategoriaOut.model_validate(c) for c in filas], total=total
+            elementos=[self._salida_categoria(c) for c in filas], total=total
         )
 
     def crear_categoria(self, datos: CategoriaCreate, usuario: Usuario) -> CategoriaOut:
@@ -242,7 +259,7 @@ class CatalogoService:
                 entidad_id=categoria.id,
                 despues=_foto(categoria, CAMPOS_CATEGORIA),
             )
-        return CategoriaOut.model_validate(categoria)
+        return self._salida_categoria(categoria)
 
     def actualizar_categoria(
         self, categoria_id: uuid.UUID, datos: CategoriaUpdate, usuario: Usuario
@@ -257,7 +274,7 @@ class CatalogoService:
         diferencias = {k: v for k, v in nuevos.items() if getattr(categoria, k) != v}
         self._exigir_limites(usuario, diferencias)
         if not diferencias:
-            return CategoriaOut.model_validate(categoria)
+            return self._salida_categoria(categoria)
 
         with self._transaccion():
             if "nombre" in diferencias:
@@ -276,7 +293,7 @@ class CatalogoService:
                 antes=antes,
                 despues=diferencias,
             )
-        return CategoriaOut.model_validate(categoria)
+        return self._salida_categoria(categoria)
 
     # ------------------------------------------------------------------ artículos
 
@@ -301,6 +318,26 @@ class CatalogoService:
         """Verdadero si hay algún movimiento del artículo (CF-05, CF-12). Solo lectura."""
         return self.articulos.tiene_movimientos(articulo_id)
 
+    def es_alto_valor(self, articulo: Articulo) -> bool:
+        """AV-02/05: dato derivado público, sin revelar costo ni origen."""
+        return calcular_alto_valor(articulo, self.obtener_categoria(articulo.categoria_id))[0]
+
+    def configuracion(self, usuario):
+        ajustes = get_settings()
+        datos = {"inspeccion_aviso_dias": ajustes.inspeccion_aviso_dias}
+        if self._ver_costos(usuario):
+            datos["alto_valor_costo_minimo"] = str(ajustes.alto_valor_costo_minimo)
+        return datos
+
+    def aviso_inspeccion(self, articulo: Articulo) -> tuple[int, str]:
+        """P-10: la herencia del aviso se resuelve en vivo, no copia la plantilla."""
+        if articulo.dias_aviso_inspeccion is not None:
+            return articulo.dias_aviso_inspeccion, "ARTICULO"
+        categoria = self.obtener_categoria(articulo.categoria_id)
+        if categoria.dias_aviso_inspeccion is not None:
+            return categoria.dias_aviso_inspeccion, "CATEGORIA"
+        return get_settings().inspeccion_aviso_dias, "GENERAL"
+
     def _salida_articulo(
         self, articulo: Articulo, categoria_nombre: str, ver_costos: bool
     ) -> dict[str, Any]:
@@ -308,6 +345,18 @@ class CatalogoService:
         if not ver_costos:
             datos.pop("costo_unitario")  # sin el campo, la respuesta no lo trae (RG-12)
         datos["categoria_nombre"] = categoria_nombre
+        dias, origen = self.aviso_inspeccion(articulo)
+        datos["dias_aviso_inspeccion_resuelto"] = dias
+        datos["origen_aviso_inspeccion"] = origen
+        alto, motivo = calcular_alto_valor(articulo, self.obtener_categoria(articulo.categoria_id))
+        datos["alto_valor"] = alto
+        datos["avisos"] = (
+            ["Conviene controlarlo por pieza, con serie, para saber quién tiene cada uno."]
+            if alto and articulo.control == Control.CANTIDAD
+            else []
+        )
+        if ver_costos:
+            datos["alto_valor_motivo"] = motivo
         return datos
 
     def _articulo_out(self, articulo: Articulo, usuario: Usuario) -> ArticuloOut:
@@ -437,6 +486,7 @@ class CatalogoService:
             talla=datos.talla,
             unidad=datos.unidad,
             costo_unitario=datos.costo_unitario,
+            dias_aviso_inspeccion=datos.dias_aviso_inspeccion,
             **reglas,
         )
         self.codigos.registrar(datos.codigo, TipoCodigo.ARTICULO, articulo.id)
@@ -735,26 +785,53 @@ class CatalogoService:
 
     # ------------------------------------------------------------------ etiquetas
 
-    def listar_etiquetas(self, tipo: TipoEtiqueta, usuario: Usuario) -> EtiquetasOut:
+    def listar_etiquetas(
+        self,
+        tipo: TipoEtiqueta,
+        usuario: Usuario,
+        *,
+        articulo_id: uuid.UUID | None = None,
+        lote_id: uuid.UUID | None = None,
+        alta_desde: date | None = None,
+        alta_hasta: date | None = None,
+    ) -> EtiquetasOut:
         """US-ETQ-001. El permiso `etiquetas.imprimir` (ya exigido por el router) basta.
 
         El QR contiene exactamente `codigo` (RG-10); `texto` es lo legible junto a él. Una
         credencial solo lleva nombre, número de empleado y puesto, nunca CURP ni NSS
         (RG-13).
         """
+        if ((articulo_id is not None or lote_id is not None) and tipo != TipoEtiqueta.PIEZAS) or (
+            (alta_desde is not None or alta_hasta is not None) and tipo != TipoEtiqueta.CREDENCIALES
+        ):
+            raise DatosInvalidos("Ese filtro no corresponde al tipo de etiqueta.")
+        if alta_desde and alta_hasta and alta_desde > alta_hasta:
+            raise DatosInvalidos("La fecha inicial debe ser anterior a la final.")
+
+        def inicio_utc(dia: date | None, siguiente: bool = False) -> datetime | None:
+            if dia is None:
+                return None
+            return (
+                datetime.combine(dia + timedelta(days=int(siguiente)), time.min, tzinfo=ZONA_MX)
+                .astimezone(UTC)
+                .replace(tzinfo=None)
+            )
+
         elementos: list[EtiquetaOut]
         if tipo == TipoEtiqueta.CREDENCIALES:
             elementos = [
                 EtiquetaOut(
                     codigo=c, texto=f"{n} · {e}", nombre=n, numero_empleado=e, puesto=p or None
                 )
-                for c, n, e, p in self.etiquetas.credenciales()
+                for c, n, e, p in self.etiquetas.credenciales(
+                    inicio_utc(alta_desde), inicio_utc(alta_hasta, True)
+                )
+            ]
+        elif tipo == TipoEtiqueta.PIEZAS:
+            elementos = [
+                EtiquetaOut(codigo=c, texto=t, numero_serie=serie)
+                for c, t, serie in self.etiquetas.piezas(articulo_id, lote_id)
             ]
         else:
-            filas = (
-                self.etiquetas.piezas()
-                if tipo == TipoEtiqueta.PIEZAS
-                else self.etiquetas.estantes()
-            )
-            elementos = [EtiquetaOut(codigo=c, texto=t) for c, t in filas]
+            elementos = [EtiquetaOut(codigo=c, texto=t) for c, t in self.etiquetas.estantes()]
         return EtiquetasOut(elementos=elementos, total=len(elementos))

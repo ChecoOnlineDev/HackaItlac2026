@@ -10,6 +10,8 @@ export interface CuerpoEvaluar {
   almacen_id: string | null;
   /** En una devolución solo hace falta si hay renglones por cantidad (una pieza se abona a su titular). */
   trabajador_id?: string;
+  proyecto_id?: string;
+  observacion?: string;
   id_cliente: string;
   autorizacion_id?: string;
   renglones: {

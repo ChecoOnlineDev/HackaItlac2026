@@ -270,6 +270,7 @@ class CancelacionTipo(ManejadorTipo):
         return DatosVale(
             trabajador_id=original.trabajador_id,
             periodo_contrato_id=original.periodo_contrato_id,
+            proyecto_id=original.proyecto_id,
             vale_origen_id=original.id,
             estado=EstadoVale.EMITIDO,
             firma_modo=FirmaModo.SESION,

@@ -1,6 +1,6 @@
 # FEAT-009: Traspasos por lista de Excel
 
-Estado: **aprobada por el usuario, sin construir.** Amplía el alcance del MVP; el orden de construcción está en [plan-de-implementacion.md](../product/plan-de-implementacion.md).
+Estado: **aprobada por el usuario; importación por lista implementada y TR-10 cubierto en frontend desde revisión/resultado.** Sigue pendiente descargar la lista desde el vale histórico, además de la regresión integral y pruebas físicas. Amplía el alcance del MVP; el orden de construcción está en [plan-de-implementacion.md](../product/plan-de-implementacion.md).
 
 ## Problema u oportunidad
 
@@ -61,6 +61,12 @@ Todavía no hay historia en `docs/stories/`: se escribe al aprobarse la feature.
 - Dado un archivo con el mismo contenido, modo, origen y destino que otro ya usado, entonces la vista previa avisa «este archivo ya se usó» y la confirmación pide `confirmar_repetido: true` (TR-08).
 - Dado un traspaso creado por lista, cuando el destino lo recibe, entonces lo hace con las reglas X-10 a X-13 sin ningún cambio, y lo no recibido sigue En tránsito (TR-09).
 - Segunda entrega: dado un traspaso, cuando se descarga su lista, entonces sale un Excel con sus renglones listo para imprimir (TR-10).
+
+### Avance de TR-10 (9 oct 2026)
+
+La pantalla «Trasladar con una lista» descarga un `.xlsx` desde la vista previa ya cargada y, después de confirmar, desde esos mismos renglones con el folio emitido. Incluye origen/destino, códigos exactos, serie, cantidades, avisos y columnas vacías para anotar recibido/verificado/diferencias. Exporta toda la lista, independientemente de la página o el filtro visible, y omite las filas que se decidió dejar fuera. La versión previa dice expresamente que aún no se ha enviado.
+
+El archivo lleva impresión Carta horizontal, una página de ancho y encabezados repetidos. No agrega dependencias, llamadas ni cambios al contrato del servidor. La descarga desde un vale histórico por `GET /api/traspasos/{id}/lista?formato=xlsx` sigue pendiente; este avance cubre el flujo de la lista cargada, sin marcar toda la feature terminada. Ver [reporte TR-10](../releases/iteration_01/reporte-tr10-lista-imprimible.md).
 
 ## Módulos relacionados conocidos
 

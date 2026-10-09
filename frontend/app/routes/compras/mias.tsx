@@ -29,7 +29,7 @@ import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { HojaFiltros } from "~/componentes/ui/hoja-filtros";
 import { useSesionActiva } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "compras.solicitar" };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permiso: "compras.solicitar" };
 
 const CLAVES = ["q", "estado", "urgencia", "mias", "almacen"] as const;
 

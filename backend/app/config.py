@@ -1,5 +1,6 @@
 """Ajustes leídos de variables de entorno (y del archivo `.env` de la raíz del repositorio)."""
 
+from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -67,6 +68,16 @@ class Settings(BaseSettings):
 
     # Vigencia de una solicitud de autorización, en minutos (A-03, US-AUT-001)
     autorizacion_vigencia_minutos: int = 15
+
+    # Avisos Web Push (NT-07/08). Sin claves, el contador sigue funcionando.
+    vapid_clave_publica: str = ""
+    vapid_clave_privada: str = ""
+    vapid_contacto: str = "mailto:administrador@example.com"
+
+    alto_valor_costo_minimo: Decimal = Field(default=Decimal("10000"), gt=0)
+    inspeccion_aviso_dias: int = Field(default=7, ge=1, le=90)
+    limite_cuerpo_inspeccion: int = 5 * 1024 * 1024
+    limite_cuerpo_inspeccion_lote: int = 210 * 1024 * 1024
 
     # Archivos (firmas y fotos)
     archivos_dir: Path = Path("./almacenamiento")

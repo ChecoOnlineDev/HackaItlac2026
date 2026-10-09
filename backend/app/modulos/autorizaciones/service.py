@@ -6,11 +6,19 @@ Maquina de estados (TRANSICIONES):
     APROBADA  -> USADA
     RECHAZADA, VENCIDA, USADA: terminales.
 
+Tipos (`TipoAutorizacion`): EXCEDENTE (un naranja de una entrega), TRASLADO (un traslado entre
+almacenes de tercer nivel, X-17 y X-19: sin trabajador, `almacen_id` es el origen y el `detalle`
+lleva `origen_almacen_id`, `destino_almacen_id` y los renglones) y DESPACHO (FEAT-014).
+El permiso de pedir depende del tipo y se verifica aqui, por clave.
+
 Servicios que usan otros modulos (`movimientos` al confirmar un vale):
-`obtener`, `validar_para_vale`, `marcar_usada` y `datos_valido`. Ninguno hace commit: el vale y la
-autorizacion usada van en la MISMA transaccion y el commit lo hace `movimientos`.
+`obtener`, `validar_para_vale`, `validar_traslado_para_vale`, `marcar_usada` y `datos_valido`.
+Ninguno hace commit: el vale y la autorizacion usada van en la MISMA transaccion y el commit
+lo hace `movimientos`.
 """
 
+import hashlib
+import json
 import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -21,7 +29,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.core import errores_bd
-from app.core.excepciones import NoEncontrado, SinPermiso
+from app.core.excepciones import AppError, Conflicto, DatosInvalidos, NoEncontrado, SinPermiso
 from app.core.paginacion import Paginacion
 from app.core.reintento import reintentar_si_interbloqueo
 from app.core.tiempo import ahora_utc
@@ -31,18 +39,29 @@ from app.modulos.acceso.permisos import P
 from app.modulos.acceso.service import AccesoService
 from app.modulos.auditoria.service import AuditoriaService
 from app.modulos.autorizaciones.exceptions import (
+    AprobacionInvalida,
     AutorizacionInvalida,
     AutorizacionPropia,
     AutorizacionResuelta,
+    RenglonNoAutorizable,
 )
-from app.modulos.autorizaciones.models import Autorizacion, EstadoAutorizacion, MedioAutorizacion
+from app.modulos.autorizaciones.models import (
+    Autorizacion,
+    EstadoAutorizacion,
+    MedioAutorizacion,
+    TipoAutorizacion,
+)
 from app.modulos.autorizaciones.repository import AutorizacionRepository
 from app.modulos.autorizaciones.schemas import (
+    AlmacenRefOut,
     AutorizacionOut,
     PersonaOut,
     RenglonSolicitud,
     RenglonSolicitudIn,
     ResolucionIn,
+    ResolucionMultipleIn,
+    ResolucionMultipleOut,
+    ResultadoResolucion,
     SolicitudCreate,
     SolicitudListItem,
     TrabajadorOut,
@@ -70,12 +89,22 @@ VerificadorRenglones = Callable[
 ]
 
 
+# Lo mismo para un TRASLADO (X-17, A-06): recibe (origen_id, destino_id, renglones pedidos) y
+# devuelve los renglones evaluados por el servidor. Lanza `RenglonNoAutorizable` si algun renglon
+# esta en rojo, si el vale esta en rojo o si el traslado no necesita autorizacion. Lo arma
+# `movimientos` (`verificador.py`).
+VerificadorTraslado = Callable[
+    [uuid.UUID, uuid.UUID, Sequence[RenglonSolicitudIn]], list[RenglonSolicitud]
+]
+
+
 @dataclass(frozen=True)
 class RenglonVale:
     """Un renglon del vale que requiere autorizacion, para `validar_para_vale`."""
 
     codigo: str
     cantidad: int
+    renglon: int | None = None
 
 
 class AutorizacionService:
@@ -87,54 +116,178 @@ class AutorizacionService:
 
     # ------------------------------------------------------------ solicitar
 
-    def solicitar(
+    def solicitar(self, solicitante, datos, *, verificador_renglones, verificador_traslado=None):
+        """DE-04: la misma identidad y cuerpo reutilizan la solicitud, sin nuevo aviso."""
+        self.acceso.exigir_permiso(solicitante, _permiso_de_pedir(datos.tipo))
+        self.repetida = False
+        claves = [_clave_codigo(r.codigo) for r in datos.renglones]
+        if len(set(claves)) != len(claves):
+            raise DatosInvalidos(
+                "Agrupa la cantidad de cada código en un solo renglón.", {"regla": "DE-04"}
+            )
+        almacen = self.acceso.resolver_almacen(solicitante, datos.almacen_id)
+        cuerpo = datos.model_dump(mode="json", exclude={"id_cliente"})
+        cuerpo["almacen_id"] = str(almacen)
+        cuerpo["solicitada_por"] = str(solicitante.id)
+        huella = hashlib.sha256(
+            json.dumps(cuerpo, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
+        ).hexdigest()
+        if datos.tipo == TipoAutorizacion.DESPACHO and datos.id_cliente is None:
+            raise DatosInvalidos(
+                "Falta identificar esta solicitud.", [{"campo": "id_cliente", "regla": "DE-04"}]
+            )
+
+        def existente():
+            previa = self.repository.por_id_cliente(datos.id_cliente)
+            if previa is None:
+                return None
+            if previa.huella_cuerpo != huella:
+                raise Conflicto("La solicitud ya existe con otros datos.", {"regla": "DE-04"})
+            self.repetida = True
+            return previa
+
+        if datos.id_cliente:
+            previa = existente()
+            if previa:
+                return previa
+        try:
+            return self._solicitar(
+                solicitante,
+                datos,
+                verificador_renglones=verificador_renglones,
+                verificador_traslado=verificador_traslado,
+                huella=huella,
+            )
+        except DBAPIError as exc:
+            self.session.rollback()
+            if datos.id_cliente and errores_bd.es_restriccion(exc, "uq_autorizacion_id_cliente"):
+                previa = existente()
+                if previa:
+                    return previa
+            raise
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def _solicitar(
         self,
         solicitante: Usuario,
         datos: SolicitudCreate,
         *,
         verificador_renglones: VerificadorRenglones,
+        verificador_traslado: VerificadorTraslado | None = None,
+        huella: str | None = None,
     ) -> Autorizacion:
         """Crea una solicitud PENDIENTE (A-02: motivo obligatorio, ya validado en el schema).
 
-        El almacen sale del usuario de la sesion (RG-07, AC-06). `vence_en` es ahora mas la
-        vigencia general (15 min por defecto).
+        El permiso depende del tipo y se verifica aqui, por clave: `entregas.crear` para un
+        EXCEDENTE y `traspasos.operar` para un TRASLADO. El almacen sale del usuario de la sesion
+        (RG-07, AC-06; en un TRASLADO es el origen). `vence_en` es ahora mas la vigencia general
+        (15 min por defecto).
 
         A-06 (un rojo no se autoriza) y A-02/A-04 (lo que lee el supervisor es real): del cliente
-        solo se toman `codigo` y `cantidad`; `verificador_renglones` (la evaluacion de
-        `movimientos`) devuelve los renglones con articulo, limite, excedente y regla del
-        servidor, y lanza `RenglonNoAutorizable` ante un renglon que no sea naranja.
+        solo se toman `codigo` y `cantidad`; el verificador (la evaluacion de `movimientos`)
+        devuelve los renglones con lo que dice el servidor y lanza `RenglonNoAutorizable` ante un
+        renglon que no se pueda autorizar.
         """
+        es_traslado = datos.tipo == TipoAutorizacion.TRASLADO
+        self.acceso.exigir_permiso(
+            solicitante, P.TRASPASOS_OPERAR if es_traslado else P.ENTREGAS_CREAR
+        )
         almacen_id = self.acceso.resolver_almacen(solicitante, datos.almacen_id)
-        if self.repository.trabajador(datos.trabajador_id) is None:
-            raise NoEncontrado("No se encontró al trabajador.")
-        renglones = verificador_renglones(almacen_id, datos.trabajador_id, datos.renglones)
+        detalle: dict
+        motivo = datos.motivo
+        if es_traslado:
+            assert datos.destino_almacen_id is not None and verificador_traslado is not None
+            existentes = self.repository.almacenes([datos.destino_almacen_id])
+            if datos.destino_almacen_id not in existentes:
+                raise NoEncontrado("No se encontró el almacén de destino.")
+            renglones = verificador_traslado(almacen_id, datos.destino_almacen_id, datos.renglones)
+            detalle = {
+                "origen_almacen_id": str(almacen_id),
+                "destino_almacen_id": str(datos.destino_almacen_id),
+            }
+        else:
+            assert datos.trabajador_id is not None
+            if self.repository.trabajador(datos.trabajador_id) is None:
+                raise NoEncontrado("No se encontró al trabajador.")
+            from app.modulos.autorizaciones.verificador_despacho import evaluar_solicitud
+
+            clasificados, proyecto = [], None
+            if datos.tipo == TipoAutorizacion.DESPACHO or self.repository.contiene_epp(
+                [r.codigo for r in datos.renglones]
+            ):
+                clasificados, proyecto = evaluar_solicitud(
+                    self.session, solicitante, almacen_id, datos
+                )
+            necesita = (
+                any(r.clase == "EPP" for r in clasificados)
+                and self.modo_despacho(solicitante, almacen_id) == "CON_APROBACION"
+            )
+            if datos.tipo == TipoAutorizacion.DESPACHO:
+                if not necesita:
+                    raise RenglonNoAutorizable(
+                        "Este despacho no necesita aprobación; vuelve a evaluar.",
+                        {"regla": "DE-01"},
+                    )
+                renglones = clasificados
+                if not any(r.incluye_excedente for r in renglones):
+                    motivo = "Despacho de EPP"
+            else:
+                if necesita:
+                    raise RenglonNoAutorizable(
+                        "Envía toda la entrega a aprobación del despacho.", {"regla": "DE-04"}
+                    )
+                renglones = verificador_renglones(almacen_id, datos.trabajador_id, datos.renglones)
+                for indice, r in enumerate(renglones, 1):
+                    r.renglon = indice
+                    r.incluye_excedente = True
+            detalle = {"proyecto": proyecto, "nota": datos.nota}
+        if not motivo or not motivo.strip():
+            raise DatosInvalidos(
+                "Escribe el motivo del excedente.", [{"campo": "motivo", "regla": "DE-05"}]
+            )
+        detalle["renglones"] = [r.model_dump(mode="json") for r in renglones]
+        from app.modulos.notificaciones.service import NotificacionService
+
+        detalle["avisados"] = NotificacionService(self.session).contar_destinatarios(
+            almacen_id, solicitante.id
+        )
 
         ahora = ahora_utc()
         vigencia = timedelta(minutes=get_settings().autorizacion_vigencia_minutos)
         autorizacion = self.repository.add(
             Autorizacion(
+                tipo=datos.tipo,
                 almacen_id=almacen_id,
                 trabajador_id=datos.trabajador_id,
                 solicitada_por=solicitante.id,
-                motivo=datos.motivo,
-                detalle={"renglones": [r.model_dump(mode="json") for r in renglones]},
+                motivo=motivo,
+                id_cliente=datos.id_cliente,
+                huella_cuerpo=huella,
+                detalle=detalle,
                 estado=E.PENDIENTE,
                 creado_en=ahora,
                 vence_en=ahora + vigencia,
             )
         )
+        despues = {
+            "tipo": datos.tipo,
+            "trabajador_id": datos.trabajador_id,
+            "motivo": datos.motivo,
+            "renglones": detalle["renglones"],
+        }
+        if es_traslado:
+            despues["destino_almacen_id"] = datos.destino_almacen_id
         self.auditoria.registrar(
             usuario_id=solicitante.id,
             accion="autorizacion.solicitar",
             entidad="autorizacion",
             entidad_id=autorizacion.id,
-            despues={
-                "trabajador_id": datos.trabajador_id,
-                "motivo": datos.motivo,
-                "renglones": autorizacion.detalle["renglones"],
-            },
+            despues=despues,
         )
         self.session.commit()
+        # El router programa el aviso después de confirmar esta transacción (NT-07).
         return autorizacion
 
     # ------------------------------------------------------------- consultas
@@ -151,28 +304,61 @@ class AutorizacionService:
         return self._salida(autorizacion)
 
     def listar(
-        self, actor: Usuario, estado: str | None, paginacion: Paginacion
+        self,
+        actor: Usuario,
+        estado: str | None,
+        paginacion: Paginacion,
+        tipo: str | None = None,
+        almacen_id_filtro: uuid.UUID | None = None,
     ) -> tuple[list[SolicitudListItem], int]:
         """Solicitudes para el supervisor. Sin `almacenes.todos`, solo las de su almacén (AC-06)."""
         almacen_id = self._alcance_almacen(actor)
+        if almacen_id_filtro is not None:
+            almacen_id = (
+                {almacen_id_filtro}
+                if almacen_id is None or almacen_id_filtro in almacen_id
+                else set()
+            )
         self.repository.vencer_pendientes(ahora_utc(), almacen_id)
         self.session.commit()
         filas, total = self.repository.listar(
-            estado=estado, almacen_id=almacen_id, offset=paginacion.offset, limit=paginacion.limit
+            estado=estado,
+            almacen_id=almacen_id,
+            offset=paginacion.offset,
+            limit=paginacion.limit,
+            tipo=tipo,
+        )
+        almacenes = self.repository.almacenes(
+            i for a, _, _ in filas for i in self._almacenes_de_traslado(a)
         )
         elementos = []
         for autorizacion, trabajador, solicitante in filas:
             renglones = self._renglones(autorizacion)
+            origen, destino = self._origen_y_destino(autorizacion, almacenes)
             elementos.append(
                 SolicitudListItem(
                     id=autorizacion.id,
+                    tipo=autorizacion.tipo,
+                    servidor_ahora=ahora_utc(),
+                    avisados=(autorizacion.detalle or {}).get("avisados", 0),
+                    nota=(autorizacion.detalle or {}).get("nota"),
+                    proyecto=(autorizacion.detalle or {}).get("proyecto"),
+                    renglones_resueltos=autorizacion.renglones_resueltos,
+                    incluye_excedente=(
+                        autorizacion.tipo == TipoAutorizacion.EXCEDENTE
+                        or any(r.incluye_excedente for r in renglones)
+                    ),
+                    almacen=AlmacenRefOut.model_validate(
+                        self.repository.almacenes([autorizacion.almacen_id])[
+                            autorizacion.almacen_id
+                        ],
+                        from_attributes=True,
+                    ),
                     estado=autorizacion.estado,
                     almacen_id=autorizacion.almacen_id,
-                    trabajador=TrabajadorOut(
-                        id=trabajador.id,
-                        nombre=trabajador.nombre,
-                        numero_empleado=trabajador.numero_empleado,
-                    ),
+                    trabajador=_trabajador_out(trabajador),
+                    origen=origen,
+                    destino=destino,
                     solicitada_por=PersonaOut(id=solicitante.id, nombre=solicitante.nombre),
                     motivo=autorizacion.motivo,
                     renglones=renglones,
@@ -213,17 +399,26 @@ class AutorizacionService:
             raise NoEncontrado("No se encontró la solicitud.")
         por_pin = datos.usuario is not None
         if por_pin:
-            self.acceso.exigir_permiso(actor, P.ENTREGAS_CREAR)
+            # El PIN se da en el dispositivo de quien pidió: debe poder pedir esta clase de
+            # solicitud (`entregas.crear`, o `traspasos.operar` en un traslado).
+            self.acceso.exigir_permiso(actor, _permiso_de_pedir(autorizacion.tipo))
         else:
             self.acceso.exigir_permiso(actor, P.AUTORIZACIONES_RESOLVER)
         if not self._en_alcance(autorizacion, actor):
-            raise NoEncontrado("No se encontró la solicitud.")
+            raise NoEncontrado("No se encontró la solicitud.")  # no es supervisor del origen
+        if datos.renglones is not None and autorizacion.tipo == TipoAutorizacion.TRASLADO:
+            raise DatosInvalidos(
+                "Un traslado se aprueba o se rechaza completo.",
+                [{"campo": "renglones", "regla": "X-19"}],
+            )
 
         # Una vencida o ya resuelta no se resuelve de nuevo (y no gasta intentos de PIN).
         self._vencer_si_corresponde(autorizacion)
         if autorizacion.estado != E.PENDIENTE:
             self.session.commit()  # guarda el vencimiento, si lo hubo
-            raise AutorizacionResuelta(_mensaje_no_pendiente(autorizacion.estado))
+            raise AutorizacionResuelta(
+                _mensaje_no_pendiente(autorizacion.estado), self._detalle_resuelta(autorizacion)
+            )
 
         if por_pin:
             autorizador = self._autorizador_por_pin(autorizacion, datos.usuario, datos.pin)
@@ -235,12 +430,18 @@ class AutorizacionService:
         if autorizador.id == autorizacion.solicitada_por:
             raise AutorizacionPropia()  # A-05, AC-07
 
-        nuevo = E.APROBADA if datos.decision == "APROBAR" else E.RECHAZADA
+        resueltos = self._resolver_renglones(autorizacion, datos)
+        nuevo = E.APROBADA if any(r["decision"] == "APROBADO" for r in resueltos) else E.RECHAZADA
+        autorizacion.renglones_resueltos = resueltos
         antes = autorizacion.estado
         self._transicionar(autorizacion, nuevo)
         autorizacion.resuelta_por = autorizador.id
         autorizacion.medio = medio
         autorizacion.resuelta_en = ahora_utc()
+        if nuevo == E.APROBADA:
+            autorizacion.vence_en = autorizacion.resuelta_en + timedelta(
+                minutes=get_settings().autorizacion_vigencia_minutos
+            )
         self.auditoria.registrar(
             usuario_id=autorizador.id,
             accion="autorizacion.aprobar" if nuevo == E.APROBADA else "autorizacion.rechazar",
@@ -252,6 +453,7 @@ class AutorizacionService:
                 "medio": medio,
                 "solicitada_por": autorizacion.solicitada_por,
                 "motivo": autorizacion.motivo,
+                "renglones_resueltos": resueltos,
                 "excedente": sum(r.excedente or 0 for r in self._renglones(autorizacion)),
             },
         )
@@ -294,25 +496,56 @@ class AutorizacionService:
         `AutorizacionInvalida` (409) con la causa. No escribe nada; después se llama a
         `marcar_usada` en la misma transacción del vale.
         """
-        autorizacion = self.obtener(autorizacion_id)
-        if autorizacion.estado == E.USADA:
-            raise AutorizacionInvalida("Esta autorización ya se usó; solo sirve una vez (A-03).")
-        if autorizacion.estado != E.APROBADA:
-            raise AutorizacionInvalida("La autorización no está aprobada.")
-        if autorizacion.vence_en <= ahora_utc():
-            raise AutorizacionInvalida("La autorización venció.")
+        autorizacion = self.repository.get(autorizacion_id, bloquear=True)
+        if autorizacion is None:
+            raise NoEncontrado("No se encontró la autorización.")
+        self._exigir_aprobada_y_vigente(autorizacion)
+        if autorizacion.tipo != TipoAutorizacion.EXCEDENTE:
+            raise AutorizacionInvalida("Esta autorización es de un traslado, no de una entrega.")
         if autorizacion.almacen_id != almacen_id:
             raise AutorizacionInvalida("La autorización es de otro almacén.")
         if autorizacion.trabajador_id != trabajador_id:
             raise AutorizacionInvalida("La autorización es de otro trabajador.")
         if autorizacion.resuelta_por == usuario.id:
             raise AutorizacionPropia()
-        autorizados = {(r.codigo, r.cantidad) for r in self._renglones(autorizacion)}
+        self._validar_cobertura(autorizacion, renglones)
+        return autorizacion
+
+    def validar_traslado_para_vale(
+        self,
+        autorizacion_id: uuid.UUID,
+        origen_id: uuid.UUID,
+        destino_id: uuid.UUID,
+        renglones: Sequence[RenglonVale],
+        usuario: Usuario,
+    ) -> Autorizacion:
+        """X-19: comprueba que la autorización de traslado sirve para este vale.
+
+        Debe ser de tipo TRASLADO, estar APROBADA, vigente y sin usar, y ser del mismo origen y
+        del mismo destino. Cubre cada renglón del vale con su código y una cantidad que no pase
+        de la autorizada: después de aprobada se pueden QUITAR renglones (o bajar una cantidad),
+        pero no agregar uno, subir una cantidad ni cambiar el destino. `usuario` es quien
+        confirma: no puede ser quien autorizó (A-05). Lanza `AutorizacionInvalida` (409) con la
+        causa. No escribe nada; `movimientos` llama después a `marcar_usada` en la misma
+        transacción del vale.
+        """
+        autorizacion = self.obtener(autorizacion_id)
+        self._exigir_aprobada_y_vigente(autorizacion)
+        if autorizacion.tipo != TipoAutorizacion.TRASLADO:
+            raise AutorizacionInvalida("Esta autorización no es de un traslado.")
+        if autorizacion.almacen_id != origen_id:
+            raise AutorizacionInvalida("La autorización es de otro almacén de origen.")
+        if (autorizacion.detalle or {}).get("destino_almacen_id") != str(destino_id):
+            raise AutorizacionInvalida("La autorización es para otro destino (X-19).")
+        if autorizacion.resuelta_por == usuario.id:
+            raise AutorizacionPropia()
+        autorizados = {_clave_codigo(r.codigo): r.cantidad for r in self._renglones(autorizacion)}
         for renglon in renglones:
-            if (renglon.codigo, renglon.cantidad) not in autorizados:
+            tope = autorizados.get(_clave_codigo(renglon.codigo))
+            if tope is None or renglon.cantidad > tope:
                 raise AutorizacionInvalida(
                     f"La autorización no cubre el renglón {renglon.codigo} con esa cantidad "
-                    "(A-03).",
+                    "(X-19): solo se pueden quitar renglones.",
                     {"codigo": renglon.codigo, "cantidad": renglon.cantidad},
                 )
         return autorizacion
@@ -347,7 +580,161 @@ class AutorizacionService:
             motivo=autorizacion.motivo,
         )
 
+    def modo_despacho(self, usuario, almacen_id):
+        almacen = self.repository.almacenes([almacen_id]).get(almacen_id)
+        if almacen is None:
+            raise NoEncontrado("No se encontró el almacén.")
+        if self.acceso.es_supervisor_de(usuario, almacen_id):
+            return "SUPERVISOR"
+        if not almacen.despacho_epp_con_aprobacion:
+            return "AUTONOMO_ALMACEN"
+        if usuario.despacho_autonomo:
+            return "AUTONOMO_USUARIO"
+        return "CON_APROBACION"
+
+    def _detalle_resuelta(self, a):
+        quien = self.repository.usuario(a.resuelta_por) if a.resuelta_por else None
+        return {
+            "estado": a.estado,
+            "resuelta_por": {"id": str(quien.id), "nombre": quien.nombre} if quien else None,
+            "resuelta_en": a.resuelta_en.isoformat() + "Z" if a.resuelta_en else None,
+            "medio": a.medio,
+        }
+
+    def _resolver_renglones(self, a, datos):
+        todos = self._renglones(a)
+        requeridos = [(r.renglon or i, r) for i, r in enumerate(todos, 1) if r.clase != "CONTEXTO"]
+        pedidos = {r.renglon: r for r in datos.renglones or []}
+        if datos.renglones is not None and (
+            len(pedidos) != len(datos.renglones) or set(pedidos) != {i for i, _ in requeridos}
+        ):
+            raise DatosInvalidos(
+                "Decide una vez por cada artículo que pide aprobación.",
+                [{"campo": "renglones", "regla": "DE-06"}],
+            )
+        salida = []
+        for i, r in requeridos:
+            pedido = pedidos.get(i)
+            decision = pedido.decision if pedido else datos.decision
+            motivo = pedido.motivo if pedido else datos.motivo
+            if (
+                decision == "RECHAZAR"
+                and a.tipo != TipoAutorizacion.TRASLADO
+                and not (motivo or "").strip()
+            ):
+                raise DatosInvalidos(
+                    "Escribe el motivo de cada rechazo.",
+                    [{"campo": "motivo", "renglon": i, "regla": "DE-06"}],
+                )
+            salida.append(
+                {
+                    "renglon": i,
+                    "codigo": r.codigo,
+                    "cantidad": r.cantidad,
+                    "decision": "APROBADO" if decision == "APROBAR" else "RECHAZADO",
+                    "motivo": motivo.strip() if motivo else None,
+                }
+            )
+        return salida
+
+    def _validar_cobertura(self, a, renglones):
+        if a.renglones_resueltos is None:
+            autorizados = {
+                _clave_codigo(r.codigo): {"cantidad": r.cantidad, "decision": "APROBADO"}
+                for r in self._renglones(a)
+            }
+        else:
+            autorizados = {_clave_codigo(r["codigo"]): r for r in a.renglones_resueltos}
+        invalidos = []
+        acumulados = {}
+        for indice, r in enumerate(renglones, 1):
+            codigo = _clave_codigo(r.codigo)
+            acumulados[codigo] = acumulados.get(codigo, 0) + r.cantidad
+            cubierto = autorizados.get(codigo)
+            causa = (
+                "NO_INCLUIDO"
+                if cubierto is None
+                else "RECHAZADO"
+                if cubierto["decision"] != "APROBADO"
+                else "CANTIDAD_MAYOR"
+                if acumulados[codigo] > cubierto["cantidad"]
+                else None
+            )
+            if causa:
+                invalidos.append(
+                    {"renglon": r.renglon or indice, "codigo": r.codigo, "causa": causa}
+                )
+        if invalidos:
+            raise AprobacionInvalida(detalles={"regla": "DE-08", "renglones": invalidos})
+
+    def validar_despacho_para_vale(
+        self,
+        autorizacion_id,
+        almacen_id,
+        trabajador_id,
+        proyecto_id,
+        renglones,
+        usuario,
+        *,
+        bloquear=True,
+    ):
+        a = self.repository.get(autorizacion_id, bloquear=bloquear)
+        if a is None:
+            raise AutorizacionInvalida("No se encontró la aprobación.")
+        self._exigir_aprobada_y_vigente(a)
+        if (
+            a.tipo != TipoAutorizacion.DESPACHO
+            or a.almacen_id != almacen_id
+            or a.trabajador_id != trabajador_id
+        ):
+            raise AutorizacionInvalida("La aprobación corresponde a otra entrega.")
+        proyecto = (a.detalle or {}).get("proyecto")
+        if (proyecto or {}).get("id") != (str(proyecto_id) if proyecto_id else None):
+            raise AutorizacionInvalida(
+                "La aprobación corresponde a otro proyecto.", {"regla": "DE-13"}
+            )
+        if a.resuelta_por == usuario.id:
+            raise AutorizacionPropia()
+        self._validar_cobertura(a, renglones)
+        return a
+
+    def resolver_multiple(self, actor, datos: ResolucionMultipleIn):
+        self.acceso.exigir_permiso(actor, P.AUTORIZACIONES_RESOLVER)
+        resultados = []
+        for item in datos.resoluciones:
+            try:
+                a = self.repository.get(item.id)
+                if a is None or not self._puede_ver(a, actor):
+                    raise NoEncontrado("No se encontró la solicitud.")
+                if item.decision == "APROBAR" and (
+                    a.tipo == TipoAutorizacion.EXCEDENTE
+                    or any(r.incluye_excedente for r in self._renglones(a))
+                ):
+                    raise RenglonNoAutorizable(
+                        "Abre esta solicitud para revisar el excedente.", {"regla": "DE-12"}
+                    )
+                resuelta = self.resolver(
+                    item.id, actor, ResolucionIn(decision=item.decision, motivo=item.motivo)
+                )
+                resultados.append(ResultadoResolucion(id=item.id, estado=resuelta.estado))
+            except AppError as exc:
+                self.session.rollback()
+                resultados.append(
+                    ResultadoResolucion(
+                        id=item.id, error={"codigo": exc.codigo, "mensaje": exc.mensaje}
+                    )
+                )
+        return ResolucionMultipleOut(resultados=resultados)
+
     # ------------------------------------------------------------- internos
+
+    def _exigir_aprobada_y_vigente(self, autorizacion: Autorizacion) -> None:
+        if autorizacion.estado == E.USADA:
+            raise AutorizacionInvalida("Esta autorización ya se usó; solo sirve una vez (A-03).")
+        if autorizacion.estado != E.APROBADA:
+            raise AutorizacionInvalida("La autorización no está aprobada.")
+        if autorizacion.vence_en <= ahora_utc():
+            raise AutorizacionInvalida("La autorización venció.")
 
     def _transicionar(self, autorizacion: Autorizacion, nuevo: str) -> None:
         if nuevo not in TRANSICIONES[autorizacion.estado]:
@@ -371,24 +758,41 @@ class AutorizacionService:
             raise SinPermiso("Ese usuario no puede autorizar en este almacén.")
         return supervisor
 
-    def _alcance_almacen(self, usuario: Usuario) -> uuid.UUID | None:
-        """AC-06: `None` (todos) con `almacenes.todos`; si no, solo el almacén del usuario."""
-        if self.acceso.puede_operar_todos_los_almacenes(usuario):
-            return None
-        if usuario.almacen_id is None:
-            raise SinPermiso("No tienes un almacén asignado.")
-        return usuario.almacen_id
+    def _alcance_almacen(self, usuario):
+        alcance = self.acceso.alcance_del_usuario(usuario.id)
+        if alcance == set():
+            raise SinPermiso("No tienes almacenes asignados.")
+        return alcance
 
-    def _en_alcance(self, autorizacion: Autorizacion, usuario: Usuario) -> bool:
-        if self.acceso.puede_operar_todos_los_almacenes(usuario):
-            return True
-        return usuario.almacen_id == autorizacion.almacen_id
+    def _en_alcance(self, autorizacion, usuario):
+        return self.acceso.en_alcance(usuario, autorizacion.almacen_id)
 
     def _puede_ver(self, autorizacion: Autorizacion, actor: Usuario) -> bool:
         if autorizacion.solicitada_por == actor.id:
             return True
         return self.acceso.tiene_permiso(actor, P.AUTORIZACIONES_RESOLVER) and self._en_alcance(
             autorizacion, actor
+        )
+
+    @staticmethod
+    def _almacenes_de_traslado(autorizacion: Autorizacion) -> list[uuid.UUID]:
+        """Origen y destino de un TRASLADO (vacío en los demás tipos)."""
+        if autorizacion.tipo != TipoAutorizacion.TRASLADO:
+            return []
+        detalle = autorizacion.detalle or {}
+        return [autorizacion.almacen_id, uuid.UUID(detalle["destino_almacen_id"])]
+
+    @staticmethod
+    def _origen_y_destino(
+        autorizacion: Autorizacion, almacenes: dict
+    ) -> tuple[AlmacenRefOut | None, AlmacenRefOut | None]:
+        if autorizacion.tipo != TipoAutorizacion.TRASLADO:
+            return None, None
+        destino_id = uuid.UUID((autorizacion.detalle or {})["destino_almacen_id"])
+        origen, destino = almacenes[autorizacion.almacen_id], almacenes[destino_id]
+        return (
+            AlmacenRefOut(id=origen.id, clave=origen.clave, nombre=origen.nombre),
+            AlmacenRefOut(id=destino.id, clave=destino.clave, nombre=destino.nombre),
         )
 
     @staticmethod
@@ -403,13 +807,37 @@ class AutorizacionService:
             if autorizacion.resuelta_por
             else None
         )
+        trabajador = (
+            self.repository.trabajador(autorizacion.trabajador_id)
+            if autorizacion.trabajador_id
+            else None
+        )
+        almacenes = self.repository.almacenes(self._almacenes_de_traslado(autorizacion))
+        origen, destino = self._origen_y_destino(autorizacion, almacenes)
         return AutorizacionOut(
             id=autorizacion.id,
+            tipo=autorizacion.tipo,
+            servidor_ahora=ahora_utc(),
+            avisados=(autorizacion.detalle or {}).get("avisados", 0),
+            nota=(autorizacion.detalle or {}).get("nota"),
+            proyecto=(autorizacion.detalle or {}).get("proyecto"),
+            renglones_resueltos=autorizacion.renglones_resueltos,
+            incluye_excedente=(
+                autorizacion.tipo == TipoAutorizacion.EXCEDENTE
+                or any(r.incluye_excedente for r in self._renglones(autorizacion))
+            ),
+            almacen=AlmacenRefOut.model_validate(
+                self.repository.almacenes([autorizacion.almacen_id])[autorizacion.almacen_id],
+                from_attributes=True,
+            ),
             estado=autorizacion.estado,
             medio=autorizacion.medio,
             motivo=autorizacion.motivo,
             trabajador_id=autorizacion.trabajador_id,
+            trabajador=_trabajador_out(trabajador),
             almacen_id=autorizacion.almacen_id,
+            origen=origen,
+            destino=destino,
             renglones=self._renglones(autorizacion),
             solicitada_por=PersonaOut(id=solicitante.id, nombre=solicitante.nombre),
             resuelta_por=PersonaOut(id=autorizador.id, nombre=autorizador.nombre)
@@ -421,6 +849,26 @@ class AutorizacionService:
         )
 
 
+def _permiso_de_pedir(tipo: str) -> str:
+    """El permiso que se necesita para PEDIR una autorización de ese tipo."""
+    return P.TRASPASOS_OPERAR if tipo == TipoAutorizacion.TRASLADO else P.ENTREGAS_CREAR
+
+
+def _clave_codigo(codigo: str) -> str:
+    return codigo.strip().casefold()
+
+
+def _trabajador_out(trabajador) -> TrabajadorOut | None:
+    if trabajador is None:
+        return None
+    return TrabajadorOut(
+        id=trabajador.id,
+        nombre=trabajador.nombre,
+        numero_empleado=trabajador.numero_empleado,
+        tiene_foto=trabajador.foto_adjunto_id is not None,
+    )
+
+
 def _mensaje_no_pendiente(estado: str) -> str:
     return {
         E.VENCIDA: "La solicitud venció. Quita el renglón y entrega lo demás (A-07).",
@@ -430,4 +878,10 @@ def _mensaje_no_pendiente(estado: str) -> str:
     }.get(estado, "Esta solicitud ya no está pendiente.")
 
 
-__all__ = ["AutorizacionService", "RenglonVale", "TRANSICIONES", "VerificadorRenglones"]
+__all__ = [
+    "AutorizacionService",
+    "RenglonVale",
+    "TRANSICIONES",
+    "VerificadorRenglones",
+    "VerificadorTraslado",
+]

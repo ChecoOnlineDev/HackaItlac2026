@@ -28,6 +28,7 @@ from app.modulos.movimientos.contexto import (
     RenglonEvaluado,
 )
 from app.modulos.movimientos.evaluador import (
+    Motivo,
     evaluar_renglon_entrega,
     excedente_limite,
     regla_e02_vigencia,
@@ -79,13 +80,35 @@ class EntregaTipo(ManejadorTipo):
         if not cuerpo.renglones:
             raise _campo("renglones", "Agrega al menos un renglón.")
         firma = getattr(cuerpo, "firma", None)
-        if firma is None or not firma.imagen:
+        if firma is None:
             raise FirmaRequerida(
                 "Falta la firma del trabajador.",
                 [{"campo": "firma", "mensaje": "Falta la firma del trabajador.", "regla": "F-02"}],
             )
+        if firma.modo == FirmaModo.PAPEL:
+            if cuerpo.reserva_papel_id is None:
+                raise _campo(
+                    "reserva_papel_id", "Vuelve a imprimir el ticket reservado antes de confirmar."
+                )
+            if not firma.imagen:
+                raise FirmaRequerida(
+                    "Toma una foto clara del ticket firmado.",
+                    [
+                        {
+                            "campo": "firma.imagen",
+                            "mensaje": "Adjunta la foto del ticket firmado.",
+                            "regla": "F-02",
+                        }
+                    ],
+                )
+            return
         if firma.modo != FirmaModo.PANTALLA:
-            raise _campo("firma.modo", "La entrega se firma en pantalla.")
+            raise _campo("firma.modo", "Elige firmar en pantalla o con un ticket de papel.")
+        if not firma.imagen:
+            raise FirmaRequerida(
+                "Falta la firma del trabajador.",
+                [{"campo": "firma", "mensaje": "Falta la firma del trabajador.", "regla": "F-02"}],
+            )
         # F-02: la imagen debe ser un PNG completo y el trazo traer puntos de verdad.
         validar_png_de_firma(decodificar_data_url(firma.imagen))
         if contar_puntos_del_trazo(firma.trazo) < TRAZO_PUNTOS_MINIMO:
@@ -140,6 +163,7 @@ class EntregaTipo(ManejadorTipo):
 
         evaluacion = Evaluacion(trabajador=carga.ficha(trabajador))
         evaluacion.motivos_vale = [m for m in (e02, e12) if m is not None]
+        self._proyecto(ctx, cuerpo, evaluacion)
 
         pedido: dict[uuid.UUID, int] = defaultdict(int)
         for numero, renglon in enumerate(cuerpo.renglones, start=1):
@@ -181,13 +205,54 @@ class EntregaTipo(ManejadorTipo):
                     },
                 )
             )
+        self._despacho(ctx, evaluacion)
         return evaluacion
+
+    def _despacho(self, ctx, evaluacion):
+        from app.modulos.autorizaciones.service import AutorizacionService
+
+        autorizaciones = AutorizacionService(ctx.session)
+        for r in evaluacion.renglones:
+            r.extra["es_epp"] = bool(
+                r.articulo_id and autorizaciones.repository.es_epp(r.articulo_id)
+            )
+        if not any(r.extra["es_epp"] for r in evaluacion.renglones):
+            return
+        evaluacion.despacho_modo = autorizaciones.modo_despacho(ctx.usuario, ctx.almacen.id)
+        evaluacion.requiere_aprobacion_despacho = evaluacion.despacho_modo == "CON_APROBACION"
+        for r in evaluacion.renglones:
+            r.extra["requiere_aprobacion"] = (
+                r.extra["es_epp"] and evaluacion.requiere_aprobacion_despacho
+            )
+            if r.extra["es_epp"]:
+                regla = (
+                    "DE-01"
+                    if evaluacion.requiere_aprobacion_despacho
+                    else "DE-07"
+                    if evaluacion.despacho_modo == "SUPERVISOR"
+                    else "DE-14"
+                )
+                r.extra["regla_despacho"] = regla
 
     # ---------------------------------------------------------------- confirmación
 
     def exigir_al_confirmar(self, cuerpo: ValeIn, evaluacion: Evaluacion) -> None:
-        """E-09: un renglón fuera de la dotación o sobre lo recomendado necesita observación,
-        la del renglón o la del vale. Con el vale en rojo responde el motor (VALE_CAMBIO)."""
+        """PR-09/10 y E-09: exigir proyecto u observación al confirmar."""
+        from app.modulos.proyectos.exceptions import ProyectoRequerido
+
+        if evaluacion.pide_proyecto and evaluacion.proyecto is None:
+            raise ProyectoRequerido(
+                "Elige para qué proyecto es esta entrega.",
+                [{"regla": "PR-09", "campo": "proyecto_id"}],
+            )
+        if (
+            any(m.regla == "PR-10" for m in evaluacion.motivos_vale)
+            and not (getattr(cuerpo, "observacion", None) or "").strip()
+        ):
+            raise DatosInvalidos(
+                "Explica por qué se entrega sin proyecto.",
+                [{"regla": "PR-10", "campo": "observacion"}],
+            )
         if evaluacion.nivel == Nivel.ROJO:
             return
         del_vale = (getattr(cuerpo, "observacion", None) or "").strip()
@@ -222,6 +287,39 @@ class EntregaTipo(ManejadorTipo):
                 plan.piezas.add(ident.pieza.id)
         return plan
 
+    def _proyecto(self, ctx: ContextoVale, cuerpo: ValeIn, evaluacion: Evaluacion) -> None:
+        from app.modulos.proyectos.exceptions import ProyectoInvalido
+        from app.modulos.proyectos.service import ProyectoService
+
+        asignaciones = ProyectoService(ctx.session).proyectos_activos_del_trabajador(
+            cuerpo.trabajador_id, bloquear=ctx.bloqueado
+        )
+        opciones = [
+            {"id": a.proyecto.id, "clave": a.proyecto.clave, "nombre": a.proyecto.nombre}
+            for a in asignaciones
+        ]
+        evaluacion.proyectos_del_trabajador = opciones
+        if cuerpo.proyecto_id is not None:
+            elegido = next((p for p in opciones if p["id"] == cuerpo.proyecto_id), None)
+            if elegido is None:
+                raise ProyectoInvalido(
+                    "El proyecto no está asignado a este trabajador.",
+                    [{"regla": "PR-09", "campo": "proyecto_id"}],
+                )
+            evaluacion.proyecto = elegido
+        elif len(opciones) == 1:
+            evaluacion.proyecto = opciones[0]
+        elif len(opciones) > 1:
+            evaluacion.pide_proyecto = True
+            evaluacion.motivos_vale.append(
+                Motivo("PR-09", Nivel.AMARILLO, "Elige para qué proyecto es esta entrega.")
+            )
+        else:
+            evaluacion.pide_observacion_vale = True
+            evaluacion.motivos_vale.append(
+                Motivo("PR-10", Nivel.AMARILLO, "Este trabajador no tiene proyecto activo.")
+            )
+
     def datos_vale(self, ctx: ContextoVale, cuerpo: ValeIn, evaluacion: Evaluacion) -> DatosVale:
         assert cuerpo.trabajador_id is not None
         trabajador = ctx.cargador.trabajador(cuerpo.trabajador_id)
@@ -229,7 +327,8 @@ class EntregaTipo(ManejadorTipo):
         return DatosVale(
             trabajador_id=trabajador.id,
             periodo_contrato_id=periodo.id if periodo else None,
-            firma_modo=FirmaModo.PANTALLA,
+            proyecto_id=evaluacion.proyecto["id"] if evaluacion.proyecto else None,
+            firma_modo=cuerpo.firma.modo if cuerpo.firma else FirmaModo.PANTALLA,
         )
 
     def construir_movimientos(
@@ -256,7 +355,8 @@ class EntregaTipo(ManejadorTipo):
                     trabajador_id=cuerpo.trabajador_id,
                     condicion=str(r.extra["condicion"] or Condicion.BUENO),  # E-22
                     nivel=r.nivel,
-                    reglas=motivos_ids(r),
+                    reglas=motivos_ids(r)
+                    + ([r.extra["regla_despacho"]] if r.extra.get("regla_despacho") else []),
                     # E-09: sin observación propia, el renglón lleva la del vale.
                     observacion=r.extra["observacion"]
                     or (

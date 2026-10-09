@@ -5,6 +5,7 @@ from datetime import datetime
 from enum import StrEnum
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Computed,
     ForeignKey,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -61,6 +63,9 @@ class Almacen(Base):
     # Arma la red: Kepler -> Contratistas -> almacenes de área.
     padre_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("almacen.id"))
     estado: Mapped[str] = mapped_column(String(10), nullable=False, default=EstadoAlmacen.ACTIVO)
+    despacho_epp_con_aprobacion: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("1")
+    )
     creado_en: Mapped[datetime] = mapped_column(FechaHora, nullable=False, default=ahora_utc)
     cerrado_en: Mapped[datetime | None] = mapped_column(FechaHora)
     # AL-02: un solo CENTRAL. Vale 1 solo si `tipo = 'CENTRAL'` y si no, NULL; el índice único

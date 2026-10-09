@@ -4,9 +4,9 @@ Cuerpo comun de la vista previa y la confirmacion, y respuestas. Nada lleva cost
 """
 
 import uuid
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from app.modulos.importacion.schemas import MAX_CELDA, MAX_COLUMNAS, MAX_FILAS, AlmacenRefOut
 from app.modulos.movimientos.schemas import FechaUtc
@@ -51,6 +51,9 @@ class TraspasoIn(_Estricto):
     primera_fila: int = Field(default=1, ge=1, le=1_000_000)
     destino_almacen_id: uuid.UUID | None = None
     almacen_id: uuid.UUID | None = None
+    # Autorización de traslado aprobada (X-17, X-19): la vista previa dice si sirve y la
+    # confirmación la usa. Solo cuenta en un traslado lateral de quien no es supervisor del origen.
+    autorizacion_id: uuid.UUID | None = None
 
     @field_validator("columnas")
     @classmethod
@@ -116,10 +119,18 @@ class FilaTraspasoOut(BaseModel):
 
 
 class RutaOut(BaseModel):
+    """La ruta del archivo, evaluada una vez para todo el archivo (TR-05) como en `POST
+    /api/vales/evaluar`: `clase` y `autoriza` (X-03, X-16 a X-18). `autorizada` dice si la
+    `autorizacion_id` enviada sirve para las filas que no están en rojo (X-17)."""
+
     habitual: bool
     nivel: str
     pide_observacion: bool
     mensaje: str
+    clase: Literal["HABITUAL", "LATERAL", "NO_HABITUAL", "MISMO"]
+    autoriza: Literal["NADIE", "ENVIO_PROPIO", "SUPERVISOR_ORIGEN", "ADMINISTRADOR"]
+    autorizadores_disponibles: int | None = None
+    autorizada: bool = False
 
 
 class ArchivoRepetidoTraspasoOut(BaseModel):
@@ -143,6 +154,8 @@ class VistaPreviaTraspasoOut(BaseModel):
     # Motivos que valen para todo el archivo y no para una fila (AL-04: almacen cerrado).
     motivos: list[MotivoFilaOut]
     puede_confirmar: bool
+    # Si se envió una `autorizacion_id` que no sirve, por qué (X-19).
+    autorizacion_error: str | None = None
     archivo_repetido: ArchivoRepetidoTraspasoOut | None
     resumen: ResumenVistaTraspasoOut
     filas: list[FilaTraspasoOut]
@@ -186,6 +199,12 @@ class TraspasoOut(BaseModel):
     """201 al confirmar; 200 con `repetida: true` si el lote ya se habia confirmado."""
 
     id_lote: uuid.UUID
+
+    @computed_field
+    @property
+    def lote_id(self) -> uuid.UUID:
+        return self.id_lote
+
     repetida: bool
     vale: ValeTraspasoOut
     resumen: ResumenTraspasoOut

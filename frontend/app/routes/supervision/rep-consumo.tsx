@@ -20,7 +20,7 @@ import { SelectorBusqueda } from "~/componentes/reportes/selector-busqueda";
 import { TAMANO_REPORTE, unidadConNumero, type ConsumoReporte, type FiltroActivo, type PaginaReporte } from "~/componentes/reportes/tipos";
 import { useFiltrosUrl } from "~/componentes/reportes/usar-filtros";
 
-export const handle: ManejadorRuta = { permiso: "reportes.consumo" };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permiso: "reportes.consumo" };
 
 const CLAVES = ["desde", "hasta", "almacen_id", "categoria_id", "articulo_id", "trabajador_id"] as const;
 

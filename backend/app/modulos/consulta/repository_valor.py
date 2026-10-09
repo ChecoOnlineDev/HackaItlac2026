@@ -11,6 +11,7 @@ import uuid
 from sqlalchemy import and_, case, func, literal_column, select
 from sqlalchemy.orm import Session, aliased
 
+from app.modulos.acceso.alcance_almacenes import condicion_almacenes
 from app.modulos.almacenes.models import Almacen, TipoUbicacion, Ubicacion, UbicacionVirtual
 from app.modulos.catalogo.models import Articulo, Categoria
 from app.modulos.movimientos.models import Existencia, Movimiento, TipoVale, Vale
@@ -47,7 +48,7 @@ class ValorRepository:
             .where(Ubicacion.tipo == TipoUbicacion.ALMACEN, Existencia.cantidad > 0)
         )
         if almacen_id is not None:
-            consulta = consulta.where(Ubicacion.almacen_id == almacen_id)
+            consulta = consulta.where(condicion_almacenes(Ubicacion.almacen_id, almacen_id))
         consulta = consulta.group_by(
             Ubicacion.almacen_id, Existencia.articulo_id, Categoria.nombre, Articulo.costo_unitario
         )
@@ -103,7 +104,7 @@ class ValorRepository:
             .where(Ubicacion.tipo == TipoUbicacion.TRABAJADOR, Existencia.cantidad > 0)
         )
         if almacen_id is not None:
-            consulta = consulta.where(ent.c.vale_almacen_id == almacen_id)
+            consulta = consulta.where(condicion_almacenes(ent.c.vale_almacen_id, almacen_id))
         consulta = consulta.group_by(
             ent.c.vale_almacen_id, Existencia.articulo_id, Categoria.nombre, Articulo.costo_unitario
         )

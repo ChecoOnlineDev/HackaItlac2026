@@ -36,6 +36,7 @@ class TipoVale(StrEnum):
     RECEPCION = "RECEPCION"
     NO_ADEUDO = "NO_ADEUDO"
     CANCELACION = "CANCELACION"
+    AJUSTE = "AJUSTE"
 
 
 # Prefijo del folio por tipo de vale (data-model.md): CLAVE-TIPO-CONSECUTIVO.
@@ -47,6 +48,7 @@ PREFIJO_FOLIO: dict[TipoVale, str] = {
     TipoVale.RECEPCION: "REC",
     TipoVale.NO_ADEUDO: "NAD",
     TipoVale.CANCELACION: "CAN",
+    TipoVale.AJUSTE: "AJU",
 }
 
 
@@ -60,6 +62,7 @@ class EstadoVale(StrEnum):
 
 class FirmaModo(StrEnum):
     PANTALLA = "PANTALLA"
+    PAPEL = "PAPEL"
     SESION = "SESION"
 
 
@@ -82,7 +85,8 @@ class Vale(Base):
         check_enum("tipo", TipoVale),
         check_enum("estado", EstadoVale),
         CheckConstraint(
-            "firma_modo IS NULL OR firma_modo IN ('PANTALLA', 'SESION')", name="firma_modo_valido"
+            "firma_modo IS NULL OR firma_modo IN ('PANTALLA', 'SESION', 'PAPEL')",
+            name="firma_modo_valido",
         ),
         Index("ix_vale_tipo_almacen_id_creado_en", "tipo", "almacen_id", "creado_en"),
         Index("ix_vale_trabajador_id", "trabajador_id"),
@@ -96,12 +100,16 @@ class Vale(Base):
     # un reintento con el mismo `id_cliente` y OTRO cuerpo se rechaza (409). Vacío en los vales
     # anteriores a esta columna y en los que no vienen de `POST /api/vales`.
     huella_cuerpo: Mapped[str | None] = mapped_column(String(64))
+    hash: Mapped[str | None] = mapped_column(String(64))
+    hash_anterior: Mapped[str | None] = mapped_column(String(64))
+    sello_anterior_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("vale.id"))
     tipo: Mapped[str] = mapped_column(String(15), nullable=False)
     # CLAVE-TIPO-CONSECUTIVO, de `serie_folio`; nunca del `id` (ADR-006).
     folio: Mapped[str] = mapped_column(String(30), nullable=False, unique=True)
     almacen_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("almacen.id"), nullable=False)
     trabajador_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("trabajador.id"))
     periodo_contrato_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("periodo_contrato.id"))
+    proyecto_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("proyecto.id"), index=True)
     destino_almacen_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("almacen.id"))
     # Liga una recepción con su traspaso y una cancelación con el vale que cancela.
     vale_origen_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("vale.id"))
@@ -117,6 +125,32 @@ class Vale(Base):
     token: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     dispositivo: Mapped[str | None] = mapped_column(String(200))
     creado_en: Mapped[datetime] = mapped_column(FechaHora, nullable=False, default=ahora_utc)
+    lote_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, index=True)
+
+
+class ReservaPapel(Base):
+    """F-02: folio/ticket reservado para firma manuscrita antes de emitir el vale."""
+
+    __tablename__ = "reserva_papel"
+    __table_args__ = (
+        UniqueConstraint("id_cliente", name="uq_reserva_papel_id_cliente"),
+        UniqueConstraint("folio", name="uq_reserva_papel_folio"),
+        UniqueConstraint("token", name="uq_reserva_papel_token"),
+        Index("ix_reserva_papel_vence_en", "vence_en"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=nuevo_id)
+    id_cliente: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    responsable_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuario.id"), nullable=False)
+    almacen_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("almacen.id"), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(15), nullable=False)
+    folio: Mapped[str] = mapped_column(String(30), nullable=False)
+    token: Mapped[str] = mapped_column(String(64), nullable=False)
+    huella_cuerpo: Mapped[str] = mapped_column(String(64), nullable=False)
+    ticket: Mapped[dict] = mapped_column(JSON, nullable=False)
+    vale_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("vale.id"), unique=True)
+    creado_en: Mapped[datetime] = mapped_column(FechaHora, nullable=False, default=ahora_utc)
+    vence_en: Mapped[datetime] = mapped_column(FechaHora, nullable=False)
 
 
 class Movimiento(Base):
@@ -170,6 +204,16 @@ class Movimiento(Base):
     saldo_origen: Mapped[int | None] = mapped_column(Integer)
     saldo_destino: Mapped[int | None] = mapped_column(Integer)
     creado_en: Mapped[datetime] = mapped_column(FechaHora, nullable=False, default=ahora_utc)
+
+
+class CadenaSello(Base):
+    """F-06: último eslabón por almacén; el motor lo bloquea al sellar."""
+
+    __tablename__ = "cadena_sello"
+
+    almacen_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("almacen.id"), primary_key=True)
+    ultimo_vale_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("vale.id"))
+    ultimo_hash: Mapped[str | None] = mapped_column(String(64))
 
 
 class Existencia(Base):

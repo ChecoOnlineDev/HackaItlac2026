@@ -6,6 +6,7 @@ import type { Control, Reglas } from "./tipos";
 export interface EstadoReglas {
   inspeccion: boolean;
   vigencia: string;
+  avisoInspeccion: string;
   autorizacion: boolean;
   motivo: string;
   limite: boolean;
@@ -19,6 +20,7 @@ export interface EstadoReglas {
 export const REGLAS_VACIAS: EstadoReglas = {
   inspeccion: false,
   vigencia: "",
+  avisoInspeccion: "",
   autorizacion: false,
   motivo: "",
   limite: false,
@@ -34,6 +36,7 @@ export function reglasAEstado(r: Reglas): EstadoReglas {
   return {
     inspeccion: r.requiere_inspeccion,
     vigencia: texto(r.vigencia_inspeccion_dias),
+    avisoInspeccion: texto(r.dias_aviso_inspeccion ?? null),
     autorizacion: r.requiere_autorizacion,
     motivo: r.motivo_uso_especial ?? "",
     limite: r.limite_cantidad !== null,
@@ -53,6 +56,7 @@ const entero = (valor: string): number | null => {
 export function estadoAReglas(e: EstadoReglas): Reglas {
   return {
     requiere_inspeccion: e.inspeccion,
+    dias_aviso_inspeccion: entero(e.avisoInspeccion),
     vigencia_inspeccion_dias: e.inspeccion ? entero(e.vigencia) : null,
     requiere_autorizacion: e.autorizacion,
     motivo_uso_especial: e.autorizacion || e.inspeccion ? e.motivo.trim() || null : null,
@@ -65,6 +69,7 @@ export function estadoAReglas(e: EstadoReglas): Reglas {
 /** Revisa lo que se puede revisar sin preguntar al servidor. El servidor vuelve a validar todo. */
 export function validarReglas(e: EstadoReglas, control: Control): Record<string, string> {
   const errores: Record<string, string> = {};
+  if (e.avisoInspeccion.trim() && (entero(e.avisoInspeccion) === null || Number(e.avisoInspeccion) > 90)) errores.dias_aviso_inspeccion = "Escribe de 1 a 90 días o deja vacío para heredar.";
   if (e.inspeccion && control !== "PIEZA") {
     errores.requiere_inspeccion = "La inspección solo aplica a artículos que se controlan por pieza.";
   }
@@ -115,6 +120,8 @@ export function FormularioReglas({ valor, alCambiar, control, errores, deshabili
           onChange={(e) => cambiar({ vigencia: e.target.value })}
           error={errores.vigencia_inspeccion_dias}
         />
+        <CampoEntero etiqueta="Avisar antes de que venza" value={valor.avisoInspeccion} onChange={(e) => cambiar({ avisoInspeccion: e.target.value })} error={errores.dias_aviso_inspeccion} ayuda="De 1 a 90 días. Vacío hereda el aviso de la categoría o el general; no cambia las fechas existentes." />
+        {valor.avisoInspeccion && valor.vigencia && Number(valor.avisoInspeccion) >= Number(valor.vigencia) ? <p className="text-sm">Con este aviso, las piezas estarán siempre por vencer.</p> : null}
       </FilaInterruptor>
       {errores.requiere_inspeccion ? (
         <p role="alert" className="-mt-1 text-sm font-medium text-destructive">

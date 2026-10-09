@@ -2,6 +2,7 @@ import { CircleCheckIcon, DownloadIcon, InfoIcon, PrinterIcon, TriangleAlertIcon
 import { Link } from "react-router";
 
 import { Boton } from "~/componentes/ui/boton";
+import { BotonPdfVale } from "~/componentes/dominio/boton-pdf-vale";
 import type { FilaError, ImportacionApi } from "./tipos";
 
 interface PropiedadesResultadoImportacion {
@@ -25,11 +26,10 @@ export function ResultadoImportacion({ resultado, filasError, alDescargarErrores
   const { resumen } = resultado;
   const piezas = resultado.piezas_creadas ?? [];
   const seriesPendientes = resumen.series_pendientes ?? piezas.filter((p) => p.serie_pendiente).length;
-  // Los códigos viajan en la dirección; si son demasiados para una dirección, se imprime desde la lista completa.
-  const codigos = piezas.map((p) => encodeURIComponent(p.codigo)).join(",");
-  const enlaceEtiquetas = codigos.length <= 6000 ? `/etiquetas?tipo=piezas&codigos=${codigos}` : "/etiquetas?tipo=piezas";
+  const enlaceEtiquetas = "/etiquetas?tipo=piezas";
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center gap-3"><Link className="min-h-11 rounded-xl border px-4 py-3 font-semibold" to={`/bitacora?lote_id=${resultado.id_lote}`}>Ver en la bitácora</Link>{resultado.vales[0] ? <BotonPdfVale id={resultado.vales[0].id} lote={resultado.vales.length > 1} /> : null}</div>
       <section aria-label="Importación guardada" className="flex flex-col gap-3 rounded-2xl border border-semaforo-verde p-5">
         <p role="status" className="flex items-center gap-2 text-lg font-semibold">
           <CircleCheckIcon aria-hidden="true" className="size-7 text-semaforo-verde" strokeWidth={3} />
@@ -66,6 +66,7 @@ export function ResultadoImportacion({ resultado, filasError, alDescargarErrores
       {piezas.length > 0 ? (
         <Link
           to={enlaceEtiquetas}
+          state={{ codigos: piezas.map((p) => p.codigo) }}
           className="inline-flex min-h-12 items-center gap-2 self-start rounded-xl border-2 border-primary px-4 text-base font-semibold text-marino transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           <PrinterIcon aria-hidden="true" className="size-5" />

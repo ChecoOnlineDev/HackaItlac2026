@@ -10,6 +10,7 @@ interface PropiedadesCodigoQR {
   tamano?: number;
   /** Corrección de errores: `M` aguanta un poco de suciedad; `Q` más, a costa de un QR más denso. */
   nivel?: "L" | "M" | "Q" | "H";
+  margen?: number;
   /** Texto para lectores de pantalla. */
   titulo?: string;
   className?: string;
@@ -23,7 +24,7 @@ interface PropiedadesCodigoQR {
  * <CodigoQR valor="ALT-024" tamano={128} />
  * ```
  */
-export function CodigoQR({ valor, tamano = 160, nivel = "M", titulo, className }: PropiedadesCodigoQR) {
+export function CodigoQR({ valor, tamano = 160, nivel = "M", margen = 2, titulo, className }: PropiedadesCodigoQR) {
   return (
     <QRCodeSVG
       value={valor}
@@ -31,7 +32,7 @@ export function CodigoQR({ valor, tamano = 160, nivel = "M", titulo, className }
       level={nivel}
       bgColor="#ffffff"
       fgColor="#000000"
-      marginSize={2}
+      marginSize={margen}
       title={titulo ?? `Código QR: ${valor}`}
       className={cn("block h-auto max-w-full shrink-0 bg-white", className)}
       style={{ width: tamano }}

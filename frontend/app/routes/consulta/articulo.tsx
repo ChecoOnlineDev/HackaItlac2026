@@ -1,3 +1,4 @@
+import { formatearMoneda } from "~/componentes/dominio/formato";
 import { MapPinnedIcon, PackageCheckIcon, PencilIcon, UsersIcon, WarehouseIcon } from "lucide-react";
 import { Link, useParams } from "react-router";
 
@@ -15,7 +16,7 @@ import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { Insignia } from "~/componentes/ui/insignia";
 import { useSesion } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "catalogo.ver" };
+export const handle: ManejadorRuta = { dispositivo: "celular", permiso: "catalogo.ver" };
 
 function reglas(a: FichaArticulo): string[] {
   const lista: string[] = [];
@@ -47,6 +48,7 @@ export default function FichaArticulo() {
     return (
       <Pantalla titulo="Ficha de artículo" ancho="formulario">
         <VolverAConsultar />
+
         <Esqueleto tipo="tarjeta" cantidad={2} />
         <Esqueleto tipo="lista" cantidad={3} />
       </Pantalla>
@@ -74,6 +76,9 @@ export default function FichaArticulo() {
       ancho="formulario"
     >
       <VolverAConsultar />
+      {articulo.control === "PIEZA" && puede("etiquetas.imprimir") ? <Boton variante="contorno" className="self-start" nativeButton={false} render={<Link to={`/etiquetas?tipo=piezas&articulo_id=${articulo.id}`} />}>Etiquetas de sus piezas</Boton> : null}
+
+      {articulo.alto_valor ? <Insignia estado="info">Alto valor{articulo.alto_valor_motivo ? ` · ${articulo.alto_valor_motivo}` : ""}</Insignia> : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <Insignia estado={articulo.activo ? "info" : "neutra"}>{articulo.activo ? "Activo" : "Inactivo"}</Insignia>
@@ -179,7 +184,7 @@ export default function FichaArticulo() {
           {costo !== undefined && costo !== null ? (
             <Dato
               etiqueta="Costo por unidad"
-              valor={Number(costo).toLocaleString("es-MX", { style: "currency", currency: "MXN" })}
+              valor={formatearMoneda(costo)}
             />
           ) : null}
         </dl>

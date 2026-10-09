@@ -32,6 +32,8 @@ class Inspeccion(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=nuevo_id)
     pieza_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("pieza.id"), nullable=False)
     fecha: Mapped[date] = mapped_column(Date, nullable=False)
+    id_cliente: Mapped[uuid.UUID | None] = mapped_column(Uuid, unique=True)
+    huella: Mapped[str | None] = mapped_column(String(64))
     resultado: Mapped[str] = mapped_column(String(10), nullable=False)
     # Etiquetas, costuras, cintas, herrajes y conectores: {"etiquetas": true, ...}
     puntos: Mapped[dict | None] = mapped_column(JSON)

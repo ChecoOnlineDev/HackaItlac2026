@@ -26,6 +26,12 @@ export interface RecepcionResumenApi {
   recibio: { id: string; nombre: string };
 }
 
+/** Quién validó el envío (X-16, X-19). `medio`: ENVIO_PROPIO, REMOTA o PIN. */
+export interface ValidoTraspasoApi {
+  autorizo: { id?: string; nombre: string };
+  medio: string | null;
+}
+
 export interface TraspasoPorRecibirApi {
   id: string;
   folio: string;
@@ -34,6 +40,9 @@ export interface TraspasoPorRecibirApi {
   origen: AlmacenResumen;
   destino: AlmacenResumen;
   envio: { id: string; nombre: string };
+  /** FEAT-015: LATERAL es un traslado entre proyectos. Puede faltar en un servidor anterior. */
+  ruta?: "HABITUAL" | "LATERAL" | "NO_HABITUAL";
+  valido?: ValidoTraspasoApi | null;
   creado_en: string;
   pendiente_total: number;
   renglones: RenglonPorRecibirApi[];

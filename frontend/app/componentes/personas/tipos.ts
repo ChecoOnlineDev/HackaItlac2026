@@ -26,6 +26,7 @@ export interface Pendiente {
 }
 
 export interface ElementoLista {
+  proyectos?: { asignacion_id: string; proyecto: { id: string; nombre: string }; principal: boolean }[];
   id: string;
   numero_empleado: string;
   nombre: string;
@@ -52,6 +53,7 @@ export interface Periodo {
 }
 
 export interface Ficha {
+  proyectos?: { asignacion_id: string; proyecto: { id: string; nombre: string }; principal: boolean }[];
   id: string;
   numero_empleado: string;
   nombre: string;

@@ -49,6 +49,7 @@ export interface ResumenAlmacen {
 
 /** La ficha de un almacén: la respuesta de `GET /api/almacenes?resumen=true` y de las escrituras. */
 export interface FichaAlmacen {
+  despacho_epp_con_aprobacion?: boolean;
   id: string;
   clave: string;
   nombre: string;
@@ -59,6 +60,8 @@ export interface FichaAlmacen {
   cerrado_en: string | null;
   hijos: HijoAlmacen[];
   resumen?: ResumenAlmacen;
+  proyectos_activos?: number;
+  aviso?: string | null;
 }
 
 export function plural(n: number, uno: string, varios: string): string {

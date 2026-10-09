@@ -1,5 +1,9 @@
 # App Flow — MVP
 
+> Avance FEAT-014: Entregar incorpora Aprobación antes de Firma y consulta la evaluación actual del servidor. Las solicitudes admiten decisiones por renglón con motivo en cada rechazo, tanto en la bandeja como por PIN; el formulario de PIN usa los renglones guardados por el servidor. La cola En espera conserva hasta diez capturas de este usuario y dispositivo, permite atender otra entrega y retomar desde Inicio o Entregar. `/autorizaciones/:id` abre el detalle del aviso. La bandeja incluye filtro de almacén y resolución múltiple; los ajustes de autonomía se guardan por separado con motivo obligatorio. Los avisos del navegador se activan solo por toque explícito y la suscripción se revoca antes de salir. Falta probar recepción física y aceptación con dos sesiones reales; estos avances no implementan Android sin conexión.
+
+> Avance FEAT-013: `/proyectos` permite crear, editar, cerrar y reabrir; el alta/reingreso de trabajadores selecciona un proyecto y la ficha conserva su historial de asignaciones. En ENTREGA el servidor toma el único proyecto, pide elegir entre varios o solicita explicar la entrega sin proyecto. El selector de almacén activo conserva la captura y exige revisarla antes de continuar. El tablero de uso por proyecto sigue en integración.
+
 > Estado Android del 8 de octubre de 2026: los Flujos 31 a 34 siguen planeados. El contenedor empaqueta las pantallas existentes para operar en línea. Sin señal muestra el aviso existente y conserva borradores; no emite vales locales ni ofrece PIN, inscripción o cola. Atrás cierra primero el diálogo abierto, retrocede y pregunta antes de cerrar desde Inicio o Entrar. Un 426 sustituye la interfaz por el aviso de versión nueva. Las descargas existentes abren Compartir y la impresión abre el diálogo Android. Falta la aceptación de sesión en dispositivo real.
 
 
@@ -1120,9 +1124,24 @@ Pantallas que cambian en la iteración 01: `/entregar` (proyecto y paso de aprob
 
 ## Flujos pospuestos
 
-- Comprobante público del vale sin sesión, ticket impreso y firma en papel ([FEAT-001](../features/FEAT-001-vale-como-prueba.md)). Con FEAT-020 importa más: el trabajador que escanea un comprobante capturado sin conexión ve «Entrar» (decisión abierta 5 de FEAT-020).
+- Para FEAT-020 queda pendiente el comprobante local de un vale capturado sin conexión: al escanear su QR, el trabajador debe ver «Entrar» (decisión abierta 5 de FEAT-020). El comprobante público en línea y el flujo de firma en papel se describen abajo.
+- **Firma en papel (FEAT-001):** en una ENTREGA, elegir «Firmar en papel» prepara una reserva de 30 minutos con folio y QR. El navegador imprime dos copias del snapshot que devuelve el servidor; el QR abre el comprobante público marcado como borrador mientras falta confirmar. Tras la firma manuscrita, el responsable fotografía el ticket y confirma con esa imagen. El vale y la reserva quedan vinculados al usar el mismo folio y QR; un cambio del cuerpo o una reserva vencida obliga a preparar un ticket nuevo.
 - Cierre de un almacén de tercer nivel con su reporte de cierre ([FEAT-002](../features/FEAT-002-cierre-de-almacen.md)).
 - Cierre sin devolución y equipo dado por perdido.
 - Lista de revisión del supervisor.
 - ~~Periodo por apertura de un almacén de tercer nivel (ciclos al reactivar)~~: **lo resuelve el proyecto** de la iteración 01 (FEAT-013; maestro, sección 6). El reporte de cierre se pedirá por proyecto, con sus fechas; mientras no se construya, se pide por rango de fechas.
 - Retirar una solicitud de despacho pendiente cuando el trabajador se va (decisión abierta 1 de FEAT-014): mientras no se apruebe, la solicitud vence sola.
+
+## FEAT-019 — transiciones construidas
+
+Consultar muestra coincidencias mientras se escribe: espera 300 ms y requiere dos caracteres; Enter identifica primero el código exacto incluso si tiene un carácter. Una nueva escritura cancela la consulta previa y las filas anteriores quedan atenuadas e inactivas mientras llega la siguiente. Entregar, Devolver y Trasladar reutilizan las sugerencias bajo el escáner; elegir un resultado lo devuelve al flujo exacto existente, sin confirmar movimientos.
+
+Etiquetas permite formato 9/18/30, credencial completa de 8, posición inicial y rango de altas. Desde una importación, los códigos elegidos viajan en estado de navegación; desde la ficha de un artículo por pieza se filtra por artículo. Descargar arma un único PDF de hasta 1000 etiquetas con progreso y Cancelar. Android ofrece Compartir PDF mediante los complementos existentes. Si un código produce módulos QR menores de 0.5 mm, primero se muestra un aviso y se ofrece descargar de todos modos.
+
+## F-02 — firma en papel en Entregar
+
+En el paso Firma se elige Firmar en pantalla o Firmar en papel. Papel ofrece Preparar ticket, reservando folio/QR en el servidor; después Imprimir dos copias y Tomar o elegir foto del ticket firmado. Confirmar entrega requiere la foto y reserva vigente, y envía firma PAPEL sin trazo digital. El ticket todavía no representa una entrega hasta esa confirmación. Cambiar contenido invalida reserva/foto; si vence, preparar otro genera nuevo id_cliente y exige imprimir/firmar de nuevo. El modo en pantalla conserva su transición anterior. El recorrido de impresora y WebView real sigue pendiente.
+
+### TR-10: descargar lista de recepción (9 oct 2026)
+
+En «Trasladar con una lista», después de obtener la vista previa aparece «Descargar lista para imprimir (Excel)». Descarga toda la lista evaluada, con origen/destino y columnas para recibido/verificado/diferencias; al dejar fuera las filas con error también las excluye del archivo. Antes de confirmar lleva la advertencia de vista previa. En el resultado del traspaso el mismo botón incluye el folio emitido y las exclusiones que confirmó el servidor. Descargar no envía ni registra recepción; se continúa recibiendo en la pantalla habitual. La descarga desde un vale histórico sigue pendiente.

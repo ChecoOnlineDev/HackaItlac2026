@@ -22,6 +22,15 @@ class AlcanceOut(BaseModel):
     nombre: str
     es_todos: bool
     puede_elegir: bool
+    almacenes: list[AlmacenRefOut] = Field(default_factory=list)
+
+
+class ProyectoTarjetaOut(BaseModel):
+    id: uuid.UUID
+    clave: str
+    nombre: str
+    almacen: AlmacenRefOut
+    fin_estimado: date
 
 
 class ExistenciasTarjeta(BaseModel):
@@ -37,12 +46,17 @@ class ResumenTableroOut(BaseModel):
     traspasos_en_transito: int
     entregas_hoy: int
     solicitudes_compra_abiertas: int
-    inspecciones_por_vencer: int
+    inspecciones_por_vencer: int | None
+    inspecciones_vencidas: int | None = None
+    inspecciones_sin_registro: int | None = None
     piezas_serie_pendiente: int
     # SG-04: piezas de alto valor y de alturas en manos de trabajadores. `null` (no se envía el
     # número) si el usuario no tiene `resguardo.ver`.
     alto_valor_fuera: int | None = None
+    almacenes_sin_proyecto: list[AlmacenRefOut] | None = None
+    proyectos_por_vencer: list[ProyectoTarjetaOut] | None = None
     generado_en: FechaUtc
+    inventario_unidades: dict[str, int] = Field(default_factory=dict)
 
 
 class ConsumoTableroFilters(BaseModel):
@@ -110,6 +124,7 @@ class AlcanceValorOut(BaseModel):
 class ValorCategoriaOut(BaseModel):
     categoria: str
     valor: str
+    unidades: int = 0
 
 
 class ValorAlmacenOut(BaseModel):
@@ -118,6 +133,9 @@ class ValorAlmacenOut(BaseModel):
     en_almacen: str
     en_resguardo: str
     total: str
+    unidades_en_almacen: int = 0
+    unidades_en_resguardo: int = 0
+    unidades_total: int = 0
 
 
 class ValorInventarioOut(BaseModel):
@@ -135,3 +153,6 @@ class ValorInventarioOut(BaseModel):
     por_categoria: list[ValorCategoriaOut]
     por_almacen: list[ValorAlmacenOut]
     generado_en: FechaUtc
+    unidades_en_almacen: int = 0
+    unidades_en_resguardo: int = 0
+    unidades_total: int = 0

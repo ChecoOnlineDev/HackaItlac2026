@@ -5,6 +5,7 @@ Las consultas de `movimiento` y `trabajador` son de SOLO LECTURA: esas tablas so
 
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy import delete, exists, func, select, update
 from sqlalchemy.orm import Session
@@ -21,7 +22,7 @@ from app.modulos.catalogo.models import (
     Puesto,
     TipoCodigo,
 )
-from app.modulos.movimientos.models import Movimiento
+from app.modulos.movimientos.models import Movimiento, Vale
 from app.modulos.trabajadores.models import EstadoTrabajador, PeriodoContrato, Trabajador
 
 
@@ -41,6 +42,19 @@ class FiltroArticulos:
 
 
 class CategoriaRepository:
+    def contar_avisos_propios(self, categoria_id):
+        return (
+            self.session.scalar(
+                select(func.count())
+                .select_from(Articulo)
+                .where(
+                    Articulo.categoria_id == categoria_id,
+                    Articulo.dias_aviso_inspeccion.is_not(None),
+                )
+            )
+            or 0
+        )
+
     def __init__(self, session: Session) -> None:
         self.session = session
 
@@ -204,12 +218,30 @@ class EtiquetaRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def piezas(self) -> list[tuple[str, str]]:
+    def piezas(
+        self, articulo_id: uuid.UUID | None = None, lote_id: uuid.UUID | None = None
+    ) -> list[tuple[str, str, str | None]]:
         """Una por pieza que no está de baja: nombre del artículo, talla y serie."""
         filas = self.session.execute(
             select(Pieza.codigo, Articulo.nombre, Articulo.talla, Pieza.numero_serie)
             .join(Articulo, Articulo.id == Pieza.articulo_id)
-            .where(Pieza.estado != EstadoPieza.BAJA)
+            .where(
+                Pieza.estado != EstadoPieza.BAJA,
+                *([Pieza.articulo_id == articulo_id] if articulo_id else []),
+            )
+            .where(
+                *(
+                    [
+                        select(Movimiento.id)
+                        .join(Vale, Vale.id == Movimiento.vale_id)
+                        .where(Movimiento.pieza_id == Pieza.id, Vale.lote_id == lote_id)
+                        .correlate(Pieza)
+                        .exists()
+                    ]
+                    if lote_id
+                    else []
+                )
+            )
             .order_by(Articulo.nombre, Pieza.codigo)
         ).all()
         resultado = []
@@ -219,7 +251,7 @@ class EtiquetaRepository:
                 partes.append(f"talla {talla}")
             if serie:
                 partes.append(f"serie {serie}")
-            resultado.append((codigo, " · ".join(partes)))
+            resultado.append((codigo, " · ".join(partes), serie))
         return resultado
 
     def estantes(self) -> list[tuple[str, str]]:
@@ -231,7 +263,9 @@ class EtiquetaRepository:
         ).all()
         return [(c, n) for c, n in filas]
 
-    def credenciales(self) -> list[tuple[str, str, str, str | None]]:
+    def credenciales(
+        self, desde: datetime | None = None, hasta: datetime | None = None
+    ) -> list[tuple[str, str, str, str | None]]:
         """Solo lectura de `trabajador`: `(codigo, nombre, numero_empleado, puesto)` de los
         trabajadores que no están inactivos. Nunca CURP ni NSS (RG-13)."""
         filas = self.session.execute(
@@ -240,6 +274,8 @@ class EtiquetaRepository:
             .where(
                 Codigo.tipo == TipoCodigo.TRABAJADOR,
                 Trabajador.estado != EstadoTrabajador.INACTIVO,
+                *([Trabajador.creado_en >= desde] if desde else []),
+                *([Trabajador.creado_en < hasta] if hasta else []),
             )
             .order_by(Trabajador.nombre, Codigo.codigo)
         ).all()

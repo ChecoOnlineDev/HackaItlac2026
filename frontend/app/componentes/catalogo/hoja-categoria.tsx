@@ -5,7 +5,7 @@ import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
 import { Campo } from "~/componentes/ui/campo";
 import { Hoja } from "~/componentes/ui/hoja";
-import { Seleccion } from "./campos";
+import { FilaInterruptor, Seleccion } from "./campos";
 import { erroresPorCampo } from "./errores-campo";
 import {
   estadoAReglas,
@@ -44,6 +44,7 @@ export function HojaCategoria({ abierta, alCambiar, categoria, alGuardar }: Prop
   const [tipo, setTipo] = useState<TipoCategoria>("EPP");
   const [control, setControl] = useState<Control>("CANTIDAD");
   const [retornable, setRetornable] = useState(true);
+  const [altoValor, setAltoValor] = useState(false);
   const [reglas, setReglas] = useState<EstadoReglas>(REGLAS_VACIAS);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [general, setGeneral] = useState<string | null>(null);
@@ -56,6 +57,7 @@ export function HojaCategoria({ abierta, alCambiar, categoria, alGuardar }: Prop
     setTipo(categoria?.tipo ?? "EPP");
     setControl(categoria?.control ?? "CANTIDAD");
     setRetornable(categoria?.retornable ?? true);
+    setAltoValor(categoria?.alto_valor ?? false);
     setReglas(categoria ? reglasAEstado(categoria) : REGLAS_VACIAS);
     setErrores({});
     setGeneral(null);
@@ -72,7 +74,7 @@ export function HojaCategoria({ abierta, alCambiar, categoria, alGuardar }: Prop
     setGuardando(true);
     setErrores({});
     setGeneral(null);
-    const cuerpo = { nombre: nombre.trim(), tipo, control, retornable, ...estadoAReglas(reglas) };
+    const cuerpo = { nombre: nombre.trim(), tipo, control, retornable, alto_valor: altoValor, ...estadoAReglas(reglas) };
     try {
       if (categoria) await apiPatch(`/categorias/${categoria.id}`, cuerpo);
       else await apiPost("/categorias", cuerpo);
@@ -137,6 +139,8 @@ export function HojaCategoria({ abierta, alCambiar, categoria, alGuardar }: Prop
           error={errores.retornable}
         />
         <h3 className="mt-2 text-base font-semibold text-marino">Reglas de entrega</h3>
+        <FilaInterruptor titulo="Categoría de alto valor" ayuda="Sus artículos se destacan para dar seguimiento a su resguardo." activo={altoValor} alCambiar={setAltoValor} />
+        {categoria?.articulos_con_aviso_propio ? <p className="text-sm text-muted-foreground">{categoria.articulos_con_aviso_propio} artículos tienen su propio aviso y no cambian.</p> : null}
         <FormularioReglas valor={reglas} alCambiar={setReglas} control={control} errores={errores} />
       </form>
     </Hoja>

@@ -16,10 +16,11 @@ from app.core.tiempo import hoy_mx
 from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import P
 from app.modulos.acceso.service import AccesoService
+from app.modulos.catalogo.alto_valor import calcular_alto_valor
+from app.modulos.catalogo.service import CatalogoService
 from app.modulos.consulta import exportacion
 from app.modulos.consulta.repository_cantidad import CantidadRepository, FiltroCantidad
 from app.modulos.consulta.repository_seguimiento import (
-    CATEGORIAS_ALTO_VALOR,
     MAXIMO_PALABRAS,
     FiltroSeguimiento,
     SeguimientoRepository,
@@ -96,6 +97,7 @@ def _donde_esta(f: Any) -> DondeEstaOut:
 
 class SeguimientoService:
     def __init__(self, session: Session) -> None:
+        self.session = session
         self.repo = SeguimientoRepository(session)
         self.cantidad = CantidadRepository(session)
         self.acceso = AccesoService(session)
@@ -114,14 +116,15 @@ class SeguimientoService:
         }
         if self.acceso.puede_operar_todos_los_almacenes(usuario):
             return FiltroSeguimiento(almacen_id=filtros.almacen_id, **common)
-        if usuario.almacen_id is None:
+        asignados = frozenset(self.acceso.almacenes_del_usuario(usuario.id))
+        if not asignados:
             return None
-        if filtros.almacen_id is not None and filtros.almacen_id != usuario.almacen_id:
+        if filtros.almacen_id is not None and filtros.almacen_id not in asignados:
             return None  # pedir otro almacén no devuelve nada (no es un error)
         ver_trabajadores = P.TRABAJADORES_VER in self.acceso.permisos_de(usuario)
         return FiltroSeguimiento(
             almacen_id=filtros.almacen_id,
-            visibles=(usuario.almacen_id, ver_trabajadores),
+            visibles=(asignados, ver_trabajadores),
             **common,
         )
 
@@ -152,7 +155,7 @@ class SeguimientoService:
     @staticmethod
     def _es_alto_valor_en_resguardo(f: Any) -> bool:
         return (
-            f.categoria_nombre in CATEGORIAS_ALTO_VALOR
+            (f.alto_valor or f.requiere_inspeccion)
             and f.ub_tipo == "TRABAJADOR"
             and f.estado != "BAJA"
         )
@@ -196,7 +199,11 @@ class SeguimientoService:
     def aviso_de_pieza(self, pieza: Any, categoria_nombre: str | None) -> str | None:
         """SG-06: el aviso de la ficha de una pieza de alto valor en resguardo de un trabajador
         dado de baja o con contrato vencido. `pieza` es la fila de `Pieza`."""
-        if categoria_nombre not in CATEGORIAS_ALTO_VALOR or pieza.estado == "BAJA":
+        catalogo = CatalogoService(self.session)
+        articulo = catalogo.obtener_articulo(pieza.articulo_id)
+        categoria = catalogo.obtener_categoria(articulo.categoria_id)
+        alto, _ = calcular_alto_valor(articulo, categoria)
+        if not (alto or articulo.requiere_inspeccion) or pieza.estado == "BAJA":
             return None
         trabajador_id = self.repo.trabajador_de_ubicacion(pieza.ubicacion_id)
         if trabajador_id is None:
@@ -234,7 +241,7 @@ class SeguimientoService:
             ubicacion=_donde_esta(f),
             desde=f.desde,
             vale=vale,
-            alto_valor=f.categoria_nombre in CATEGORIAS_ALTO_VALOR,
+            alto_valor=bool(f.alto_valor),
             aviso=avisos.get(f.ub_trabajador_id) if f.ub_trabajador_id else None,
         )
 
@@ -317,13 +324,14 @@ class SeguimientoService:
         comun = {"palabras": palabras, "articulo_id": filtros.articulo_id}
         if self.acceso.puede_operar_todos_los_almacenes(usuario):
             return FiltroCantidad(almacen_id=filtros.almacen_id, **comun)
-        if usuario.almacen_id is None:
+        asignados = frozenset(self.acceso.almacenes_del_usuario(usuario.id))
+        if not asignados:
             return None
         if P.TRABAJADORES_VER not in self.acceso.permisos_de(usuario):
             return None
-        if filtros.almacen_id is not None and filtros.almacen_id != usuario.almacen_id:
+        if filtros.almacen_id is not None and filtros.almacen_id not in asignados:
             return None  # pedir otro almacén no devuelve nada (no es un error)
-        return FiltroCantidad(solo_almacen_id=usuario.almacen_id, **comun)
+        return FiltroCantidad(solo_almacen_id=filtros.almacen_id or asignados, **comun)
 
     def _renglones_cantidad(
         self, filtros: CantidadFilters, usuario: Usuario, pagina: Paginacion | None
@@ -337,9 +345,7 @@ class SeguimientoService:
         )
         elementos = []
         for f in filas:
-            propio = todos or (
-                usuario.almacen_id is not None and f.vale_almacen_id == usuario.almacen_id
-            )
+            propio = todos or (f.vale_almacen_id in self.acceso.almacenes_del_usuario(usuario.id))
             elementos.append(
                 CantidadSeguimientoItem(
                     trabajador=TrabajadorSeguimientoOut(

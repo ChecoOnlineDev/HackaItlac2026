@@ -214,7 +214,9 @@ def test_A_01_resolver_remota_aprueba_y_registra_a_04(cliente_como, pedir, sessi
 
 def test_A_01_resolver_remota_rechaza(cliente_como, pedir):
     id_ = pedir()
-    r = cliente_como("Supervisor").post(f"{RUTA}/{id_}/resolucion", json={"decision": "RECHAZAR"})
+    r = cliente_como("Supervisor").post(
+        f"{RUTA}/{id_}/resolucion", json={"decision": "RECHAZAR", "motivo": "No corresponde"}
+    )
     assert r.json()["estado"] == "RECHAZADA"
 
 
@@ -317,7 +319,12 @@ def test_AC_07_la_base_impide_autorizarse_a_si_mismo(session, pedir):
 def test_A_03_una_solicitud_resuelta_no_se_resuelve_de_nuevo(cliente_como, pedir):
     id_ = pedir()
     sup = cliente_como("Supervisor")
-    assert sup.post(f"{RUTA}/{id_}/resolucion", json={"decision": "RECHAZAR"}).status_code == 200
+    assert (
+        sup.post(
+            f"{RUTA}/{id_}/resolucion", json={"decision": "RECHAZAR", "motivo": "No corresponde"}
+        ).status_code
+        == 200
+    )
     r = sup.post(f"{RUTA}/{id_}/resolucion", json={"decision": "APROBAR"})
     assert r.status_code == 409 and r.json()["codigo"] == "AUTORIZACION_RESUELTA"
     assert sup.get(f"{RUTA}/{id_}").json()["estado"] == "RECHAZADA"
@@ -411,7 +418,9 @@ def test_A_03_pendiente_o_rechazada_no_sirven(session, cliente_como, pedir):
     fila = session.get(Autorizacion, uuid.UUID(id_))
     with pytest.raises(AutorizacionInvalida):
         _vale(session, fila)
-    cliente_como("Supervisor").post(f"{RUTA}/{id_}/resolucion", json={"decision": "RECHAZAR"})
+    cliente_como("Supervisor").post(
+        f"{RUTA}/{id_}/resolucion", json={"decision": "RECHAZAR", "motivo": "No corresponde"}
+    )
     session.expire_all()
     with pytest.raises(AutorizacionInvalida):
         _vale(session, fila)

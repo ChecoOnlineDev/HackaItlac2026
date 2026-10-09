@@ -21,6 +21,7 @@ import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
 import { Confirmacion } from "~/componentes/ui/confirmacion";
 import { Hoja } from "~/componentes/ui/hoja";
+import { ControlAutonomia } from "~/componentes/supervision/control-autonomia";
 import { Insignia } from "~/componentes/ui/insignia";
 import { TEXTO_TIPO, plural, type BloqueoCierre, type FichaAlmacen } from "./tipos";
 
@@ -229,6 +230,10 @@ export function HojaDetalleAlmacen({ almacen, alCerrar, alEditar, alCambiar }: P
       >
         {almacen ? (
           <div className="flex flex-col gap-5">
+            {almacen.despacho_epp_con_aprobacion !== undefined ? <ControlAutonomia key={almacen.id}
+              ruta={`/almacenes/${almacen.id}/autonomia`} campo="despacho_epp_con_aprobacion" valor={almacen.despacho_epp_con_aprobacion}
+              etiqueta="El equipo de protección pide aprobación del supervisor" bloqueado={ocupado} alGuardar={() => alCambiar()}
+            /> : null}
             <div className="flex flex-wrap items-center gap-2">
               <Insignia estado={activo ? "info" : "neutra"}>{activo ? "Activo" : "Cerrado"}</Insignia>
               <Insignia estado="neutra">{TEXTO_TIPO[almacen.tipo]}</Insignia>

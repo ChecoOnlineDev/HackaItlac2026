@@ -21,6 +21,8 @@ from app.modulos.inspecciones.service import InspeccionService
 from app.modulos.trabajadores.models import Trabajador
 
 DIAS = 30
+PUNTOS = {k: None for k in ("etiquetas", "costuras", "cintas", "herrajes", "conectores")}
+
 RUTA = "/api/piezas"
 
 
@@ -61,7 +63,10 @@ def _usuario(session, nombre: str) -> Usuario:
 
 
 def _inspeccionar(cliente, pieza, resultado="APTO", **extra):
-    return cliente.post(f"{RUTA}/{pieza.id}/inspecciones", json={"resultado": resultado} | extra)
+    return cliente.post(
+        f"{RUTA}/{pieza.id}/inspecciones",
+        json={"resultado": resultado, **extra, "puntos": PUNTOS | extra.get("puntos", {})},
+    )
 
 
 def _ajustar(cliente, pieza, fecha, motivo="Se revisó en campo"):
@@ -85,7 +90,7 @@ def test_P_01_inspeccion_apta_deja_la_pieza_apta_y_vigente(cliente_como, session
     assert cuerpo["resultado"] == "APTO"
     assert cuerpo["fecha"] == hoy_mx().isoformat()
     assert cuerpo["vigente_hasta"] == esperado.isoformat()
-    assert cuerpo["puntos"] == {"etiquetas": True, "costuras": True}
+    assert cuerpo["puntos"] == PUNTOS | {"etiquetas": True, "costuras": True}
     assert cuerpo["pieza"] == {
         "id": str(pieza.id),
         "estado": "APTO",
@@ -160,7 +165,9 @@ def test_P_01_resultado_y_puntos_invalidos_se_rechazan(cliente_como, pieza):
 
 def test_P_01_inspeccionar_pieza_inexistente_da_404(cliente_como):
     cliente = cliente_como("Almacenista")
-    r = cliente.post(f"{RUTA}/{uuid.uuid4()}/inspecciones", json={"resultado": "APTO"})
+    r = cliente.post(
+        f"{RUTA}/{uuid.uuid4()}/inspecciones", json={"resultado": "APTO", "puntos": PUNTOS}
+    )
     assert r.status_code == 404 and r.json()["codigo"] == "NO_ENCONTRADO"
 
 
@@ -231,13 +238,14 @@ def test_P_03_marcar_no_apta_exige_observacion_y_deja_evento(cliente_como, sessi
     assert evento.usuario_id == _usuario(session, "almacenista").id
 
 
-def test_P_03_solo_se_puede_marcar_no_apta_y_no_dos_veces(cliente_como, pieza):
+def test_P_03_P_06_marcar_mantenimiento_y_no_apta_no_dos_veces(cliente_como, pieza):
     cliente = cliente_como("Almacenista")
-    # Mantenimiento y calibración son de FEAT-004.
+    # FEAT-004 agrega mantenimiento sin sustituir la inspección.
     r = cliente.post(
         f"{RUTA}/{pieza.id}/estado", json={"estado": "EN_MANTENIMIENTO", "observacion": "x"}
     )
-    assert r.status_code == 422
+    assert r.status_code == 200
+    assert r.json()["pieza"]["estado"] == "EN_MANTENIMIENTO"
     cuerpo = {"estado": "NO_APTO", "observacion": "Daño"}
     assert cliente.post(f"{RUTA}/{pieza.id}/estado", json=cuerpo).status_code == 200
     repetida = cliente.post(f"{RUTA}/{pieza.id}/estado", json=cuerpo)
@@ -448,18 +456,26 @@ def test_P_01_permisos_de_inspeccionar_y_marcar_no_apta(cliente_como, crear_usua
     with TestClient(app) as c:
         iniciar_sesion_en(c, sin)
         assert (
-            c.post(f"{RUTA}/{pieza.id}/inspecciones", json={"resultado": "APTO"}).status_code == 403
+            c.post(
+                f"{RUTA}/{pieza.id}/inspecciones", json={"resultado": "APTO", "puntos": PUNTOS}
+            ).status_code
+            == 403
         )
         assert c.post(f"{RUTA}/{pieza.id}/estado", json=cuerpo_estado).status_code == 403
     with TestClient(app) as c:
         iniciar_sesion_en(c, con)
         assert (
-            c.post(f"{RUTA}/{pieza.id}/inspecciones", json={"resultado": "APTO"}).status_code == 201
+            c.post(
+                f"{RUTA}/{pieza.id}/inspecciones", json={"resultado": "APTO", "puntos": PUNTOS}
+            ).status_code
+            == 201
         )
         assert c.post(f"{RUTA}/{pieza.id}/estado", json=cuerpo_estado).status_code == 200
     # Sin sesión.
     with TestClient(app) as anonimo:
-        r = anonimo.post(f"{RUTA}/{pieza.id}/inspecciones", json={"resultado": "APTO"})
+        r = anonimo.post(
+            f"{RUTA}/{pieza.id}/inspecciones", json={"resultado": "APTO", "puntos": PUNTOS}
+        )
         assert r.status_code == 401
 
 
@@ -618,7 +634,9 @@ def test_P_01_si_falla_la_inspeccion_no_queda_nada(session, pieza, monkeypatch):
 
     with pytest.raises(RuntimeError):
         servicio.registrar(
-            pieza.id, InspeccionCreate(resultado="APTO"), _usuario(session, "almacenista")
+            pieza.id,
+            InspeccionCreate(resultado="APTO", puntos=PUNTOS),
+            _usuario(session, "almacenista"),
         )
     session.expire_all()
     assert session.scalar(select(func.count()).select_from(Inspeccion)) == antes

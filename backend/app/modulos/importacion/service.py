@@ -340,7 +340,7 @@ class ImportacionService:
                     renglones=[self._renglon(f) for f in trozo],
                 )
                 vale, creado = self.movimientos.confirmar(
-                    usuario, cuerpo, aislar=False, commit=False
+                    usuario, cuerpo, aislar=False, commit=False, lote_id=datos.id_lote
                 )
                 if not creado:  # pragma: no cover - ya se revisó el lote al empezar
                     raise ImportacionCambio()

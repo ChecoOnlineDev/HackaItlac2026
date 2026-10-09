@@ -8,7 +8,7 @@ import { Pantalla, type ManejadorRuta } from "~/componentes/pantalla";
 import { cn } from "cn";
 import { useSesionActiva } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permisosAlguno: ["inventario.entradas", "inventario.importar"] };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permisosAlguno: ["inventario.entradas", "inventario.importar"] };
 
 type Metodo = "mano" | "excel";
 

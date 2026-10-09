@@ -3,9 +3,9 @@ import { XIcon } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 
 import { formatearFechaHora } from "~/componentes/dominio/fechas";
+import { InsigniaEstadoCompra, InsigniaUrgencia } from "~/componentes/compras/insignias";
 import { Boton } from "~/componentes/ui/boton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
-import { InsigniaEstadoCompra, InsigniaUrgencia } from "./insignias";
 import { textoCantidad, type SolicitudCompra } from "./tipos";
 
 interface PropiedadesLista {

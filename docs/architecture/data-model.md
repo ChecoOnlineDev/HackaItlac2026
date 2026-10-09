@@ -1,5 +1,11 @@
 # Modelo de datos
 
+> FEAT-013 ya incorpora `proyecto` y `asignacion_proyecto` (0011), `usuario_almacen` y `vale.proyecto_id` (0012). Las referencias históricas del vale permanecen al cancelar. `usuario.almacen_id` es el activo; el servicio mantiene su pertenencia al conjunto. La migración conserva la asignación previa de cada usuario y deja los trabajadores existentes sin proyecto.
+
+El CHECK de las fechas de asignación es `fin >= inicio OR terminada_en IS NOT NULL`: una asignación futura cancelada o terminada antes de empezar conserva su inicio previsto y la fecha real de término. Las asignaciones se bloquean junto al trabajador para impedir dos principales activas en altas concurrentes. `usuario_almacen` tiene llave compuesta `(usuario_id, almacen_id)`; en esta implementación la autoría y fecha de sus cambios quedan en la auditoría.
+
+FEAT-014 incorpora en 0014 los campos no nulos `almacen.despacho_epp_con_aprobacion` (por omisión verdadero) y `usuario.despacho_autonomo` (por omisión falso), además de suscripciones push y metadatos de autorización. Su flujo de confirmación y pruebas siguen en integración.
+
 Entidades, relaciones e invariantes del MVP. Es también el entregable del PDF "descripción breve de la estructura de datos". Los nombres van en español, sin acentos ni ñ.
 
 Estado: las 21 tablas existen en la migración inicial `0001_esquema_inicial` (Fase 0). Los modelos están en el `models.py` del módulo dueño de cada tabla.
@@ -81,7 +87,7 @@ Decisión completa en [ADR-006](decisions/ADR-006-identificadores-uuid-y-folio.m
 
 | Tabla | Campos | Notas |
 |---|---|---|
-| `autorizacion` | `id`, `almacen_id`, `trabajador_id`, `solicitada_por`, `motivo`, `detalle`, `estado`, `resuelta_por`, `medio`, `creado_en`, `resuelta_en`, `vence_en` | `estado`: PENDIENTE, APROBADA, RECHAZADA, VENCIDA, USADA. `medio`: PIN, REMOTA. `detalle`: renglones y regla que la originó. |
+| `autorizacion` | `id`, `tipo`, `almacen_id`, `trabajador_id`, `solicitada_por`, `motivo`, `detalle`, `estado`, `resuelta_por`, `medio`, `creado_en`, `resuelta_en`, `vence_en` | `tipo`: EXCEDENTE (por omisión; las anteriores), DESPACHO (FEAT-014, aún sin uso) o TRASLADO (FEAT-015, X-17). `trabajador_id` es nulo solo en un TRASLADO (`ck_autorizacion_trabajador_segun_tipo`: nulo solo si `tipo = 'TRASLADO'`). `estado`: PENDIENTE, APROBADA, RECHAZADA, VENCIDA, USADA. `medio`: PIN, REMOTA. `detalle`: renglones y regla que la originó; en un TRASLADO también `origen_almacen_id` y `destino_almacen_id` (`almacen_id` es el origen). Migración `0010_autorizacion_traslado`. |
 | `inspeccion` | `id`, `pieza_id`, `fecha`, `resultado`, `puntos`, `observacion`, `vigente_hasta`, `usuario_id`, `creado_en` | `puntos`: etiquetas, costuras, cintas, herrajes, conectores. |
 | `ajuste_vigencia` | `id`, `pieza_id`, `inspeccion_id`, `vigente_hasta_anterior`, `vigente_hasta_nuevo`, `motivo`, `usuario_id`, `creado_en` | Solo se inserta (P-07). Al guardarse, `pieza.inspeccion_vigente_hasta` toma la fecha nueva; la inspección original no cambia. |
 | `evento_pieza` | `id`, `pieza_id`, `estado_anterior`, `estado_nuevo`, `observacion`, `usuario_id`, `creado_en` | Cambios de estado que no son inspección. |
@@ -202,7 +208,7 @@ El script carga, de forma repetible:
 | Feature | Cambio |
 |---|---|
 | FEAT-001 | `vale.hash`, `vale.hash_anterior`; tabla `cadena_sello`; `adjunto.tipo` TICKET_FIRMADO; `vale.firma_modo` PAPEL |
-| FEAT-002 | Vale AJUSTE con movimientos entre almacén y BAJA. El «periodo por apertura» (tabla `almacen_ciclo` y cada vale ligado a su ciclo) **ya no se necesita**: lo resuelve el proyecto de la iteración 01 (`proyecto` y `vale.proyecto_id`, [ADR-012](decisions/ADR-012-proyectos-y-varios-almacenes-por-usuario.md)); el reporte de cierre se pide por proyecto, con sus fechas. |
+| FEAT-002 | **Servidor construido:** vale AJUSTE, folio `CLAVE-AJU-CONSECUTIVO`, firma SESION, observación y responsable obligatorios; movimientos entre almacén y BAJA, sin trabajador. Migración `0019_ajuste_cierre` amplía los CHECK de `vale.tipo` y `serie_folio.tipo`. Sin tabla de ciclos ni saldos de resumen: el reporte se calcula por almacén y rango obligatorio de fechas del mantenimiento. El saldo final es histórico al final del rango. |
 | FEAT-003 | Tablas `puesto` y `dotacion` y `periodo_contrato.puesto_id`: **construidas** (`0004_puestos_dotacion`) |
 | FEAT-004 | Tabla `minimo` (`almacen_id`, `articulo_id`, `cantidad`) |
 | FEAT-005 | Ninguno: pasó al MVP (T-09) |
@@ -237,8 +243,8 @@ Siguen valiendo las convenciones de «Decisiones de implementación»: UUID v7, 
 | `usuario.despacho_autonomo` (bool, no nulo, `false`) | `acceso` | 014 | Excepción por almacenista: despacha EPP sin aprobación (DE-14). |
 | `almacen.despacho_epp_con_aprobacion` (bool, no nulo, `true`) | `almacenes` | 014 | Interruptor de autonomía del almacén (DE-14). Los almacenes que ya existen quedan con aprobación. |
 | `almacen.hora_descarga` (`TIME`, nula) | `almacenes` | 020 | Hora del centro de México de la descarga diaria del paquete del almacén; nula = sin descarga programada. La edita el Administrador. |
-| `autorizacion.tipo` (no nulo) | `autorizaciones` | 015, 014 | `ck_autorizacion_tipo`: `EXCEDENTE`, `DESPACHO`, `TRASLADO`. Las que ya existen quedan `EXCEDENTE`. |
-| `autorizacion.trabajador_id` | `autorizaciones` | 015 | Pasa a **aceptar nulo**, con `ck_autorizacion_trabajador_segun_tipo`: nulo solo si `tipo = 'TRASLADO'` (un traslado no tiene trabajador). |
+| `autorizacion.tipo` (no nulo) | `autorizaciones` | 015, 014 | **Construido (FEAT-015, migración `0010`).** `ck_autorizacion_tipo`: `EXCEDENTE`, `DESPACHO`, `TRASLADO`. Las que ya existen quedan `EXCEDENTE`. |
+| `autorizacion.trabajador_id` | `autorizaciones` | 015 | **Construido (migración `0010`).** Pasa a **aceptar nulo**, con `ck_autorizacion_trabajador_segun_tipo`: nulo solo si `tipo = 'TRASLADO'` (un traslado no tiene trabajador). |
 | `autorizacion.renglones_resueltos` (JSON, nulo) | `autorizaciones` | 014 | `[{renglon, codigo, cantidad, decision: APROBADO \| RECHAZADO, motivo}]` (aprobación parcial, DE-06). Nulo en las anteriores: si están APROBADA o USADA, todos sus renglones cuentan como aprobados. |
 | `autorizacion.id_cliente` (nulo, único) | `autorizaciones` | 014 | `uq_autorizacion_id_cliente`. Un doble toque no crea dos solicitudes (DE-04). Nulo en las anteriores. |
 | `autorizacion.estado` + `RETIRADA` | `autorizaciones` | 014 | **Solo si se aprueba la decisión abierta 1 de FEAT-014** (retirar una solicitud pendiente). Amplía `ck_autorizacion_estado`. |
@@ -250,6 +256,7 @@ Siguen valiendo las convenciones de «Decisiones de implementación»: UUID v7, 
 | `categoria.dias_aviso_inspeccion`, `articulo.dias_aviso_inspeccion` (entero, nulo = hereda) | `catalogo` | 016 | Días de aviso antes de que venza una inspección (P-10). CHECK de 1 a 90. Herencia **en vivo** (artículo, si no categoría, si no `INSPECCION_AVISO_DIAS`), a diferencia de la plantilla de CF-02, que se copia. |
 | `inspeccion.id_cliente` (nulo, único) | `inspecciones` | 016 | `uq_inspeccion_id_cliente`. Inspección individual y por lote sin duplicar (P-16). Nulo en las existentes. |
 | `adjunto.inspeccion_id` (FK a `inspeccion`, nula) y `adjunto.tipo` + `FOTO_INSPECCION` | `archivos` | 016 | Foto opcional de la inspección (P-14). Amplía el CHECK de `adjunto.tipo`. |
+| `reserva_papel` | `movimientos` | 001 | Reserva por 30 minutos de folio, QR y snapshot del ticket antes de emitir una ENTREGA con firma manuscrita. `id_cliente`, `folio` y `token` son únicos; `vale_id` se enlaza al confirmar y no se permite reutilizar la reserva. |
 
 `inspeccion.puntos` (JSON) no cambia de forma: desde FEAT-016 trae las cinco claves (`true` Bien, `false` Mal, `null` No aplica). El supervisor que despacha él mismo (DE-07) y el que envía un traslado lateral (X-16) **no** se guardan como una autorización: `ck_autorizacion_no_autorizarse` sigue igual; se marcan con la regla en `movimiento.reglas` y el vale muestra «Validó: él mismo».
 
@@ -259,7 +266,7 @@ Números propuestos según el orden de la sección 7 del maestro; si el orden ca
 
 | # | Migración | FEAT | Qué hace |
 |---|---|---|---|
-| 1 | `0010_autorizacion_tipo` | 015 | `autorizacion.tipo` (existentes = `EXCEDENTE`) y `autorizacion.trabajador_id` nulo con su CHECK. Sin permisos nuevos. |
+| 1 | `0010_autorizacion_traslado` (**construida**) | 015 | `autorizacion.tipo` (existentes = `EXCEDENTE`) y `autorizacion.trabajador_id` nulo con su CHECK. Sin permisos nuevos. La bajada borra las autorizaciones de traslado (no caben sin trabajador) y deja sin `autorizacion_id` a los vales que las citaban. |
 | 2 | `0011_despacho_epp_y_avisos` | 014 | `almacen.despacho_epp_con_aprobacion`, `usuario.despacho_autonomo`, `autorizacion.renglones_resueltos`, `autorizacion.id_cliente` (y `RETIRADA` si se aprueba), tabla `suscripcion_push`; permiso `despacho.autonomia` al rol protegido. |
 | 3 | `0012_proyectos_y_conjunto_de_almacenes` | 013 | Tablas `proyecto`, `asignacion_proyecto` y `usuario_almacen` (rellenada desde `usuario.almacen_id`), `vale.proyecto_id` con su índice; permisos `proyectos.ver` (Almacenista, Supervisor, RH), `proyectos.administrar` (Administrador) y `proyectos.asignar` (RH y todo rol con `trabajadores.administrar`). Los trabajadores existentes quedan sin asignación. `reportes.valor_inventario` ya lo da al Supervisor la `0009`. FEAT-013 la llama `0010`; con este orden es la tercera. |
 | 4 | `0013_vale_lote` | 017 | `vale.lote_id` e `ix_vale_lote_id`. |
@@ -267,6 +274,9 @@ Números propuestos según el orden de la sección 7 del maestro; si el orden ca
 | 6 | `0015_inspecciones_y_avisos` | 016 | `categoria.dias_aviso_inspeccion`, `articulo.dias_aviso_inspeccion`, `inspeccion.id_cliente`, `adjunto.inspeccion_id` y `FOTO_INSPECCION`; permiso `inspecciones.ver` (Almacenista, Supervisor, Administrador). |
 | — | — | 019 | Sin migración: usa `vale.lote_id` de FEAT-017. |
 | 7 | `0016_sincronizacion` | 020 | Tablas `dispositivo`, `dispositivo_usuario`, `conflicto_sincronizacion` y `operacion_recibida`; `vale.capturado_sin_conexion`, `vale.capturado_en`, `vale.dispositivo_id`; `almacen.hora_descarga`; permisos `sincronizacion.operar` (Almacenista) y `sincronizacion.administrar` (Supervisor). |
+| 8 | `0018_vale_papel` | 001 | Crea `reserva_papel`; conserva folio y token mientras se imprime y firma el ticket. |
+| 9 | `0019_ajuste_cierre` | 002 | Agrega el tipo de vale `AJUSTE` y los datos de cierre del almacén. |
+| 10 | `0020_bitacora_lote` | 017 | Agrega `vale.lote_id` para agrupar operaciones de importación. |
 
 Los permisos son filas de `rol_permiso` (el catálogo vive en el código, AC-01): cada migración solo agrega filas con `INSERT IGNORE`, como la `0009`.
 
@@ -299,3 +309,8 @@ Las invariantes 1 a 10 no cambian, tampoco para lo sincronizado: solo `movimient
 ### Índices
 
 Los de las tablas de arriba, más `vale(proyecto_id, tipo, creado_en)` para el uso por proyecto (TB-05) y `vale(lote_id)` para la bitácora por vale (BT-02). La bitácora por vale cuenta renglones y unidades solo de los vales de la página; si el plan de ejecución lo pide, se agrega el índice `movimiento(vale_id, articulo_id)` que ya prevé la sección «Índices». Deudores y la lista de inspecciones pendientes usan la tabla derivada con `row_number()` de Seguimiento; se miden antes de agregar índices.
+
+
+## Implementación FEAT-004: mínimos por almacén
+
+La migración `0013_minimos` crea `minimo`: clave primaria compuesta (`almacen_id`, `articulo_id`), ambas llaves foráneas, y `cantidad` entera no negativa. No modifica existencias: el mínimo configura una alerta contra la cantidad disponible. No existe fila cuando el artículo no tiene mínimo. Se conserva el estado de la pieza y su ubicación; el cambio de estado usa el evento y la auditoría existentes.

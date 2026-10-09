@@ -9,7 +9,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
-from app.core.paginacion import PaginacionDep
+from app.core.paginacion import Paginacion, PaginacionDep
 from app.modulos.acceso.dependencies import UsuarioActual, requiere_permiso
 from app.modulos.acceso.models import Usuario
 from app.modulos.acceso.permisos import P
@@ -19,6 +19,10 @@ from app.modulos.consulta.dependencies import (
     requiere_alguno,
 )
 from app.modulos.consulta.exportacion import respuesta_csv
+from app.modulos.consulta.router_bitacora import router as router_bitacora
+from app.modulos.consulta.router_cierre import router as router_cierre
+from app.modulos.consulta.router_comprobante import router as router_comprobante
+from app.modulos.consulta.router_deudores import router as router_deudores
 from app.modulos.consulta.router_tablero import router as router_tablero
 from app.modulos.consulta.schemas import (
     AdeudoReporteItem,
@@ -45,6 +49,10 @@ from app.modulos.consulta.schemas_seguimiento import (
 
 router = APIRouter(tags=["consulta"])
 router.include_router(router_tablero)
+router.include_router(router_deudores)
+router.include_router(router_comprobante)
+router.include_router(router_cierre)
+router.include_router(router_bitacora)
 
 VerPieza = Annotated[Usuario, Depends(requiere_permiso(P.CATALOGO_VER))]
 VerExistencias = Annotated[Usuario, Depends(requiere_permiso(P.REPORTES_EXISTENCIAS))]
@@ -73,7 +81,8 @@ def escanear(
 def buscar(
     usuario: UsuarioActual,
     service: ConsultaServiceDep,
-    pagina: PaginacionDep,
+    pagina: Annotated[int, Query(ge=1)] = 1,
+    tamano: Annotated[int, Query(ge=1, le=50)] = 10,
     q: Annotated[str, Query(max_length=100)] = "",
     almacen_id: Annotated[uuid.UUID | None, Query()] = None,
 ) -> BusquedaOut:
@@ -81,7 +90,7 @@ def buscar(
     caracteres no busca. Cada grupo es una lista paginada `{elementos, total}`. Con `almacen_id`
     (origen de un traspaso, TR-11) solo ofrece artículos y piezas que hay en ese almacén, con su
     `disponible`."""
-    return service.buscar(q, usuario, pagina, almacen_id)
+    return service.buscar(q, usuario, Paginacion(pagina, tamano), almacen_id)
 
 
 @router.get("/piezas/{pieza_id}", response_model=PiezaFichaOut)

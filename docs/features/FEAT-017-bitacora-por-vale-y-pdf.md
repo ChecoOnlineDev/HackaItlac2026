@@ -1,6 +1,6 @@
 # FEAT-017: Bitácora por vale, detalle del vale y PDF
 
-Estado: **aprobada por el usuario el 8 de octubre de 2026, sin construir.** Es parte de la [iteración 01](../releases/iteration_01/README.md) (decisión D-16) y va en el paso 4 de su orden de construcción, junto con FEAT-018. Usa las reglas BT-01 a BT-10 (sección 4 del documento maestro). Cambia la pantalla de la bitácora (SG-05 se conserva como «Detalle por renglón»), el detalle del vale (C-04) y el resultado de la importación. Agrega la columna `vale.lote_id` y los endpoints `GET /api/bitacora` y `GET /api/vales/{id}/renglones`. Las decisiones que dependen del usuario están en «Decisiones abiertas».
+Estado: **backend y cliente integrados el 9 de octubre de 2026; 11 pruebas backend y 3 de PDF aprobadas; validación visual y rendimiento físico pendientes.** Es parte de la [iteración 01](../releases/iteration_01/README.md) (decisión D-16) y va en el paso 4 de su orden de construcción, junto con FEAT-018. Usa las reglas BT-01 a BT-10 (sección 4 del documento maestro). Cambia la pantalla de la bitácora (SG-05 se conserva como «Detalle por renglón»), el detalle del vale (C-04) y el resultado de la importación. Agrega la columna `vale.lote_id` y los endpoints `GET /api/bitacora` y `GET /api/vales/{id}/renglones`. Las decisiones que dependen del usuario están en «Decisiones abiertas».
 
 ## Problema u oportunidad
 
@@ -43,7 +43,7 @@ Todavía no hay historias en `docs/stories/`: se escriben al empezar la construc
 | BT-06 | **Renglones y vales relacionados.** La tabla de renglones se pide aparte, paginada en el servidor: `GET /api/vales/{id}/renglones`, con búsqueda por código, artículo o serie. El detalle enlaza los vales relacionados: el traspaso de una recepción, las recepciones de un traspaso, la cancelación de un vale cancelado y el vale que cancela una cancelación, y las otras partes de su lote. Un relacionado fuera del alcance del usuario se nombra sin folio ni enlace («Recibido en otro almacén el 8 oct»), como AC-06. | D-16; AC-06 |
 | BT-07 | **PDF del vale.** Botón «Descargar PDF» en el detalle: se descarga un **archivo** PDF (no solo «Imprimir»), llamado con el folio (`KEP-ING-000123.pdf`). Lleva lo mismo que el vale impreso (E-24): folio, tipo, estado, fecha y hora, almacén, responsable, trabajador con número, puesto y área, proyecto, resumen por categoría en renglones y unidades, la tabla completa de renglones (código, artículo con marca, pieza o serie, cantidad y condición), quién validó, la firma o «Firmado con la sesión de <responsable>», y el QR del vale. **Sin costos** (RG-12, F-12), sin CURP, NSS ni foto (RG-13, T-09). | D-16; E-24; F-12 |
 | BT-08 | **PDF del lote.** Desde el renglón del lote en la bitácora, y desde el detalle de cualquiera de sus vales, «Descargar PDF del lote» genera **un solo PDF**: una primera hoja con el resumen del lote (fecha, almacén, responsable, cada vale con su folio, estado y QR, y totales por categoría) y después todos los renglones, vale por vale. Nombre: `lote-<primer folio>-<último consecutivo>.pdf` (por ejemplo `lote-KEP-ING-000123-000125.pdf`). | D-16 |
-| BT-09 | **Generado en el navegador.** El PDF lo arma el navegador con los datos que ya devuelve la API, sin endpoint nuevo, para que también funcione en la app de Android sin conexión (FEAT-020) y comparta la librería con el PDF de etiquetas (FEAT-019, D-19). Propuesta: `jspdf` con `jspdf-autotable` (dependencia nueva, **pide aprobación**). Un vale de 500 renglones se genera en **menos de 5 segundos** en un celular de gama media; con más renglones (un lote) los pide de 500 en 500 y avanza con un indicador «Armando el PDF: 500 de 1,240 renglones» que se puede cancelar. | D-16; D-15; D-19 |
+| BT-09 | **Generado en el navegador.** El PDF lo arma el navegador con los datos que ya devuelve la API, sin endpoint nuevo, para que también funcione en la app de Android sin conexión (FEAT-020) y comparta la librería con el PDF de etiquetas (FEAT-019, D-19). Propuesta: `jspdf` con `jspdf-autotable` (dependencia nueva, **aprobada por el usuario el 9 de octubre de 2026**). Un vale de 500 renglones se genera en **menos de 5 segundos** en un celular de gama media; con más renglones (un lote) los pide de 500 en 500 y avanza con un indicador «Armando el PDF: 500 de 1,240 renglones» que se puede cancelar. | D-16; D-15; D-19 |
 | BT-10 | **Resultado de la importación y del traspaso por Excel.** Al confirmar una importación, el resultado ofrece «Ver en la bitácora» (abre la bitácora filtrada por ese lote y con el lote desplegado) y «Descargar PDF» (el PDF del lote, o el del vale si solo hubo uno). Al confirmar un traspaso por Excel, el resultado ofrece «Ver el vale» y «Descargar PDF», que sirve de lista impresa para verificar al recibir. | D-16 |
 
 ### A. Bitácora por vale (BT-01 a BT-04)
@@ -182,7 +182,7 @@ Un elemento `VALE` suelto trae además `trabajador {id, numero_empleado, nombre}
 
 ## Fuera de alcance
 
-- Generar el PDF en el servidor (queda como alternativa si `jspdf` no se aprueba; ver Decisiones abiertas).
+- Generar el PDF en el servidor (alternativa descartada: `jspdf` quedó aprobada por el usuario el 9 de octubre de 2026).
 - Mandar el PDF por correo o WhatsApp.
 - Imprimir directo a impresoras térmicas (sigue excluido).
 - Mostrar en el PDF si el vale está íntegro (sello F-06, F-07): es de FEAT-001.
@@ -222,7 +222,7 @@ Un elemento `VALE` suelto trae además `trabajador {id, numero_empleado, nombre}
 - **API nueva:** `GET /api/bitacora` (BT-01 a BT-04; `bitacora.ver` o `reportes.movimientos` con `requiere_alguno`; acepta `formato=csv`) y `GET /api/vales/{id}/renglones` (`vales.ver`).
 - **API que cambia:** `GET /api/vales/{id}` agrega `lote`, `proyecto`, `resumen`, `relacionados`, `capturado_sin_conexion`, `capturado_en` y el parámetro `renglones=false`. `POST /api/vales` sigue rechazando `lote_id`. La respuesta de `POST /api/importacion` y de `POST /api/importacion/traspasos` agrega `lote_id` (igual al `id_lote`).
 - **Sin cambios:** `GET /api/reportes/movimientos` (SG-05) y `GET /api/reportes/usuarios`.
-- **Dependencia nueva (a aprobar):** `jspdf` y `jspdf-autotable` en `frontend/`.
+- **Dependencia nueva (aprobada por el usuario el 9 de octubre de 2026):** `jspdf` y `jspdf-autotable` en `frontend/`, y la fuente Poppins en TTF.
 
 ## Restricciones y compatibilidad
 
@@ -257,12 +257,12 @@ Un elemento `VALE` suelto trae además `trabajador {id, numero_empleado, nombre}
 - [app-flow.md](../product/app-flow.md): `/bitacora`, la redirección de `/reportes/movimientos`, el resultado de la importación.
 - [ui-ux.md](../product/ui-ux.md): «Detalle de un vale» (primero computadora), patrón «Renglón de lote», «Descargar PDF».
 - [AGENTS.md](../../AGENTS.md): la lista de rutas que declaran `requiere_alguno` pasa de cuatro a cinco (`GET /api/bitacora`).
-- Un ADR nuevo si se aprueba `jspdf` (PDF en el navegador frente al servidor).
+- Un ADR nuevo, compartido con FEAT-019: «PDF armado en el navegador» (`jspdf` ya está aprobada; el ADR se escribe al construir).
 
 ## Decisiones abiertas
 
-1. **Librería del PDF.** Propuesta: `jspdf` + `jspdf-autotable` en el navegador, porque sirve sin conexión (FEAT-020) y para las etiquetas (FEAT-019). Alternativa: `fpdf2` en el servidor (`GET /api/vales/{id}/pdf`), más simple de probar pero sin conexión no funciona y agrega un endpoint fuera de la tabla 5.4 del maestro. Falta tu aprobación de la dependencia.
-2. **Letra del PDF.** Propuesta: la letra estándar del PDF (Helvetica, que trae acentos y ñ) para que sea rápido y ligero; Poppins solo si la medición lo permite.
+1. **Librería del PDF. Resuelta: aprobada por el usuario el 9 de octubre de 2026.** Se usa `jspdf` + `jspdf-autotable` en el navegador, porque sirve sin conexión (FEAT-020) y para las etiquetas (FEAT-019). Alternativa: `fpdf2` en el servidor (`GET /api/vales/{id}/pdf`), más simple de probar pero sin conexión no funciona y agrega un endpoint fuera de la tabla 5.4 del maestro. Falta tu aprobación de la dependencia.
+2. **Letra del PDF. Resuelta el 9 de octubre de 2026:** Poppins en TTF (aprobada con las dependencias, la misma de FEAT-019), cargada solo al armar el PDF. Si la medición de BT-09 no se cumple en un celular de gama media, se usa la letra estándar (Helvetica) y se deja anotado.
 3. **Valor en pesos con un solo artículo.** Propuesta: ocultar el valor de una categoría (y el total) cuando la cuenta trae un solo artículo distinto, para no revelar su costo unitario por división (RG-12, D-05). La misma salvaguarda aplicaría al consumo de FEAT-018.
 4. **Lotes anteriores.** Propuesta: no reconstruirlos. Alternativa: una migración que reconstruya `lote_id` a partir de los `id_cliente` deterministas de la importación (uuid5 por lote, almacén y parte) y de la auditoría. Es posible pero frágil.
 5. **Periodo por omisión de la bitácora.** Propuesta: últimos 7 días. Alternativa: hoy.

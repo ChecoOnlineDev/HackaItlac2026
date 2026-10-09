@@ -1,18 +1,18 @@
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 
-import { apiGet } from "~/api/cliente";
 import { pedirResumenTablero, pedirValorTablero } from "~/api/tablero";
 import { useConsulta } from "~/componentes/catalogo/usar-consulta";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { EstadoVacio } from "~/componentes/ui/estado-vacio";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
-import { ListaDesplegable, type OpcionLista } from "~/componentes/ui/lista-desplegable";
+import { ListaDesplegable } from "~/componentes/ui/lista-desplegable";
 import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { useSesionActiva } from "~/sesion/sesion";
 import { ConsumoMasUsado } from "./pestana-consumo";
 import { PestanaValor } from "./pestana-valor";
 import { TarjetasPiezas, TarjetasResumen } from "./tarjetas-indicadores";
+import { UsoProyectos } from "./uso-proyectos";
 import "./tablero-admin.css";
 
 type Pestana = "resumen" | "valor" | "piezas" | "consumo";
@@ -41,8 +41,9 @@ const sinEsperar = () => new Promise<never>(() => undefined);
  * lo que se ve lo decide el servidor. Quien no tiene `tablero.ver` no debe montarlo.
  */
 export function Tablero() {
-  const { puede } = useSesionActiva();
-  const puedeElegir = puede("almacenes.todos");
+  const { puede, sesion } = useSesionActiva();
+  const administrativo = puede("almacenes.todos");
+  const puedeElegir = administrativo || (sesion.almacenes?.length ?? 0) > 1;
   const conValor = puede("reportes.valor_inventario");
   const puedeVerSeguimiento = puede("reportes.existencias");
   const [almacen, setAlmacen] = useState("");
@@ -72,21 +73,17 @@ export function Tablero() {
     guardar(v);
   };
 
-  const almacenes = useConsulta(
-    (signal) => (puedeElegir ? apiGet<{ id: string; clave: string; nombre: string }[]>("/almacenes", undefined, signal) : Promise.resolve([])),
-    `tablero-almacenes|${puedeElegir}`,
-  );
-  const opcionesAlmacen = useMemo<OpcionLista[]>(() => (almacenes.datos ?? []).map((a) => ({ valor: a.id, texto: a.nombre })), [almacenes.datos]);
 
   // Los datos de «Resumen» y «Piezas» salen de la misma petición; se pide al abrir la primera de las dos.
   const quiereResumen = visitadas.has("resumen") || visitadas.has("piezas");
   const resumen = useConsulta((signal) => (quiereResumen ? pedirResumenTablero(almacen, signal) : sinEsperar()), `resumen|${quiereResumen}|${almacen}`);
   // Quien no ve todos los almacenes tiene el valor dentro de «Mi almacén».
-  const quiereValor = conValor && (visitadas.has("valor") || (!puedeElegir && visitadas.has("resumen")));
+  const quiereValor = conValor && (visitadas.has("valor") || (!administrativo && visitadas.has("resumen")));
   const valor = useConsulta((signal) => (quiereValor ? pedirValorTablero(almacen, signal) : sinEsperar()), `valor|${quiereValor}|${almacen}`);
 
   const alcance = resumen.datos?.alcance ?? null;
-  const sinAlmacen = alcance !== null && !alcance.es_todos && !alcance.almacen_id;
+  const opcionesAlmacen = (alcance?.almacenes ?? sesion.almacenes ?? []).map((a) => ({ valor: a.id, texto: a.nombre }));
+  const sinAlmacen = alcance !== null && !alcance.es_todos && !alcance.almacen_id && !alcance.almacenes?.length;
 
   const bloque = (c: typeof resumen, pintar: (d: NonNullable<typeof resumen.datos>) => ReactNode) =>
     c.error && !c.datos ? (
@@ -106,7 +103,7 @@ export function Tablero() {
     contenido = (
       <div className="flex flex-col gap-5">
         {bloque(resumen, (d) => <TarjetasResumen resumen={d} />)}
-        {conValor && !puedeElegir ? (
+        {conValor && !administrativo ? (
           valor.error && !valor.datos ? (
             <EstadoError error={valor.error} alReintentar={valor.recargar} />
           ) : !valor.datos ? (
@@ -115,6 +112,7 @@ export function Tablero() {
             <PestanaValor valor={valor.datos} />
           )
         ) : null}
+        {puede("proyectos.ver") ? <UsoProyectos almacen={almacen} /> : null}
       </div>
     );
   } else if (activa === "piezas") {
@@ -142,12 +140,13 @@ export function Tablero() {
           {alcance ? <span className="ml-2 text-base font-normal text-muted-foreground">· {alcance.nombre}</span> : null}
         </h2>
 
-        {puedeElegir && !almacenes.error ? (
+        {puedeElegir ? (
           <div className="flex max-w-sm flex-col gap-1.5">
             <label htmlFor={`${idBase}-almacen`} className="text-sm font-medium">
               Almacén
             </label>
-            <ListaDesplegable id={`${idBase}-almacen`} valor={almacen} alCambiar={setAlmacen} opciones={opcionesAlmacen} vacio="Todos los almacenes" />
+            <ListaDesplegable id={`${idBase}-almacen`} valor={almacen} alCambiar={setAlmacen} opciones={opcionesAlmacen} vacio={administrativo ? "Todos los almacenes" : "Todos mis almacenes"} />
+            <p className="text-xs text-muted-foreground">Viendo: {alcance?.nombre ?? "…"}. Este filtro no cambia el almacén activo.</p>
           </div>
         ) : null}
 

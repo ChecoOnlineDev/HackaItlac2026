@@ -20,7 +20,7 @@ import { ListaDesplegable } from "~/componentes/ui/lista-desplegable";
 import { Label } from "~/components/ui/label";
 import { useSesionActiva } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "almacenes.asignar_personal" };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permiso: "almacenes.asignar_personal" };
 
 /** Valor del filtro para "solo quienes no tienen almacén". */
 const SIN = "sin";

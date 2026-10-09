@@ -23,7 +23,7 @@ from sqlalchemy.exc import DBAPIError, InvalidRequestError
 from sqlalchemy.orm import Session
 
 from app.core import errores_bd
-from app.core.excepciones import NoEncontrado, SinPermiso
+from app.core.excepciones import DatosInvalidos, NoEncontrado, SinPermiso
 from app.core.ids import nuevo_id
 from app.core.paginacion import Pagina, Paginacion
 from app.core.tiempo import ZONA_MX, ahora_utc, hoy_mx
@@ -35,8 +35,10 @@ from app.modulos.almacenes.service import AlmacenService
 from app.modulos.archivos.models import TipoAdjunto
 from app.modulos.archivos.service import ArchivoService, decodificar_data_url
 from app.modulos.autorizaciones.exceptions import (
+    AprobacionInvalida,
     AutorizacionInvalida,
     AutorizacionPropia,
+    RequiereAprobacionDespacho,
 )
 from app.modulos.autorizaciones.models import Autorizacion
 from app.modulos.autorizaciones.service import AutorizacionService, RenglonVale
@@ -64,6 +66,7 @@ from app.modulos.movimientos.models import (
     EstadoVale,
     Movimiento,
     Nivel,
+    ReservaPapel,
     TipoVale,
     Vale,
 )
@@ -82,6 +85,8 @@ from app.modulos.movimientos.schemas import (
     RenglonEvaluadoOut,
     RenglonIn,
     RenglonValeOut,
+    ReservaPapelOut,
+    RutaEvaluacionOut,
     TitularOut,
     TrabajadorValeOut,
     UbicacionOut,
@@ -106,7 +111,9 @@ def huella_del_cuerpo(cuerpo: ConfirmarIn) -> str:
     """SHA-256 del cuerpo canónico de una confirmación (llaves ordenadas, sin espacios). La imagen
     y el trazo de la firma quedan fuera: pesan mucho y un reintento puede volver a firmar sin
     que el vale cambie (el vale conserva la firma de la primera vez)."""
-    datos = cuerpo.model_dump(mode="json", exclude={"firma": {"imagen", "trazo"}})
+    datos = cuerpo.model_dump(
+        mode="json", exclude={"firma": {"imagen", "trazo"}, "reserva_papel_id": True}
+    )
     canonico = json.dumps(datos, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canonico.encode("utf-8")).hexdigest()
 
@@ -198,6 +205,133 @@ class MovimientoService:
         self._aplicar_autorizacion(ctx, evaluacion, normal, silencioso=True)
         return self._salida_evaluacion(ctx, evaluacion)
 
+    def reservar_papel(self, usuario: Usuario, cuerpo: ConfirmarIn) -> ReservaPapelOut:
+        """Reserva folio y QR de corta duración para imprimir el ticket antes de firmarlo."""
+        manejador = self.exigir_permiso_del_tipo(usuario, cuerpo.tipo)
+        if cuerpo.tipo != TipoVale.ENTREGA or cuerpo.firma is None or cuerpo.firma.modo != "PAPEL":
+            raise DatosInvalidos("Elige firma en papel para preparar un ticket.")
+        if cuerpo.firma.imagen:
+            raise DatosInvalidos("Primero imprime el ticket; adjunta la foto al confirmar.")
+        manejador.validar_cuerpo(cuerpo, confirmar=False)
+        evaluacion = self.evaluar(usuario, cuerpo)
+        if not evaluacion.puede_confirmar:
+            raise ValeCambio(detalles=evaluacion.model_dump(mode="json"))
+        huella = huella_del_cuerpo(cuerpo)
+        existente = self.repository.reserva_papel_por_id_cliente(cuerpo.id_cliente)
+        if existente:
+            if existente.responsable_id != usuario.id or existente.huella_cuerpo != huella:
+                raise IdClienteOtroCuerpo()
+            if existente.vence_en <= ahora_utc() and existente.vale_id is None:
+                raise DatosInvalidos("El ticket venció. Vuelve a preparar e imprimir otro.")
+            return ReservaPapelOut(
+                id=existente.id,
+                folio=existente.folio,
+                token=existente.token,
+                vence_en=existente.vence_en,
+                ticket=existente.ticket,
+                evaluacion=evaluacion,
+            )
+        try:
+            # Mantén el orden de confirmar: usuario, almacén, trabajador y contador. La FK de
+            # esta reserva no debe invertirlo contra los bloqueos de confirmación.
+            self._aislar_transaccion()
+            usuario = self.acceso.usuarios.bloquear(usuario.id)
+            self.exigir_permiso_del_tipo(usuario, cuerpo.tipo)
+            almacen_id = manejador.almacen_operativo(self, usuario, cuerpo)
+            self.repository.bloquear_almacenes([almacen_id])
+            assert cuerpo.trabajador_id is not None
+            self.repository.bloquear_trabajador(cuerpo.trabajador_id)
+            self.session.expire_all()
+            usuario = self.acceso.usuarios.bloquear(usuario.id)
+            ctx = self._contexto(usuario, almacen_id)
+            evaluacion, normal = self._evaluar(manejador, ctx, cuerpo)
+            self._aplicar_autorizacion(ctx, evaluacion, normal, silencioso=True)
+            if not evaluacion.puede_confirmar:
+                raise self._vale_cambio(ctx, evaluacion)
+            evaluacion_salida = self._salida_evaluacion(ctx, evaluacion)
+            almacen = self.almacenes.obtener(almacen_id)
+            serie = self.repository.bloquear_serie(almacen.id, TipoVale.ENTREGA)
+            serie.ultimo += 1
+            folio = f"{almacen.clave}-{PREFIJO_FOLIO[TipoVale.ENTREGA]}-{serie.ultimo:06d}"
+            trabajador = evaluacion.trabajador
+            ticket = {
+                "creado_en": ahora_utc().isoformat(timespec="seconds") + "Z",
+                "trabajador": {
+                    "nombre": trabajador.nombre,
+                    "numero_empleado": trabajador.numero_empleado,
+                }
+                if trabajador
+                else None,
+                "proyecto": evaluacion_salida.proyecto.model_dump(mode="json")
+                if evaluacion_salida.proyecto
+                else None,
+                "articulos": [
+                    {
+                        "renglon": r.renglon,
+                        "codigo": r.codigo,
+                        "codigo_pieza": r.pieza.get("codigo") if r.pieza else None,
+                        "numero_serie": r.pieza.get("numero_serie") if r.pieza else None,
+                        "nombre": r.articulo.get("nombre"),
+                        "marca": r.articulo.get("marca"),
+                        "modelo": r.articulo.get("modelo"),
+                        "talla": r.articulo.get("talla"),
+                        "cantidad": r.cantidad,
+                    }
+                    for r in evaluacion.renglones
+                    if r.articulo is not None
+                ],
+                "observacion": cuerpo.observacion,
+                "leyenda": (
+                    "Recibí el equipo descrito y me comprometo a conservarlo y devolverlo "
+                    "cuando corresponda."
+                ),
+            }
+            reserva = self.repository.add_reserva_papel(
+                ReservaPapel(
+                    id=nuevo_id(),
+                    id_cliente=cuerpo.id_cliente,
+                    responsable_id=usuario.id,
+                    almacen_id=almacen.id,
+                    tipo=TipoVale.ENTREGA,
+                    folio=folio,
+                    token=secrets.token_urlsafe(16),
+                    huella_cuerpo=huella,
+                    ticket=ticket,
+                    vence_en=ahora_utc() + timedelta(minutes=30),
+                )
+            )
+            self.session.commit()
+            return ReservaPapelOut(
+                id=reserva.id,
+                folio=reserva.folio,
+                token=reserva.token,
+                vence_en=reserva.vence_en,
+                ticket=reserva.ticket,
+                evaluacion=evaluacion_salida,
+            )
+        except DBAPIError as exc:
+            self.session.rollback()
+            if errores_bd.es_restriccion(exc, "uq_reserva_papel_id_cliente"):
+                existente = self.repository.reserva_papel_por_id_cliente(cuerpo.id_cliente)
+                if existente is not None:
+                    if (
+                        existente.responsable_id != usuario.id
+                        or existente.huella_cuerpo != huella
+                    ):
+                        raise IdClienteOtroCuerpo() from exc
+                    return ReservaPapelOut(
+                        id=existente.id,
+                        folio=existente.folio,
+                        token=existente.token,
+                        vence_en=existente.vence_en,
+                        ticket=existente.ticket,
+                        evaluacion=evaluacion_salida,
+                    )
+            raise
+        except Exception:
+            self.session.rollback()
+            raise
+
     def _evaluar(
         self, manejador: ManejadorTipo, ctx: ContextoVale, cuerpo: ValeIn
     ) -> tuple[Evaluacion, ValeIn]:
@@ -243,6 +377,26 @@ class MovimientoService:
         evaluacion, _ = self._evaluar(manejador, ctx, cuerpo)
         return evaluacion
 
+    def evaluar_traslado_para_autorizacion(
+        self,
+        usuario: Usuario,
+        origen_id: uuid.UUID,
+        destino_id: uuid.UUID,
+        renglones: list[tuple[str, int]],
+    ) -> Evaluacion:
+        """Evalúa un TRASPASO hipotético `(codigo, cantidad)` de `origen_id` a `destino_id`, como
+        lo evaluaría `usuario` al enviarlo, sin escribir. Lo usa el verificador de `autorizaciones`
+        para una solicitud de TRASLADO (X-17, A-06). Los renglones salen normalizados."""
+        cuerpo = ValeIn(
+            tipo=TipoVale.TRASPASO,
+            destino_almacen_id=destino_id,
+            renglones=[RenglonIn(codigo=c, cantidad=n) for c, n in renglones],
+        )
+        manejador = self.manejador(TipoVale.TRASPASO)
+        ctx = self._contexto(usuario, origen_id)
+        evaluacion, _ = self._evaluar(manejador, ctx, cuerpo)
+        return evaluacion
+
     def _aplicar_autorizacion(
         self,
         ctx: ContextoVale,
@@ -255,6 +409,12 @@ class MovimientoService:
         (mismo almacén, mismo trabajador, mismos renglones y cantidades, un solo uso). Marca como
         autorizados los naranjas que cubre. Al evaluar no falla: deja el motivo en
         `evaluacion.autorizacion_error`."""
+        if cuerpo.tipo == TipoVale.TRASPASO:
+            return self._aplicar_autorizacion_de_traslado(
+                ctx, evaluacion, cuerpo, silencioso=silencioso
+            )
+        if evaluacion.requiere_aprobacion_despacho:
+            return self._aplicar_despacho(ctx, evaluacion, cuerpo, silencioso=silencioso)
         naranjas = [r for r in evaluacion.renglones if r.nivel == Nivel.NARANJA]
         if not naranjas or cuerpo.autorizacion_id is None or cuerpo.trabajador_id is None:
             return None
@@ -266,13 +426,111 @@ class MovimientoService:
                 [RenglonVale(r.codigo, r.cantidad) for r in naranjas],
                 ctx.usuario,
             )
-        except (AutorizacionInvalida, AutorizacionPropia, NoEncontrado) as exc:
+        except (AutorizacionInvalida, AprobacionInvalida, AutorizacionPropia, NoEncontrado) as exc:
             if not silencioso:
                 raise
             evaluacion.autorizacion_error = exc.mensaje
             return None
         for r in naranjas:
             r.autorizado = True
+        return autorizacion
+
+    def _aplicar_despacho(self, ctx, evaluacion, cuerpo, *, silencioso):
+        requeridos = [
+            r for r in evaluacion.renglones if r.extra.get("es_epp") or r.nivel == Nivel.NARANJA
+        ]
+        for r in requeridos:
+            r.extra["aprobacion"] = "PENDIENTE"
+        if cuerpo.autorizacion_id is None:
+            if not silencioso:
+                raise RequiereAprobacionDespacho(
+                    detalles={
+                        "regla": "DE-01",
+                        "renglones": [
+                            {"renglon": r.renglon, "codigo": r.codigo} for r in requeridos
+                        ],
+                    }
+                )
+            return None
+        proyecto_id = evaluacion.proyecto["id"] if evaluacion.proyecto else None
+        try:
+            a = self.autorizaciones.validar_despacho_para_vale(
+                cuerpo.autorizacion_id,
+                ctx.almacen.id,
+                cuerpo.trabajador_id,
+                proyecto_id,
+                [RenglonVale(r.codigo, r.cantidad, r.renglon) for r in requeridos],
+                ctx.usuario,
+                bloquear=ctx.bloqueado,
+            )
+        except (AutorizacionInvalida, AprobacionInvalida, AutorizacionPropia, NoEncontrado) as exc:
+            if not silencioso:
+                raise
+            evaluacion.autorizacion_error = exc.mensaje
+            a = self.autorizaciones.repository.get(cuerpo.autorizacion_id)
+            # DE-13: explicar cada renglón sin considerar válida una aprobación de otro vale.
+            if (
+                a
+                and a.almacen_id == ctx.almacen.id
+                and a.trabajador_id == cuerpo.trabajador_id
+                and a.tipo == "DESPACHO"
+            ):
+                resoluciones = {
+                    r["codigo"].strip().casefold(): r for r in a.renglones_resueltos or []
+                }
+                for r in requeridos:
+                    decidido = resoluciones.get(r.codigo.strip().casefold())
+                    if a.estado == "PENDIENTE":
+                        continue
+                    r.extra["aprobacion"] = (
+                        "NO_INCLUIDO"
+                        if decidido is None
+                        else "RECHAZADO"
+                        if decidido["decision"] == "RECHAZADO"
+                        else "CANTIDAD_MAYOR"
+                        if r.cantidad > decidido["cantidad"]
+                        else "APROBADO"
+                    )
+                    r.extra["motivo_rechazo"] = decidido.get("motivo") if decidido else None
+            return None
+        for r in requeridos:
+            r.extra["aprobacion"] = "APROBADO"
+            if r.nivel == Nivel.NARANJA:
+                r.autorizado = True
+        evaluacion.autorizado_vale = True
+        return a
+
+    def _aplicar_autorizacion_de_traslado(
+        self,
+        ctx: ContextoVale,
+        evaluacion: Evaluacion,
+        cuerpo: ValeIn,
+        *,
+        silencioso: bool,
+    ) -> Autorizacion | None:
+        """X-17 y X-19: el motivo naranja X-17 del vale lo cubre una autorización de TRASLADO
+        aprobada, vigente, sin usar, del mismo origen y destino, que cubra cada renglón (solo se
+        pueden quitar renglones). Al evaluar no falla: deja el motivo en `autorizacion_error`.
+        Sin X-17 (envío propio, ruta habitual...) no se usa ni se gasta ninguna autorización."""
+        if cuerpo.autorizacion_id is None or not any(
+            m.regla == "X-17" for m in evaluacion.motivos_vale
+        ):
+            return None
+        assert cuerpo.destino_almacen_id is not None
+        try:
+            autorizacion = self.autorizaciones.validar_traslado_para_vale(
+                cuerpo.autorizacion_id,
+                ctx.almacen.id,
+                cuerpo.destino_almacen_id,
+                [RenglonVale(r.codigo, r.cantidad) for r in evaluacion.renglones],
+                ctx.usuario,
+            )
+        except (AutorizacionInvalida, AutorizacionPropia, NoEncontrado) as exc:
+            if not silencioso:
+                raise
+            evaluacion.autorizacion_error = exc.mensaje
+            return None
+        evaluacion.autorizado_vale = True
         return autorizacion
 
     # ======================================================================= confirmar
@@ -285,6 +543,7 @@ class MovimientoService:
         dispositivo: str | None = None,
         aislar: bool = True,
         commit: bool = True,
+        lote_id: uuid.UUID | None = None,
     ) -> tuple[ValeConfirmadoOut, bool]:
         """`POST /api/vales`. Devuelve `(vale, creado)`: `creado` es falso si el `id_cliente` ya
         existía (idempotencia: se devuelve el vale que se guardó la primera vez).
@@ -301,7 +560,13 @@ class MovimientoService:
         for intento in range(1, INTENTOS_INTERBLOQUEO + 1):
             try:
                 return self._confirmar_una_vez(
-                    manejador, usuario, cuerpo, dispositivo, aislar=aislar, commit=commit
+                    manejador,
+                    usuario,
+                    cuerpo,
+                    dispositivo,
+                    aislar=aislar,
+                    commit=commit,
+                    lote_id=lote_id,
                 )
             except DBAPIError as exc:
                 if commit:
@@ -332,9 +597,13 @@ class MovimientoService:
         *,
         aislar: bool,
         commit: bool,
+        lote_id: uuid.UUID | None,
     ) -> tuple[ValeConfirmadoOut, bool]:
         if aislar:
             self._aislar_transaccion()
+        # DE-16: leer la autonomía vigente, no la identidad cargada al autenticar.
+        usuario = self.acceso.usuarios.bloquear(usuario.id)
+        self.exigir_permiso_del_tipo(usuario, cuerpo.tipo)
         almacen_id = manejador.almacen_operativo(self, usuario, cuerpo)
         ctx = self._contexto(usuario, almacen_id, bloqueado=True)
         normal = self._normalizar(manejador, ctx, cuerpo)
@@ -342,8 +611,12 @@ class MovimientoService:
 
         # 1. Bloquear en orden canónico y descartar lo leído antes de bloquear.
         plan = manejador.bloqueos(ctx, normal)
-        self._bloquear(plan, ctx, manejador)
+        self._bloquear(plan, ctx, manejador, normal)
         self.session.expire_all()
+        self.acceso.usuarios.bloquear(usuario.id)
+        self.repository.bloquear_almacenes(
+            [a.id for a in manejador.almacenes_involucrados(ctx, normal)]
+        )
         ctx.cargador.olvidar_lecturas()
 
         # 2. Otra confirmación con el mismo `id_cliente` pudo ganar mientras esperábamos.
@@ -369,18 +642,48 @@ class MovimientoService:
         if not evaluacion.puede_confirmar:
             raise self._vale_cambio(ctx, evaluacion)
 
+        reserva_papel = None
+        if cuerpo.firma and cuerpo.firma.modo == "PAPEL":
+            if cuerpo.reserva_papel_id is None:
+                raise DatosInvalidos("Vuelve a preparar e imprimir el ticket antes de confirmar.")
+            reserva_papel = self.repository.reserva_papel(cuerpo.reserva_papel_id, bloquear=True)
+            if (
+                reserva_papel is None
+                or reserva_papel.responsable_id != usuario.id
+                or reserva_papel.almacen_id != ctx.almacen.id
+                or reserva_papel.tipo != TipoVale.ENTREGA
+                or reserva_papel.id_cliente != cuerpo.id_cliente
+                or reserva_papel.huella_cuerpo != huella_del_cuerpo(cuerpo)
+                or reserva_papel.vale_id is not None
+                or reserva_papel.vence_en <= ahora_utc()
+            ):
+                raise DatosInvalidos("El ticket reservado venció o cambió. Vuelve a prepararlo.")
+        elif cuerpo.reserva_papel_id is not None:
+            raise DatosInvalidos("La reserva solo se usa al firmar con papel.")
+
         # 4. Vale: folio, token y responsable (RG-06, F-03, F-05).
         datos = manejador.datos_vale(ctx, normal, evaluacion)
+        if reserva_papel is not None:
+            proyecto_ticket = (reserva_papel.ticket.get("proyecto") or {}).get("id")
+            proyecto_actual = str(datos.proyecto_id) if datos.proyecto_id is not None else None
+            if proyecto_ticket != proyecto_actual:
+                raise DatosInvalidos(
+                    "El proyecto del ticket cambió. Vuelve a preparar e imprimirlo."
+                )
         vale = self.repository.add_vale(
             Vale(
                 id=nuevo_id(),
                 id_cliente=cuerpo.id_cliente,
                 huella_cuerpo=huella_del_cuerpo(cuerpo),
+                lote_id=lote_id,
                 tipo=manejador.tipo,
-                folio=self._asignar_folio(ctx, manejador.tipo),
+                folio=reserva_papel.folio
+                if reserva_papel
+                else self._asignar_folio(ctx, manejador.tipo),
                 almacen_id=ctx.almacen.id,
                 trabajador_id=datos.trabajador_id,
                 periodo_contrato_id=datos.periodo_contrato_id,
+                proyecto_id=datos.proyecto_id,
                 destino_almacen_id=datos.destino_almacen_id,
                 vale_origen_id=datos.vale_origen_id,
                 estado=datos.estado,
@@ -388,11 +691,13 @@ class MovimientoService:
                 autorizacion_id=autorizacion.id if autorizacion else None,
                 observacion=datos.observacion or cuerpo.observacion,
                 firma_modo=datos.firma_modo,
-                token=secrets.token_urlsafe(16),  # 128 bits
+                token=reserva_papel.token if reserva_papel else secrets.token_urlsafe(16),
                 dispositivo=dispositivo[:200] if dispositivo else None,
                 creado_en=ctx.ahora,
             )
         )
+        if reserva_papel:
+            reserva_papel.vale_id = vale.id
 
         # 5. Movimientos, existencias y ubicación de las piezas (RG-01).
         nuevos = manejador.construir_movimientos(ctx, normal, evaluacion)
@@ -407,11 +712,15 @@ class MovimientoService:
 
         # 7. Efectos propios del tipo.
         manejador.al_confirmar(ctx, normal, evaluacion, vale, movimientos)
+        from app.modulos.movimientos.sello import SelloService
+
+        SelloService(self.session).sellar(vale, movimientos)
 
         if commit:
             self.session.commit()
         else:
             self.session.flush()
+        # El router programa USADA y traslado lateral después del commit (NT-07/X-20).
         return self._confirmada(vale), True
 
     def _aislar_transaccion(self) -> None:
@@ -430,9 +739,14 @@ class MovimientoService:
         except InvalidRequestError:  # pragma: no cover - ya había una transacción abierta
             pass
 
-    def _bloquear(self, plan: PlanBloqueo, ctx: ContextoVale, manejador: ManejadorTipo) -> None:
-        """Orden canónico: vales, trabajador, existencias (por ubicación y artículo), piezas por
-        id y, al final, el contador de folios. Todos los tipos lo siguen: sin interbloqueos."""
+    def _bloquear(
+        self, plan: PlanBloqueo, ctx: ContextoVale, manejador: ManejadorTipo, cuerpo: ValeIn
+    ) -> None:
+        """Orden de bloqueo: usuario, almacenes, vales, trabajador, existencias por ubicación y
+        artículo, piezas y contador de folios. Todos los tipos lo siguen: sin interbloqueos."""
+        self.repository.bloquear_almacenes(
+            [a.id for a in manejador.almacenes_involucrados(ctx, cuerpo)]
+        )
         self.repository.bloquear_vales(plan.vales)
         if plan.trabajador_id is not None:
             self.repository.bloquear_trabajador(plan.trabajador_id)
@@ -524,7 +838,12 @@ class MovimientoService:
         assert cuerpo.firma is not None and cuerpo.firma.imagen is not None
         contenido = decodificar_data_url(cuerpo.firma.imagen)
         adjunto = self.archivos.guardar(
-            tipo=TipoAdjunto.FIRMA, contenido=contenido, subido_por=usuario.id, vale_id=vale.id
+            tipo=(
+                TipoAdjunto.TICKET_FIRMADO if cuerpo.firma.modo == "PAPEL" else TipoAdjunto.FIRMA
+            ),
+            contenido=contenido,
+            subido_por=usuario.id,
+            vale_id=vale.id,
         )
         # `vale` y `adjunto` se apuntan entre sí: el vale ya existe; aquí se completa su alta.
         vale.firma_adjunto_id = adjunto.id
@@ -557,12 +876,14 @@ class MovimientoService:
 
     # ====================================================================== consultas
 
-    def obtener(self, usuario: Usuario, vale_id: uuid.UUID) -> ValeDetalleOut:
+    def obtener(
+        self, usuario: Usuario, vale_id: uuid.UUID, *, incluir_renglones: bool = True
+    ) -> ValeDetalleOut:
         """`GET /api/vales/{id}`. Fuera de su alcance (AC-06) responde 404."""
         vale = self.repository.vale(vale_id)
         if vale is None or not self._en_alcance(usuario, vale):
             raise ValeNoEncontrado()
-        return self.detalle(vale)
+        return self.detalle(vale, usuario=usuario, incluir_renglones=incluir_renglones)
 
     def firma_de(self, usuario: Usuario, vale_id: uuid.UUID) -> tuple[str, bytes]:
         """`GET /api/vales/{id}/firma`: el tipo de contenido y los bytes de la firma del trabajador.
@@ -573,12 +894,14 @@ class MovimientoService:
         adjunto, contenido = self.archivos.leer(vale.firma_adjunto_id)
         return adjunto.mime, contenido
 
-    def obtener_por_token(self, usuario: Usuario, token: str) -> ValeDetalleOut:
+    def obtener_por_token(
+        self, usuario: Usuario, token: str, *, incluir_renglones: bool = True
+    ) -> ValeDetalleOut:
         """`GET /api/vales/por-token/{token}`: el vale que abre su QR."""
         vale = self.repository.vale_por_token(token.strip())
         if vale is None or not self._en_alcance(usuario, vale):
             raise ValeNoEncontrado()
-        return self.detalle(vale)
+        return self.detalle(vale, usuario=usuario, incluir_renglones=incluir_renglones)
 
     def _en_alcance(self, usuario: Usuario, vale: Vale) -> bool:
         return self.acceso.en_alcance(usuario, vale.almacen_id, vale.destino_almacen_id)
@@ -589,16 +912,19 @@ class MovimientoService:
         """`GET /api/vales`. Sin `almacenes.todos`, solo los del almacén asignado (AC-06), también
         al filtrar por otro almacén o por usuario."""
         almacen_id = filtros.almacen_id
+        almacenes_id = None
         if not self.acceso.puede_operar_todos_los_almacenes(usuario):
-            if usuario.almacen_id is None:
+            asignados = self.acceso.almacenes_del_usuario(usuario.id)
+            if not asignados:
                 raise SinPermiso("No tienes un almacén asignado.")
-            if almacen_id is not None and almacen_id != usuario.almacen_id:
+            if almacen_id is not None and almacen_id not in asignados:
                 return Pagina[ValeListItem](elementos=[], total=0)
-            almacen_id = usuario.almacen_id
+            almacenes_id = frozenset(asignados)
         filas, total = self.repository.listar(
             FiltroVales(
                 tipo=filtros.tipo,
                 almacen_id=almacen_id,
+                almacenes_id=almacenes_id,
                 desde=_inicio_del_dia(filtros.desde) if filtros.desde else None,
                 hasta=_inicio_del_dia(filtros.hasta + timedelta(days=1)) if filtros.hasta else None,
                 trabajador_id=filtros.trabajador_id,
@@ -626,7 +952,9 @@ class MovimientoService:
             total=total,
         )
 
-    def detalle(self, vale: Vale) -> ValeDetalleOut:
+    def detalle(
+        self, vale: Vale, *, usuario: Usuario | None = None, incluir_renglones: bool = True
+    ) -> ValeDetalleOut:
         """El vale completo para mostrarlo o imprimirlo (E-24). Nunca trae costos (F-12)."""
         almacen = self.almacenes.obtener(vale.almacen_id)
         destino = (
@@ -649,7 +977,7 @@ class MovimientoService:
                 puesto=periodo.puesto if periodo else None,
                 area_obra=periodo.area_obra if periodo else None,
             )
-        filas = self.repository.renglones_de(vale.id)
+        filas = self.repository.renglones_de(vale.id) if incluir_renglones else []
         ubicaciones = self.repository.ubicaciones(
             [m.origen_id for m, _, _ in filas] + [m.destino_id for m, _, _ in filas]
         )
@@ -659,7 +987,13 @@ class MovimientoService:
             return UbicacionOut(tipo=ub.virtual or ub.tipo, nombre=nombre, clave=clave)
 
         origen_vale = self.repository.vale(vale.vale_origen_id) if vale.vale_origen_id else None
-        return ValeDetalleOut(
+        proyecto = None
+        if vale.proyecto_id is not None:
+            from app.modulos.proyectos.service import ProyectoService
+
+            p = ProyectoService(self.session).obtener(vale.proyecto_id)
+            proyecto = {"id": p.id, "clave": p.clave, "nombre": p.nombre}
+        salida = ValeDetalleOut(
             cancelacion=self._cancelacion_vista(vale),
             id=vale.id,
             folio=vale.folio,
@@ -673,11 +1007,12 @@ class MovimientoService:
             if destino
             else None,
             trabajador=trabajador,
+            proyecto=proyecto,
             responsable=PersonaOut(id=responsable.id, nombre=responsable.nombre),
             observacion=vale.observacion,
             firma_modo=vale.firma_modo,
             tiene_firma=vale.firma_adjunto_id is not None,
-            valido=self._valido(vale),
+            valido=self.valido_de(vale),
             vale_origen_id=vale.vale_origen_id,
             vale_origen_folio=origen_vale.folio if origen_vale else None,
             dispositivo=vale.dispositivo,
@@ -707,6 +1042,13 @@ class MovimientoService:
                 for m, a, p in filas
             ],
         )
+        if usuario is not None:
+            from app.modulos.consulta.service_bitacora import BitacoraService
+
+            salida = salida.model_copy(
+                update=BitacoraService(self.session).enriquecer_detalle(vale.id, usuario)
+            )
+        return salida
 
     def _cancelacion_vista(self, vale: Vale) -> CancelacionVistaOut | None:
         """K-02: el vale CANCELADO muestra el folio y el motivo de su cancelación."""
@@ -725,10 +1067,21 @@ class MovimientoService:
             creado_en=cancelacion.creado_en,
         )
 
-    def _valido(self, vale: Vale) -> ValidoOut | None:
-        """A-04: "Validó", con los datos de `autorizaciones`."""
+    def valido_de(self, vale: Vale) -> ValidoOut | None:
+        """A-04: "Validó", con los datos de `autorizaciones`. En el envío propio de un traslado
+        lateral (X-16) no hay autorización: valida quien envió (`medio = ENVIO_PROPIO`)."""
         if vale.autorizacion_id is None:
-            return None
+            if vale.tipo == TipoVale.ENTREGA and self.repository.tiene_regla(vale.id, "DE-07"):
+                responsable = self.repository.usuario(vale.responsable_id)
+                return ValidoOut(
+                    autorizacion_id=None,
+                    solicito=None,
+                    autorizo=PersonaOut(id=responsable.id, nombre=responsable.nombre),
+                    medio="DESPACHO_PROPIO",
+                    resuelta_en=vale.creado_en,
+                    motivo="Validó su propio despacho de EPP.",
+                )
+            return self._valido_envio_propio(vale)
         autorizacion = self.autorizaciones.obtener(vale.autorizacion_id)
         datos = self.autorizaciones.datos_valido(autorizacion)
         if datos is None:
@@ -741,6 +1094,23 @@ class MovimientoService:
             medio=datos.medio.value,
             resuelta_en=datos.resuelta_en,
             motivo=datos.motivo,
+        )
+
+    def _valido_envio_propio(self, vale: Vale) -> ValidoOut | None:
+        """X-16: se deriva de la regla en los movimientos del vale y de su responsable."""
+        if vale.tipo != TipoVale.TRASPASO:
+            return None
+        if not self.repository.tiene_regla(vale.id, "X-16"):
+            return None
+        responsable = self.repository.usuario(vale.responsable_id)
+        assert responsable is not None
+        return ValidoOut(
+            autorizacion_id=None,
+            solicito=None,
+            autorizo=PersonaOut(id=responsable.id, nombre=responsable.nombre),
+            medio="ENVIO_PROPIO",
+            resuelta_en=vale.creado_en,
+            motivo=vale.observacion or "",
         )
 
     def _confirmada(self, vale: Vale) -> ValeConfirmadoOut:
@@ -784,6 +1154,10 @@ class MovimientoService:
             autorizable=r.autorizable,
             requiere_confirmacion=r.requiere_confirmacion,
             autorizado=r.autorizado,
+            es_epp=r.extra.get("es_epp", False),
+            requiere_aprobacion=r.extra.get("requiere_aprobacion", False),
+            aprobacion=r.extra.get("aprobacion"),
+            motivo_rechazo=r.extra.get("motivo_rechazo"),
         )
 
     def _salida_evaluacion(self, ctx: ContextoVale, evaluacion: Evaluacion) -> EvaluacionOut:
@@ -791,14 +1165,33 @@ class MovimientoService:
         return EvaluacionOut(
             nivel=evaluacion.nivel,
             puede_confirmar=evaluacion.puede_confirmar,
+            requiere_aprobacion_despacho=evaluacion.requiere_aprobacion_despacho,
+            despacho={"modo": evaluacion.despacho_modo},
             pide_observacion=evaluacion.pide_observacion,
             motivos=[
-                MotivoOut(regla=m.regla, nivel=m.nivel, mensaje=m.mensaje, codigo=m.codigo)
+                MotivoOut(
+                    regla=m.regla,
+                    nivel=m.nivel,
+                    mensaje=m.mensaje,
+                    codigo=m.codigo,
+                    autorizable=m.regla == "X-17",
+                    autorizado=m.regla == "X-17" and evaluacion.autorizado_vale,
+                )
                 for m in evaluacion.motivos_vale
             ],
             almacen=AlmacenResumenOut(id=almacen.id, clave=almacen.clave, nombre=almacen.nombre),
             trabajador=evaluacion.trabajador,
+            proyecto=evaluacion.proyecto,
+            proyectos_del_trabajador=evaluacion.proyectos_del_trabajador,
+            pide_proyecto=evaluacion.pide_proyecto,
             autorizacion_error=evaluacion.autorizacion_error,
+            ruta=RutaEvaluacionOut(
+                clase=evaluacion.ruta.clase,
+                autoriza=evaluacion.ruta.autoriza,
+                autorizadores_disponibles=evaluacion.ruta.autorizadores_disponibles,
+            )
+            if evaluacion.ruta
+            else None,
             renglones=[self._salida_renglon(r) for r in evaluacion.renglones],
         )
 

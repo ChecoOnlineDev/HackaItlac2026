@@ -3,7 +3,7 @@
 // respuesta del servidor (E-28, ES-10). Comparten helpers con el borrador de la entrega.
 
 import { practicaActiva } from "~/api/practica";
-import { nuevoIdCliente, type RenglonBorrador } from "~/componentes/entrega/borrador";
+import { nuevoIdCliente, type AutorizacionBorrador, type RenglonBorrador } from "~/componentes/entrega/borrador";
 import type { ValeConfirmadoApi } from "~/componentes/entrega/tipos";
 
 export { claveDeCodigo, nuevoIdCliente } from "~/componentes/entrega/borrador";
@@ -51,6 +51,10 @@ export interface BorradorTraslado {
   destinoNombre: string | null;
   /** Por qué se va por una ruta poco habitual (X-03); solo la pide el servidor al Administrador. */
   observacion?: string;
+  /** La autorización que se pidió al supervisor del origen para un traslado entre proyectos (X-17, X-19). */
+  autorizacion?: AutorizacionBorrador | null;
+  /** Identifica la solicitud de autorización de este borrador, para que un reintento no cree otra. */
+  idClienteAutorizacion?: string;
   renglones: RenglonBorrador[];
   /** El traspaso que ya emitió el servidor; con él, la pantalla muestra el resultado. */
   resultado: ValeConfirmadoApi | null;

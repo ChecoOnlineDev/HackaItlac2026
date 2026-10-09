@@ -16,20 +16,28 @@ Decisiones:
 llama. Los métodos de los endpoints hacen el commit aquí.
 """
 
+import hashlib
+import json
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import date, timedelta
 from typing import Any
 
+from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.core.errores_bd import ERRNO_CHECK, violacion
-from app.core.excepciones import DatosInvalidos
+from app.core.excepciones import AppError, Conflicto, DatosInvalidos, SinPermiso
 from app.core.tiempo import hoy_mx
 from app.modulos.acceso.models import Usuario
+from app.modulos.acceso.permisos import P
 from app.modulos.acceso.service import AccesoService
+from app.modulos.almacenes.models import Ubicacion
+from app.modulos.archivos.models import Adjunto, TipoAdjunto
+from app.modulos.archivos.service import ArchivoService, decodificar_data_url
 from app.modulos.auditoria.service import AuditoriaService
 from app.modulos.catalogo.exceptions import PiezaNoEncontrada
 from app.modulos.catalogo.models import Articulo, EstadoPieza, Pieza
@@ -38,7 +46,10 @@ from app.modulos.inspecciones.exceptions import (
     AjusteNoPermitido,
     AjustePropio,
     EstadoSinCambio,
+    FechaFutura,
     PiezaEnBaja,
+    PiezaEnMantenimiento,
+    PiezaEnTransito,
     VigenciaExcedida,
 )
 from app.modulos.inspecciones.models import (
@@ -54,9 +65,11 @@ from app.modulos.inspecciones.schemas import (
     EstadoCambiadoOut,
     HistorialItem,
     InspeccionCreate,
+    InspeccionLoteIn,
     InspeccionOut,
     MarcarNoAptaIn,
     PiezaEstadoOut,
+    PiezaLoteIn,
 )
 
 __all__ = ["InspeccionService", "ResultadoInspeccion"]
@@ -67,7 +80,13 @@ def _observacion_obligatoria(observacion: str | None, regla: str) -> str:
     if not texto:
         raise DatosInvalidos(
             "Anota qué daño o falla encontraste.",
-            [{"campo": "observacion", "mensaje": "La observación es obligatoria.", "regla": regla}],
+            [
+                {
+                    "campo": "observacion",
+                    "mensaje": "La observación es obligatoria.",
+                    "regla": regla,
+                }
+            ],
         )
     return texto
 
@@ -90,6 +109,10 @@ class InspeccionService:
             self.session.commit()
         except DBAPIError as exc:
             self.session.rollback()
+            if getattr(exc.orig, "args", (None,))[0] == 1062:
+                raise Conflicto(
+                    "El identificador ya se usó para otra inspección.", {"regla": "P-16"}
+                ) from exc
             if violacion(exc).errno == ERRNO_CHECK:
                 raise DatosInvalidos(
                     "Revisa los datos capturados.",
@@ -114,7 +137,9 @@ class InspeccionService:
         ):
             raise PiezaNoEncontrada()
 
-    def _pieza_para_cambiar(self, pieza_id: uuid.UUID, usuario: Usuario) -> Pieza:
+    def _pieza_para_cambiar(
+        self, pieza_id: uuid.UUID, usuario: Usuario, permitir_baja: bool = False
+    ) -> Pieza:
         """La pieza bloqueada para modificarla; 404 si no existe o es de otro almacén, 409 si
         está en baja."""
         self.catalogo.obtener_pieza(pieza_id)
@@ -122,7 +147,7 @@ class InspeccionService:
         pieza = self.catalogo.obtener_pieza(pieza_id)
         self.session.refresh(pieza)
         self._exigir_alcance(pieza, usuario)
-        if pieza.estado == EstadoPieza.BAJA:
+        if pieza.estado == EstadoPieza.BAJA and not permitir_baja:
             raise PiezaEnBaja()
         return pieza
 
@@ -145,7 +170,7 @@ class InspeccionService:
         *,
         fecha: date,
         resultado: ResultadoInspeccion,
-        puntos: dict[str, bool] | None,
+        puntos: dict[str, bool | None] | None,
         observacion: str | None,
         usuario_id: uuid.UUID,
     ) -> Inspeccion:
@@ -218,6 +243,11 @@ class InspeccionService:
         Fija el estado y la vigencia de la pieza vía `CatalogoService`. Un resultado No apto
         exige observación (`DatosInvalidos`, P-01).
         """
+        if fecha > hoy_mx():
+            raise FechaFutura(
+                "La fecha de inspección no puede estar en el futuro.",
+                [{"campo": "fecha", "regla": "I-03"}],
+            )
         pieza = self.catalogo.obtener_pieza(pieza_id)
         return self._aplicar_inspeccion(
             pieza,
@@ -266,13 +296,65 @@ class InspeccionService:
 
     # ------------------------------------------------------------- endpoints
 
+    def _salida(
+        self, inspeccion: Inspeccion, pieza: Pieza, repetida: bool = False
+    ) -> InspeccionOut:
+        foto = self.session.scalar(select(Adjunto).where(Adjunto.inspeccion_id == inspeccion.id))
+        return InspeccionOut(
+            id=inspeccion.id,
+            pieza_id=pieza.id,
+            fecha=inspeccion.fecha,
+            resultado=inspeccion.resultado,
+            puntos=inspeccion.puntos,
+            observacion=inspeccion.observacion,
+            vigente_hasta=inspeccion.vigente_hasta,
+            usuario_id=inspeccion.usuario_id,
+            creado_en=inspeccion.creado_en,
+            pieza=self._estado_out(pieza),
+            repetida=repetida,
+            id_cliente=inspeccion.id_cliente,
+            foto={"id": foto.id, "url": f"/api/inspecciones/{inspeccion.id}/foto"}
+            if foto
+            else None,
+        )
+
     def registrar(
         self, pieza_id: uuid.UUID, datos: InspeccionCreate, usuario: Usuario
     ) -> InspeccionOut:
-        """P-01: Apto deja la pieza APTO y vigente; No apto la deja NO_APTO (P-03)."""
+        # P-14/P-16: la huella liga la repetición al actor, pieza y contenido completo.
+        contenido = datos.model_dump(mode="json")
+        huella = hashlib.sha256(
+            json.dumps(
+                {"pieza": str(pieza_id), "usuario": str(usuario.id), "datos": contenido},
+                sort_keys=True,
+            ).encode()
+        ).hexdigest()
         with self._transaccion():
-            pieza = self._pieza_para_cambiar(pieza_id, usuario)
-            puntos = datos.puntos.model_dump(exclude_none=True) if datos.puntos else None
+            pieza = self._pieza_para_cambiar(pieza_id, usuario, permitir_baja=True)
+            if datos.id_cliente:
+                anterior = self.session.scalar(
+                    select(Inspeccion).where(Inspeccion.id_cliente == datos.id_cliente)
+                )
+                if anterior:
+                    if anterior.huella != huella:
+                        raise Conflicto(
+                            "Ese registro ya se usó para otra inspección.", {"regla": "P-16"}
+                        )
+                    return self._salida(anterior, pieza, True)
+            if pieza.estado == EstadoPieza.BAJA:
+                raise PiezaEnBaja()
+            ubicacion = (
+                self.session.get(Ubicacion, pieza.ubicacion_id) if pieza.ubicacion_id else None
+            )
+            if ubicacion and ubicacion.virtual == "EN_TRANSITO":
+                raise PiezaEnTransito(detalles={"regla": "P-17"})
+            if pieza.estado in (EstadoPieza.EN_MANTENIMIENTO, EstadoPieza.EN_CALIBRACION):
+                raise PiezaEnMantenimiento(detalles={"regla": "P-17"})
+            puntos = datos.puntos.model_dump()
+            if datos.resultado == ResultadoInspeccion.APTO and any(
+                x is False for x in puntos.values()
+            ):
+                _observacion_obligatoria(datos.observacion, "P-14")
             inspeccion = self._aplicar_inspeccion(
                 pieza,
                 fecha=hoy_mx(),
@@ -281,48 +363,135 @@ class InspeccionService:
                 observacion=datos.observacion,
                 usuario_id=usuario.id,
             )
-        return InspeccionOut(
-            id=inspeccion.id,
-            pieza_id=pieza.id,
-            fecha=inspeccion.fecha,
-            resultado=ResultadoInspeccion(inspeccion.resultado),
-            puntos=inspeccion.puntos,
-            observacion=inspeccion.observacion,
-            vigente_hasta=inspeccion.vigente_hasta,
-            usuario_id=inspeccion.usuario_id,
-            creado_en=inspeccion.creado_en,
-            pieza=self._estado_out(pieza),
-        )
+            inspeccion.id_cliente = datos.id_cliente
+            inspeccion.huella = huella
+            if datos.foto:
+                ArchivoService(self.session).guardar(
+                    tipo=TipoAdjunto.FOTO_INSPECCION,
+                    contenido=decodificar_data_url(datos.foto),
+                    subido_por=usuario.id,
+                    inspeccion_id=inspeccion.id,
+                )
+            self.session.flush()
+            salida = self._salida(inspeccion, pieza)
+        return salida
+
+    def registrar_lote(self, datos: InspeccionLoteIn, usuario: Usuario) -> dict:
+        resultados = []
+        vistos = set()
+        for entrada in datos.piezas:
+            codigo = str(entrada.get("codigo", "")).strip()
+            item = {"codigo": codigo, "id_cliente": entrada.get("id_cliente")}
+            try:
+                if codigo.casefold() in vistos:
+                    raise DatosInvalidos(
+                        "La pieza está repetida dentro del lote.", {"regla": "P-16"}
+                    )
+                vistos.add(codigo.casefold())
+                capturada = PiezaLoteIn.model_validate(entrada)
+                pieza = self.session.scalar(select(Pieza).where(Pieza.codigo == capturada.codigo))
+                if pieza is None:
+                    raise PiezaNoEncontrada()
+                solicitud = InspeccionCreate.model_validate(
+                    capturada.model_dump(exclude={"codigo"})
+                )
+                salida = self.registrar(pieza.id, solicitud, usuario)
+                item.update(
+                    estado="REPETIDA" if salida.repetida else "GUARDADA",
+                    inspeccion=salida.model_dump(mode="json"),
+                )
+            except AppError as exc:
+                self.session.rollback()
+                item.update(
+                    estado="RECHAZADA",
+                    error={"codigo": exc.codigo, "mensaje": exc.mensaje, "detalles": exc.detalles},
+                )
+            except ValidationError:
+                self.session.rollback()
+                item.update(
+                    estado="RECHAZADA",
+                    error={
+                        "codigo": "DATOS_INVALIDOS",
+                        "mensaje": "Completa los cinco puntos y el identificador de la inspección.",
+                        "detalles": {"regla": "P-14"},
+                    },
+                )
+            resultados.append(item)
+        return {
+            "id_lote": datos.id_lote,
+            "resultados": resultados,
+            "guardadas": sum(x["estado"] == "GUARDADA" for x in resultados),
+            "repetidas": sum(x["estado"] == "REPETIDA" for x in resultados),
+            "rechazadas": sum(x["estado"] == "RECHAZADA" for x in resultados),
+        }
+
+    def foto_de_inspeccion(self, inspeccion_id, usuario):
+        inspeccion = self.session.get(Inspeccion, inspeccion_id)
+        if not inspeccion:
+            raise PiezaNoEncontrada()
+        pieza = self.catalogo.obtener_pieza(inspeccion.pieza_id)
+        if not self.acceso.en_alcance(usuario, *self.repository.almacenes_de_pieza(pieza)):
+            raise PiezaNoEncontrada()
+        foto = self.session.scalar(select(Adjunto).where(Adjunto.inspeccion_id == inspeccion_id))
+        if not foto:
+            raise PiezaNoEncontrada()
+        return ArchivoService(self.session).leer(foto.id)
 
     def marcar_no_apta(
         self, pieza_id: uuid.UUID, datos: MarcarNoAptaIn, usuario: Usuario
     ) -> EstadoCambiadoOut:
         """P-03: cualquiera con `piezas.inspeccionar` marca No apta con observación."""
+        pieza_actual = self.catalogo.obtener_pieza(pieza_id)
+        retorno = datos.estado == "NO_APTO" and pieza_actual.estado in (
+            EstadoPieza.EN_MANTENIMIENTO,
+            EstadoPieza.EN_CALIBRACION,
+        )
+        permiso = (
+            P.PIEZAS_INSPECCIONAR
+            if datos.estado == "NO_APTO" and not retorno
+            else P.PIEZAS_MARCAR_ESTADO
+        )
+        if not self.acceso.tiene_permiso(usuario, permiso):
+            raise SinPermiso()
         with self._transaccion():
             pieza = self._pieza_para_cambiar(pieza_id, usuario)
-            observacion = _observacion_obligatoria(datos.observacion, "P-03")
-            if pieza.estado == EstadoPieza.NO_APTO:
+            regla = "P-03" if datos.estado == "NO_APTO" else "P-06"
+            observacion = _observacion_obligatoria(datos.observacion, regla)
+            nuevo = EstadoPieza(datos.estado)
+            if pieza.estado == nuevo:
                 raise EstadoSinCambio()
+            articulo = self.catalogo.obtener_articulo(pieza.articulo_id)
+            if nuevo == EstadoPieza.APTO:
+                if pieza.estado not in (EstadoPieza.EN_MANTENIMIENTO, EstadoPieza.EN_CALIBRACION):
+                    raise DatosInvalidos(
+                        "Una pieza No apta vuelve al servicio con una inspección.",
+                        [{"campo": "estado", "regla": "P-03"}],
+                    )
+                if articulo.requiere_inspeccion:
+                    raise DatosInvalidos(
+                        "Esta pieza necesita una inspección antes de volver a Apta.",
+                        [{"campo": "estado", "regla": "P-06"}],
+                    )
             anterior = pieza.estado
             evento = self.repository.add_evento(
                 EventoPieza(
                     pieza_id=pieza.id,
                     estado_anterior=anterior,
-                    estado_nuevo=EstadoPieza.NO_APTO,
+                    estado_nuevo=nuevo,
                     observacion=observacion,
                     usuario_id=usuario.id,
                 )
             )
-            self.catalogo.actualizar_estado_pieza(
-                pieza.id, estado=EstadoPieza.NO_APTO, actor_id=usuario.id
-            )
+            self.catalogo.actualizar_estado_pieza(pieza.id, estado=nuevo, actor_id=usuario.id)
             self.auditoria.registrar(
                 usuario_id=usuario.id,
-                accion="pieza.marcar_no_apta",
+                accion="pieza.marcar_no_apta"
+                if nuevo == EstadoPieza.NO_APTO
+                else "pieza.marcar_estado",
                 entidad="evento_pieza",
                 entidad_id=evento.id,
                 antes={"estado": anterior},
-                despues={"pieza_id": pieza.id, "estado": EstadoPieza.NO_APTO.value},
+                despues={"pieza_id": pieza.id, "estado": nuevo.value, "regla": regla},
             )
         return EstadoCambiadoOut(
             evento_id=evento.id, estado_anterior=anterior, pieza=self._estado_out(pieza)
@@ -404,6 +573,10 @@ class InspeccionService:
             creado_en=ajuste.creado_en,
             pieza=self._estado_out(pieza),
         )
+
+    def foto_referencia(self, inspeccion_id):
+        foto = self.session.scalar(select(Adjunto).where(Adjunto.inspeccion_id == inspeccion_id))
+        return {"id": foto.id, "url": f"/api/inspecciones/{inspeccion_id}/foto"} if foto else None
 
     # ---------------------------------------------------------------- lectura
 

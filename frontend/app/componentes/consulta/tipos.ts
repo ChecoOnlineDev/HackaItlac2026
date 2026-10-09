@@ -79,6 +79,9 @@ export interface BusquedaArticulo {
   categoria: string;
   control: string;
   activo: boolean;
+  retornable?: boolean;
+  en_almacen?: number;
+  con_trabajadores?: number | null;
 }
 
 export interface BusquedaPieza {
@@ -90,6 +93,7 @@ export interface BusquedaPieza {
   estado: string;
   estado_texto: string;
   ubicacion: string | null;
+  ubicacion_texto?: string | null;
 }
 
 export interface BusquedaTrabajador {
@@ -98,6 +102,9 @@ export interface BusquedaTrabajador {
   nombre: string;
   estado: string;
   estado_texto: string;
+  puesto?: string | null;
+  vigencia?: { vigente: boolean; texto: string } | null;
+  credencial?: string | null;
 }
 
 interface Grupo<T> {
@@ -141,6 +148,9 @@ export interface UltimaInspeccion {
 export type TipoHistorial = "MOVIMIENTO" | "INSPECCION" | "CAMBIO_ESTADO" | "AJUSTE_VIGENCIA";
 
 export interface HechoHistorial {
+  id?: string;
+  puntos?: Record<string, boolean | null> | null;
+  foto?: { id: string; url: string } | null;
   tipo: TipoHistorial;
   /** UTC; llega sin la `Z`, por eso se normaliza con `instanteUtc`. */
   fecha: string;
@@ -167,6 +177,11 @@ export interface HechoHistorial {
 }
 
 export interface FichaPieza {
+  vigencia_inspeccion_dias?: number | null;
+  dias_aviso_inspeccion?: number;
+  dias_restantes?: number | null;
+  vigencia_si_apta_hoy?: string | null;
+  inspeccion_posible?: { puede: boolean; motivo: string | null; regla: string | null };
   id: string;
   codigo: string;
   numero_serie: string | null;
@@ -216,6 +231,9 @@ export interface Poseedor {
 }
 
 export interface FichaArticulo {
+  alto_valor?: boolean;
+  alto_valor_motivo?: string | null;
+  avisos?: string[];
   id: string;
   codigo: string;
   nombre: string;
@@ -258,6 +276,10 @@ export type ClavePunto = (typeof PUNTOS_INSPECCION)[number]["clave"];
 // ----------------------------------------------------------------------- autorizaciones
 
 export interface RenglonSolicitud {
+  renglon?: number | null;
+  clase?: "EPP" | "EXCEDENTE" | "CONTEXTO";
+  incluye_excedente?: boolean;
+  observacion?: string | null;
   codigo: string;
   articulo_id: string | null;
   articulo: string | null;
@@ -274,15 +296,49 @@ export type EstadoSolicitud = "PENDIENTE" | "APROBADA" | "RECHAZADA" | "VENCIDA"
 
 export interface Solicitud {
   id: string;
+  /** Falta en un servidor anterior a FEAT-015; ahí todas son de excedente. */
+  tipo?: "EXCEDENTE" | "DESPACHO";
   estado: EstadoSolicitud;
   almacen_id: string;
-  trabajador: { id: string; nombre: string; numero_empleado: string };
+  trabajador: { id: string; nombre: string; numero_empleado: string; tiene_foto?: boolean };
   solicitada_por: { id: string; nombre: string };
   motivo: string;
   renglones: RenglonSolicitud[];
   excedente_total: number;
   creado_en: string;
   vence_en: string;
+  almacen?: { id: string; clave: string; nombre: string } | null;
+  proyecto?: { id: string; clave: string; nombre: string } | null;
+  nota?: string | null;
+  incluye_excedente?: boolean;
+  servidor_ahora?: string;
+  recibido_en?: number;
+  avisados?: number;
+  renglones_resueltos?: { renglon: number; codigo: string; cantidad: number; decision: "APROBADO" | "RECHAZADO"; motivo: string | null }[] | null;
+}
+
+/** Una solicitud de traslado entre almacenes (FEAT-015, X-17): no tiene trabajador. */
+export interface SolicitudTraslado {
+  id: string;
+  tipo: "TRASLADO";
+  estado: EstadoSolicitud;
+  almacen_id: string;
+  trabajador: null;
+  solicitada_por: { id: string; nombre: string };
+  motivo: string;
+  origen: { id: string; clave: string; nombre: string };
+  destino: { id: string; clave: string; nombre: string };
+  renglones: RenglonSolicitud[];
+  creado_en: string;
+  vence_en: string;
+  servidor_ahora?: string;
+  recibido_en?: number;
+}
+
+export type SolicitudCualquiera = Solicitud | SolicitudTraslado;
+
+export function esTraslado(s: SolicitudCualquiera): s is SolicitudTraslado {
+  return s.tipo === "TRASLADO";
 }
 
 /** `GET /api/autorizaciones/{id}`: para saber cómo terminó una solicitud que dejó de estar pendiente. */

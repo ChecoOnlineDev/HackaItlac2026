@@ -10,6 +10,10 @@ export interface MotivoRegla {
   regla: string;
   nivel: NivelSemaforo;
   mensaje: string;
+  /** Solo en un motivo del vale que se resuelve con una autorización (X-17). */
+  autorizable?: boolean;
+  /** La `autorizacion_id` enviada ya cubre este motivo. */
+  autorizado?: boolean;
 }
 
 export interface ArticuloEvaluado {
@@ -56,6 +60,10 @@ export interface RenglonEvaluado {
   requiere_confirmacion: boolean;
   /** Un naranja que la `autorizacion_id` enviada ya cubre. */
   autorizado?: boolean;
+  es_epp?: boolean;
+  requiere_aprobacion?: boolean;
+  aprobacion?: "APROBADO" | "RECHAZADO" | "NO_INCLUIDO" | "CANTIDAD_MAYOR" | "PENDIENTE" | null;
+  motivo_rechazo?: string | null;
 }
 
 /** Condición de un renglón recibido o devuelto. */
@@ -79,4 +87,5 @@ export interface EtiquetaElemento {
   nombre?: string;
   numero_empleado?: string;
   puesto?: string;
+  numero_serie?: string | null;
 }

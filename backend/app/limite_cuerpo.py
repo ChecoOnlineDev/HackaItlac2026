@@ -44,6 +44,10 @@ _RUTA_IMPORTACION = re.compile(r"^/api/importacion(/.*)?$")
 
 def limite_para(ajustes: Settings, ruta: str) -> int:
     """El límite de bytes del cuerpo para esa ruta."""
+    if ruta.rstrip("/") == "/api/inspecciones/lotes":
+        return ajustes.limite_cuerpo_inspeccion_lote
+    if re.match(r"^/api/piezas/[^/]+/inspecciones/?$", ruta):
+        return ajustes.limite_cuerpo_inspeccion
     if _RUTA_VALES.match(ruta):
         return ajustes.limite_cuerpo_vale
     if _RUTA_FOTO_TRABAJADOR.match(ruta):

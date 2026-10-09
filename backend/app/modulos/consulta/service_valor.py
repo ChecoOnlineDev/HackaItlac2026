@@ -42,7 +42,9 @@ class ValorInventarioService:
         alcance = self.tablero._alcance(usuario, almacen_id)
         nombre = alcance.almacen.nombre if alcance.almacen else None
         alcance_out = AlcanceValorOut(
-            todos=alcance.es_todos, almacen_id=alcance.almacen_id, almacen_nombre=nombre
+            todos=alcance.es_todos,
+            almacen_id=alcance.almacen.id if alcance.almacen else None,
+            almacen_nombre=nombre or ("Almacenes asignados" if alcance.asignados else None),
         )
         if alcance.vacio:
             return ValorInventarioOut(
@@ -72,8 +74,10 @@ class ValorInventarioService:
 
         sin_costo = [f for f in todas if f.costo is None]
         por_categoria: dict[str, Decimal] = defaultdict(lambda: CERO)
+        unidades_categoria: dict[str, int] = defaultdict(int)
         for f in todas:
             por_categoria[f.categoria] += _valor(f)
+            unidades_categoria[f.categoria] += int(f.cantidad)
 
         return ValorInventarioOut(
             alcance=alcance_out,
@@ -83,27 +87,43 @@ class ValorInventarioService:
             en_transito=_texto(en_transito) if en_transito is not None else None,
             articulos_sin_costo=len({f.articulo_id for f in sin_costo}),
             unidades_sin_costo=sum(int(f.cantidad) for f in sin_costo),
-            por_categoria=self._categorias(por_categoria),
-            por_almacen=self._almacenes(filas_almacen, filas_resguardo) if alcance.es_todos else [],
+            por_categoria=self._categorias(por_categoria, unidades_categoria),
+            por_almacen=self._almacenes(filas_almacen, filas_resguardo, alcance.asignados)
+            if alcance.es_todos or alcance.asignados
+            else [],
             generado_en=ahora_utc(),
+            unidades_en_almacen=sum(int(f.cantidad) for f in filas_almacen),
+            unidades_en_resguardo=sum(int(f.cantidad) for f in filas_resguardo),
+            unidades_total=sum(int(f.cantidad) for f in todas),
         )
 
     @staticmethod
-    def _categorias(valores: dict[str, Decimal]) -> list[ValorCategoriaOut]:
+    def _categorias(
+        valores: dict[str, Decimal], unidades: dict[str, int]
+    ) -> list[ValorCategoriaOut]:
         orden = sorted(valores.items(), key=lambda kv: (-kv[1], kv[0].casefold()))
         if len(orden) > MAXIMO_CATEGORIAS:
             resto = sum((v for _, v in orden[MAXIMO_CATEGORIAS:]), CERO)
+            unidades["Otras"] = sum(unidades[c] for c, _ in orden[MAXIMO_CATEGORIAS:])
             orden = [*orden[:MAXIMO_CATEGORIAS], ("Otras", resto)]
-        return [ValorCategoriaOut(categoria=c, valor=_texto(v)) for c, v in orden]
+        return [
+            ValorCategoriaOut(categoria=c, valor=_texto(v), unidades=unidades[c]) for c, v in orden
+        ]
 
-    def _almacenes(self, filas_almacen: list, filas_resguardo: list) -> list[ValorAlmacenOut]:
+    def _almacenes(
+        self, filas_almacen: list, filas_resguardo: list, asignados=None
+    ) -> list[ValorAlmacenOut]:
         en_almacen: dict[uuid.UUID, Decimal] = defaultdict(lambda: CERO)
         en_resguardo: dict[uuid.UUID, Decimal] = defaultdict(lambda: CERO)
+        unidades_almacen: dict[uuid.UUID, int] = defaultdict(int)
+        unidades_resguardo: dict[uuid.UUID, int] = defaultdict(int)
         for f in filas_almacen:
             en_almacen[f.almacen_id] += _valor(f)
+            unidades_almacen[f.almacen_id] += int(f.cantidad)
         for f in filas_resguardo:
             if f.almacen_id is not None:
                 en_resguardo[f.almacen_id] += _valor(f)
+                unidades_resguardo[f.almacen_id] += int(f.cantidad)
         return [
             ValorAlmacenOut(
                 almacen_id=a.id,
@@ -111,6 +131,10 @@ class ValorInventarioService:
                 en_almacen=_texto(en_almacen[a.id]),
                 en_resguardo=_texto(en_resguardo[a.id]),
                 total=_texto(en_almacen[a.id] + en_resguardo[a.id]),
+                unidades_en_almacen=unidades_almacen[a.id],
+                unidades_en_resguardo=unidades_resguardo[a.id],
+                unidades_total=unidades_almacen[a.id] + unidades_resguardo[a.id],
             )
             for a in self.valores.almacenes()
+            if asignados is None or a.id in asignados
         ]

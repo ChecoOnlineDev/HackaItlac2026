@@ -1,3 +1,4 @@
+import { EscanerBusqueda } from "~/componentes/dominio/escaner-busqueda";
 import { CircleAlertIcon, ClipboardListIcon, InfoIcon, RotateCcwIcon, UserRoundIcon, WifiOffIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker, useNavigate } from "react-router";
@@ -6,7 +7,7 @@ import { apiGet, apiPost } from "~/api/cliente";
 import { esErrorApi, mensajeDeError, type ErrorApi } from "~/api/errores";
 import { useEnLinea } from "~/api/red";
 import { ConfirmarCantidad } from "~/componentes/dominio/confirmar-cantidad";
-import { Escaner, type OrigenLectura } from "~/componentes/dominio/escaner";
+import type { OrigenLectura } from "~/componentes/dominio/escaner";
 import { FichaTrabajador } from "~/componentes/dominio/ficha-trabajador";
 import { ListaRenglones } from "~/componentes/dominio/lista-renglones";
 import { TEXTO_NIVEL } from "~/componentes/dominio/renglon-semaforo";
@@ -18,17 +19,21 @@ import {
   guardarBorrador,
   leerBorrador,
   nuevoBorradorEntrega,
+  nuevoIdCliente,
   tieneCaptura,
   type AutorizacionBorrador,
   type BorradorEntrega,
   type PasoEntrega,
 } from "~/componentes/entrega/borrador";
+import { guardarEntregasEnEspera, leerEntregasEnEspera, useEntregasEnEspera } from "~/componentes/entrega/use-entregas-en-espera";
+import { Hoja } from "~/componentes/ui/hoja";
 import { BandaAutorizacion } from "~/componentes/entrega/banda-autorizacion";
 import { HojaAutorizacion } from "~/componentes/entrega/hoja-autorizacion";
 import { HojaBusquedaArticulos, type CoincidenciaArticulo } from "~/componentes/entrega/hoja-busqueda-articulos";
 import { HojaDotacion, type DotacionElegida } from "~/componentes/entrega/hoja-dotacion";
 import { ObservacionEntrega } from "~/componentes/entrega/observacion-entrega";
 import { PasoFirma } from "~/componentes/entrega/paso-firma";
+import { FirmaEnPapel, type ReservaPapel } from "~/componentes/entrega/firma-papel";
 import { PasoTrabajador } from "~/componentes/entrega/paso-trabajador";
 import { BotonAtrasPaso, usarAtrasDePasos } from "~/componentes/navegacion/atras";
 import { IndicadorPasos } from "~/componentes/ui/indicador-pasos";
@@ -49,9 +54,10 @@ import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
 import { Cargando } from "~/componentes/ui/cargando";
 import { Confirmacion } from "~/componentes/ui/confirmacion";
+import { ListaDesplegable } from "~/componentes/ui/lista-desplegable";
 import { useSesionActiva } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "entregas.crear" };
+export const handle: ManejadorRuta = { dispositivo: "celular", permiso: "entregas.crear" };
 
 const CLAVE_ALMACEN = "imhotep.almacen.operando";
 
@@ -73,10 +79,11 @@ function recordarAlmacen(id: string) {
 const NOMBRE_PASO: Record<PasoEntrega, string> = {
   trabajador: "Trabajador",
   articulos: "Artículos",
+  aprobacion: "Aprobación",
   firma: "Firma",
   resultado: "Listo",
 };
-const NUMERO_PASO: Record<PasoEntrega, number> = { trabajador: 1, articulos: 2, firma: 3, resultado: 3 };
+const NUMERO_PASO: Record<PasoEntrega, number> = { trabajador: 1, articulos: 2, aprobacion: 3, firma: 4, resultado: 4 };
 
 interface EscaneoApi {
   tipo: "TRABAJADOR" | "ARTICULO" | "PIEZA" | "VALE" | "DESCONOCIDO";
@@ -102,6 +109,8 @@ export default function Entregar() {
   const navegar = useNavigate();
   const enLinea = useEnLinea();
   const usuarioId = sesion.usuario.id;
+  const esperas = useEntregasEnEspera(usuarioId);
+  const [viendoEsperas, setViendoEsperas] = useState(false);
   const operaTodos = puede("almacenes.todos");
 
   // ------------------------------------------------------------------ borrador (persistente)
@@ -128,7 +137,12 @@ export default function Entregar() {
     [],
   );
 
-  const actualizar = useCallback((cambio: (b: BorradorEntrega) => BorradorEntrega) => setBorrador(cambio), []);
+  const actualizar = useCallback((cambio: (b: BorradorEntrega) => BorradorEntrega) => setBorrador((anterior) => {
+    const nuevo = cambio(anterior);
+    // Una firma pertenece exactamente a lo que vio el trabajador (DE-03).
+    const cambioContenido = JSON.stringify(nuevo.renglones) !== JSON.stringify(anterior.renglones) || nuevo.trabajador?.id !== anterior.trabajador?.id || nuevo.proyectoId !== anterior.proyectoId || nuevo.almacenId !== anterior.almacenId || nuevo.observacion !== anterior.observacion || nuevo.autorizacion?.id !== anterior.autorizacion?.id;
+    return cambioContenido ? { ...nuevo, firma: null, fotoPapel: undefined, reservaPapel: undefined, idCliente: anterior.reservaPapel ? nuevoIdCliente() : nuevo.idCliente } : nuevo;
+  }), []);
 
   // ------------------------------------------------------------------ estado de pantalla
   const [notas, setNotas] = useState<Record<string, string>>({});
@@ -149,13 +163,15 @@ export default function Entregar() {
   // ------------------------------------------------------------------ evaluación
   const autorizacion = borrador.autorizacion;
   const cuerpo = useMemo<CuerpoEvaluar | null>(() => {
-    if (borrador.paso !== "articulos" && borrador.paso !== "firma") return null;
+    if (!["articulos", "aprobacion", "firma"].includes(borrador.paso)) return null;
     if (!borrador.trabajador || borrador.renglones.length === 0) return null;
     if (operaTodos && !borrador.almacenId) return null;
     return {
       tipo: "ENTREGA",
       almacen_id: borrador.almacenId,
       trabajador_id: borrador.trabajador.id,
+      proyecto_id: borrador.proyectoId,
+      observacion: borrador.observacion?.trim() || undefined,
       id_cliente: borrador.idCliente,
       autorizacion_id: autorizacion?.estado === "APROBADA" ? autorizacion.id : undefined,
       renglones: borrador.renglones.map((r) => ({
@@ -164,10 +180,27 @@ export default function Entregar() {
         observacion: r.observacion || undefined,
       })),
     };
-  }, [borrador.paso, borrador.trabajador, borrador.renglones, borrador.almacenId, borrador.idCliente, autorizacion, operaTodos]);
+  }, [borrador.paso, borrador.trabajador, borrador.proyectoId, borrador.observacion, borrador.renglones, borrador.almacenId, borrador.idCliente, autorizacion, operaTodos]);
 
   const ev = useEvaluacion(cuerpo);
   const evaluacion: EvaluacionApi | null = cuerpo ? ev.evaluacion : null;
+  const almacenSesionAnterior = useRef(sesion.almacen?.id);
+  useEffect(() => {
+    if (almacenSesionAnterior.current === sesion.almacen?.id) return;
+    almacenSesionAnterior.current = sesion.almacen?.id;
+    if (operaTodos || borrador.paso === "resultado") return;
+    if (borrador.trabajador || borrador.renglones.length) {
+      setAlmacenCambio({ mensaje: "Conservamos tu captura. Revísala antes de continuar en el nuevo almacén.", almacen: sesion.almacen });
+    } else {
+      actualizar((b) => ({ ...b, almacenId: sesion.almacen?.id ?? null }));
+    }
+  }, [sesion.almacen, operaTodos, borrador.paso, borrador.trabajador, borrador.renglones.length, actualizar]);
+
+  useEffect(() => {
+    if (borrador.paso === "firma" && ev.actual && evaluacion?.requiere_aprobacion_despacho && !evaluacion.puede_confirmar) {
+      actualizar((b) => ({ ...b, paso: "aprobacion" }));
+    }
+  }, [borrador.paso, ev.actual, evaluacion, actualizar]);
 
   const mapaEvaluados = useMemo(
     () => new Map((evaluacion?.renglones ?? []).map((r) => [claveDeCodigo(r.codigo), r] as const)),
@@ -220,10 +253,11 @@ export default function Entregar() {
     const consultar = async () => {
       try {
         const r = await apiGet<AutorizacionApi>(`/autorizaciones/${autorizacion.id}`, undefined, control.signal);
-        if (!activo || r.estado === "PENDIENTE") return;
+        if (!activo) return;
+        if (r.estado === "PENDIENTE") { ev.reintentar(); return; }
         actualizar((b) =>
           b.autorizacion?.id === autorizacion.id
-            ? { ...b, autorizacion: { ...b.autorizacion, estado: r.estado, resuelta_por: r.resuelta_por?.nombre ?? null } }
+            ? { ...b, autorizacion: { ...b.autorizacion, estado: r.estado, vence_en: r.vence_en, renglones_resueltos: r.renglones_resueltos, resuelta_por: r.resuelta_por?.nombre ?? null } }
             : b,
         );
         if (r.estado === "APROBADA") {
@@ -365,7 +399,7 @@ export default function Entregar() {
   };
 
   const quitarRenglonesDeAutorizacion = () => {
-    const codigos = new Set((borrador.autorizacion?.codigos ?? []).map(claveDeCodigo));
+    const codigos = new Set(evaluados.filter((r) => r.requiere_aprobacion || r.nivel === "NARANJA").map((r) => claveDeCodigo(r.codigo)));
     setNotas({});
     actualizar((b) => ({
       ...b,
@@ -388,26 +422,50 @@ export default function Entregar() {
   };
 
   // ------------------------------------------------------------------ confirmar
+  const cuerpoEntrega = (b: BorradorEntrega) => ({
+    tipo: "ENTREGA",
+    almacen_id: b.almacenId,
+    trabajador_id: b.trabajador?.id,
+    id_cliente: b.idCliente,
+    proyecto_id: b.proyectoId || evaluacion?.proyecto?.id,
+    autorizacion_id: b.autorizacion?.estado === "APROBADA" ? b.autorizacion.id : undefined,
+    observacion: evaluacion?.pide_observacion ? b.observacion?.trim() || undefined : undefined,
+    renglones: b.renglones.map((r) => ({ codigo: r.codigo, cantidad: r.cantidad, observacion: r.observacion || undefined })),
+  });
+  const prepararPapel = async () => {
+    if (enviandoRef.current || !ev.actual || !evaluacion?.puede_confirmar) return;
+    let b = borradorRef.current;
+    if (b.reservaPapel && new Date(b.reservaPapel.vence_en).getTime() <= Date.now()) {
+      b = { ...b, idCliente: nuevoIdCliente(), reservaPapel: undefined, fotoPapel: undefined };
+      actualizar(() => b);
+    }
+    const cuerpo = cuerpoEntrega(b);
+    enviandoRef.current = true;
+    setEnviando(true);
+    setErrorEnvio(null);
+    try {
+      const reserva = await apiPost<ReservaPapel>("/vales/reservar-papel", { ...cuerpo, firma: { modo: "PAPEL" } });
+      if (JSON.stringify(cuerpoEntrega(borradorRef.current)) !== JSON.stringify(cuerpo)) return;
+      ev.adoptar(reserva.evaluacion);
+      actualizar((actual) => ({ ...actual, firmaModo: "PAPEL", reservaPapel: reserva, fotoPapel: undefined, firma: null }));
+    } catch (causa) { atenderErrorAlConfirmar(causa); }
+    finally { enviandoRef.current = false; setEnviando(false); }
+  };
   const confirmar = async () => {
     if (enviandoRef.current) return;
     const b = borradorRef.current;
-    if (!b.trabajador || !b.firma) return;
+    const papel = b.firmaModo === "PAPEL";
+    if (!b.trabajador || (papel ? !b.fotoPapel || !b.reservaPapel || new Date(b.reservaPapel.vence_en).getTime() <= Date.now() : !b.firma)) return;
     enviandoRef.current = true;
     setEnviando(true);
     setErrorEnvio(null);
     setErrorObservacion(null);
     setAvisoCambio(null);
-    const observacion = evaluacion?.pide_observacion ? b.observacion?.trim() : undefined;
     try {
       const vale = await apiPost<ValeConfirmadoApi>("/vales", {
-        tipo: "ENTREGA",
-        almacen_id: b.almacenId,
-        trabajador_id: b.trabajador.id,
-        id_cliente: b.idCliente,
-        autorizacion_id: b.autorizacion?.estado === "APROBADA" ? b.autorizacion.id : undefined,
-        observacion: observacion || undefined,
-        renglones: b.renglones.map((r) => ({ codigo: r.codigo, cantidad: r.cantidad, observacion: r.observacion || undefined })),
-        firma: { modo: "PANTALLA", imagen: b.firma.imagen, trazo: b.firma.trazo },
+        ...cuerpoEntrega(b),
+        reserva_papel_id: papel ? b.reservaPapel?.id : undefined,
+        firma: papel ? { modo: "PAPEL", imagen: b.fotoPapel } : { modo: "PANTALLA", imagen: b.firma!.imagen, trazo: b.firma!.trazo },
       });
       reproducir("ok");
       actualizar((x) => ({ ...x, paso: "resultado", resultado: vale }));
@@ -437,6 +495,12 @@ export default function Entregar() {
     if (causa.status === 422 && JSON.stringify(causa.detalles ?? "").includes("E-09")) {
       // El servidor exige el motivo de una entrega fuera de lo recomendado: el error va junto al campo.
       setErrorObservacion(causa.message);
+      return;
+    }
+    if (["REQUIERE_APROBACION_DESPACHO", "APROBACION_INVALIDA", "AUTORIZACION_INVALIDA"].includes(causa.codigo)) {
+      setAvisoCambio(causa.message);
+      actualizar((b) => ({ ...b, paso: "aprobacion", autorizacion: causa.codigo === "AUTORIZACION_INVALIDA" ? null : b.autorizacion }));
+      ev.reintentar();
       return;
     }
     if (causa.codigo === "VALE_CAMBIO" && causa.detalles) {
@@ -493,9 +557,9 @@ export default function Entregar() {
     [borrador.renglones, evaluados],
   );
   const pideObservacion = Boolean(evaluacion?.pide_observacion) || evaluados.some((r) => r.pide_observacion);
-  const motivosDeObservacion = evaluados.flatMap((r) =>
+  const motivosDeObservacion = [...(evaluacion?.motivos.filter((m) => m.regla === "PR-10").map((m) => m.mensaje) ?? []), ...evaluados.flatMap((r) =>
     r.pide_observacion ? r.motivos.filter((m) => m.regla === "E-09").map((m) => m.mensaje) : [],
-  );
+  )];
   const faltaObservacion = pideObservacion && !(borrador.observacion ?? "").trim();
   const naranjasPorAutorizar = evaluados.filter((r) => r.nivel === "NARANJA" && !r.autorizado);
   const naranjasAutorizables = naranjasPorAutorizar.filter((r) => r.autorizable);
@@ -512,6 +576,7 @@ export default function Entregar() {
   );
 
   const razonParaNoContinuar = (): string | null => {
+    if (almacenCambio) return "Revisa el cambio de almacén antes de continuar.";
     if (borrador.renglones.length === 0) return "Escanea al menos un artículo para continuar.";
     if (errorEvaluacion && !ev.actual) {
       return errorEvaluacion.sinConexion ? "Sin conexión: no podemos revisar la lista todavía." : "No pudimos revisar la lista.";
@@ -541,6 +606,7 @@ export default function Entregar() {
 
   const bandas = (
     <div className="flex flex-col gap-3">
+      {evaluacion?.despacho?.modo === "AUTONOMO_ALMACEN" || evaluacion?.despacho?.modo === "AUTONOMO_USUARIO" ? <p className="rounded-xl border bg-muted p-3 text-sm">Despacho de equipo de protección sin aprobación. Los artículos que excedan su límite siguen requiriendo autorización.</p> : evaluacion?.despacho?.modo === "SUPERVISOR" ? <p className="rounded-xl border bg-muted p-3 text-sm">Despacho propio del supervisor. Los excedentes deben ser autorizados por otra persona.</p> : null}
       {retomado ? (
         <p role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-muted p-3 text-sm">
           <span className="flex items-center gap-2">
@@ -601,10 +667,14 @@ export default function Entregar() {
           Entrega terminada
         </p>
       ) : (
-        <IndicadorPasos actual={NUMERO_PASO[borrador.paso]} total={3} nombre={NOMBRE_PASO[borrador.paso]} />
+        <IndicadorPasos actual={evaluacion?.requiere_aprobacion_despacho || autorizacion || borrador.paso === "aprobacion" ? NUMERO_PASO[borrador.paso] : borrador.paso === "firma" ? 3 : NUMERO_PASO[borrador.paso]} total={evaluacion?.requiere_aprobacion_despacho || autorizacion || borrador.paso === "aprobacion" ? 4 : 3} nombre={NOMBRE_PASO[borrador.paso]} />
       )}
     </div>
   );
+
+  const proyectoEnEntrega = evaluacion && (borrador.paso === "articulos" || borrador.paso === "aprobacion" || borrador.paso === "firma") ? (
+    (evaluacion.proyectos_del_trabajador?.length ?? 0) > 1 ? <div className="flex flex-col gap-1.5"><label htmlFor="proyecto-entrega">Proyecto de la entrega</label><ListaDesplegable id="proyecto-entrega" valor={borrador.proyectoId ?? ""} alCambiar={(id) => actualizar((b) => ({ ...b, proyectoId: id, firma: null, autorizacion: null }))} deshabilitado={enviando} opciones={(evaluacion.proyectos_del_trabajador ?? []).map((p) => ({ valor: p.id, texto: `${p.clave} · ${p.nombre}` }))} /></div> : <p className="text-sm">Proyecto: {evaluacion.proyecto?.nombre ?? "Sin proyecto"}</p>
+  ) : null;
 
   const selector = operaTodos ? (
     <SelectorAlmacen valor={borrador.almacenId} alCambiar={elegirAlmacen} deshabilitado={borrador.renglones.length > 0 && borrador.paso !== "trabajador"} />
@@ -613,6 +683,7 @@ export default function Entregar() {
       Almacén: <span className="font-semibold text-foreground">{almacenNombre}</span>
     </p>
   ) : null;
+  const selectorConProyecto = <div className="flex flex-col gap-3">{selector}{proyectoEnEntrega}</div>;
 
   let contenido: React.ReactNode;
   let accion: React.ReactNode = null;
@@ -627,12 +698,12 @@ export default function Entregar() {
           : null;
     contenido = (
       <div className="flex flex-col gap-4">
-        {selector}
+        {selectorConProyecto}
         <PasoTrabajador
           anclas={{ escaner: "entrega-escaner-trabajador", ficha: "entrega-ficha-trabajador" }}
           trabajador={borrador.trabajador}
           alIdentificar={(f) =>
-            actualizar((b) => ({ ...b, trabajador: f, autorizacion: b.trabajador?.id === f.id ? b.autorizacion : null }))
+            actualizar((b) => ({ ...b, trabajador: f, proyectoId: b.trabajador?.id === f.id ? b.proyectoId : undefined, autorizacion: b.trabajador?.id === f.id ? b.autorizacion : null }))
           }
         />
       </div>
@@ -643,7 +714,7 @@ export default function Entregar() {
           Continuar
         </Boton>
         {borrador.trabajador ? (
-          <Boton variante="texto" onClick={() => actualizar((b) => ({ ...b, trabajador: null, autorizacion: null }))}>
+          <Boton variante="texto" onClick={() => actualizar((b) => ({ ...b, trabajador: null, proyectoId: undefined, autorizacion: null }))}>
             <UserRoundIcon aria-hidden="true" />
             No es esta persona
           </Boton>
@@ -655,7 +726,7 @@ export default function Entregar() {
     const claseSinEvaluar = "rounded-2xl border border-dashed bg-muted p-3 text-sm";
     contenido = (
       <div className="flex flex-col gap-4">
-        {selector}
+        {selectorConProyecto}
         {bandas}
         {trabajador ? <FichaTrabajador trabajador={trabajador} variante="reducida" /> : null}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_20rem] md:items-start">
@@ -744,7 +815,7 @@ export default function Entregar() {
           </div>
 
           <div className="order-1 flex flex-col gap-3 md:sticky md:top-4 md:order-2">
-            <Escaner
+            <EscanerBusqueda
               ancla="entrega-escaner-articulos"
               activo={!pidiendoAutorizacion && !eligiendoDotacion && !porConfirmar && !resultadosBusqueda && !descartando && !enviando}
               sonidoAlLeer={false}
@@ -799,38 +870,46 @@ export default function Entregar() {
         />
         ) : null}
 
-        {borrador.trabajador ? (
-          <HojaAutorizacion
-            abierta={pidiendoAutorizacion}
-            alCambiar={setPidiendoAutorizacion}
-            trabajadorId={borrador.trabajador.id}
-            almacenId={borrador.almacenId}
-            renglones={naranjasAutorizables}
-            alSolicitar={(nueva: AutorizacionBorrador) => {
-              actualizar((b) => ({ ...b, autorizacion: nueva }));
-              if (nueva.estado === "APROBADA") {
-                reproducir("ok");
-                aviso({ titulo: "Autorizado", tipo: "exito" });
-              } else if (nueva.estado === "PENDIENTE") {
-                aviso({ titulo: "Solicitud enviada", descripcion: "Esperando al supervisor.", tipo: "info" });
-              }
-            }}
-          />
-        ) : null}
+
       </div>
     );
     accion = (
       <AccionPrincipal nota={razon}>
-        <Boton variante="principal" data-tutorial="entrega-continuar" disabled={razon !== null} onClick={() => irA("firma")}>
+        <Boton variante="principal" data-tutorial="entrega-continuar" disabled={razon !== null && !(ev.actual && evaluacion?.requiere_aprobacion_despacho && evaluados.every((r) => r.nivel !== "ROJO") && !porConfirmar && !evaluacion.pide_proyecto && !almacenCambio)} onClick={() => evaluacion?.requiere_aprobacion_despacho && !evaluacion.puede_confirmar ? irA("aprobacion") : irA("firma")}>
           Continuar
         </Boton>
       </AccionPrincipal>
     );
+  } else if (borrador.paso === "aprobacion") {
+    contenido = <div className="flex flex-col gap-4">
+      {trabajador ? <FichaTrabajador trabajador={trabajador} variante="reducida" /> : null}
+      {selectorConProyecto}{bandas}
+      {autorizacion ? <BandaAutorizacion autorizacion={autorizacion} alQuitarRenglones={quitarRenglonesDeAutorizacion} /> : <p>El supervisor debe revisar esta entrega antes de la firma.</p>}
+      <ul className="flex flex-col gap-2">{evaluados.map((r) => <li key={r.codigo} className="rounded-xl border p-3">
+        <p className="font-semibold">{r.cantidad} × {r.articulo?.nombre ?? r.codigo}</p>
+        <p className="text-sm">{r.requiere_aprobacion ? "Requiere aprobación" : r.nivel === "NARANJA" ? "Requiere autorización" : "Solo como contexto"}{r.aprobacion === "APROBADO" ? " · Aprobado" : ""}</p>
+        {r.aprobacion === "RECHAZADO" ? <><p className="text-sm text-destructive">Rechazado: {r.motivo_rechazo}</p><Boton variante="contorno" onClick={() => quitar(r)}>Quitar este artículo</Boton></> : null}
+      </li>)}</ul>
+      {evaluacion?.autorizacion_error ? <p role="alert">{evaluacion.autorizacion_error}</p> : null}
+      {autorizacion?.estado !== "PENDIENTE" && !evaluacion?.puede_confirmar ? <Boton onClick={() => setPidiendoAutorizacion(true)} disabled={!ev.actual || evaluados.some((r) => r.nivel === "ROJO")}>{autorizacion ? "Volver a pedir aprobación" : "Enviar a aprobación"}</Boton> : null}
+      {autorizacion?.estado === "PENDIENTE" ? <Boton variante="contorno" onClick={() => setPidiendoAutorizacion(true)}>El supervisor está aquí: resolver con PIN</Boton> : null}
+      {autorizacion?.estado === "PENDIENTE" ? <Boton variante="contorno" onClick={() => {
+        const anteriores = leerEntregasEnEspera(usuarioId).filter((b) => b.idCliente !== borrador.idCliente);
+        if (anteriores.length >= 10) { aviso({ titulo: "Hay 10 entregas en espera. Termina o descarta una antes de empezar otra.", tipo: "aviso" }); return; }
+        if (!guardarEntregasEnEspera([...anteriores, { ...borrador, paso: "aprobacion" }])) { aviso({ titulo: "No pudimos conservar la entrega en este dispositivo. Continúa aquí.", tipo: "error" }); return; }
+        empezarDeNuevo();
+      }}>Atender a otro mientras</Boton> : null}
+      <Boton variante="contorno" onClick={() => irA("articulos")}>Revisar la lista</Boton>
+    </div>;
+    accion = <AccionPrincipal nota={!ev.actual ? "Revisando la lista…" : !evaluacion?.puede_confirmar ? "Esperando aprobación o revisión de los artículos." : null}>
+      <Boton variante="principal" disabled={!ev.actual || !evaluacion?.puede_confirmar || Boolean(almacenCambio)} onClick={() => irA("firma")}>Continuar a la firma</Boton>
+    </AccionPrincipal>;
   } else if (borrador.paso === "firma") {
-    const listo = Boolean(borrador.firma) && ev.actual && Boolean(evaluacion?.puede_confirmar) && !faltaObservacion;
+    const firmaLista = borrador.firmaModo === "PAPEL" ? Boolean(borrador.fotoPapel && borrador.reservaPapel && new Date(borrador.reservaPapel.vence_en).getTime() > Date.now()) : Boolean(borrador.firma);
+    const listo = firmaLista && ev.actual && Boolean(evaluacion?.puede_confirmar) && !faltaObservacion && !almacenCambio;
     const reintento = errorEnvio?.tipo === "conexion";
-    const razon = !borrador.firma
-      ? "Pide al trabajador que firme para confirmar."
+    const razon = !firmaLista
+      ? borrador.firmaModo === "PAPEL" ? "Prepara el ticket y adjunta la foto de la copia firmada para confirmar." : "Pide al trabajador que firme para confirmar."
       : !ev.actual || ev.evaluando
         ? "Revisando la lista…"
         : !evaluacion?.puede_confirmar
@@ -841,6 +920,7 @@ export default function Entregar() {
     contenido = (
       <div className="flex flex-col gap-4">
         {trabajador ? <FichaTrabajador trabajador={trabajador} variante="reducida" /> : null}
+        {selectorConProyecto}
         {errorEnvio ? (
           <section role="alert" className="flex flex-col gap-1 rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-4">
             <p className="flex items-start gap-2 text-base font-semibold">
@@ -859,13 +939,14 @@ export default function Entregar() {
             deshabilitado={enviando}
           />
         ) : null}
-        <PasoFirma
+        <div role="group" aria-label="Cómo firma el trabajador" className="grid grid-cols-2 gap-2">{(["PANTALLA", "PAPEL"] as const).map((modo) => <Boton key={modo} variante={(borrador.firmaModo ?? "PANTALLA") === modo ? "secundario" : "contorno"} disabled={enviando} aria-pressed={(borrador.firmaModo ?? "PANTALLA") === modo} onClick={() => { if ((borrador.firmaModo ?? "PANTALLA") !== modo) actualizar((b) => ({ ...b, firmaModo: modo, firma: null, fotoPapel: undefined, reservaPapel: undefined, idCliente: b.reservaPapel ? nuevoIdCliente() : b.idCliente })); }}>{modo === "PANTALLA" ? "Firmar en pantalla" : "Firmar en papel"}</Boton>)}</div>
+        {(ev.actual && evaluacion?.puede_confirmar) ? borrador.firmaModo === "PAPEL" ? <FirmaEnPapel reserva={borrador.reservaPapel ?? null} foto={borrador.fotoPapel} preparar={prepararPapel} alFoto={(foto) => actualizar((b) => ({ ...b, fotoPapel: foto }))} deshabilitado={enviando || faltaObservacion} /> : <PasoFirma
           observacion={pideObservacion ? borrador.observacion : undefined}
           renglones={evaluados}
           firma={borrador.firma}
           alCambiarFirma={(f: FirmaCapturada | null) => actualizar((b) => ({ ...b, firma: f }))}
           deshabilitado={enviando}
-        />
+        /> : <p role="status">La entrega necesita aprobación antes de firmar.</p>}
       </div>
     );
     accion = (
@@ -893,6 +974,21 @@ export default function Entregar() {
   return (
     <Pantalla titulo="Entregar">
       {encabezado}
+      {esperas.borradores.length ? <Boton variante="contorno" onClick={() => setViendoEsperas(true)}>En espera ({esperas.borradores.length})</Boton> : null}
+      <Hoja abierta={viendoEsperas} alCambiar={setViendoEsperas} titulo="Entregas en espera" descripcion="Estas capturas se conservan en este dispositivo.">
+        <div className="flex flex-col gap-3">{esperas.borradores.map((b) => <article key={b.idCliente} className="flex flex-col gap-2 rounded-xl border p-3">
+          <p className="font-semibold">{b.trabajador?.nombre}</p><p className="text-sm">{b.renglones.length} artículos · {b.autorizacion?.estado === "APROBADA" ? "Aprobada: puedes continuar" : b.autorizacion?.estado === "PENDIENTE" ? "Esperando supervisor" : "Requiere revisión"}</p>
+          <Boton onClick={() => {
+            const activa = borradorRef.current;
+            const restantes = leerEntregasEnEspera(usuarioId).filter((x) => x.idCliente !== b.idCliente);
+            if (tieneCaptura(activa)) { if (!activa.autorizacion) { aviso({ titulo: "Termina o descarta la captura actual antes de abrir otra.", tipo: "aviso" }); return; } restantes.push(activa); }
+            if (!guardarEntregasEnEspera(restantes)) { aviso({ titulo: "No pudimos conservar las capturas. Continúa aquí.", tipo: "error" }); return; }
+            setBorrador({ ...b, paso: "aprobacion" }); setViendoEsperas(false); setRetomado(true); setNotas({}); setErrorEnvio(null); setAvisoCambio(null);
+            if (b.almacenId !== sesion.almacen?.id && !operaTodos) setAlmacenCambio({ mensaje: "Esta captura pertenece a otro almacén. Revísala antes de continuar.", almacen: sesion.almacen });
+          }}>Continuar entrega</Boton>
+          <Boton variante="texto" onClick={() => { if (window.confirm("¿Descartar esta captura en espera? La solicitud permanece registrada en el servidor.")) guardarEntregasEnEspera(leerEntregasEnEspera(usuarioId).filter((x) => x.idCliente !== b.idCliente)); }}>Descartar captura</Boton>
+        </article>)}</div>
+      </Hoja>
       {!enLinea && borrador.paso !== "resultado" ? (
         <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
           <WifiOffIcon aria-hidden="true" className="size-4" />
@@ -901,6 +997,29 @@ export default function Entregar() {
       ) : null}
       {contenido}
       {accion}
+        {borrador.trabajador ? (
+          <HojaAutorizacion
+            abierta={pidiendoAutorizacion}
+            alCambiar={setPidiendoAutorizacion}
+            trabajadorId={borrador.trabajador.id}
+            almacenId={borrador.almacenId}
+            autorizacionExistente={autorizacion}
+            alReevaluar={ev.reintentar}
+            proyectoId={borrador.proyectoId ?? evaluacion?.proyecto?.id}
+            despacho={Boolean(evaluacion?.requiere_aprobacion_despacho)}
+            observaciones={Object.fromEntries(borrador.renglones.map((r) => [r.codigo, r.observacion ?? ""]))}
+            renglones={evaluacion?.requiere_aprobacion_despacho ? evaluados : naranjasAutorizables}
+            alSolicitar={(nueva: AutorizacionBorrador) => {
+              actualizar((b) => ({ ...b, autorizacion: nueva, paso: "aprobacion" }));
+              if (nueva.estado === "APROBADA") {
+                reproducir("ok");
+                aviso({ titulo: "Autorizado", tipo: "exito" });
+              } else if (nueva.estado === "PENDIENTE") {
+                aviso({ titulo: "Solicitud enviada", descripcion: "Esperando al supervisor.", tipo: "info" });
+              }
+            }}
+          />
+        ) : null}
 
       <Confirmacion
         abierta={bloqueo.state === "blocked"}

@@ -9,8 +9,11 @@ from app.modulos.archivos import models as _archivos
 from app.modulos.auditoria import models as _auditoria
 from app.modulos.autorizaciones import models as _autorizaciones
 from app.modulos.catalogo import models as _catalogo
+from app.modulos.catalogo import models_minimos as _minimos
 from app.modulos.inspecciones import models as _inspecciones
 from app.modulos.movimientos import models as _movimientos
+from app.modulos.notificaciones import models as _notificaciones
+from app.modulos.proyectos import models as _proyectos
 from app.modulos.solicitudes_compra import models as _solicitudes_compra
 from app.modulos.trabajadores import models as _trabajadores
 
@@ -21,8 +24,11 @@ MODELOS = (
     _auditoria,
     _autorizaciones,
     _catalogo,
+    _minimos,
     _inspecciones,
     _movimientos,
+    _notificaciones,
+    _proyectos,
     _solicitudes_compra,
     _trabajadores,
 )

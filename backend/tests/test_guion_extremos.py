@@ -526,7 +526,13 @@ def test_ES_15_el_minipulidor_regresa_danado_entra_no_apto_y_sin_cargo(mundo):
     # 4. De regreso de reparación, una inspección Apto la vuelve a poner disponible (P-03).
     r = m.kep.post(
         f"/api/piezas/{pieza['id']}/inspecciones",
-        json={"resultado": "APTO", "observacion": "Reparada"},
+        json={
+            "resultado": "APTO",
+            "observacion": "Reparada",
+            "puntos": {
+                k: None for k in ("etiquetas", "costuras", "cintas", "herrajes", "conectores")
+            },
+        },
     )
     assert r.status_code == 201 and r.json()["pieza"]["estado"] == "APTO"
     ev = evaluar(

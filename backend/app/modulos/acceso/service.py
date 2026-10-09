@@ -152,9 +152,28 @@ class AccesoService:
             rol=RolSesionOut(id=usuario.rol.id, nombre=usuario.rol.nombre),
             almacen=AlmacenSesionOut.model_validate(almacen) if almacen else None,
             permisos=sorted(self.permisos_de(usuario)),
+            almacenes=[
+                AlmacenSesionOut.model_validate(a)
+                for a in sorted(
+                    (self.almacenes.obtener(id) for id in self.almacenes_del_usuario(usuario.id)),
+                    key=lambda a: a.nombre.casefold(),
+                )
+            ],
+            almacen_activo=AlmacenSesionOut.model_validate(almacen) if almacen else None,
         )
 
     # ---------------------------------------------------------------- permisos
+
+    def almacenes_del_usuario(self, usuario_id: uuid.UUID) -> set[uuid.UUID]:
+        return self.usuarios.almacenes_asignados(usuario_id)
+
+    def alcance_del_usuario(self, usuario_id: uuid.UUID) -> set[uuid.UUID] | None:
+        usuario = self.usuarios.get(usuario_id)
+        if usuario is None:
+            return set()
+        if self.puede_operar_todos_los_almacenes(usuario):
+            return None
+        return self.almacenes_del_usuario(usuario_id)
 
     def permisos_de(self, usuario: Usuario) -> frozenset[str]:
         """Permisos del rol del usuario, leídos de la base en cada llamada (AC-04, AC-10)."""
@@ -173,12 +192,37 @@ class AccesoService:
         """AC-06: con `almacenes.todos` el usuario elige almacén; sin él, solo el suyo."""
         return self.tiene_permiso(usuario, P.ALMACENES_TODOS)
 
+    def es_supervisor_de(self, usuario: Usuario, almacen_id: uuid.UUID) -> bool:
+        """ "Supervisor del almacén" (X-16, X-19): tiene `autorizaciones.resolver` y el almacén en
+        su alcance (el suyo, o cualquiera con `almacenes.todos`). Por clave, nunca por rol.
+        Con FEAT-013 (AC-36) el alcance pasa a ser el conjunto de almacenes del usuario."""
+        return self.tiene_permiso(usuario, P.AUTORIZACIONES_RESOLVER) and self.en_alcance(
+            usuario, almacen_id
+        )
+
+    def contar_con_permiso_en(
+        self,
+        clave: str,
+        almacen_id: uuid.UUID,
+        *,
+        incluir_todos: bool = False,
+        excluir_usuario_id: uuid.UUID | None = None,
+    ) -> int:
+        """Cuántos usuarios activos con el permiso `clave` operan en `almacen_id` (ver
+        `UsuarioRepository.contar_con_permiso_en`)."""
+        return self.usuarios.contar_con_permiso_en(
+            clave,
+            almacen_id,
+            incluir_todos=incluir_todos,
+            excluir_usuario_id=excluir_usuario_id,
+        )
+
     def en_alcance(self, usuario: Usuario, *almacenes_id: uuid.UUID | None) -> bool:
         """AC-06: el usuario ve algo que pertenece a esos almacenes (origen y, si lo hay, destino
         de un traspaso en tránsito) si tiene `almacenes.todos` o si el suyo es uno de ellos."""
         if self.puede_operar_todos_los_almacenes(usuario):
             return True
-        return usuario.almacen_id is not None and usuario.almacen_id in almacenes_id
+        return bool(self.almacenes_del_usuario(usuario.id).intersection(almacenes_id))
 
     def resolver_almacen(self, usuario: Usuario, almacen_id: uuid.UUID | None = None) -> uuid.UUID:
         """El almacén sobre el que opera el usuario (RG-07, AC-06).

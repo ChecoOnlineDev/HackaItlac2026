@@ -5,8 +5,8 @@ import { Link, useNavigate } from "react-router";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { instanteUtc } from "~/componentes/consulta/formato";
 import { formatearFechaHora } from "~/componentes/dominio/fechas";
+import { InsigniaEstadoCompra, InsigniaUrgencia } from "~/componentes/compras/insignias";
 import { BotonesAccion } from "./botones-accion";
-import { InsigniaEstadoSolicitud, InsigniaUrgencia } from "./insignias";
 import type { AccionSolicitud, SolicitudCompra } from "./tipos";
 
 interface PropiedadesLista {
@@ -90,7 +90,7 @@ export function TablaSolicitudes({ solicitudes, alAccion }: PropiedadesLista) {
               <TableCell>
                 <span className="flex flex-col items-start gap-1.5">
                   <InsigniaUrgencia urgencia={s.urgencia} />
-                  <InsigniaEstadoSolicitud estado={s.estado} />
+                  <InsigniaEstadoCompra estado={s.estado} />
                 </span>
               </TableCell>
               <TableCell className="hidden whitespace-normal xl:table-cell">{s.solicitante.nombre}</TableCell>
@@ -130,7 +130,7 @@ export function TarjetasSolicitudes({ solicitudes, alAccion }: PropiedadesLista)
               </span>
               <span className="flex flex-wrap items-center gap-2">
                 <InsigniaUrgencia urgencia={s.urgencia} />
-                <InsigniaEstadoSolicitud estado={s.estado} />
+                <InsigniaEstadoCompra estado={s.estado} />
               </span>
               <span>
                 <QuePidio s={s} />

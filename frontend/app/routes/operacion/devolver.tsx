@@ -1,3 +1,4 @@
+import { EscanerBusqueda } from "~/componentes/dominio/escaner-busqueda";
 import { CircleAlertIcon, InfoIcon, RotateCcwIcon, ScanLineIcon, WifiOffIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker, useNavigate, useSearchParams } from "react-router";
@@ -20,7 +21,7 @@ import { reducirFoto } from "~/componentes/devolucion/foto";
 import { HojaCantidad } from "~/componentes/devolucion/hoja-cantidad";
 import { PanelResguardo } from "~/componentes/devolucion/panel-resguardo";
 import { RenglonDevolucion } from "~/componentes/devolucion/renglon-devolucion";
-import { Escaner, type OrigenLectura } from "~/componentes/dominio/escaner";
+import type { OrigenLectura } from "~/componentes/dominio/escaner";
 import { HojaObservacion } from "~/componentes/dominio/hoja-observacion";
 import { TEXTO_NIVEL } from "~/componentes/dominio/renglon-semaforo";
 import { reproducir } from "~/componentes/dominio/sonido";
@@ -40,7 +41,7 @@ import { Cargando } from "~/componentes/ui/cargando";
 import { Confirmacion } from "~/componentes/ui/confirmacion";
 import { useSesionActiva } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "devoluciones.crear" };
+export const handle: ManejadorRuta = { dispositivo: "celular", permiso: "devoluciones.crear" };
 
 // El almacén que opera quien tiene `almacenes.todos` se recuerda con la misma clave que usa la entrega.
 const CLAVE_ALMACEN = "imhotep.almacen.operando";
@@ -810,7 +811,8 @@ export default function Devolver() {
           </div>
 
           <div className="order-1 flex flex-col gap-3 md:sticky md:top-4 md:order-2">
-            <Escaner
+            <EscanerBusqueda
+              grupo="todos"
               ancla="devolver-escaner"
               activo={!observando && !cantidadDe && !resultadosBusqueda && !descartando && !enviando}
               sonidoAlLeer={false}

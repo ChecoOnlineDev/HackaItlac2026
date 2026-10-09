@@ -48,9 +48,13 @@ def entregar(cliente, trabajador, articulo, cantidad=1):
     return r.json()
 
 
+PUNTOS = {k: None for k in ("etiquetas", "costuras", "cintas", "herrajes", "conectores")}
+
+
 def inspeccionar(cliente, pieza, resultado="APTO", **extra):
     return cliente.post(
-        f"/api/piezas/{pieza.id}/inspecciones", json={"resultado": resultado} | extra
+        f"/api/piezas/{pieza.id}/inspecciones",
+        json={"resultado": resultado, **extra, "puntos": PUNTOS | extra.get("puntos", {})},
     )
 
 

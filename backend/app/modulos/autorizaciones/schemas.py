@@ -6,7 +6,11 @@ from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, field_validator, model_validator
 
-from app.modulos.autorizaciones.models import EstadoAutorizacion, MedioAutorizacion
+from app.modulos.autorizaciones.models import (
+    EstadoAutorizacion,
+    MedioAutorizacion,
+    TipoAutorizacion,
+)
 
 
 def _a_utc(valor: datetime) -> str:
@@ -28,6 +32,7 @@ class RenglonSolicitudIn(BaseModel):
 
     codigo: str = Field(min_length=1, max_length=60)
     cantidad: int = Field(ge=1, le=1_000_000)
+    observacion: str | None = Field(default=None, max_length=500)
 
 
 class RenglonSolicitud(BaseModel):
@@ -35,6 +40,10 @@ class RenglonSolicitud(BaseModel):
     (límite, artículo restringido) y el detalle. Es SALIDA; nunca se toma del cliente."""
 
     codigo: str = Field(min_length=1, max_length=60)
+    renglon: int | None = Field(default=None, ge=1)
+    clase: Literal["EPP", "EXCEDENTE", "CONTEXTO"] = "EXCEDENTE"
+    incluye_excedente: bool = False
+    observacion: str | None = Field(default=None, max_length=500)
     articulo_id: uuid.UUID | None = None
     articulo: str | None = Field(default=None, max_length=150)
     cantidad: int = Field(ge=1)
@@ -48,37 +57,71 @@ class RenglonSolicitud(BaseModel):
 
 
 class SolicitudCreate(BaseModel):
-    trabajador_id: uuid.UUID
+    """EXCEDENTE (por omisión) pide `trabajador_id`; TRASLADO pide `destino_almacen_id` y no lleva
+    trabajador (X-17, X-19). DESPACHO llega con FEAT-014."""
+
+    tipo: Literal[
+        TipoAutorizacion.EXCEDENTE, TipoAutorizacion.TRASLADO, TipoAutorizacion.DESPACHO
+    ] = TipoAutorizacion.EXCEDENTE
+    trabajador_id: uuid.UUID | None = None
+    destino_almacen_id: uuid.UUID | None = None
     renglones: list[RenglonSolicitudIn] = Field(min_length=1, max_length=100)
-    motivo: str = Field(max_length=255)
+    motivo: str | None = Field(default=None, max_length=255)
+    nota: str | None = Field(default=None, max_length=255)
+    id_cliente: uuid.UUID | None = None
+    proyecto_id: uuid.UUID | None = None
     # Solo quien opera todos los almacenes (`almacenes.todos`) lo indica; los demás usan el suyo.
     almacen_id: uuid.UUID | None = None
 
-    @field_validator("motivo")
+    @model_validator(mode="after")
+    def _campos_segun_tipo(self) -> Self:
+        if self.tipo == TipoAutorizacion.TRASLADO:
+            if self.trabajador_id is not None:
+                raise ValueError("Un traslado no lleva trabajador.")
+            if self.destino_almacen_id is None:
+                raise ValueError("Elige a qué almacén se envía.")
+        else:
+            if self.trabajador_id is None:
+                raise ValueError("Elige al trabajador.")
+            if self.destino_almacen_id is not None:
+                raise ValueError("El destino es solo de un traslado.")
+        return self
+
+    @field_validator("motivo", "nota")
     @classmethod
-    def _motivo_obligatorio(cls, valor: str) -> str:
-        valor = valor.strip()
-        if not valor:
-            raise ValueError("Escribe el motivo de la solicitud.")
-        return valor
+    def _limpiar_texto(cls, valor: str | None) -> str | None:
+        return valor.strip() or None if valor else None
 
 
 class SolicitudCreada(BaseModel):
     id: uuid.UUID
+    tipo: TipoAutorizacion = TipoAutorizacion.EXCEDENTE
     estado: EstadoAutorizacion
     vence_en: FechaUtc
+    avisados: int = 0
+
+
+class ResolucionRenglonIn(BaseModel):
+    renglon: int = Field(ge=1, le=100)
+    decision: Literal["APROBAR", "RECHAZAR"]
+    motivo: str | None = Field(default=None, max_length=500)
 
 
 class ResolucionIn(BaseModel):
     """`{decision}` desde la sesión de quien autoriza; con `usuario` y `pin`, desde el dispositivo
     del almacenista."""
 
-    decision: Literal["APROBAR", "RECHAZAR"]
+    decision: Literal["APROBAR", "RECHAZAR"] | None = None
+    motivo: str | None = Field(default=None, max_length=500)
     usuario: str | None = Field(default=None, min_length=1, max_length=60)
     pin: str | None = Field(default=None, min_length=1, max_length=50)
+    # DE-06: DESPACHO y EXCEDENTE admiten resolución parcial; TRASLADO sigue entero (X-19).
+    renglones: list[ResolucionRenglonIn] | None = Field(default=None, min_length=1, max_length=100)
 
     @model_validator(mode="after")
     def _usuario_y_pin_juntos(self) -> Self:
+        if (self.decision is None) == (self.renglones is None):
+            raise ValueError("Elige aprobar o rechazar todo, o decide por renglón.")
         if (self.usuario is None) != (self.pin is None):
             raise ValueError("Escribe el usuario y el PIN juntos.")
         return self
@@ -91,17 +134,38 @@ class PersonaOut(BaseModel):
 
 class TrabajadorOut(PersonaOut):
     numero_empleado: str
+    tiene_foto: bool = False
+
+
+class AlmacenRefOut(BaseModel):
+    id: uuid.UUID
+    clave: str
+    nombre: str
 
 
 class AutorizacionOut(BaseModel):
     """Estado de una solicitud (lo consulta el solicitante cada tres segundos)."""
 
+    nota: str | None = None
+    proyecto: dict | None = None
+    almacen: AlmacenRefOut | None = None
+    incluye_excedente: bool = False
+    renglones_resueltos: list[dict] | None = None
+    servidor_ahora: FechaUtc
+    avisados: int = 0
     id: uuid.UUID
+    tipo: TipoAutorizacion = TipoAutorizacion.EXCEDENTE
     estado: EstadoAutorizacion
     medio: MedioAutorizacion | None
     motivo: str
-    trabajador_id: uuid.UUID
+    # Nulos en un TRASLADO.
+    trabajador_id: uuid.UUID | None
+    trabajador: TrabajadorOut | None = None
+    # `almacen_id` es el almacén de la solicitud (en un TRASLADO, el origen).
     almacen_id: uuid.UUID
+    # Solo en un TRASLADO.
+    origen: AlmacenRefOut | None = None
+    destino: AlmacenRefOut | None = None
     renglones: list[RenglonSolicitud]
     solicitada_por: PersonaOut
     resuelta_por: PersonaOut | None
@@ -111,12 +175,24 @@ class AutorizacionOut(BaseModel):
 
 
 class SolicitudListItem(BaseModel):
-    """Tarjeta del supervisor: trabajador, artículo, cuánto excede, motivo y quién la pide."""
+    """Tarjeta del supervisor: trabajador (o origen y destino), artículo, cuánto excede, motivo y
+    quién la pide."""
 
+    nota: str | None = None
+    proyecto: dict | None = None
+    almacen: AlmacenRefOut | None = None
+    incluye_excedente: bool = False
+    renglones_resueltos: list[dict] | None = None
+    servidor_ahora: FechaUtc
+    avisados: int = 0
     id: uuid.UUID
+    tipo: TipoAutorizacion = TipoAutorizacion.EXCEDENTE
     estado: EstadoAutorizacion
     almacen_id: uuid.UUID
-    trabajador: TrabajadorOut
+    # Nulo en un TRASLADO.
+    trabajador: TrabajadorOut | None
+    origen: AlmacenRefOut | None = None
+    destino: AlmacenRefOut | None = None
     solicitada_por: PersonaOut
     motivo: str
     renglones: list[RenglonSolicitud]
@@ -135,3 +211,23 @@ class ValidoOut(BaseModel):
     medio: MedioAutorizacion
     resuelta_en: FechaUtc
     motivo: str
+
+
+class ResolucionMultipleItem(BaseModel):
+    id: uuid.UUID
+    decision: Literal["APROBAR", "RECHAZAR"]
+    motivo: str | None = Field(default=None, max_length=500)
+
+
+class ResolucionMultipleIn(BaseModel):
+    resoluciones: list[ResolucionMultipleItem] = Field(min_length=1, max_length=50)
+
+
+class ResultadoResolucion(BaseModel):
+    id: uuid.UUID
+    estado: EstadoAutorizacion | None = None
+    error: dict | None = None
+
+
+class ResolucionMultipleOut(BaseModel):
+    resultados: list[ResultadoResolucion]

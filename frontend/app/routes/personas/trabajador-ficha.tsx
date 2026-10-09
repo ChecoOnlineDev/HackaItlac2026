@@ -7,6 +7,7 @@ import { esErrorApi, mensajeDeError } from "~/api/errores";
 import { BotonNoAdeudo, useAccionNoAdeudo } from "~/componentes/devolucion/no-adeudo";
 import { VistaCredencial } from "~/componentes/dominio/credencial";
 import { BloqueDotacion } from "~/componentes/personas/bloque-dotacion";
+import { ConsumoDelTrabajador } from "~/componentes/personas/consumo-trabajador";
 import { SelectorFoto } from "~/componentes/personas/foto";
 import { fechaCorta } from "~/componentes/personas/formato";
 import { InsigniaSituacion, InsigniaVigencia } from "~/componentes/personas/insignias";
@@ -28,9 +29,11 @@ import { Hoja } from "~/componentes/ui/hoja";
 import { Insignia } from "~/componentes/ui/insignia";
 import { ListaDesplegable } from "~/componentes/ui/lista-desplegable";
 import { hoyMx } from "~/componentes/personas/formato";
+import { SelectorProyecto } from "~/componentes/proyectos/selector-proyecto";
+import { ProyectosTrabajador } from "~/componentes/proyectos/proyectos-trabajador";
 import { useSesion } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "trabajadores.ver" };
+export const handle: ManejadorRuta = { dispositivo: "celular", permiso: "trabajadores.ver" };
 
 type Panel = null | "reingreso" | "baja" | "cancelar-baja" | "foto" | "credencial" | "imprimir";
 
@@ -76,7 +79,7 @@ export default function FichaTrabajador() {
   const [fin, setFin] = useState("");
   const [puestoId, setPuestoId] = useState("");
   const [puesto, setPuesto] = useState("");
-  const [area, setArea] = useState("");
+  const [proyectoId, setProyectoId] = useState("");
   // Foto y credencial
   const [foto, setFoto] = useState<File | null>(null);
   const [codigo, setCodigo] = useState("");
@@ -115,7 +118,7 @@ export default function FichaTrabajador() {
       setFin("");
       setPuestoId("");
       setPuesto(ficha.puesto ?? "");
-      setArea(ficha.area_obra ?? "");
+      setProyectoId(ficha.proyectos?.find((p) => p.principal)?.proyecto.id ?? ficha.proyectos?.[0]?.proyecto.id ?? "");
     }
     if (p === "foto") setFoto(null);
     if (p === "credencial") {
@@ -152,7 +155,7 @@ export default function FichaTrabajador() {
         inicio,
         fin,
         ...cuerpoDePuesto(puestoId, puesto),
-        area_obra: area.trim() || undefined,
+        proyecto_id: proyectoId || undefined,
       });
       setFicha(nueva);
       setPanel(null);
@@ -342,6 +345,7 @@ export default function FichaTrabajador() {
           </Seccion>
         ) : null}
 
+        <ProyectosTrabajador key={`${ficha.id}|${ficha.periodo?.id ?? ""}`} trabajadorId={ficha.id} estado={ficha.estado} alCambiar={recargar} />
         <Seccion titulo="Resguardo y pendientes">
           {ficha.resguardo.length === 0 ? (
             <p className="text-base">No tiene equipo pendiente de devolver.</p>
@@ -359,6 +363,9 @@ export default function FichaTrabajador() {
         <Seccion titulo="Dotación del puesto">
           <BloqueDotacion trabajadorId={ficha.id} version={`${ficha.periodo?.id ?? ""}|${intento}`} />
         </Seccion>
+
+        <ConsumoDelTrabajador id={ficha.id} />
+        {puede("deudores.ver") ? <Link className="self-start underline" to={`/deudores?trabajador_id=${ficha.id}`}>Ver sus adeudos por almacén</Link> : null}
 
         <Seccion titulo="Datos">
           <dl className="grid gap-4 sm:grid-cols-2">
@@ -406,7 +413,7 @@ export default function FichaTrabajador() {
             vacio="Conservar el puesto actual"
             deshabilitado={trabajando}
           />
-          <Campo etiqueta="Área u obra" value={area} onChange={(e) => setArea(e.target.value)} />
+          <SelectorProyecto valor={proyectoId} alCambiar={setProyectoId} deshabilitado={trabajando} />
           {panel === "reingreso" && errorPanel ?<p role="alert" className="text-base font-semibold text-destructive">{errorPanel}</p> : null}
         </div>
       </Hoja>

@@ -11,8 +11,21 @@ import pytest
 from sqlalchemy import select
 
 from app.modulos.autorizaciones.models import Autorizacion
-from tests.movimientos.ayudas import abastecer, crear_articulo, crear_trabajador, cuerpo_entrega
+from tests.movimientos.ayudas import (
+    abastecer,
+    crear_articulo,
+    crear_trabajador,
+)
+from tests.movimientos.ayudas import (
+    cuerpo_entrega as _cuerpo_entrega,
+)
 from tests.movimientos.test_entrega import renglon
+
+
+def cuerpo_entrega(*args, **kw):
+    # PR-10: estas pruebas verifican autorizaciones, con trabajadores sin proyecto.
+    return _cuerpo_entrega(*args, observacion="Entrega de prueba sin proyecto", **kw)
+
 
 VALES = "/api/vales"
 AUT = "/api/autorizaciones"

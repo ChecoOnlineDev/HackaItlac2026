@@ -18,7 +18,7 @@ import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { Insignia } from "~/componentes/ui/insignia";
 import { useSesionActiva } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "vales.ver" };
+export const handle: ManejadorRuta = { dispositivo: "celular", permiso: "vales.ver" };
 
 const TEXTO_TIPO: Record<TipoVale, string> = {
   ENTRADA: "Entrada",
@@ -28,6 +28,7 @@ const TEXTO_TIPO: Record<TipoVale, string> = {
   RECEPCION: "Recepción",
   NO_ADEUDO: "No adeudo",
   CANCELACION: "Cancelación",
+  AJUSTE: "Faltante de almacén",
 };
 
 const TEXTO_ESTADO: Record<ValeListaApi["estado"], string> = {

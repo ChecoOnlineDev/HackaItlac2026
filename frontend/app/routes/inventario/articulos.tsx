@@ -28,7 +28,7 @@ import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { Insignia } from "~/componentes/ui/insignia";
 import { useSesion } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "catalogo.ver" };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permiso: "catalogo.ver" };
 
 const OPCIONES_ESTADO = [
   { valor: "activos", texto: "Activos" },

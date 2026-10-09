@@ -7,7 +7,7 @@ respuesta de un vale los muestra (F-12, RG-12).
 import math
 import uuid
 from datetime import UTC, date, datetime
-from typing import Annotated, Any, Self
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -94,6 +94,7 @@ class ValeIn(_Estricto):
     tipo: TipoVale
     almacen_id: uuid.UUID | None = None
     trabajador_id: uuid.UUID | None = None
+    proyecto_id: uuid.UUID | None = None
     destino_almacen_id: uuid.UUID | None = None
     vale_origen_id: uuid.UUID | None = None
     autorizacion_id: uuid.UUID | None = None
@@ -101,6 +102,8 @@ class ValeIn(_Estricto):
 
     @model_validator(mode="after")
     def _fotos_del_vale_con_tope(self) -> Self:
+        if self.proyecto_id is not None and self.tipo != TipoVale.ENTREGA:
+            raise ValueError("El proyecto solo se indica en una entrega (PR-14).")
         total = sum(len(r.foto) for r in self.renglones if r.foto)
         if total > FOTOS_VALE_CARACTERES_MAXIMO:
             raise ValueError("Las fotos del vale pesan demasiado. Reduce su tamaño o quita alguna.")
@@ -165,6 +168,7 @@ class ConfirmarIn(ValeIn):
     id_cliente: uuid.UUID
     observacion: str | None = Field(default=None, max_length=1000)
     firma: FirmaIn | None = None
+    reserva_papel_id: uuid.UUID | None = None
 
     _limpiar = field_validator("observacion", mode="before")(_vacio_a_none)
 
@@ -193,6 +197,9 @@ class MotivoOut(BaseModel):
     nivel: Nivel
     mensaje: str
     codigo: str | None = None
+    # Solo en un motivo naranja del vale (X-17): una autorización lo cubre, y si ya lo cubre.
+    autorizable: bool = False
+    autorizado: bool = False
 
 
 class ArticuloEvaluadoOut(BaseModel):
@@ -237,6 +244,12 @@ class TitularOut(BaseModel):
 
 
 class RenglonEvaluadoOut(BaseModel):
+    es_epp: bool = False
+    requiere_aprobacion: bool = False
+    aprobacion: (
+        Literal["APROBADO", "RECHAZADO", "NO_INCLUIDO", "CANTIDAD_MAYOR", "PENDIENTE"] | None
+    ) = None
+    motivo_rechazo: str | None = None
     renglon: int
     codigo: str
     articulo: ArticuloEvaluadoOut | None
@@ -259,7 +272,25 @@ class AlmacenResumenOut(BaseModel):
     nombre: str
 
 
+class RutaEvaluacionOut(BaseModel):
+    """Solo en un TRASPASO (X-03, X-16 a X-18): la clase de ruta y quién la autoriza, tal como
+    la evaluó el servidor. `autorizadores_disponibles` (sin contar a quien envía) solo viene con
+    `autoriza = SUPERVISOR_ORIGEN` (X-17)."""
+
+    clase: Literal["HABITUAL", "LATERAL", "NO_HABITUAL", "MISMO"]
+    autoriza: Literal["NADIE", "ENVIO_PROPIO", "SUPERVISOR_ORIGEN", "ADMINISTRADOR"]
+    autorizadores_disponibles: int | None = None
+
+
+class ProyectoResumenOut(BaseModel):
+    id: uuid.UUID
+    clave: str
+    nombre: str
+
+
 class EvaluacionOut(BaseModel):
+    requiere_aprobacion_despacho: bool = False
+    despacho: dict[str, str] = Field(default_factory=lambda: {"modo": "NO_APLICA"})
     nivel: Nivel
     puede_confirmar: bool
     # Verdadero si algún renglón pide una observación (E-09): al confirmar hace falta una, en el
@@ -269,8 +300,13 @@ class EvaluacionOut(BaseModel):
     motivos: list[MotivoOut]
     almacen: AlmacenResumenOut
     trabajador: FichaBreveOut | None = None
+    proyecto: ProyectoResumenOut | None = None
+    proyectos_del_trabajador: list[ProyectoResumenOut] = Field(default_factory=list)
+    pide_proyecto: bool = False
     # Si el cuerpo trae `autorizacion_id` y no sirve para este vale, por qué (A-03).
     autorizacion_error: str | None = None
+    # Solo en un TRASPASO.
+    ruta: RutaEvaluacionOut | None = None
     renglones: list[RenglonEvaluadoOut]
 
 
@@ -295,6 +331,15 @@ class ValeConfirmadoOut(BaseModel):
     token: str
     creado_en: FechaUtc
     renglones: list[RenglonConfirmadoOut]
+
+
+class ReservaPapelOut(BaseModel):
+    id: uuid.UUID
+    folio: str
+    token: str
+    vence_en: FechaUtc
+    ticket: dict[str, Any]
+    evaluacion: EvaluacionOut
 
 
 # ------------------------------------------------------------------------- salida: consulta
@@ -347,9 +392,11 @@ class RenglonValeOut(BaseModel):
 class ValidoOut(BaseModel):
     """ "Validó" (A-04): quién pidió, quién autorizó, cuándo, por qué medio y el motivo."""
 
-    autorizacion_id: uuid.UUID
+    # Nulo en el envío propio de un traslado lateral (X-16): no hubo solicitud.
+    autorizacion_id: uuid.UUID | None
     solicito: PersonaOut | None
     autorizo: PersonaOut
+    # PIN, REMOTA o ENVIO_PROPIO.
     medio: str
     resuelta_en: FechaUtc
     motivo: str
@@ -366,6 +413,7 @@ class CancelacionVistaOut(BaseModel):
 
 
 class ValeDetalleOut(BaseModel):
+    proyecto: ProyectoResumenOut | None = None
     id: uuid.UUID
     folio: str
     token: str
@@ -386,6 +434,11 @@ class ValeDetalleOut(BaseModel):
     dispositivo: str | None
     creado_en: FechaUtc
     renglones: list[RenglonValeOut]
+    lote: dict[str, Any] | None = None
+    resumen: dict[str, Any] | None = None
+    relacionados: list[dict[str, Any]] = Field(default_factory=list)
+    capturado_sin_conexion: bool = False
+    capturado_en: FechaUtc | None = None
 
 
 class ValeListItem(BaseModel):

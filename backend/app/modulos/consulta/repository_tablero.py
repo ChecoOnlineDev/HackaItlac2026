@@ -9,9 +9,12 @@ from datetime import date, datetime
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
+from app.modulos.acceso.alcance_almacenes import condicion_almacenes
 from app.modulos.almacenes.models import Almacen, TipoUbicacion, Ubicacion, UbicacionVirtual
+from app.modulos.catalogo.alto_valor import expresion_vigilancia
 from app.modulos.catalogo.models import Articulo, Categoria, Control, EstadoPieza, Pieza
-from app.modulos.consulta.repository_seguimiento import CATEGORIAS_ALTO_VALOR, SeguimientoRepository
+from app.modulos.consulta.repository_cantidad import CantidadRepository
+from app.modulos.consulta.repository_seguimiento import SeguimientoRepository
 from app.modulos.movimientos.models import EstadoVale, Existencia, Movimiento, TipoVale, Vale
 from app.modulos.solicitudes_compra.models import EstadoSolicitud, SolicitudCompra
 
@@ -37,7 +40,7 @@ class TableroRepository:
             .where(Ubicacion.tipo == TipoUbicacion.ALMACEN)
         )
         if almacen_id is not None:
-            consulta = consulta.where(Ubicacion.almacen_id == almacen_id)
+            consulta = consulta.where(condicion_almacenes(Ubicacion.almacen_id, almacen_id))
         return consulta
 
     def existencias(self, almacen_id: uuid.UUID | None) -> tuple[int, int]:
@@ -67,12 +70,16 @@ class TableroRepository:
         """Piezas del alcance de un almacén (C-02): en él, en manos de un trabajador a quien se
         entregó desde él, o en tránsito desde o hacia él."""
         return or_(
-            and_(u.tipo == TipoUbicacion.ALMACEN, u.almacen_id == almacen_id),
-            and_(u.tipo == TipoUbicacion.TRABAJADOR, ult.c.vale_almacen_id == almacen_id),
+            and_(u.tipo == TipoUbicacion.ALMACEN, condicion_almacenes(u.almacen_id, almacen_id)),
+            and_(
+                u.tipo == TipoUbicacion.TRABAJADOR,
+                condicion_almacenes(ult.c.vale_almacen_id, almacen_id),
+            ),
             and_(
                 u.tipo == TipoUbicacion.VIRTUAL,
                 or_(
-                    ult.c.vale_almacen_id == almacen_id, ult.c.vale_destino_almacen_id == almacen_id
+                    condicion_almacenes(ult.c.vale_almacen_id, almacen_id),
+                    condicion_almacenes(ult.c.vale_destino_almacen_id, almacen_id),
                 ),
             ),
         )
@@ -108,11 +115,36 @@ class TableroRepository:
         entregadas desde un almacén del alcance."""
         consulta, u = self._piezas(func.count(Pieza.id), almacen_id)
         consulta = consulta.join(Categoria, Categoria.id == Articulo.categoria_id).where(
-            Categoria.nombre.in_(CATEGORIAS_ALTO_VALOR),
+            expresion_vigilancia(),
             u.tipo == TipoUbicacion.TRABAJADOR,
             Pieza.estado != EstadoPieza.BAJA,
         )
-        return int(self.session.scalar(consulta) or 0)
+        piezas = int(self.session.scalar(consulta) or 0)
+        ent = CantidadRepository._ultimas_entregas()
+        cantidades = (
+            select(func.coalesce(func.sum(Existencia.cantidad), 0))
+            .select_from(Existencia)
+            .join(Ubicacion, Ubicacion.id == Existencia.ubicacion_id)
+            .join(Articulo, Articulo.id == Existencia.articulo_id)
+            .join(Categoria, Categoria.id == Articulo.categoria_id)
+            .outerjoin(
+                ent,
+                and_(
+                    ent.c.ubicacion_id == Existencia.ubicacion_id,
+                    ent.c.articulo_id == Existencia.articulo_id,
+                    ent.c.rn == 1,
+                ),
+            )
+            .where(
+                Ubicacion.tipo == TipoUbicacion.TRABAJADOR,
+                Existencia.cantidad > 0,
+                Articulo.control == Control.CANTIDAD,
+                expresion_vigilancia(),
+            )
+        )
+        if almacen_id is not None:
+            cantidades = cantidades.where(condicion_almacenes(ent.c.vale_almacen_id, almacen_id))
+        return piezas + int(self.session.scalar(cantidades) or 0)
 
     def inspecciones_por_vencer(self, almacen_id: uuid.UUID | None, hoy: date, hasta: date) -> int:
         """Piezas aptas de artículos con inspección que vencen entre `hoy` y `hasta`."""
@@ -138,7 +170,10 @@ class TableroRepository:
         )
         if almacen_id is not None:
             consulta = consulta.where(
-                or_(Vale.almacen_id == almacen_id, Vale.destino_almacen_id == almacen_id)
+                or_(
+                    condicion_almacenes(Vale.almacen_id, almacen_id),
+                    condicion_almacenes(Vale.destino_almacen_id, almacen_id),
+                )
             )
         return int(self.session.scalar(consulta) or 0)
 
@@ -153,7 +188,7 @@ class TableroRepository:
             Vale.creado_en < hasta_excluyente,
         )
         if almacen_id is not None:
-            consulta = consulta.where(Vale.almacen_id == almacen_id)
+            consulta = consulta.where(condicion_almacenes(Vale.almacen_id, almacen_id))
         return int(self.session.scalar(consulta) or 0)
 
     def solicitudes_abiertas(self, almacen_id: uuid.UUID | None) -> int:
@@ -161,7 +196,7 @@ class TableroRepository:
             SolicitudCompra.estado.in_([EstadoSolicitud.PENDIENTE, EstadoSolicitud.EN_COMPRA])
         )
         if almacen_id is not None:
-            consulta = consulta.where(SolicitudCompra.almacen_id == almacen_id)
+            consulta = consulta.where(condicion_almacenes(SolicitudCompra.almacen_id, almacen_id))
         return int(self.session.scalar(consulta) or 0)
 
     # ------------------------------------------------------------------------- consumo
@@ -238,7 +273,7 @@ class TableroRepository:
             )
         )
         if almacen_id is not None:
-            consulta = consulta.where(Vale.almacen_id == almacen_id)
+            consulta = consulta.where(condicion_almacenes(Vale.almacen_id, almacen_id))
         if categoria_id is not None:
             consulta = consulta.where(Articulo.categoria_id == categoria_id)
         consulta = consulta.group_by(*columnas).having(neto != 0)
@@ -266,7 +301,7 @@ class TableroRepository:
             )
         )
         if almacen_id is not None:
-            consulta = consulta.where(Vale.almacen_id == almacen_id)
+            consulta = consulta.where(condicion_almacenes(Vale.almacen_id, almacen_id))
         if categoria_id is not None:
             consulta = consulta.where(Articulo.categoria_id == categoria_id)
         consulta = consulta.group_by(*columnas).having(total != 0)

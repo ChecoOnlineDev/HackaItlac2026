@@ -12,15 +12,12 @@ from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from app.modulos.almacenes.models import Almacen, TipoUbicacion, Ubicacion, UbicacionVirtual
+from app.modulos.catalogo.alto_valor import expresion_alto_valor, expresion_vigilancia
 from app.modulos.catalogo.models import Articulo, Categoria, EstadoPieza, Pieza
 from app.modulos.consulta.repository import ConsultaRepository, Lugar, _patron
 from app.modulos.movimientos.models import Movimiento, TipoVale, Vale
 
 MAXIMO_PALABRAS = 6
-
-# SG-04 y SG-06: las categorías cuyas piezas se consideran de alto valor. Son las dos que trae la
-# semilla de categorías (ambas con control por pieza, SG-07).
-CATEGORIAS_ALTO_VALOR = ("Equipo de alto valor", "Equipo de alturas")
 
 
 @dataclass(frozen=True)
@@ -113,7 +110,7 @@ class SeguimientoRepository:
         if filtro.articulo_id is not None:
             consulta = consulta.where(Pieza.articulo_id == filtro.articulo_id)
         if filtro.alto_valor:
-            consulta = consulta.where(Categoria.nombre.in_(CATEGORIAS_ALTO_VALOR))
+            consulta = consulta.where(expresion_vigilancia())
         if filtro.serie_pendiente is not None:
             consulta = consulta.where(
                 Pieza.numero_serie.is_(None)
@@ -195,6 +192,8 @@ class SeguimientoRepository:
                 Articulo.nombre.label("articulo_nombre"),
                 Articulo.marca.label("articulo_marca"),
                 Categoria.nombre.label("categoria_nombre"),
+                func.coalesce(expresion_alto_valor(), False).label("alto_valor"),
+                Articulo.requiere_inspeccion,
                 *lugar.columnas(),
                 ult.c.desde,
                 ult.c.vale_id,

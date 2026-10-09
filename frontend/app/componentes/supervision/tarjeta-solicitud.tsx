@@ -9,7 +9,8 @@ import type { Solicitud } from "~/componentes/consulta/tipos";
 import { Avatar } from "~/componentes/ui/avatar";
 import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
-import { Confirmacion } from "~/componentes/ui/confirmacion";
+import { Hoja } from "~/componentes/ui/hoja";
+import { ResolucionRenglones, decisionesCompletas, type DecisionRenglon } from "./resolucion-renglones";
 import { formatearFechaHora } from "~/componentes/dominio/fechas";
 import { instanteUtc } from "~/componentes/consulta/formato";
 import { venceEn, type SolicitudCerrada } from "./use-solicitudes";
@@ -56,6 +57,12 @@ interface PropiedadesTarjeta {
 export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrabajador, alResolver, alRefrescar, alDescartar, esPropia }: PropiedadesTarjeta) {
   const [decision, setDecision] = useState<"APROBAR" | "RECHAZAR" | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [decisiones, setDecisiones] = useState<DecisionRenglon[]>([]);
+  const renglones = solicitud.renglones.map((r, i) => ({ ...r, renglon: r.renglon ?? i + 1 }));
+  const abrirResolucion = (valor: "APROBAR" | "RECHAZAR") => {
+    setDecisiones(renglones.filter((r) => r.clase !== "CONTEXTO").map((r) => ({ renglon: r.renglon, decision: valor, motivo: "" })));
+    setDecision(valor);
+  };
 
   const msRestantes = venceEn(solicitud) - ahora;
   const vencida = cierre ? cierre.estado === "VENCIDA" : msRestantes <= 0;
@@ -66,11 +73,11 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
     if (!decision) return;
     setEnviando(true);
     try {
-      await api(`/autorizaciones/${solicitud.id}/resolucion`, { metodo: "POST", cuerpo: { decision } });
+      const resuelta = await api<{ estado: string }>(`/autorizaciones/${solicitud.id}/resolucion`, { metodo: "POST", cuerpo: { renglones: decisiones.map((d) => ({ ...d, motivo: d.decision === "RECHAZAR" ? d.motivo?.trim() : undefined })) } });
       aviso({
-        titulo: decision === "APROBAR" ? "Autorizada" : "Rechazada",
+        titulo: resuelta.estado === "APROBADA" ? "Decisiones guardadas: entrega aprobada" : "Solicitud rechazada",
         descripcion: `${solicitud.trabajador.nombre}: ${articulos}`,
-        tipo: decision === "APROBAR" ? "exito" : "info",
+        tipo: resuelta.estado === "APROBADA" ? "exito" : "info",
       });
       setDecision(null);
       alResolver();
@@ -94,7 +101,7 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
       )}
     >
       <div className="flex items-start gap-3">
-        <Avatar nombre={solicitud.trabajador.nombre} tamano="md" />
+        <Avatar nombre={solicitud.trabajador.nombre} fotoUrl={puedeVerTrabajador && solicitud.trabajador.tiene_foto ? `/api/trabajadores/${solicitud.trabajador.id}/foto` : undefined} tamano="md" />
         <div className="flex min-w-0 flex-1 flex-col">
           {puedeVerTrabajador ? (
             <Link to={`/trabajadores/${solicitud.trabajador.id}`} className="text-lg leading-tight font-semibold text-marino underline-offset-2 hover:underline">
@@ -117,6 +124,9 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
         {cierre && cierre.estado !== "VENCIDA" ? "Ya resuelta" : cerrada ? "Venció" : `Vence en ${restante(msRestantes)}`}
       </p>
 
+      {solicitud.almacen ? <p className="text-sm font-semibold">{solicitud.almacen.clave} · {solicitud.almacen.nombre}</p> : null}
+      {solicitud.proyecto ? <p className="text-sm">Proyecto {solicitud.proyecto.clave} · {solicitud.proyecto.nombre}</p> : null}
+      {solicitud.nota ? <p className="rounded-xl border p-3 text-sm">{solicitud.nota}</p> : null}
       <ul className="flex flex-col gap-2">
         {solicitud.renglones.map((r, i) => (
           <li key={`${r.codigo}-${i}`} className="flex flex-col gap-0.5 rounded-xl border bg-background p-3">
@@ -133,7 +143,9 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
               <p className="text-sm">Pide {r.cantidad}.</p>
             )}
             {r.mensaje && (r.limite === null || r.tiene === null) ? <p className="text-sm text-muted-foreground">{r.mensaje}</p> : null}
-            <p className="text-xs text-muted-foreground">Regla {r.regla}</p>
+            <p className="text-xs text-muted-foreground">{r.clase === "CONTEXTO" ? "Solo como contexto" : r.clase === "EPP" ? "Equipo de protección" : "Requiere autorización"}{r.incluye_excedente ? " · También excede su límite" : ""}</p>
+            {r.observacion ? <p className="text-sm">{r.observacion}</p> : null}
+            {solicitud.renglones_resueltos?.filter((d) => d.codigo === r.codigo).map((d) => <p key={d.renglon} className="text-sm font-semibold">{d.decision === "APROBADO" ? "Aprobado" : `Rechazado: ${d.motivo ?? ""}`}</p>)}
           </li>
         ))}
       </ul>
@@ -165,34 +177,22 @@ export function TarjetaSolicitud({ solicitud, ahora, nueva, cierre, puedeVerTrab
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          <Boton variante="principal" onClick={() => setDecision("APROBAR")} disabled={enviando}>
+          <Boton variante="principal" onClick={() => abrirResolucion("APROBAR")} disabled={enviando}>
             <CheckIcon aria-hidden="true" />
             Autorizar
           </Boton>
-          <Boton variante="contorno" className="h-12 text-base font-semibold" onClick={() => setDecision("RECHAZAR")} disabled={enviando}>
+          <Boton variante="contorno" className="h-12 text-base font-semibold" onClick={() => abrirResolucion("RECHAZAR")} disabled={enviando}>
             <XIcon aria-hidden="true" />
             Rechazar
           </Boton>
         </div>
       )}
 
-      <Confirmacion
-        abierta={decision !== null}
-        alCambiar={(a) => {
-          if (!a && !enviando) setDecision(null);
-        }}
-        mensaje={
-          decision === "APROBAR"
-            ? `¿Autorizar que se entregue ${articulos} a ${solicitud.trabajador.nombre}?`
-            : `¿Rechazar la solicitud de ${solicitud.trabajador.nombre}?`
-        }
-        detalle={decision === "APROBAR" ? "El almacenista podrá terminar la entrega." : "El almacenista verá que no se autorizó."}
-        etiquetaConfirmar={decision === "APROBAR" ? "Sí, autorizar" : "Sí, rechazar"}
-        etiquetaCancelar="Volver"
-        peligro={decision === "RECHAZAR"}
-        cargando={enviando}
-        alConfirmar={resolver}
-      />
+      <Hoja abierta={decision !== null} alCambiar={(a) => { if (!a && !enviando) setDecision(null); }}
+        titulo="Resolver solicitud" descripcion={`Revisa lo que se entregará a ${solicitud.trabajador.nombre}.`}
+        pie={<Boton variante="principal" cargando={enviando} disabled={enviando || !decisionesCompletas(renglones, decisiones)} onClick={() => void resolver()}>Guardar decisiones</Boton>}>
+        <ResolucionRenglones renglones={renglones} decisiones={decisiones} alCambiar={setDecisiones} bloqueado={enviando} />
+      </Hoja>
     </article>
   );
 }

@@ -38,6 +38,7 @@ from app.modulos.almacenes.repository import (
     FiltroExistencias,
     UbicacionRepository,
 )
+from app.modulos.almacenes.repository_minimos import MinimosRepository
 from app.modulos.almacenes.schemas import (
     AlmacenCreate,
     AlmacenFilters,
@@ -455,6 +456,26 @@ class AlmacenService:
                 }
             )
 
+        proyectos = self.almacenes.proyectos_activos(almacen.id, bloquear=con_detalle)
+        if proyectos:
+            b = {
+                "codigo": "CON_PROYECTOS_ACTIVOS",
+                "mensaje": f"{nombre} tiene {len(proyectos)} proyecto(s) activo(s). "
+                "Ciérralos primero.",
+                "total": len(proyectos),
+            }
+            if con_detalle:
+                b["proyectos"] = [
+                    {
+                        "id": str(p.id),
+                        "clave": p.clave,
+                        "nombre": p.nombre,
+                        "fin_estimado": p.fin_estimado.isoformat(),
+                    }
+                    for p in proyectos[:LIMITE_DETALLE]
+                ]
+            bloqueos.append(b)
+
         usuarios = datos.usuarios.get(almacen.id, 0)
         if usuarios:
             b = {
@@ -486,11 +507,19 @@ class AlmacenService:
             nombre=a.nombre,
             tipo=a.tipo,
             estado=a.estado,
+            despacho_epp_con_aprobacion=a.despacho_epp_con_aprobacion,
+            proyectos_activos=len(self.almacenes.proyectos_activos(a.id)),
             padre_id=a.padre_id,
             padre_clave=padre.clave if padre else None,
             cerrado_en=a.cerrado_en,
             hijos=[AlmacenHijoOut.model_validate(h) for h in todos if h.padre_id == a.id],
         )
+        if (
+            a.estado == EstadoAlmacen.ACTIVO
+            and a.tipo == TipoAlmacen.PROYECTO
+            and not ficha.proyectos_activos
+        ):
+            ficha.aviso = "Sin proyectos activos: considera inactivarlo."
         if datos is not None:
             ficha.resumen = self._resumen(a, padre, datos)
         return ficha
@@ -519,6 +548,35 @@ class AlmacenService:
         """La ficha de un almacén tras un cambio (sin el resumen)."""
         return self._ficha(almacen, self.almacenes.listar(), None)
 
+    def cambiar_autonomia(self, almacen_id, datos, actor) -> AlmacenOut:
+        """DE-14: el permiso se exige en el router; el cambio se audita junto a su motivo."""
+        try:
+            almacen = self._bloquear(almacen_id)
+            anterior = almacen.despacho_epp_con_aprobacion
+            if anterior != datos.despacho_epp_con_aprobacion:
+                almacen.despacho_epp_con_aprobacion = datos.despacho_epp_con_aprobacion
+                self.auditoria.registrar(
+                    usuario_id=actor.id,
+                    accion="almacen.autonomia",
+                    entidad="almacen",
+                    entidad_id=almacen.id,
+                    antes={"despacho_epp_con_aprobacion": anterior},
+                    despues={
+                        "despacho_epp_con_aprobacion": datos.despacho_epp_con_aprobacion,
+                        "motivo": datos.motivo,
+                        "regla": "DE-14",
+                    },
+                )
+            self.session.commit()
+            return self._ficha_de(almacen)
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def minimo(self, ubicacion_id, articulo_id):
+        """I-05: mínimo de un artículo en una ubicación de almacén; solo lee."""
+        return MinimosRepository(self.session).de_ubicacion(ubicacion_id, articulo_id)
+
     def existencias(
         self, almacen_id: uuid.UUID, filtros: AlmacenFilters, pagina: Paginacion
     ) -> ExistenciasOut:
@@ -531,6 +589,7 @@ class AlmacenService:
                 q=filtros.q,
                 categoria_id=filtros.categoria_id,
                 activo=filtros.activo,
+                bajo_minimo=filtros.bajo_minimo,
                 offset=pagina.offset,
                 limit=pagina.limit,
             ),
@@ -552,8 +611,11 @@ class AlmacenService:
                     activo=art.activo,
                     cantidad=cantidad,
                     disponible=int(disponible or 0),
+                    no_disponible=max(0, int(cantidad or 0) - int(disponible or 0)),
+                    minimo=minimo,
+                    bajo_minimo=minimo is not None and int(disponible or 0) < minimo,
                 )
-                for art, categoria, cantidad, disponible in filas
+                for art, categoria, cantidad, disponible, minimo in filas
             ],
             total=total,
         )

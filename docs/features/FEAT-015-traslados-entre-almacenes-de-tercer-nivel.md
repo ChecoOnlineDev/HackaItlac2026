@@ -1,6 +1,6 @@
 # FEAT-015: Traslados entre almacenes de tercer nivel
 
-Estado: **aprobada por el usuario el 8 de octubre de 2026, sin construir.** Es el paso 1 del orden de construcción de la [iteración 01](../releases/iteration_01/README.md) (sección 7), junto con la verificación de punta a punta de los traspasos (D-21). Cambia X-03, A-05 (excepción de D-09) y, por consecuencia, AC-07. Reglas nuevas X-16 a X-21. Si algo de aquí contradice el [documento maestro](../releases/iteration_01/README.md), manda el maestro.
+Estado: **aprobada por el usuario el 8 de octubre de 2026; traslados laterales y descarga TR-10 implementados parcialmente, con criterios y recorridos integrales pendientes (9 oct 2026).** Es el paso 1 del orden de construcción de la [iteración 01](../releases/iteration_01/README.md) (sección 7), junto con la verificación de punta a punta de los traspasos (D-21). Cambia X-03, A-05 (excepción de D-09) y, por consecuencia, AC-07. Reglas nuevas X-16 a X-21. Si algo de aquí contradice el [documento maestro](../releases/iteration_01/README.md), manda el maestro.
 
 ## Problema u oportunidad
 
@@ -148,7 +148,7 @@ D-21 pide los traspasos **completamente funcionales**. Cada escenario se comprue
 | 3 | Recibir con diferencias | Supervisor del destino | Pide observación; queda Recibido con diferencias; lo demás sigue en tránsito | X-13, RG-14 | Sí | ☐ |
 | 4 | Recibir de nuevo hasta completar | Supervisor del destino | El traspaso sigue en «Por recibir» hasta que no falta nada; entonces Recibido | X-13 | Sí | ☐ |
 | 5 | Cancelar en tránsito | Supervisor del origen | Vale de cancelación; la existencia regresa al origen; el destino ya no lo ve; desde el destino, 409 | X-14, K-01 a K-04 | Sí (`test_cancelacion_*.py`) | ☐ |
-| 6 | Traspaso por Excel (subir, vista previa sola, dejar fuera filas con error, archivo repetido, más de 500 filas) | Supervisor del origen | Un vale por archivo; las filas en rojo bloquean salvo «Dejar fuera»; aviso de archivo usado | TR-01 a TR-09, TR-12, TR-13 | Sí: backend (`importacion/router_traspasos.py`, 4 rutas; `test_traspaso_lista.py`) y frontend (`componentes/traspasos-lista/trasladar-con-lista.tsx`). Los documentos dicen «sin construir». TR-10 (descargar la lista) no está. | ☐ |
+| 6 | Traspaso por Excel (subir, vista previa sola, dejar fuera filas con error, archivo repetido, más de 500 filas) | Supervisor del origen | Un vale por archivo; las filas en rojo bloquean salvo «Dejar fuera»; aviso de archivo usado | TR-01 a TR-09, TR-12, TR-13 | Sí: backend (`importacion/router_traspasos.py`, 4 rutas; `test_traspaso_lista.py`) y frontend (`componentes/traspasos-lista/trasladar-con-lista.tsx`). Los documentos dicen «sin construir». TR-10 descarga la lista cargada en el frontend; su descarga histórica y la impresión física siguen pendientes. | ☐ |
 | 7 | Recepción por lista larga (búsqueda, filtro Pendientes, contador «n de m revisados», escaneo que lleva al renglón) | Quien recibe | La interfaz ayuda; el servidor evalúa igual | X-15 | Sí (`recibir-detalle.tsx`) | ☐ |
 | 8 | Recibir con un almacenista que tiene `traspasos.recibir` | Almacenista del destino | Ve Recibir y recibe; sin el permiso no la ve y la API da 403 | X-01, X-10, AC-34 | Sí (permiso en `acceso/permisos.py` y en el rol Almacenista de `datos_prueba.py`) | ☐ |
 | 9 | Ruta lateral con el supervisor del origen | Supervisor de Midrex | Amarillo X-16, observación, «Validó: él mismo»; HYL recibe | X-16, X-18, X-20 | No (esta feature) | ☐ |
@@ -166,6 +166,8 @@ Al terminar la verificación se corrigen, en el mismo cambio, los documentos que
 - Traslados laterales sin conexión: la app de Android (FEAT-020) no envía traspasos.
 - Cambiar las rutas habituales o quitar a Contratistas de la cadena.
 - «Devolver todo al cerrar» y la descarga de la lista (TR-10).
+
+Avance posterior de TR-10 (9 oct 2026): el flujo «Trasladar con una lista» permite descargar el Excel imprimible de la vista cargada y del resultado confirmado. Sigue pendiente descargarlo desde un vale histórico, además de los recorridos integrales; se conserva el estado parcial de esta feature. Detalle en [reporte TR-10](../releases/iteration_01/reporte-tr10-lista-imprimible.md).
 - Que un traslado lateral cambie el proyecto de algo: el consumo es del proyecto de la entrega (D-13), no del almacén.
 
 ## Criterios de aceptación

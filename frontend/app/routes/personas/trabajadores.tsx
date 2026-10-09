@@ -1,6 +1,6 @@
 import { UserPlusIcon, UsersIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { apiGet } from "~/api/cliente";
@@ -16,9 +16,11 @@ import { EstadoVacio } from "~/componentes/ui/estado-vacio";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { CampoBusqueda } from "~/componentes/ui/campo-busqueda";
 import { useRetraso } from "~/componentes/catalogo/usar-consulta";
+import { SelectorProyecto } from "~/componentes/proyectos/selector-proyecto";
+import { Boton as BotonFiltro } from "~/componentes/ui/boton";
 import { useSesion } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "trabajadores.ver" };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permiso: "trabajadores.ver" };
 
 const TAMANO = 20;
 
@@ -26,6 +28,9 @@ export default function Trabajadores() {
   const { puede } = useSesion();
   const puedeAdministrar = puede("trabajadores.administrar");
 
+  const [parametros, setParametros] = useSearchParams();
+  const proyectoId = parametros.get("proyecto_id") ?? "";
+  const sinProyecto = parametros.get("sin_proyecto") === "true";
   const [texto, setTexto] = useState("");
   const busqueda = useRetraso(texto.trim());
   const [pagina, setPagina] = useState(1);
@@ -38,7 +43,7 @@ export default function Trabajadores() {
     const control = new AbortController();
     setCargando(true);
     setError(null);
-    apiGet<Pagina<ElementoLista>>("/trabajadores", { q: busqueda, pagina, tamano: TAMANO }, control.signal)
+    apiGet<Pagina<ElementoLista>>("/trabajadores", { q: busqueda, pagina, tamano: TAMANO, proyecto_id: proyectoId, sin_proyecto: sinProyecto || undefined }, control.signal)
       .then((respuesta) => {
         setDatos(respuesta);
         setCargando(false);
@@ -49,7 +54,7 @@ export default function Trabajadores() {
         setCargando(false);
       });
     return () => control.abort();
-  }, [busqueda, pagina, intento]);
+  }, [busqueda, pagina, intento, proyectoId, sinProyecto]);
 
   const reintentar = useCallback(() => setIntento((n) => n + 1), []);
   const totalPaginas = datos ? Math.max(1, Math.ceil(datos.total / TAMANO)) : 1;
@@ -63,7 +68,7 @@ export default function Trabajadores() {
 
   return (
     <Pantalla titulo="Trabajadores" descripcion="Busca por nombre o número y revisa su situación." acciones={botonAlta}>
-      <div className="flex">
+      <div className="flex flex-wrap items-end gap-3">
         <CampoBusqueda
           etiqueta="Buscar trabajador por nombre o número"
           placeholder="Buscar por nombre o número"
@@ -74,6 +79,9 @@ export default function Trabajadores() {
           }}
           claseContenedor="sm:max-w-md"
         />
+        {puede("proyectos.ver") || puede("proyectos.asignar") ? <div className="min-w-64 max-w-md"><SelectorProyecto valor={proyectoId} alCambiar={(id) => { setParametros(id ? { proyecto_id: id } : {}); setPagina(1); }} proponerUnico={false} asignables={false} /></div> : null}
+        <BotonFiltro variante={sinProyecto ? "normal" : "contorno"} aria-pressed={sinProyecto} onClick={() => { setParametros(sinProyecto ? {} : { sin_proyecto: "true" }); setPagina(1); }}>Sin proyecto</BotonFiltro>
+        {proyectoId ? <BotonFiltro variante="texto" onClick={() => { setParametros({}); setPagina(1); }}>Todos los proyectos</BotonFiltro> : null}
       </div>
 
       {error && !datos ? (
@@ -81,7 +89,7 @@ export default function Trabajadores() {
       ) : cargando && !datos ? (
         <Esqueleto tipo="lista" cantidad={5} />
       ) : datos && datos.elementos.length === 0 ? (
-        busqueda ? (
+        busqueda || proyectoId || sinProyecto ? (
           <EstadoVacio
             icono={UsersIcon}
             titulo="No encontramos a nadie con esa búsqueda"
@@ -118,6 +126,7 @@ export default function Trabajadores() {
                 <TableRow>
                   <TableHead scope="col">Nombre</TableHead>
                   <TableHead scope="col">Puesto</TableHead>
+                  <TableHead scope="col">Proyecto</TableHead>
                   <TableHead scope="col">Vigencia</TableHead>
                   <TableHead scope="col">Situación</TableHead>
                 </TableRow>
@@ -138,6 +147,7 @@ export default function Trabajadores() {
                       <div>{t.puesto ?? "—"}</div>
                       <div className="text-xs text-muted-foreground">{t.area_obra ?? ""}</div>
                     </TableCell>
+                    <TableCell className="whitespace-normal">{t.proyectos?.map((p) => p.proyecto.nombre).join(", ") || "Sin proyecto"}</TableCell>
                     <TableCell className="whitespace-normal">
                       <div className="flex flex-col items-start gap-1">
                         <InsigniaVigencia vigencia={t.vigencia} />
@@ -167,6 +177,7 @@ export default function Trabajadores() {
                       </span>
                     </span>
                   </span>
+                  <span className="text-sm">{t.proyectos?.map((p) => p.proyecto.nombre).join(", ") || "Sin proyecto"}</span>
                   <span className="flex flex-wrap items-center gap-2">
                     <InsigniaVigencia vigencia={t.vigencia} />
                     <InsigniaSituacion situacion={t.situacion} texto={t.situacion_texto} />

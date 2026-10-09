@@ -16,6 +16,8 @@ class TipoAdjunto(StrEnum):
     FIRMA = "FIRMA"
     FOTO_DANO = "FOTO_DANO"
     FOTO_TRABAJADOR = "FOTO_TRABAJADOR"
+    FOTO_INSPECCION = "FOTO_INSPECCION"
+    TICKET_FIRMADO = "TICKET_FIRMADO"
 
 
 class Adjunto(Base):
@@ -36,5 +38,6 @@ class Adjunto(Base):
     sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     vale_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("vale.id"))
     movimiento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("movimiento.id"))
+    inspeccion_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("inspeccion.id"), index=True)
     subido_por: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuario.id"), nullable=False)
     creado_en: Mapped[datetime] = mapped_column(FechaHora, nullable=False, default=ahora_utc)

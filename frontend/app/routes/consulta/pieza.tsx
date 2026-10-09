@@ -18,10 +18,11 @@ import { Boton } from "~/componentes/ui/boton";
 import { EstadoError } from "~/componentes/ui/estado-error";
 import { Esqueleto } from "~/componentes/ui/esqueleto";
 import { useSesion } from "~/sesion/sesion";
+import { HojaEstadoPieza } from "~/componentes/consulta/hoja-estado-pieza";
 
-export const handle: ManejadorRuta = { permiso: "catalogo.ver" };
+export const handle: ManejadorRuta = { dispositivo: "celular", permiso: "catalogo.ver" };
 
-type Panel = null | "inspeccion" | "no-apta" | "vigencia" | "serie";
+type Panel = null | "inspeccion" | "no-apta" | "vigencia" | "serie" | "estado";
 
 export default function FichaPiezaPantalla() {
   const { id } = useParams();
@@ -105,8 +106,9 @@ export default function FichaPiezaPantalla() {
       </Bloque>
 
       <div className="flex flex-wrap gap-2">
+        {puede("piezas.marcar_estado") && !enBaja ? <Boton variante="contorno" onClick={() => setPanel("estado")}>Mantenimiento o calibración</Boton> : null}
         {puedeInspeccionar && !enBaja ? (
-          <Boton variante="normal" onClick={() => setPanel("inspeccion")}>
+          <Boton variante="normal" nativeButton={false} render={<Link to={`/inspeccionar?pieza=${pieza.id}`} />}>
             <ClipboardCheckIcon aria-hidden="true" />
             Inspeccionar
           </Boton>
@@ -179,6 +181,7 @@ export default function FichaPiezaPantalla() {
       </Seccion>
 
       <HojaInspeccion pieza={pieza} abierta={panel === "inspeccion"} alCambiar={(a) => setPanel(a ? "inspeccion" : null)} alGuardar={recargar} />
+      <HojaEstadoPieza pieza={pieza} abierta={panel === "estado"} alCambiar={(a) => setPanel(a ? "estado" : null)} alGuardar={recargar} />
       <HojaMarcarNoApta pieza={pieza} abierta={panel === "no-apta"} alCambiar={(a) => setPanel(a ? "no-apta" : null)} alGuardar={recargar} />
       {puedeRegistrarSerie ? (
         <HojaRegistrarSerie

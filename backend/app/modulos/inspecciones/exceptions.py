@@ -37,3 +37,18 @@ class EstadoSinCambio(Conflicto):
     """Marcar No apta a una pieza que ya lo está."""
 
     mensaje_defecto = "La pieza ya estaba como No apta."
+
+
+class PiezaEnTransito(Conflicto):
+    codigo = "PIEZA_EN_TRANSITO"
+    mensaje_defecto = "La pieza está en tránsito. Recíbela antes de inspeccionarla."
+
+
+class PiezaEnMantenimiento(Conflicto):
+    codigo = "PIEZA_EN_MANTENIMIENTO"
+    mensaje_defecto = "La pieza debe salir de mantenimiento o calibración antes de inspeccionarla."
+
+
+class FechaFutura(DatosInvalidos):
+    codigo = "FECHA_FUTURA"
+    mensaje_defecto = "La fecha de inspección no puede estar en el futuro."

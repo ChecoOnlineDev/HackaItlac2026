@@ -5,6 +5,7 @@ motor (`service.py`) y el router no cambian.
 """
 
 from app.modulos.movimientos.models import TipoVale
+from app.modulos.movimientos.tipos.ajuste import AjusteTipo
 from app.modulos.movimientos.tipos.base import ManejadorTipo
 from app.modulos.movimientos.tipos.cancelacion import CancelacionTipo
 from app.modulos.movimientos.tipos.devolucion import DevolucionTipo
@@ -22,6 +23,7 @@ TIPOS: dict[TipoVale, ManejadorTipo] = {
     TipoVale.RECEPCION: RecepcionTipo(),
     TipoVale.NO_ADEUDO: NoAdeudoTipo(),
     TipoVale.CANCELACION: CancelacionTipo(),
+    TipoVale.AJUSTE: AjusteTipo(),
 }
 
 assert set(TIPOS) == set(TipoVale), "Cada tipo de vale debe estar registrado"

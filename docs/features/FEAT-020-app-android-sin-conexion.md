@@ -1,6 +1,6 @@
 # FEAT-020: App de Android del almacenista y operación sin conexión
 
-Estado: **aprobada por el usuario el 8 de octubre de 2026; contenedor Android en línea construido, aceptación en equipo real pendiente. La operación sin conexión sigue sin construir y va al final del orden de construcción.**
+Estado: **aprobada por el usuario el 8 de octubre de 2026; contenedor Android en línea construido, aceptación en equipo real pendiente. De OF-06/OF-07 solo están implementadas y probadas las primitivas de derivación/verificación local PBKDF2 y la política pura de intentos; no tienen persistencia, interfaz ni integración de inicio de sesión. La operación sin conexión sigue sin construir y va al final del orden de construcción.**
 
 ## Hito de implementación del 8 de octubre de 2026
 
@@ -640,11 +640,11 @@ Igual que en la web: escanea la credencial, ve la foto (F-11), escanea artículo
 | Tabla o columna | Detalle |
 |---|---|
 | `dispositivo` | Como en el maestro: `id`, `usuario_id` (quien lo inscribió), `almacen_id`, `nombre`, `plataforma` (ANDROID), `version_app`, `registrado_en`, `ultimo_paquete_en`, `ultima_subida_en`, `revocado_en`, `revocado_por`. **Propuesto:** `secreto_hash` (SHA-256 del secreto del equipo, único) y `motivo_revocacion`. Índices por `almacen_id` y por `revocado_en`. |
-| `conflicto_sincronizacion` | Como en el maestro: `id`, `dispositivo_id`, `usuario_id` (quien capturó), `id_cliente` (único), `tipo_vale` (el tipo de la operación: ENTREGA, DEVOLUCION, RECEPCION, INSPECCION, NO_APTA o SOLICITUD_COMPRA), `cuerpo` (JSON de la operación, con la firma como referencia a un archivo del volumen, no en la base), `motivo` (código), `detalle` (JSON con lo que dijo el servidor por renglón y el vale con que chocó), `estado` (PENDIENTE, RESUELTO, DESCARTADO), `resuelto_por` (distinto de `usuario_id`, CHECK como en `autorizacion`), `resolucion` (JSON: opción y motivo), `vale_id`, `creado_en`, `resuelto_en`. Solo se inserta y se actualiza su resolución una vez. |
+| `conflicto_sincronizacion` | Como en el maestro: `id`, `dispositivo_id`, `usuario_id` (quien capturó), `id_cliente` (único), `tipo_operacion` (el tipo de la operación: ENTREGA, DEVOLUCION, RECEPCION, INSPECCION, NO_APTA o SOLICITUD_COMPRA), `cuerpo` (JSON de la operación, con la firma como referencia a un archivo del volumen, no en la base), `motivo` (código), `detalle` (JSON con lo que dijo el servidor por renglón y el vale con que chocó), `estado` (PENDIENTE, RESUELTO, DESCARTADO), `resuelto_por` (distinto de `usuario_id`, CHECK como en `autorizacion`), `resolucion` (JSON: opción y motivo), `vale_id`, `creado_en`, `resuelto_en`. Solo se inserta y se actualiza su resolución una vez. |
 | `vale.capturado_sin_conexion` (bool, `false`), `vale.capturado_en` (UTC, nulo en línea), `vale.dispositivo_id` (FK a `dispositivo`, nulo en línea) | Se escriben al insertar y no cambian (invariante 5). `vale.dispositivo` (el agente del navegador, que ya existe) se conserva. |
 | `almacen.hora_descarga` (TIME, nulo) | Hora del centro de México. |
 | **Propuesto:** `dispositivo_usuario` (`dispositivo_id`, `usuario_id`, `version_sesion`, `registrado_en`, `ultima_entrada_en`) | Los usuarios que entraron con señal en el equipo. Sostiene OF-06, OF-07, OF-24 y el borrado por `version_sesion` (OF-05). No está en el maestro: ver «Decisiones abiertas». |
-| **Propuesto:** registro de operaciones recibidas (por ejemplo, `recibo_sincronizacion`: `id_cliente` único, `dispositivo_id`, `tipo`, `resultado`, `entidad_id`, `folio`, `avisos`, `recibido_en`) | Idempotencia de las inspecciones y No apta (no tienen `id_cliente`) y respuesta igual al reenviar un lote. Alternativa: `id_cliente` en `inspeccion` y `evento_pieza`. Ver «Decisiones abiertas». |
+| **Propuesto:** registro de operaciones recibidas (por ejemplo, `operacion_recibida`: `id_cliente` único, `dispositivo_id`, `tipo`, `resultado`, `entidad_id`, `folio`, `avisos`, `recibido_en`) | Idempotencia de las inspecciones y No apta (no tienen `id_cliente`) y respuesta igual al reenviar un lote. Alternativa: `id_cliente` en `inspeccion` y `evento_pieza`. Ver «Decisiones abiertas». |
 
 ### Endpoints
 
@@ -733,9 +733,9 @@ El resto (descarga programada, varios usuarios, notificaciones locales, DataWedg
 
 ## Decisiones abiertas
 
-1. **Usuarios del equipo (`dispositivo_usuario`).** El maestro trae `dispositivo.usuario_id` (uno solo), pero varios usuarios comparten el equipo y el servidor necesita saber quiénes entraron en él para aceptar sus vales (OF-24) y para invalidar su credencial local por `version_sesion` (OF-05). Se propone la tabla `dispositivo_usuario`. Falta tu confirmación y agregarla a la sección 5.1 del maestro.
-2. **Secreto del equipo (`dispositivo.secreto_hash`).** Sin él, cualquier usuario con sesión podría decir que es cualquier equipo de su almacén. Se propone la columna. Falta agregarla al maestro.
-3. **Idempotencia de inspecciones.** `inspeccion` y `evento_pieza` no tienen `id_cliente`. Se propone una tabla de operaciones recibidas en `sincronizacion` (sirve para todos los tipos) o, como alternativa, `id_cliente` en esas dos tablas.
+1. **Usuarios del equipo (`dispositivo_usuario`).** El maestro trae `dispositivo.usuario_id` (uno solo), pero varios usuarios comparten el equipo y el servidor necesita saber quiénes entraron en él para aceptar sus vales (OF-24) y para invalidar su credencial local por `version_sesion` (OF-05). Se propone la tabla `dispositivo_usuario`. **Ya está en la sección 5.1 del maestro** (con `primera_entrada_en`, `ultima_entrada_en` y `revocado_en`); falta tu confirmación.
+2. **Secreto del equipo (`dispositivo.secreto_hash`).** Sin él, cualquier usuario con sesión podría decir que es cualquier equipo de su almacén. Se propone la columna. **Ya está en la sección 5.1 del maestro.**
+3. **Idempotencia de inspecciones.** `inspeccion` y `evento_pieza` no tienen `id_cliente`. El maestro fija la tabla `operacion_recibida` en `sincronizacion` (sirve para todos los tipos); `inspeccion.id_cliente` existe aparte para la inspección por lote en línea (FEAT-016).
 4. **Firma digital de cada operación por usuario.** Para que el vale pruebe quién lo capturó aun si otro lo sube, cada usuario podría tener un par de llaves por equipo (la privada protegida por su PIN local, la pública en `dispositivo_usuario`) y firmar cada operación. Más fuerte para F-05, más trabajo. Se propone dejarlo para después de la demostración.
 5. **`/v/:token` sin sesión.** Hoy la vista del vale exige sesión, así que el trabajador que escanea su comprobante ve «Entrar». ¿Se abre una vista pública mínima (estado y renglones, sin datos personales) o se queda con sesión?
 6. **Operación sin conexión en Kepler.** Kepler está fuera de la planta y su paquete sería el de todos los trabajadores. Se propone no habilitarla en v1.

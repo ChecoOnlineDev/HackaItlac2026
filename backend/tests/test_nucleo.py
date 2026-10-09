@@ -212,8 +212,8 @@ def test_la_migracion_sube_baja_y_coincide_con_los_modelos():
         tablas = set(inspect(motor).get_table_names())
         esperadas = set(Base.metadata.tables) | {"alembic_version"}
         assert tablas == esperadas
-        # 21 del modelo, puesto, dotacion, sesion_dispositivo, 3 de solicitudes y serie_empleado.
-        assert len(Base.metadata.tables) == 28
+        # El esquema incluye modelos base y tablas incorporadas por FEAT-013 a FEAT-020.
+        assert len(Base.metadata.tables) == 35
 
         # Los modelos y la migración no difieren (lo que revisa `alembic check`).
         with motor.connect() as conexion:

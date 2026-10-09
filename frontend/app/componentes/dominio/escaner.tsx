@@ -44,10 +44,11 @@ export const VENTANA_REPETIDO_MS = 1500;
 export const PAUSA_TRAS_LECTURA_MS = 2000;
 
 /** Entre una tecla y la siguiente de una pistola pasan menos de ~30 ms; una persona tarda más de 100. */
-const MAXIMO_ENTRE_TECLAS_MS = 60;
+export const MAXIMO_ENTRE_TECLAS_MS = 60;
 const LARGO_MINIMO_PISTOLA = 3;
 
 export interface ManejadorEscaner {
+  limpiarCampo: () => void;
   abrirCamara: () => void;
   cerrarCamara: () => void;
   /** Lleva el cursor al campo "Escribir código o buscar". */
@@ -57,6 +58,7 @@ export interface ManejadorEscaner {
 export interface PropiedadesEscaner {
   /** Recibe cada código leído, venga de la cámara, la pistola o el teclado. */
   onCodigo: (codigo: string, origen: OrigenLectura) => void;
+  alCambiarTexto?: (texto: string) => void;
   /** Se avisa cuando se ignora una lectura repetida (menos de 1.5 s). La cámara avisa una vez por vista. */
   onRepetido?: (codigo: string, origen: OrigenLectura) => void;
   /** `false` apaga la pistola y la cámara (por ejemplo mientras hay una hoja abierta). Por omisión `true`. */
@@ -103,6 +105,7 @@ function esCampoDeTexto(destino: EventTarget | null): boolean {
  */
 export function Escaner({
   onCodigo,
+  alCambiarTexto,
   onRepetido,
   activo = true,
   camaraInicial = false,
@@ -120,6 +123,7 @@ export function Escaner({
   const [quiereCamara, setQuiereCamara] = useState(camaraInicial);
   const [errorCamara, setErrorCamara] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
+  const tecleoCampo = useRef({ ultima: 0, caracteres: 0, suma: 0 });
   const [ultimo, setUltimo] = useState<{ codigo: string; n: number } | null>(null);
 
   const [mensajeVisible, setMensajeVisible] = useState(false);
@@ -389,6 +393,7 @@ export function Escaner({
   useImperativeHandle(
     ref,
     () => ({
+      limpiarCampo: () => { setTexto(""); alCambiarTexto?.(""); },
       abrirCamara: () => setQuiereCamara(true),
       cerrarCamara: () => setQuiereCamara(false),
       enfocarCampo: () => campo.current?.focus(),
@@ -401,7 +406,11 @@ export function Escaner({
     const valor = texto.trim();
     if (!valor) return;
     setTexto("");
-    procesar(valor, "teclado");
+    alCambiarTexto?.("");
+    const t = tecleoCampo.current;
+    const pistola = t.caracteres >= LARGO_MINIMO_PISTOLA && t.suma / (t.caracteres - 1) <= MAXIMO_ENTRE_TECLAS_MS && performance.now() - t.ultima < 300;
+    tecleoCampo.current = { ultima: 0, caracteres: 0, suma: 0 };
+    procesar(valor, pistola ? "pistola" : "teclado");
   };
 
   const sinSoporte = soportaCamara === false;
@@ -487,7 +496,14 @@ export function Escaner({
           etiqueta={etiquetaCampo}
           claseContenedor="flex-1"
           value={texto}
-          onChange={(e) => setTexto(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key.length !== 1 || e.ctrlKey || e.altKey || e.metaKey || e.nativeEvent.isComposing) return;
+            const ahora = performance.now();
+            const t = tecleoCampo.current;
+            const intervalo = ahora - t.ultima;
+            tecleoCampo.current = !t.caracteres || intervalo > MAXIMO_ENTRE_TECLAS_MS * 2 ? { ultima: ahora, caracteres: 1, suma: 0 } : { ultima: ahora, caracteres: t.caracteres + 1, suma: t.suma + intervalo };
+          }}
+          onChange={(e) => { setTexto(e.target.value); alCambiarTexto?.(e.target.value); }}
           placeholder={placeholderCampo}
           autoComplete="off"
           autoCapitalize="off"

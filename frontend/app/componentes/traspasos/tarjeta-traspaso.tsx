@@ -2,7 +2,7 @@ import { ArrowRightIcon, ChevronRightIcon } from "lucide-react";
 import { Link } from "react-router";
 
 import type { TraspasoPorRecibirApi } from "./tipos";
-import { desdeCuando, textoRenglones } from "./formato";
+import { desdeCuando, textoRenglones, textoValido } from "./formato";
 import { Insignia } from "~/componentes/ui/insignia";
 
 /**
@@ -22,6 +22,7 @@ export function TarjetaTraspaso({ traspaso, mostrarDestino }: { traspaso: Traspa
           <span className="flex flex-wrap items-center gap-2">
             <span className="text-lg font-semibold tracking-wide text-marino">{traspaso.folio}</span>
             {conDiferencias ? <Insignia estado="amarillo">Recibido en parte</Insignia> : <Insignia estado="info">En camino</Insignia>}
+            {traspaso.ruta === "LATERAL" ? <Insignia estado="neutra">Traslado desde {traspaso.origen.nombre}</Insignia> : null}
           </span>
           <span className="flex flex-wrap items-center gap-1.5 text-base font-semibold">
             {traspaso.origen.nombre}
@@ -35,6 +36,7 @@ export function TarjetaTraspaso({ traspaso, mostrarDestino }: { traspaso: Traspa
             {" · enviado "}
             {desdeCuando(traspaso.creado_en)}
           </span>
+          {traspaso.valido ? <span className="text-sm text-muted-foreground">Validó: {textoValido(traspaso.valido)}</span> : null}
         </span>
         <span className="flex shrink-0 items-center gap-1 text-base font-semibold text-primary">
           <span className="hidden sm:inline">Recibir</span>

@@ -134,6 +134,7 @@ function useEscala(anchoPx: number, maximo = 1) {
 interface PropiedadesHojaCredenciales {
   credenciales: DatosCredencial[];
   className?: string;
+  inicio?: number;
 }
 
 /**
@@ -145,7 +146,7 @@ interface PropiedadesHojaCredenciales {
  * <HojaCredenciales credenciales={seleccionadas} />
  * ```
  */
-export function HojaCredenciales({ credenciales, className }: PropiedadesHojaCredenciales) {
+export function HojaCredenciales({ credenciales, className, inicio = 1 }: PropiedadesHojaCredenciales) {
   const { contenedor, escala } = useEscala(ANCHO_HOJA_PX);
   return (
     <div ref={contenedor} className={cn("w-full", className)}>
@@ -159,7 +160,8 @@ export function HojaCredenciales({ credenciales, className }: PropiedadesHojaCre
           "print:[zoom:1]!",
         )}
       >
-        {credenciales.map((c) => (
+        {Array.from({ length: inicio - 1 }, (_, i) => <li key={`blanco-${i}`} aria-hidden="true" className="h-[58mm] bg-white" />)}
+        {credenciales.slice(0, 8 - inicio + 1).map((c) => (
           <li key={c.codigo} className="flex h-[58mm] break-inside-avoid items-center justify-center border border-dashed border-neutral-400 bg-white">
             <TarjetaCredencial datos={c} />
           </li>

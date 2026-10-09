@@ -3,6 +3,7 @@ import { LogOutIcon, MenuIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
+import { useEntregasEnEspera } from "~/componentes/entrega/use-entregas-en-espera";
 import { ConfirmarSalida } from "~/componentes/navegacion/confirmar-salida";
 import { MenuHoja } from "~/componentes/navegacion/menu-hoja";
 import { Pantalla } from "~/componentes/pantalla";
@@ -45,6 +46,7 @@ export default function Inicio() {
   const { sesion, puede, puedeAlguno } = useSesionActiva();
   const [confirmandoSalida, setConfirmandoSalida] = useState(false);
   const contadores = useContadores();
+  const entregasEnEspera = useEntregasEnEspera(sesion.usuario.id);
   const esEscritorio = useEsEscritorio();
   const [menuAbierto, setMenuAbierto] = useState(false);
 
@@ -68,7 +70,7 @@ export default function Inicio() {
           key={e.id}
           elemento={e}
           esFlujo={operaAlmacen && e.inicio === "flujo"}
-          contador={e.contador ? contadores[e.contador] : undefined}
+          contador={e.id === "entregar" && entregasEnEspera.borradores.length ? entregasEnEspera.borradores.length : e.contador ? contadores[e.contador] : undefined}
           ultimoImpar={i === elementos.length - 1 && elementos.length % 2 === 1}
         />
       ))}

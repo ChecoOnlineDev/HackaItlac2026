@@ -7,7 +7,7 @@ from datetime import datetime
 from sqlalchemy import ColumnElement, delete, exists, func, or_, select, update
 from sqlalchemy.orm import Session
 
-from app.modulos.acceso.models import Rol, RolPermiso, SesionDispositivo, Usuario
+from app.modulos.acceso.models import Rol, RolPermiso, SesionDispositivo, Usuario, UsuarioAlmacen
 from app.modulos.acceso.permisos import P
 from app.modulos.almacenes.models import Almacen
 
@@ -55,6 +55,52 @@ class UsuarioRepository:
 
     def get(self, usuario_id: uuid.UUID) -> Usuario | None:
         return self.session.get(Usuario, usuario_id)
+
+    def almacenes_asignados(self, usuario_id: uuid.UUID) -> set[uuid.UUID]:
+        conjunto = set(
+            self.session.scalars(
+                select(UsuarioAlmacen.almacen_id).where(UsuarioAlmacen.usuario_id == usuario_id)
+            )
+        )
+        usuario = self.get(usuario_id)
+        if usuario is not None and usuario.almacen_id is not None:
+            conjunto.add(usuario.almacen_id)
+        return conjunto
+
+    def reemplazar_almacenes(self, usuario: Usuario, conjunto: set[uuid.UUID]) -> None:
+        self.session.execute(delete(UsuarioAlmacen).where(UsuarioAlmacen.usuario_id == usuario.id))
+        self.session.add_all(
+            UsuarioAlmacen(usuario_id=usuario.id, almacen_id=id) for id in conjunto
+        )
+        self.session.flush()
+
+    def contar_con_permiso_en(
+        self,
+        clave: str,
+        almacen_id: uuid.UUID,
+        *,
+        incluir_todos: bool,
+        excluir_usuario_id: uuid.UUID | None = None,
+    ) -> int:
+        """Usuarios activos, de un rol activo con el permiso `clave`, que tienen `almacen_id` como
+        su almacén; con `incluir_todos` también los de `almacenes.todos` (operan cualquiera)."""
+        alcance = or_(
+            Usuario.almacen_id == almacen_id,
+            exists().where(
+                UsuarioAlmacen.usuario_id == Usuario.id, UsuarioAlmacen.almacen_id == almacen_id
+            ),
+        )
+        if incluir_todos:
+            alcance = or_(alcance, _rol_tiene(P.ALMACENES_TODOS))
+        consulta = (
+            select(func.count())
+            .select_from(Usuario)
+            .join(Rol, Rol.id == Usuario.rol_id)
+            .where(Usuario.activo.is_(True), Rol.activo.is_(True), _rol_tiene(clave), alcance)
+        )
+        if excluir_usuario_id is not None:
+            consulta = consulta.where(Usuario.id != excluir_usuario_id)
+        return int(self.session.scalar(consulta) or 0)
 
     def bloquear(self, usuario_id: uuid.UUID) -> Usuario:
         """El usuario releído de la base con su fila bloqueada (`FOR UPDATE`) hasta el commit.

@@ -17,9 +17,10 @@ import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
 import { Campo } from "~/componentes/ui/campo";
 import { CampoFecha } from "~/componentes/ui/campo-fecha";
+import { SelectorProyecto } from "~/componentes/proyectos/selector-proyecto";
 import { useSesion } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "trabajadores.administrar" };
+export const handle: ManejadorRuta = { dispositivo: "computadora", permiso: "trabajadores.administrar" };
 
 type Errores = Record<string, string>;
 
@@ -50,7 +51,7 @@ export default function AltaTrabajador() {
   // Puesto: `puestoId` del catálogo y su nombre (`puesto`). Sin permiso para ver el catálogo, solo el texto.
   const [puestoId, setPuestoId] = useState("");
   const [puesto, setPuesto] = useState("");
-  const [area, setArea] = useState("");
+  const [proyectoId, setProyectoId] = useState("");
   const [inicio, setInicio] = useState(hoyMx());
   const [fin, setFin] = useState("");
   const [tallas, setTallas] = useState<Record<string, string>>({});
@@ -86,7 +87,7 @@ export default function AltaTrabajador() {
   const [reFin, setReFin] = useState("");
   const [rePuestoId, setRePuestoId] = useState("");
   const [rePuesto, setRePuesto] = useState("");
-  const [reArea, setReArea] = useState("");
+  const [reProyectoId, setReProyectoId] = useState("");
 
   function limpiar(campo: string) {
     setErrores((e) => {
@@ -102,7 +103,7 @@ export default function AltaTrabajador() {
     setExistente(ficha);
     setRePuestoId("");
     setRePuesto("");
-    setReArea(ficha.area_obra ?? "");
+    setReProyectoId(ficha.proyectos?.find((p) => p.principal)?.proyecto.id ?? ficha.proyectos?.[0]?.proyecto.id ?? "");
     setReInicio(hoyMx());
     setReFin("");
     setErrores({});
@@ -118,7 +119,7 @@ export default function AltaTrabajador() {
     const e: Errores = {};
     if (!nombre.trim()) e.nombre = "Escribe el nombre completo.";
     if (!puestoId && !puesto.trim()) e.puesto = "Elige el puesto.";
-    if (!area.trim()) e.area_obra = "Escribe el área o la obra.";
+    if (!proyectoId) e.proyecto_id = "Elige el proyecto.";
     if (!inicio) e.inicio = "Elige la fecha de inicio.";
     if (!fin) e.fin = "Elige la fecha de fin.";
     else if (inicio && fin < inicio) e.fin = "La fecha de fin no puede ser anterior a la de inicio.";
@@ -152,7 +153,7 @@ export default function AltaTrabajador() {
             numero_empleado: puedeNumeroPropio && numero.trim() ? numero.trim() : undefined,
             confirmar_distinta: confirmarDistinta ? true : undefined,
             ...cuerpoDePuesto(puestoId, puesto),
-            area_obra: area.trim(),
+            proyecto_id: proyectoId,
             inicio,
             fin,
             tallas: Object.keys(tallasLimpias).length > 0 ? tallasLimpias : undefined,
@@ -246,7 +247,7 @@ export default function AltaTrabajador() {
         inicio: reInicio,
         fin: reFin,
         ...cuerpoDePuesto(rePuestoId, rePuesto),
-        area_obra: reArea.trim() || undefined,
+        proyecto_id: reProyectoId || undefined,
       });
       aviso({ titulo: `Se reingresó a ${existente.nombre}`, tipo: "exito" });
       void navegar(`/trabajadores/${existente.id}`);
@@ -334,7 +335,7 @@ export default function AltaTrabajador() {
                 error={errores.re_puesto}
                 deshabilitado={guardando}
               />
-              <Campo etiqueta="Área u obra" value={reArea} onChange={(e) => setReArea(e.target.value)} />
+              <SelectorProyecto valor={reProyectoId} alCambiar={setReProyectoId} deshabilitado={guardando} />
             </div>
             {errorGeneral ? (
               <p role="alert" className="text-base font-semibold text-destructive">
@@ -385,7 +386,7 @@ export default function AltaTrabajador() {
                   error={errores.puesto}
                   deshabilitado={yaRegistrado || guardando}
                 />
-                <Campo etiqueta="Área u obra" value={area} onChange={(e) => { setArea(e.target.value); limpiar("area_obra"); }} error={errores.area_obra} disabled={yaRegistrado || guardando} />
+                <SelectorProyecto valor={proyectoId} alCambiar={(v) => { setProyectoId(v); limpiar("proyecto_id"); }} error={errores.proyecto_id} deshabilitado={yaRegistrado || guardando} />
                 <CampoFecha etiqueta="Inicio del contrato" value={inicio} alCambiar={(v) => { setInicio(v); limpiar("inicio"); limpiar("fin"); }} error={errores.inicio} disabled={yaRegistrado || guardando} />
                 <CampoFecha etiqueta="Fin del contrato" value={fin} alCambiar={(v) => { setFin(v); limpiar("fin"); }} error={errores.fin ?? (fin && inicio && fin < inicio ? "La fecha de fin no puede ser anterior a la de inicio." : undefined)} disabled={yaRegistrado || guardando} />
               </div>

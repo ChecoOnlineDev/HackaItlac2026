@@ -58,7 +58,7 @@ class Identificacion:
     pieza: Pieza | None = None
 
 
-def hechos_de_articulo(articulo: Articulo) -> HechosArticulo:
+def hechos_de_articulo(articulo: Articulo, *, dias_aviso_inspeccion: int = 7) -> HechosArticulo:
     return HechosArticulo(
         id=articulo.id,
         codigo=articulo.codigo,
@@ -78,6 +78,7 @@ def hechos_de_articulo(articulo: Articulo) -> HechosArticulo:
         limite_cantidad=articulo.limite_cantidad,
         limite_periodo_dias=articulo.limite_periodo_dias,
         cantidad_aviso=articulo.cantidad_aviso,
+        dias_aviso_inspeccion=dias_aviso_inspeccion,
     )
 
 
@@ -330,7 +331,9 @@ class Cargador:
         return HechosRenglonEntrega(
             codigo=codigo,
             cantidad=cantidad,
-            articulo=hechos_de_articulo(articulo),
+            articulo=hechos_de_articulo(
+                articulo, dias_aviso_inspeccion=self.catalogo.aviso_inspeccion(articulo)[0]
+            ),
             pieza=hechos_de_pieza(pieza) if pieza else None,
             titular=titular,
             ubicacion_almacen_id=ubicacion_almacen_id,
@@ -340,4 +343,5 @@ class Cargador:
             pedido_previo=pedido_previo,
             dotacion=self.hechos_dotacion(trabajador, articulo),
             tallas_trabajador=trabajador.tallas,
+            minimo_almacen=self.almacenes.minimo(ubicacion_almacen_id, articulo.id),
         )

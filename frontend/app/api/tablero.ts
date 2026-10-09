@@ -8,6 +8,7 @@ export interface AlcanceTablero {
   es_todos: boolean;
   /** Solo con `almacenes.todos`: la interfaz muestra el selector de almacén. */
   puede_elegir: boolean;
+  almacenes?: { id: string; clave: string; nombre: string }[];
 }
 
 export interface ResumenTablero {
@@ -18,11 +19,16 @@ export interface ResumenTablero {
   traspasos_en_transito: number;
   entregas_hoy: number;
   solicitudes_compra_abiertas: number;
-  inspecciones_por_vencer: number;
+  inspecciones_por_vencer: number | null;
+  inspecciones_vencidas?: number | null;
+  inspecciones_sin_registro?: number | null;
   /** Puede faltar si el servidor es anterior a ADR-010. */
   piezas_serie_pendiente?: number;
   /** SG-04: solo llega con `resguardo.ver`; sin ese permiso es `null`. */
   alto_valor_fuera?: number | null;
+  almacenes_sin_proyecto?: { id: string; clave: string; nombre: string }[] | null;
+  proyectos_por_vencer?: { id: string; clave: string; nombre: string; almacen: { id: string; clave: string; nombre: string }; fin_estimado: string }[] | null;
+  inventario_unidades?: { en_almacen: number; en_resguardo: number; total: number };
   generado_en: string;
 }
 
@@ -79,6 +85,7 @@ export const pedirConsumoTablero = (p: ParametrosConsumo, signal?: AbortSignal) 
 export interface ValorPorCategoria {
   categoria: string;
   valor: string;
+  unidades?: number;
 }
 
 export interface ValorPorAlmacen {
@@ -87,6 +94,9 @@ export interface ValorPorAlmacen {
   en_almacen: string;
   en_resguardo: string;
   total: string;
+  unidades_en_almacen?: number;
+  unidades_en_resguardo?: number;
+  unidades_total?: number;
 }
 
 export interface ValorTablero {
@@ -102,7 +112,33 @@ export interface ValorTablero {
   /** Vacío si no aplica (un solo almacén). */
   por_almacen: ValorPorAlmacen[];
   generado_en: string;
+  unidades_en_almacen?: number;
+  unidades_en_resguardo?: number;
+  unidades_total?: number;
 }
+
+export interface TotalUso { unidades: number; valor: string | null }
+export interface UsoProyecto {
+  retornables_en_resguardo: TotalUso;
+  consumibles_consumidos: TotalUso;
+  total: TotalUso;
+  articulos_sin_costo: number;
+}
+export interface ProyectoTablero extends UsoProyecto {
+  id: string; clave: string; nombre: string;
+  almacen: { id: string; clave: string; nombre: string };
+  inicio: string; fin_estimado: string; estado: string; situacion: string;
+  trabajadores_asignados: number;
+  por_categoria: (UsoProyecto & { categoria: { id: string; nombre: string } | null; nombre: string })[] | null;
+}
+export interface UsoProyectosTablero {
+  alcance: AlcanceTablero;
+  rango: { desde: string; hasta: string };
+  proyectos: ProyectoTablero[];
+  sin_proyecto: UsoProyecto;
+  generado_en: string;
+}
+export const pedirUsoProyectos = (parametros: { desde: string; hasta: string; almacen_id?: string; proyecto_id?: string }, signal?: AbortSignal) => apiGet<UsoProyectosTablero>("/tablero/proyectos", parametros, signal);
 
 export const pedirValorTablero = (almacenId: string, signal?: AbortSignal) =>
   apiGet<ValorTablero>("/tablero/valor", { almacen_id: almacenId || undefined }, signal);

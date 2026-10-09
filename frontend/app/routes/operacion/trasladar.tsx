@@ -1,11 +1,12 @@
-import { CircleAlertIcon, FileSpreadsheetIcon, InfoIcon, RotateCcwIcon, WifiOffIcon } from "lucide-react";
+import { EscanerBusqueda } from "~/componentes/dominio/escaner-busqueda";
+import { CircleAlertIcon, FileSpreadsheetIcon, InfoIcon, LockIcon, RotateCcwIcon, WifiOffIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker } from "react-router";
 
 import { apiGet, apiPost } from "~/api/cliente";
 import { esErrorApi, mensajeDeError, type ErrorApi } from "~/api/errores";
 import { useEnLinea } from "~/api/red";
-import { Escaner, type OrigenLectura } from "~/componentes/dominio/escaner";
+import type { OrigenLectura } from "~/componentes/dominio/escaner";
 import { ListaRenglones } from "~/componentes/dominio/lista-renglones";
 import { reproducir } from "~/componentes/dominio/sonido";
 import type { RenglonEvaluado } from "~/componentes/dominio/tipos";
@@ -16,11 +17,15 @@ import { AccionPrincipal, Pantalla, type ManejadorRuta } from "~/componentes/pan
 import {
   borrarBorradorTraslado,
   claveDeCodigo,
+  nuevoIdCliente,
   guardarBorradorTraslado,
   leerBorradorTraslado,
   nuevoBorradorTraslado,
   type BorradorTraslado,
 } from "~/componentes/traspasos/borradores";
+import { HojaAutorizacion } from "~/componentes/entrega/hoja-autorizacion";
+import type { AutorizacionBorrador } from "~/componentes/entrega/borrador";
+import { BandaAutorizacionTraslado, useSeguirAutorizacion } from "~/componentes/traspasos/autorizacion-traslado";
 import { MotivosDelVale } from "~/componentes/traspasos/motivos-vale";
 import { ResultadoTraspaso } from "~/componentes/traspasos/resultado-traspaso";
 import { SelectorDestino } from "~/componentes/traspasos/selector-destino";
@@ -29,11 +34,11 @@ import { useEvaluar, type CuerpoTraspaso } from "~/componentes/traspasos/use-eva
 import { aviso } from "~/componentes/ui/aviso";
 import { Boton } from "~/componentes/ui/boton";
 import { Cargando } from "~/componentes/ui/cargando";
-import { ObservacionRuta } from "~/componentes/traspasos/observacion-ruta";
+import { ObservacionRuta, RESPUESTAS_RAPIDAS_TRASLADO } from "~/componentes/traspasos/observacion-ruta";
 import { Confirmacion } from "~/componentes/ui/confirmacion";
 import { useSesionActiva } from "~/sesion/sesion";
 
-export const handle: ManejadorRuta = { permiso: "traspasos.operar" };
+export const handle: ManejadorRuta = { dispositivo: "celular", permiso: "traspasos.operar" };
 
 // La misma clave que Entregar: quien opera varios almacenes recuerda el último que eligió.
 const CLAVE_ALMACEN = "imhotep.almacen.operando";
@@ -106,6 +111,7 @@ export default function Trasladar() {
   const enviandoRef = useRef(false);
   const [descartando, setDescartando] = useState(false);
   const [conLista, setConLista] = useState(false);
+  const [pidiendoAutorizacion, setPidiendoAutorizacion] = useState(false);
   const [resultadosBusqueda, setResultadosBusqueda] = useState<{ texto: string; items: CoincidenciaArticulo[] } | null>(null);
   const [buscandoArticulo, setBuscandoArticulo] = useState(false);
   const sonidoPendiente = useRef<Set<string>>(new Set());
@@ -122,9 +128,10 @@ export default function Trasladar() {
       almacen_id: borrador.almacenId,
       destino_almacen_id: borrador.destinoId,
       id_cliente: borrador.idCliente,
+      autorizacion_id: borrador.autorizacion?.estado === "APROBADA" ? borrador.autorizacion.id : undefined,
       renglones: borrador.renglones.map((r) => ({ codigo: r.codigo, cantidad: r.cantidad })),
     };
-  }, [resultado, borrador.destinoId, borrador.almacenId, borrador.idCliente, borrador.renglones, operaTodos]);
+  }, [resultado, borrador.destinoId, borrador.almacenId, borrador.idCliente, borrador.autorizacion, borrador.renglones, operaTodos]);
 
   const ev = useEvaluar(cuerpo);
   const evaluacion: EvaluacionApi | null = cuerpo ? ev.evaluacion : null;
@@ -170,6 +177,20 @@ export default function Trasladar() {
       setAlmacenCambio({ mensaje: errorEvaluacion.message, almacen });
     }
   }, [errorEvaluacion]);
+
+  // ------------------------------------------------------------------ autorización del supervisor (X-17)
+  const autorizacion = borrador.autorizacion ?? null;
+  const esperando = autorizacion?.estado === "PENDIENTE";
+  const restanteMs = useSeguirAutorizacion(
+    autorizacion,
+    useCallback(
+      (id: string, estado: AutorizacionBorrador["estado"], por: string | null) =>
+        actualizar((b) =>
+          b.autorizacion?.id === id ? { ...b, autorizacion: { ...b.autorizacion, estado, resuelta_por: por } } : b,
+        ),
+      [actualizar],
+    ),
+  );
 
   // ------------------------------------------------------------------ salir con captura
   const hayCaptura = !resultado && borrador.renglones.length > 0;
@@ -279,6 +300,7 @@ export default function Trasladar() {
       almacenId: almacen.id,
       destinoId: b.destinoId === almacen.id ? null : b.destinoId,
       destinoNombre: b.destinoId === almacen.id ? null : b.destinoNombre,
+      autorizacion: b.almacenId === almacen.id ? b.autorizacion : null,
     }));
   };
 
@@ -311,6 +333,7 @@ export default function Trasladar() {
         destino_almacen_id: b.destinoId,
         id_cliente: b.idCliente,
         observacion: observacion || undefined,
+        autorizacion_id: b.autorizacion?.estado === "APROBADA" ? b.autorizacion.id : undefined,
         renglones: b.renglones.map((r) => ({ codigo: r.codigo, cantidad: r.cantidad })),
       });
       reproducir("ok");
@@ -361,7 +384,18 @@ export default function Trasladar() {
       });
       return;
     }
-    // La observación que pide la ruta poco habitual (X-03): el servidor la escribe junto al campo.
+    // La autorización ya no sirve (venció, se usó o no cubre la lista): la lista se conserva y se puede pedir otra (X-19).
+    if (causa.codigo === "AUTORIZACION_INVALIDA" || causa.codigo === "AUTORIZACION_PROPIA") {
+      setAvisoCambio(causa.message);
+      actualizar((x) => ({ ...x, autorizacion: null }));
+      return;
+    }
+    // La observación que pide el servidor: la de la ruta poco habitual (X-03) o la del envío propio (X-16).
+    const regla = typeof causa.detalles?.regla === "string" ? causa.detalles.regla : null;
+    if (causa.status === 422 && (regla === "X-16" || regla === "X-03")) {
+      setErrorObservacion(causa.message || "Escribe para qué se manda este traslado.");
+      return;
+    }
     const detalle = Array.isArray(causa.detalles) ? (causa.detalles as { campo?: string; mensaje?: string }[]) : [];
     const deObservacion = detalle.find((d) => d.campo === "observacion");
     if (causa.status === 422 && deObservacion) {
@@ -383,8 +417,12 @@ export default function Trasladar() {
   const almacenNombre = evaluacion?.almacen.nombre ?? sesion.almacen?.nombre ?? null;
   almacenNombreRef.current = almacenNombre;
 
-  // Una ruta que no es padre-hijo la hace solo el Administrador y pide observación (X-03).
+  // El servidor decide si la ruta pide observación (X-03, X-16) y quién autoriza (X-17); aquí solo se muestra.
   const pideObservacion = Boolean(evaluacion?.pide_observacion);
+  const esEnvioPropio = Boolean(evaluacion?.motivos.some((m) => m.regla === "X-16"));
+  const rutaEvaluada = evaluacion?.ruta ?? null;
+  const motivoX17 = evaluacion?.motivos.find((m) => m.regla === "X-17");
+  const necesitaAutorizacion = rutaEvaluada?.autoriza === "SUPERVISOR_ORIGEN" && motivoX17?.autorizado !== true;
 
   const razonParaNoContinuar = (): string | null => {
     if (operaTodos && !borrador.almacenId) return "Elige el almacén que operas.";
@@ -396,8 +434,12 @@ export default function Trasladar() {
     if (!evaluacion || !ev.actual || ev.evaluando) return "Revisando la lista…";
     const rojos = evaluados.filter((r) => r.nivel === "ROJO").length;
     if (rojos > 0) return `Quita ${rojos === 1 ? "el artículo en rojo" : `los ${rojos} artículos en rojo`} para continuar.`;
+    if (necesitaAutorizacion) return esperando ? "Espera la respuesta del supervisor." : "Pide la autorización del supervisor para continuar.";
+    const hayRojoDelVale = evaluacion.motivos.some((m) => m.nivel === "ROJO");
+    if (pideObservacion && !hayRojoDelVale && !(borrador.observacion ?? "").trim()) {
+      return esEnvioPropio ? "Escribe para qué se manda este traslado." : "Escribe por qué se envía por esta ruta para continuar.";
+    }
     if (!evaluacion.puede_confirmar) return evaluacion.motivos.find((m) => m.nivel === "ROJO")?.mensaje ?? "Revisa la lista para continuar.";
-    if (pideObservacion && !(borrador.observacion ?? "").trim()) return "Escribe por qué se envía por esta ruta para continuar.";
     return null;
   };
 
@@ -414,7 +456,9 @@ export default function Trasladar() {
         origenId={borrador.almacenId}
         valor={borrador.destinoId}
         soloHabituales={!operaTodos}
-        alCambiar={(a) => actualizar((b) => ({ ...b, destinoId: a.id, destinoNombre: a.nombre }))}
+        ruta={rutaEvaluada}
+        deshabilitado={esperando || enviando}
+        alCambiar={(a) => actualizar((b) => ({ ...b, destinoId: a.id, destinoNombre: a.nombre, autorizacion: b.destinoId === a.id ? b.autorizacion : null }))}
       />
     </div>
   );
@@ -495,8 +539,52 @@ export default function Trasladar() {
 
             <MotivosDelVale motivos={evaluacion?.motivos ?? []} />
 
+            {autorizacion ? (
+              <BandaAutorizacionTraslado
+                autorizacion={autorizacion}
+                restanteMs={restanteMs}
+                origenNombre={almacenNombre}
+                alCancelar={() => {
+                  actualizar((b) => ({ ...b, autorizacion: null, idClienteAutorizacion: undefined }));
+                  aviso({ titulo: "Solicitud cancelada", descripcion: "Ya puedes cambiar la lista.", tipo: "info" });
+                }}
+                alPedirOtra={() => actualizar((b) => ({ ...b, autorizacion: null, idClienteAutorizacion: undefined }))}
+                deshabilitado={enviando}
+              />
+            ) : necesitaAutorizacion && evaluados.length > 0 ? (
+              <section aria-label="Pedir autorización" className="flex flex-col gap-3 rounded-2xl border border-semaforo-naranja bg-semaforo-naranja/10 p-4">
+                <p className="flex items-start gap-2 text-base font-semibold">
+                  <LockIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-semaforo-naranja" />
+                  Falta que lo autorice el supervisor{almacenNombre ? ` de ${almacenNombre}` : ""}.
+                </p>
+                <Boton
+                  variante="normal"
+                  className="self-start"
+                  disabled={enviando || evaluados.some((r) => r.nivel === "ROJO") || !ev.actual || ev.evaluando}
+                  onClick={() => {
+                    actualizar((b) => (b.idClienteAutorizacion ? b : { ...b, idClienteAutorizacion: nuevoIdCliente() }));
+                    setPidiendoAutorizacion(true);
+                  }}
+                >
+                  Pedir autorización
+                </Boton>
+              </section>
+            ) : null}
+            {evaluacion?.autorizacion_error && autorizacion?.estado === "APROBADA" ? (
+              <p role="alert" className="rounded-2xl border border-semaforo-rojo bg-semaforo-rojo/10 p-3 text-sm font-semibold">
+                {evaluacion.autorizacion_error}
+              </p>
+            ) : null}
+
             {pideObservacion ? (
               <ObservacionRuta
+                {...(esEnvioPropio
+                  ? {
+                      titulo: "¿Para qué se manda este traslado?",
+                      descripcion: "Tú lo autorizas al enviarlo. Anota el motivo para poder confirmarlo; queda en el vale y en la revisión.",
+                      respuestas: RESPUESTAS_RAPIDAS_TRASLADO,
+                    }
+                  : {})}
                 valor={borrador.observacion ?? ""}
                 alCambiar={(texto) => {
                   setErrorObservacion(null);
@@ -530,7 +618,7 @@ export default function Trasladar() {
               onCantidad={cambiarCantidad}
               notas={notas}
               textos={TEXTOS_NIVEL}
-              deshabilitado={enviando}
+              deshabilitado={enviando || esperando}
               vacio={
                 sinEvaluar.length === 0 ? (
                   <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
@@ -551,8 +639,9 @@ export default function Trasladar() {
           </div>
 
           <div className="order-1 flex flex-col gap-3 md:sticky md:top-4 md:order-2">
-            <Escaner
-              activo={!descartando && !resultadosBusqueda && !enviando && Boolean(borrador.destinoId)}
+            <EscanerBusqueda
+              almacenId={borrador.almacenId}
+              activo={!descartando && !resultadosBusqueda && !enviando && !esperando && !pidiendoAutorizacion && Boolean(borrador.destinoId)}
               sonidoAlLeer={false}
               onCodigo={(codigo, origen) => void alLeerArticulo(codigo, origen)}
               onRepetido={() => reproducir("aviso")}
@@ -645,6 +734,30 @@ export default function Trasladar() {
           empezarDeNuevo();
         }}
       />
+      {borrador.destinoId && !resultado ? (
+        <HojaAutorizacion
+          abierta={pidiendoAutorizacion}
+          alCambiar={setPidiendoAutorizacion}
+          almacenId={borrador.almacenId}
+          traslado={{
+            destinoId: borrador.destinoId,
+            idCliente: borrador.idClienteAutorizacion ?? borrador.idCliente,
+            origenNombre: almacenNombre,
+            renglones: evaluados
+              .filter((r) => r.nivel !== "ROJO")
+              .map((r) => ({ codigo: r.codigo, cantidad: r.cantidad, nombre: r.articulo?.nombre ?? null })),
+          }}
+          alSolicitar={(nueva: AutorizacionBorrador) => {
+            actualizar((b) => ({ ...b, autorizacion: nueva, idClienteAutorizacion: undefined }));
+            if (nueva.estado === "APROBADA") {
+              reproducir("ok");
+              aviso({ titulo: "Autorizado", tipo: "exito" });
+            } else if (nueva.estado === "PENDIENTE") {
+              aviso({ titulo: "Solicitud enviada", descripcion: "Esperando al supervisor.", tipo: "info" });
+            }
+          }}
+        />
+      ) : null}
       {resultadosBusqueda ? (
         <HojaBusquedaArticulos
           abierta

@@ -7,6 +7,7 @@ from app.config import get_settings
 from app.core.handlers import respuesta_error
 from app.modulos.acceso.dependencies import AccesoServiceDep, FamiliaActual, UsuarioActual
 from app.modulos.acceso.exceptions import SesionVencida
+from app.modulos.acceso.router_almacenes_usuario import router as router_almacenes_usuario
 from app.modulos.acceso.router_roles import router as router_roles
 from app.modulos.acceso.router_usuarios import router as router_usuarios
 from app.modulos.acceso.schemas import CerradasOut, DispositivosOut, LoginIn, SesionOut
@@ -20,6 +21,7 @@ from app.seguridad import (
 router = APIRouter(tags=["acceso"])
 router.include_router(router_usuarios)
 router.include_router(router_roles)
+router.include_router(router_almacenes_usuario)
 
 
 def _agente(request: Request) -> str | None:

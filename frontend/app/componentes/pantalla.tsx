@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { useEffect, type ReactNode } from "react";
-import type { UIMatch } from "react-router";
+import { useMatches, type UIMatch } from "react-router";
 
 import type { Permiso } from "~/api/tipos";
 
@@ -10,6 +10,7 @@ import type { Permiso } from "~/api/tipos";
  * vuelve a verificar el permiso en cada endpoint; esto solo evita mostrar lo que no aplica.
  */
 export interface ManejadorRuta {
+  dispositivo?: "celular" | "computadora";
   /** Debe tener este permiso. */
   permiso?: Permiso;
   /** Basta con tener uno de estos. */
@@ -31,13 +32,16 @@ interface PropiedadesPantalla {
 }
 
 /** Marco de una pantalla: título, descripción corta y contenido. */
-export function Pantalla({ titulo, descripcion, acciones, ancho = "completo", children }: PropiedadesPantalla) {
+export function Pantalla({ titulo, descripcion, acciones, ancho, children }: PropiedadesPantalla) {
+  const matches = useMatches();
+  const dispositivo = [...matches].reverse().map(manejadorDe).find((h) => h?.dispositivo)?.dispositivo;
+  const limitado = ancho === "formulario" || (ancho === undefined && dispositivo === "celular");
   useEffect(() => {
     document.title = `${titulo} · IMHOTEP`;
   }, [titulo]);
 
   return (
-    <section className={cn("flex flex-col gap-5", ancho === "formulario" && "max-w-[720px]")}>
+    <section className={cn("flex flex-col gap-5", limitado && "mx-auto w-full max-w-[720px]")}>
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="flex min-w-0 flex-col gap-1 sm:flex-1">
           <h1 className="text-balance">{titulo}</h1>
