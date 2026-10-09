@@ -170,6 +170,25 @@ En paralelo, sin competir por ese orden: [FEAT-006](../features/FEAT-006-control
 
 **Gate de salida.** [mvp-checklist.md](../releases/mvp-checklist.md) completo.
 
+## Iteración 01 — Ajustes de la plática del 8 de octubre
+
+**Resultado.** El sistema refleja los ajustes que pidieron los dueños del track: aprobación del despacho de EPP, proyectos, traslados entre almacenes de tercer nivel, inspecciones con aviso configurable, bitácora por vale, deudores, y la app de Android del almacenista con operación sin conexión.
+
+**Documento rector.** [releases/iteration_01/README.md](../releases/iteration_01/README.md): decisiones, reparto de IDs, tablas, endpoints y situaciones límite.
+
+| Paso | Brief | Gate de salida |
+|---|---|---|
+| 1 | [FEAT-015](../features/FEAT-015-traslados-entre-almacenes-de-tercer-nivel.md) y la verificación de traspasos | La lista de verificación de traspasos de FEAT-015 pasa completa en el entorno desplegado |
+| 2 | [FEAT-014](../features/FEAT-014-despacho-de-epp-con-aprobacion.md) | Una entrega de EPP sin autonomía no se firma hasta que el supervisor la aprueba desde su celular con la notificación; con la autonomía prendida, se despacha sin aprobación |
+| 3 | [FEAT-013](../features/FEAT-013-proyectos-y-supervision-por-almacenes.md) | RH da de alta a un trabajador en un proyecto; la entrega queda con ese proyecto; el supervisor ve el uso por proyecto en su Inicio |
+| 4 | [FEAT-017](../features/FEAT-017-bitacora-por-vale-y-pdf.md) y [FEAT-018](../features/FEAT-018-deudores-resguardo-y-alto-valor.md) | Una importación aparece como un solo renglón en la bitácora y su vale se descarga en PDF; Deudores filtra por almacén, proyecto y alto valor |
+| 5 | [FEAT-016](../features/FEAT-016-inspecciones-y-alertas-de-vigencia.md) | Cambiar los días de aviso de una categoría cambia la lista de por vencer y el aviso al escanear |
+| 6 | [FEAT-019](../features/FEAT-019-busqueda-etiquetas-y-diseno-por-dispositivo.md) | Todos los buscadores esperan 300 ms; las etiquetas se descargan en un PDF; las pantallas de operación pasan la revisión a 360 px |
+| 7 | Casos especiales en pantalla (FEAT-013) | Un supervisor con dos almacenes cambia de almacén activo y ve los dos en su Inicio |
+| 8 | [FEAT-020](../features/FEAT-020-app-android-sin-conexion.md) | En modo avión, la app devuelve, entrega con autonomía y recibe; al volver la señal sincroniza y lo que choca aparece en conflictos |
+
+Cada paso termina con pruebas, lint, verificación de tipos, construcción y revisión independiente, como cualquier historia.
+
 ## Riesgos y orden de dependencias
 
 - La Fase 0 va primero porque la cámara por HTTPS es el mayor riesgo técnico y desbloquea todo lo demás.
@@ -193,4 +212,4 @@ Regla de recorte: si al cierre del martes la Fase 6 no pasó su gate, las featur
 
 ## Trabajo pospuesto
 
-Lo listado como pospuesto en [mvp-scope.md](mvp-scope.md): lista de revisión, cierre sin devolución, pérdidas, reporte de EPP por trabajador, y habilitaciones. La solicitud de compra urgente ya está incluida (reglas SC-01 a SC-11). El modo sin conexión está excluido.
+Lo listado como pospuesto en [mvp-scope.md](mvp-scope.md): lista de revisión, cierre sin devolución, pérdidas, reporte de EPP por trabajador, y habilitaciones. La solicitud de compra urgente ya está incluida (reglas SC-01 a SC-11). El modo sin conexión en la web sigue excluido; la app de Android del almacenista lo trae con FEAT-020 (iteración 01).

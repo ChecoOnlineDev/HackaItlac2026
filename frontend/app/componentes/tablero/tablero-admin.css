@@ -1,0 +1,69 @@
+/* IMHOTEP-002: estilos limitados al tablero con alcance administrativo. */
+.icono-indicador { display: none; }
+.tablero-admin { --acento-tablero: #1769e8; }
+.tablero-admin .indicador-tablero {
+  position: relative;
+  background: linear-gradient(170deg, #fff 70%, #edf5ff 100%);
+  border: 1px solid #dce9f8;
+  box-shadow: none;
+  --card-spacing: 20px;
+}
+.tablero-admin .indicador-tablero [data-slot="card-content"] { gap: 8px; }
+.tablero-admin .indicador-tablero [data-slot="card-content"] > p:first-of-type {
+  padding-right: 38px;
+  min-height: 40px;
+  color: #475569;
+  line-height: 1.45;
+}
+.tablero-admin .indicador-tablero [data-slot="card-content"] > p:nth-of-type(2) {
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  font-weight: 650;
+  letter-spacing: -.035em;
+}
+.tablero-admin .indicador-tablero [data-slot="card-content"] > p:nth-of-type(2):not(.text-destructive) { color: #152d50; }
+.tablero-admin .indicador-tablero [data-slot="card-content"] > p:nth-of-type(3) { font-size: 12px; line-height: 1.6; }
+.tablero-admin .icono-indicador {
+  display: flex;
+  position: absolute;
+  right: 16px;
+  top: 17px;
+  padding: 8px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--acento-tablero) 9%, white);
+  color: var(--acento-tablero);
+}
+.tablero-admin .grid > :nth-child(2) { --acento-tablero: #0879c0; }
+.tablero-admin .grid > :nth-child(3) { --acento-tablero: #4163bd; }
+.tablero-admin .grid > :nth-child(4) { --acento-tablero: #2869a7; }
+.tablero-admin .valor-tablero > [data-slot="card"] { --card-spacing: 24px; box-shadow: none; }
+.tablero-admin .valor-tablero [data-slot="card-header"] { padding-bottom: 8px; }
+.tablero-admin .valor-tablero ul { gap: 22px; }
+.tablero-admin .valor-tablero li { gap: 8px; }
+.tablero-admin .valor-tablero li:nth-child(3n+2) { --acento-tablero: #0879c0; }
+.tablero-admin .valor-tablero li:nth-child(3n) { --acento-tablero: #4163bd; }
+.tablero-admin .valor-tablero li > [aria-hidden] { height: 9px; background: #edf2f7; }
+.tablero-admin .valor-tablero li > [aria-hidden] > div { height: 9px; background: var(--acento-tablero); }
+.tablero-admin .valor-tablero [data-slot="table-container"] { border-radius: 12px; box-shadow: none; }
+.tablero-admin .valor-tablero [data-slot="table-cell"] { padding-block: 16px; }
+.tablero-admin .valor-tablero [data-slot="table-cell"]:last-child { color: #0054a6; background: #f4f8fc; }
+.tablero-admin .unidad-moneda { display: inline-block; font-size: 11px; letter-spacing: .04em; font-weight: 600; color: #526785; }
+.tablero-admin .titulo-bloque { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.tablero-admin .titulo-bloque svg { color: #1769e8; }
+.tablero-admin .nota-moneda { margin-bottom: 10px; font-size: 12px; color: #526785; }
+.tablero-admin .almacenes-movil { display: none; }
+.tablero-admin [role="tablist"] { background: #f0f5fc; border-color: #dce9f8; }
+.tablero-admin [role="tab"][aria-selected="true"] { color: white; }
+.tablero-admin [role="tab"][aria-selected="true"] > span { background: #1769e8; box-shadow: none; }
+.tablero-admin [role="combobox"] { border-color: #dce9f8; background: white; }
+@media (max-width: 639px) {
+  .tablero-admin .indicador-tablero { --card-spacing: 16px; }
+  .tablero-admin .valor-tablero > [data-slot="card"] { --card-spacing: 16px; }
+  .tablero-admin .bloque-almacenes [data-slot="table-container"] { display: none; }
+  .tablero-admin .almacenes-movil { display: grid; gap: 12px; }
+  .tablero-admin .almacen-movil { border: 1px solid #dce9f8; border-radius: 12px; padding: 14px; }
+  .tablero-admin .almacen-movil > dt { font-weight: 600; color: #152d50; margin-bottom: 8px; }
+  .tablero-admin .almacen-movil dl > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; padding-block: 4px; }
+  .tablero-admin .almacen-movil dl dt { color: #526785; }
+  .tablero-admin .almacen-movil dl dd { font-variant-numeric: tabular-nums; }
+  .tablero-admin .almacen-movil dl > div:last-child { margin-top: 6px; padding-top: 10px; border-top: 1px solid #dce9f8; color: #0054a6; font-weight: 600; }
+}

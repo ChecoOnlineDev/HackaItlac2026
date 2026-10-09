@@ -1,5 +1,8 @@
 # Mapa del sistema
 
+> Estado Android del 8 de octubre de 2026: frontend/capacitor.config.ts empaqueta build/client; frontend/android/ contiene el proyecto nativo y complementos HTTP e impresión; frontend/app/movil/ adapta versión, red, navegación, imágenes protegidas y archivos. La API HTTPS se fija al construir. backend/app/version_app.py implementa OF-02. El contenedor en línea requiere aceptación de sesión en equipo real. proyectos, notificaciones y sincronizacion siguen planeados: no se agregaron tablas ni migraciones y FEAT-020 sin conexión está pendiente.
+
+
 Qué módulos existen, de qué se encarga cada uno y de quién depende. Es la orientación para cualquier tarea que cruce módulos.
 
 Estado: los doce módulos del backend están construidos y montados en `main.py`, y la interfaz cubre todas las pantallas del MVP (una ruta por pantalla en `frontend/app/routes.ts`). Quedan por hacer lo de la segunda ola (FEAT-001 a FEAT-004) y la matriz editable de roles (FEAT-006); el trabajo del release está en la [checklist](../releases/mvp-checklist.md).
@@ -71,7 +74,7 @@ Dependencias permitidas: `Router -> Service`, `Service -> Repository`, `Service 
 - **Solo `movimientos` escribe** en vales, movimientos, existencias y en la ubicación de las piezas. Los demás módulos le piden la operación; nunca tocan esas tablas.
 - **`consulta` no escribe nada.**
 - **Única excepción a «solo `movimientos` escribe existencias»:** `python -m app.mantenimiento reconstruir-existencias --aplicar`, un comando de línea de comandos que corrige las existencias desde la bitácora con confirmación y registro en auditoría. No es un endpoint ni una pantalla (ver [security-model.md](security-model.md), Respaldos y recuperación).
-- **Cada endpoint declara su permiso en el `router.py`**, por clave; nunca se compara el nombre del rol. Las reglas de negocio van en `service.py`. Excepción documentada: seis rutas verifican el permiso en el servicio (con `AccesoService.exigir_permiso`) porque depende del tipo de vale o del usuario: `POST /api/vales`, `POST /api/vales/evaluar`, `GET /api/escaneo/{codigo}`, `GET /api/busqueda`, `GET /api/autorizaciones/{id}` y `POST /api/autorizaciones/{id}/resolucion`. En ellas el router solo exige sesión.
+- **Cada endpoint declara su permiso en el `router.py`**, por clave; nunca se compara el nombre del rol. Las reglas de negocio van en `service.py`. Excepción documentada: ocho rutas verifican el permiso en el servicio (con `AccesoService.exigir_permiso`) porque depende del tipo de vale o del usuario, o porque aceptan uno de dos permisos: `POST /api/vales`, `POST /api/vales/evaluar`, `GET /api/escaneo/{codigo}`, `GET /api/busqueda`, `GET /api/autorizaciones/{id}`, `POST /api/autorizaciones/{id}/resolucion`, `GET /api/solicitudes-compra` y `GET /api/solicitudes-compra/{id}`. En ellas el router solo exige sesión. Otras cuatro aceptan uno de dos permisos y lo declaran en el router con `requiere_alguno` (`GET /api/reportes/movimientos`, `GET /api/reportes/usuarios`, `GET /api/seguimiento/piezas` y `GET /api/seguimiento/cantidad`), como dice AGENTS.md.
 - **Los permisos de información** (costos, datos personales) se aplican al armar la respuesta, en `schemas.py`.
 
 ## Flujo de una entrega
@@ -117,6 +120,67 @@ router.py ──► service.py (MovimientoService: permisos por tipo, evaluar, c
 | Personas | `/trabajadores` | RH. |
 | Inventario y catálogo | `/inventario`, `/entradas`, `/importar`, `/catalogo`, `/etiquetas` | Compras y supervisor. |
 | Supervisión | `/autorizaciones`, `/reportes` | Autorizaciones, y los reportes que permite cada rol. |
+
+## Previsto por la iteración 01 (aprobado, sin construir)
+
+Fuente: [documento maestro de la iteración 01](../releases/iteration_01/README.md) (secciones 5.2 y 7), [ADR-012](decisions/ADR-012-proyectos-y-varios-almacenes-por-usuario.md) a [ADR-015](decisions/ADR-015-operacion-sin-conexion-del-almacenista.md) y FEAT-013 a FEAT-020. Nada de esto existe todavía; lo de arriba describe lo construido.
+
+### Módulos nuevos (de doce a quince)
+
+Cada uno sigue `Router -> Service -> Repository -> Model` y su `router.py` se monta en `main.py` al crearse.
+
+| Módulo | Responsabilidad | Depende de | FEAT |
+|---|---|---|---|
+| `proyectos` (previsto) | Dueño de `proyecto` y `asignacion_proyecto`. Alta, edición, cierre y reapertura de proyectos; asignar, cambiar y terminar la asignación de un trabajador. Ofrece a los demás `proyectos_activos_del_trabajador(trabajador_id)`. `trabajadores` lo llama dentro de su transacción en el alta y el reingreso. | `acceso`, `almacenes`, `trabajadores`, `auditoria` | 013 |
+| `notificaciones` (previsto) | Dueño de `suscripcion_push`. Clave pública VAPID, suscripciones por dispositivo, destinatarios, agrupación, reemplazo, revocación y envío Web Push después del commit (`BackgroundTasks`). No importa a `movimientos`; lo llaman `autorizaciones` (despacho, excedente, traslado) y `movimientos` solo para el aviso informativo del traslado confirmado (X-20), siempre fuera de la transacción. | `acceso` | 014 |
+| `sincronizacion` (previsto) | Dueño de `dispositivo`, `dispositivo_usuario`, `conflicto_sincronizacion` y `operacion_recibida`. Inscripción y revocación de equipos, paquete del almacén, recepción de lotes y conflictos. Lee de `catalogo`, `trabajadores`, `almacenes`, `proyectos`, `movimientos` e `inspecciones` para armar el paquete. **No escribe** vales, movimientos, existencias, piezas ni inspecciones: recibe, valida la forma y llama al servicio del dueño. | `acceso`, `movimientos`, `inspecciones`, `solicitudes_compra` y los de lectura | 020 |
+
+Cambian módulos existentes: `acceso` (conjunto de almacenes, almacén activo, `despacho_autonomo`, permisos nuevos, middleware de `X-App-Version`), `almacenes` (autonomía, `hora_descarga`, bloqueo `CON_PROYECTOS_ACTIVOS`), `autorizaciones` (tipos DESPACHO y TRASLADO, aprobación parcial, resolución múltiple), `movimientos` (proyecto, lote, despacho, traslado lateral y camino de confirmación de vales sincronizados), `inspecciones` (lote y pendientes), `catalogo` (alto valor y días de aviso), `consulta` (bitácora por vale, deudores, consumo por trabajador, uso por proyecto, búsqueda por palabras).
+
+### Límites que se conservan y se precisan
+
+- **Solo `movimientos` escribe vales, movimientos, existencias y la ubicación de las piezas, también los que llegan por sincronización.** `sincronizacion` llama a un camino de confirmación de `movimientos` para vales sincronizados (almacén del equipo, token del equipo, `capturado_en`, `dispositivo_id`; clasifica GUARDADO, GUARDADO_CON_AVISOS o CONFLICTO en vez de rechazar con `VALE_CAMBIO`). Resolver un conflicto crea un vale nuevo por ese mismo servicio. `vale.proyecto_id` y `vale.lote_id` se escriben ahí, al insertar; la importación pasa el lote como parámetro interno.
+- **`consulta` sigue sin escribir:** la bitácora por vale, Deudores, el consumo por trabajador, el uso por proyecto y la lista de inspecciones pendientes solo leen.
+- **Un solo helper de alcance (AC-36 a AC-41).** `AccesoService.alcance_del_usuario(usuario) -> Alcance(todos, almacenes, activo)`, en `acceso` (dueño de `usuario_almacen`; `core` no importa módulos). `en_alcance` y `exigir_mismo_almacen` se reescriben sobre él: las lecturas abarcan el conjunto y las escrituras usan el almacén activo. Los servicios migran uno por cambio (orden: `consulta/tablero` y `valor`, `autorizaciones`, `movimientos`, `consulta` reportes y seguimiento, `inspecciones`, `solicitudes_compra`, `importacion`, `catalogo`, `almacenes`), cada uno con una prueba de un usuario de dos almacenes; una prueba de búsqueda en el código falla si queda una lectura directa de `usuario.almacen_id` fuera de `acceso` y de las escrituras de `movimientos`.
+- **Rutas que verifican el permiso en el servicio:** se suma `POST /api/autorizaciones` (según `tipo`), y el permiso de cada operación de `POST /api/sincronizacion/lotes`. **Rutas con `requiere_alguno`:** se suman `GET /api/bitacora`, `PUT /api/usuarios/{id}/almacenes` y `GET /api/proyectos`. AGENTS.md actualiza sus listas al construirse.
+
+### Flujo de una entrega de EPP con aprobación (FEAT-014)
+
+```
+Interfaz: captura trabajador y artículos -> POST /api/vales/evaluar (requiere_aprobacion_despacho)
+  -> POST /api/autorizaciones {tipo: DESPACHO}      autorizaciones: guarda; tras el commit,
+                                                    notificaciones manda el push a los supervisores
+Supervisor: toca el aviso -> POST /api/autorizaciones/{id}/resolucion (total o por renglón)
+Interfaz (cada 3 s): ve la aprobación, quita lo rechazado, firma
+  -> POST /api/vales {autorizacion_id}              movimientos: revalida, escribe, marca USADA
+```
+
+### Flujo de la sincronización (FEAT-020)
+
+```
+App de Android (equipo inscrito, X-Dispositivo)
+  GET /api/sincronizacion/paquete  -> base local cifrada (catálogo, piezas, existencias, trabajadores)
+  sin señal: evaluador local -> cola local (id_cliente, token, capturado_en, secuencia)
+  vuelve la señal: POST /api/sincronizacion/lotes
+       sincronizacion: valida equipo y forma; por cada operación, en su transacción y en orden:
+         vales -> movimientos (revalida con filas bloqueadas; folio del servidor)
+         inspecciones y No apta -> inspecciones; solicitudes -> solicitudes_compra
+       -> GUARDADO | GUARDADO_CON_AVISOS (lista de revisión) | CONFLICTO (conflicto_sincronizacion)
+Supervisor (web): GET/POST /api/sincronizacion/conflictos
+```
+
+### Áreas del frontend
+
+| Área | Rutas o carpetas | Notas |
+|---|---|---|
+| Administración | `/proyectos` | Primero computadora. |
+| Supervisión | `/autorizaciones/:id`, `/deudores`, `/bitacora` (pestañas «Por vale» y «Detalle por renglón»; `/reportes/movimientos` y `/reportes/adeudos` redirigen), equipos y conflictos de sincronización | |
+| Operación | `/inspecciones` y el flujo de inspección (una pieza o lote) | Primero celular. |
+| Sesión | Selector del almacén activo en la barra superior (solo con dos o más almacenes); «Avisos de este equipo» en el menú de usuario | `sesion/` |
+| **App de Android** | `frontend/android/` (proyecto nativo y complemento propio: WorkManager, reloj monótono, DataWedge opcional), `frontend/capacitor.config.ts`, `frontend/app/sin-conexion/` (base local, paquete, cola, evaluador local, credencial local) | La misma interfaz empaquetada con Capacitor, no un proyecto aparte; lo nativo va detrás de `Capacitor.isNativePlatform()` y la web no lo carga. Cualquier otro proyecto móvil del repositorio no es esta app. |
+| Componentes comunes | `componentes/ui/busqueda-diferida.ts` (`useBusquedaDiferida`), `componentes/dominio/formato.ts`, `componentes/dominio/etiquetas-medidas.ts` y el armado de PDF compartido (jsPDF) | FEAT-017 y FEAT-019. Cada ruta declara en su `handle` si es primero celular o primero computadora (UX-08). |
+
+Propuesto en la raíz: `pruebas-compartidas/evaluador/`, casos JSON por regla que corren pytest y vitest (OF-16).
 
 ## Cómo validar
 

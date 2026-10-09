@@ -91,6 +91,8 @@ Frontend, dentro de `frontend/`:
 | Verificar tipos | `pnpm typecheck` |
 | Construir | `pnpm build` |
 
+Android usa la misma SPA, no un proyecto aparte. Desde `frontend/`, copiar `.env.example` a `.env.android.local` (`VITE_API_ORIGEN` HTTPS, sin `/api`), ejecutar `pnpm android:sync` y `pnpm android:open`. Desde `frontend/android/`, `./gradlew.bat assembleDebug` produce `app/build/outputs/apk/debug/app-debug.apk`; `assembleRelease` requiere las variables `ANDROID_KEYSTORE_*` y `ANDROID_KEY_ALIAS` para firmar. Requiere JDK 21, SDK 36, Android 7+ y WebView 111+. Detalle en `frontend/README.md`. El hito actual es el contenedor en línea; la prueba de sesión en equipo real y la operación sin conexión de FEAT-020 están pendientes. No afirmar que existen el módulo ni permisos de sincronización por estar documentados en la planeación.
+
 Backend, dentro de `backend/` (comprobados en la Fase 0). Copiar antes `.env.example` a `.env` en la raíz:
 
 | Acción | Comando |

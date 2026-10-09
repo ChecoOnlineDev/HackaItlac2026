@@ -7,8 +7,9 @@ import {
 import { practicaActiva, recordarSesionPractica, responderPractica } from "./practica";
 import { marcarConexion } from "./red";
 import type { Sesion } from "./tipos";
+import { esAppNativa, origenApi, versionApp } from "~/movil/plataforma";
 
-export const BASE_API = "/api";
+export const BASE_API = `${origenApi()}/api`;
 
 type Parametros = Record<string, string | number | boolean | null | undefined>;
 
@@ -80,7 +81,7 @@ function renovarSesion(): Promise<ResultadoRenovacion> {
 }
 
 export function construirUrl(ruta: string, parametros?: Parametros): string {
-  const url = ruta.startsWith("/api") ? ruta : `${BASE_API}${ruta.startsWith("/") ? "" : "/"}${ruta}`;
+  const url = ruta.startsWith("/api") ? `${origenApi()}${ruta}` : `${BASE_API}${ruta.startsWith("/") ? "" : "/"}${ruta}`;
   if (!parametros) return url;
   const consulta = new URLSearchParams();
   for (const [clave, valor] of Object.entries(parametros)) {
@@ -112,6 +113,8 @@ async function pedir(ruta: string, opciones: OpcionesApi, yaRenovo = false): Pro
     return respuesta;
   }
   try {
+    const version = await versionApp();
+    if (version) encabezados["X-App-Version"] = version;
     respuesta = await fetch(construirUrl(ruta, parametros), {
       method: metodo,
       credentials: "include",
@@ -132,6 +135,9 @@ async function pedir(ruta: string, opciones: OpcionesApi, yaRenovo = false): Pro
 
   if (!respuesta.ok) {
     const error = await leerError(respuesta);
+    if (respuesta.status === 426 && error.codigo === "APP_DESACTUALIZADA") {
+      window.dispatchEvent(new Event("imhotep:actualizar-app"));
+    }
     if (respuesta.status === 401) {
       // El token de acceso dura poco: ante un 401 se intenta UNA renovación y se repite la
       // petición. Si tampoco así, la sesión venció y se pide la contraseña.
@@ -222,6 +228,11 @@ export async function descargarArchivo(
   const disposicion = respuesta.headers.get("Content-Disposition") ?? "";
   const coincide = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposicion);
   const nombre = coincide ? decodeURIComponent(coincide[1]) : nombreSugerido;
+  if (esAppNativa()) {
+    const { compartirArchivo } = await import("~/movil/archivos");
+    await compartirArchivo(blob, nombre);
+    return;
+  }
   const enlace = document.createElement("a");
   const url = URL.createObjectURL(blob);
   enlace.href = url;
@@ -230,6 +241,11 @@ export async function descargarArchivo(
   enlace.click();
   enlace.remove();
   URL.revokeObjectURL(url);
+}
+
+/** Fotos y firmas protegidas: también atraviesan la renovación de sesión. */
+export async function imagenApi(ruta: string, signal?: AbortSignal): Promise<Blob> {
+  return (await pedir(ruta, { signal })).blob();
 }
 
 /**

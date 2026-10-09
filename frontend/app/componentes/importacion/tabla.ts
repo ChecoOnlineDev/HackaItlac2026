@@ -3,6 +3,8 @@
 // eso lo revisa el servidor en la vista previa.
 
 import { CAMPOS, type CampoImportacion, type Columnas, type FilaError, type ModoImportacion, type Tabla } from "./tipos";
+import { esAppNativa } from "~/movil/plataforma";
+import { aviso } from "~/componentes/ui/aviso";
 
 // Los mismos límites que el servidor (backend/app/modulos/importacion/schemas.py), para avisar antes.
 export const MAX_FILAS = 5000;
@@ -236,6 +238,11 @@ export function filasConErrorACsv(filas: FilaError[]): string {
 /** Baja un texto como archivo. */
 export function descargarTexto(nombre: string, contenido: string, tipo = "text/csv;charset=utf-8"): void {
   const blob = new Blob([contenido], { type: tipo });
+  if (esAppNativa()) {
+    void import("~/movil/archivos").then(({ compartirArchivo }) => compartirArchivo(blob, nombre))
+      .catch(() => aviso({ titulo: "No pudimos guardar el archivo. Inténtalo de nuevo.", tipo: "error" }));
+    return;
+  }
   const url = URL.createObjectURL(blob);
   const enlace = document.createElement("a");
   enlace.href = url;

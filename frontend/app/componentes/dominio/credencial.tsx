@@ -217,7 +217,7 @@ export async function descargarImagen(datos: DatosCredencial, modo: ModoCredenci
       modo === "completa"
         ? await credencialComoPng(datos)
         : await etiquetaQrComoPng({ codigo: datos.codigo, texto: textoDeEtiqueta(datos) });
-    descargarBlob(imagen, nombreDeArchivo(modo === "completa" ? "credencial" : "codigo-qr", datos.codigo));
+    await descargarBlob(imagen, nombreDeArchivo(modo === "completa" ? "credencial" : "codigo-qr", datos.codigo));
   } catch {
     aviso({ titulo: "No pudimos generar la imagen", descripcion: "Intenta de nuevo; si sigue igual, usa Imprimir y guarda como PDF.", tipo: "error" });
   }

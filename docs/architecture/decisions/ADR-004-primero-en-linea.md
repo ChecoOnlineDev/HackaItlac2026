@@ -2,7 +2,7 @@
 
 ## Estado
 
-Aceptada (3 de octubre de 2026).
+Aceptada (3 de octubre de 2026). **Reemplazada en parte** el 8 de octubre de 2026 por [ADR-015](ADR-015-operacion-sin-conexion-del-almacenista.md): la web sigue primero en línea; la app de Android del almacenista opera sin conexión lo que define FEAT-020. Se cumplió la señal para reevaluar «en operación real los cortes son largos y frecuentes».
 
 ## Contexto
 

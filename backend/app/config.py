@@ -86,6 +86,10 @@ class Settings(BaseSettings):
     # Interfaz construida (frontend/build/client). En la imagen vive en /app/interfaz; si la
     # carpeta no existe (desarrollo, pruebas) el servidor solo ofrece la API.
     interfaz_dir: Path = Path("/app/interfaz")
+    # OF-02: solo clientes Android; los lotes antiguos siempre pueden subirse.
+    app_version_minima: str = Field(
+        default="0.1.0", pattern=r"^[0-9]{1,6}\.[0-9]{1,6}\.[0-9]{1,6}$"
+    )
 
     # Datos de prueba (no son datos reales). `CARGAR_DATOS_PRUEBA=true` los carga al arrancar el
     # contenedor (lo lee el script de arranque); aquí solo se usa para validar la configuración.

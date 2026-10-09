@@ -29,6 +29,7 @@ from app.modulos.inspecciones.router import router as inspecciones_router
 from app.modulos.movimientos.router import router as movimientos_router
 from app.modulos.solicitudes_compra.router import router as solicitudes_compra_router
 from app.modulos.trabajadores.router import router as trabajadores_router
+from app.version_app import VersionAppMiddleware
 
 log = logging.getLogger("imhotep")
 
@@ -104,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(api)
     # H8: 413 si el cuerpo pasa del límite de su ruta (ASGI puro, antes de leerlo).
     app.add_middleware(LimiteCuerpoMiddleware)
+    app.add_middleware(VersionAppMiddleware, version_minima=ajustes.app_version_minima)
     # Va al final: el respaldo de la interfaz atrapa todo lo que no sea `/api`.
     configurar_interfaz(app, ajustes.interfaz_dir, cookie_segura=ajustes.cookie_segura)
     return app

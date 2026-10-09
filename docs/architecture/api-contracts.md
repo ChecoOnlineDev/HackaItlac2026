@@ -1,5 +1,8 @@
 # Contratos de API
 
+> Implementado en este hito (OF-02): el middleware revisa X-App-Version en rutas bajo /api/. Si está ausente, no bloquea la web. Si no usa tres números separados por puntos o es menor que APP_VERSION_MINIMA (0.1.0 por omisión), responde 426 con codigo APP_DESACTUALIZADA, mensaje «Hay una versión nueva de la app. Pídela a tu supervisor o al área de sistemas para seguir.» y detalles.version_minima. Solo queda exceptuado POST /api/sincronizacion/lotes, con o sin barra final; otros métodos y rutas hijas no quedan exceptuados. La excepción no crea ese endpoint ni concede permisos. Los contratos de sincronización de la iteración 01 siguen planeados.
+
+
 Endpoints, cuerpos, errores y permisos del MVP. Todo va bajo `/api`, en JSON, con la sesión en una cookie.
 
 Estado: es el contrato acordado para construir. Si al implementar cambia, se actualiza aquí en el mismo cambio.
@@ -272,7 +275,7 @@ Reglas AL-01 a AL-05 ([reglas, 7.14](../product/reglas-de-negocio.md)). Todo cam
 
 ## Tablero
 
-Parte de [FEAT-008](../features/FEAT-008-administracion-de-almacenes-y-tablero.md) (TB-01 a TB-03). Solo lectura: no escribe nada y nunca trae costos, CURP ni NSS. Los dos endpoints piden `tablero.ver`; sin él (Compras, RH), 403 `SIN_PERMISO`. El alcance lo decide el servidor (AC-06, TB-01): con `almacenes.todos`, todos los almacenes o el que indique `almacen_id`; sin él, **solo el almacén asignado** y `almacen_id` se ignora (no es error). Un `almacen_id` que no existe, con `almacenes.todos`, es 404 `NO_ENCONTRADO`; uno cerrado sí se puede pedir. Sin almacén asignado y sin `almacenes.todos`, ambos responden 200 con todo en cero y `alcance.almacen_id` en `null` y `es_todos` en `false`.
+Parte de [FEAT-008](../features/FEAT-008-administracion-de-almacenes-y-tablero.md) (TB-01 a TB-03) y de FEAT-012 (valor del inventario). Solo lectura: no escribe nada y nunca trae costos unitarios, CURP ni NSS. `resumen` y `consumo` piden `tablero.ver`; sin él (Compras, RH), 403 `SIN_PERMISO`. `valor` pide `reportes.valor_inventario` y no `tablero.ver` (ver [`GET /api/tablero/valor`](#get-apitablerovaloralmacen_id)). El alcance lo decide el servidor (AC-06, TB-01): con `almacenes.todos`, todos los almacenes o el que indique `almacen_id`; sin él, **solo el almacén asignado** y `almacen_id` se ignora (no es error). Un `almacen_id` que no existe, con `almacenes.todos`, es 404 `NO_ENCONTRADO`; uno cerrado sí se puede pedir. Sin almacén asignado y sin `almacenes.todos`, ambos responden 200 con todo en cero y `alcance.almacen_id` en `null` y `es_todos` en `false`.
 
 ### `GET /api/tablero/resumen?almacen_id=`
 
@@ -365,6 +368,37 @@ Respuesta (200):
 - `sin_registros` es `true` si no hubo consumo en el rango (`barras` vacío): la interfaz muestra «No hubo consumo en estas fechas».
 - Errores: 422 `DATOS_INVALIDOS` (fecha mal escrita, `desde` posterior a `hasta`, rango de más de 366 días, `limite` fuera de 1 a 20); 404 `NO_ENCONTRADO` (almacén o categoría que no existe); 403 `SIN_PERMISO`.
 
+### `GET /api/tablero/valor?almacen_id=`
+
+**Construido en el código** (`consulta/router_tablero.py`, `service_valor.py`, `repository_valor.py`, `schemas_tablero.py`; pruebas `tests/consulta/test_valor_inventario.py`, reglas VI-01 a VI-07 en sus comentarios; permiso disponible desde la migración `0009_permiso_valor_inventario`). Es FEAT-012, que **todavía no tiene brief** en `docs/features/` (maestro de la iteración 01, sección 9): este contrato se escribió leyendo el código.
+
+- **Permiso:** `reportes.valor_inventario` (de inicio Compras, Supervisor y Administrador). No pide `tablero.ver`. Sin él, 403 `SIN_PERMISO`; sin sesión, 401 (VI-01).
+- **Alcance (AC-06, VI-02):** el mismo del resto del tablero. Con `almacenes.todos`, todos o el `almacen_id` pedido (uno que no existe es 404 `NO_ENCONTRADO`); sin él, solo el almacén asignado y `almacen_id` se ignora. Sin almacén asignado ni `almacenes.todos`, 200 con todo en `"0.00"` y listas vacías.
+- **Qué suma (VI-03):** existencia por el costo actual del catálogo. `en_almacen`: existencias en ubicaciones de almacén del alcance. `en_resguardo`: existencias en manos de trabajadores, atribuidas al almacén del vale de su última entrega (como AC-06). `en_transito`: existencias En tránsito, **solo** en el alcance «todos» (no se atribuye a un almacén; con un almacén va `null`). `total` = la suma de las tres. Incluye los artículos por pieza (cuenta por existencia).
+- **Sin costo (VI-04):** un artículo sin `costo_unitario` no suma pesos; se cuenta en `articulos_sin_costo` (artículos distintos) y `unidades_sin_costo`. `GET /api/articulos?sin_costo=true` (`catalogo.ver`, VI-06) lista los activos sin costo para completarlos; no muestra el costo.
+- **Nunca un costo (VI-05):** solo totales en pesos, como texto con dos decimales. La respuesta no trae `costo_unitario`, `articulo_id` ni el valor de un artículo.
+- `por_categoria`: valor por nombre de categoría, de mayor a menor, hasta 6 y el resto en «Otras»; su suma es `total`. `por_almacen` (VI-07): solo en el alcance «todos» sin `almacen_id`, un elemento por almacén (también cerrados) con `en_almacen`, `en_resguardo` y `total`; si no, `[]`.
+
+Respuesta (200):
+
+```json
+{
+  "moneda": "MXN",
+  "alcance": { "todos": true, "almacen_id": null, "almacen_nombre": null },
+  "total": "1284500.00",
+  "en_almacen": "903200.00",
+  "en_resguardo": "352800.00",
+  "en_transito": "28500.00",
+  "articulos_sin_costo": 4,
+  "unidades_sin_costo": 37,
+  "por_categoria": [ { "categoria": "Equipo de alto valor", "valor": "512000.00" }, { "categoria": "Otras", "valor": "18400.00" } ],
+  "por_almacen": [ { "almacen_id": "01a1…", "nombre": "Midrex", "en_almacen": "120400.00", "en_resguardo": "64000.00", "total": "184400.00" } ],
+  "generado_en": "2026-10-08T16:20:00Z"
+}
+```
+
+FEAT-013 lo extiende (alcance por conjunto y unidades): ver «Previsto por la iteración 01».
+
 ## Vales
 
 El mismo cuerpo sirve para evaluar y para confirmar.
@@ -407,7 +441,7 @@ Permiso y campos propios de cada tipo. El permiso se verifica por clave, según 
 | RECEPCION | `traspasos.recibir` | `vale_origen_id` (el traspaso, obligatorio); `renglones`: lo escaneado, por código de pieza o de artículo con `cantidad` (para recibir todo, todos los pendientes de `por-recibir`; sin renglones, 422). Sin `trabajador_id` ni `destino_almacen_id` (422). Firma de sesión (F-09). Folio `CLAVE-REC-000001` del almacén que recibe; al confirmar, el traspaso queda `RECIBIDO` o `RECIBIDO_CON_DIFERENCIAS` (X-13). `evaluar`: X-10 (vale y renglones, rojo), X-12 (renglón, rojo), X-13 (vale, amarillo) y, si la recepción deja algo pendiente sin `observacion` (vacía o en blanco), RG-14 (vale, rojo). Al confirmar esa recepción sin observación responde 422 con `detalles: [{campo: "observacion", mensaje, regla: "RG-14"}]` y no guarda nada; la recepción que completa lo pendiente no la pide. Un `vale_origen_id` inexistente es 404 y el de un vale que no es traspaso, 422. |
 | CANCELACION | `vales.cancelar` | `vale_origen_id` (el vale que se cancela) y `observacion` (el motivo); sin renglones: salen de los del original. Normalmente se usa `POST /api/vales/{id}/cancelacion`; `POST /api/vales` con este tipo hace lo mismo. |
 
-**Enviar y recibir son dos permisos distintos.** `traspasos.operar` es solo para **enviar** (tipo TRASPASO, incluido el traspaso por lista de Excel); `traspasos.recibir` es para **recibir** (tipo RECEPCION y `GET /api/traspasos/por-recibir`). Como `POST /api/vales/evaluar` y `POST /api/vales` solo exigen sesión en el router, el servicio verifica la clave según el `tipo` del cuerpo: `traspasos.operar` para TRASPASO y `traspasos.recibir` para RECEPCION (403 `SIN_PERMISO` si falta). Un rol puede tener uno, el otro o los dos: de inicio el Supervisor trae los dos y el Administrador, todos; el Almacenista no recibe de inicio, pero un administrador puede darle `traspasos.recibir` desde Roles y permisos (sección 8.2 de las reglas). La interfaz de la recepción se muestra a quien tiene `traspasos.recibir`, no al rol. `GET /api/traspasos/por-recibir` ya declara su permiso en el router (no es una de las rutas que se verifican en el servicio).
+**Enviar y recibir son dos permisos distintos.** `traspasos.operar` es solo para **enviar** (tipo TRASPASO, incluido el traspaso por lista de Excel); `traspasos.recibir` es para **recibir** (tipo RECEPCION y `GET /api/traspasos/por-recibir`). Como `POST /api/vales/evaluar` y `POST /api/vales` solo exigen sesión en el router, el servicio verifica la clave según el `tipo` del cuerpo: `traspasos.operar` para TRASPASO y `traspasos.recibir` para RECEPCION (403 `SIN_PERMISO` si falta). Un rol puede tener uno, el otro o los dos: de inicio el Supervisor trae los dos, el Almacenista trae `traspasos.recibir` (sin `traspasos.operar`) y el Administrador, todos (sección 8.2 de las reglas y `acceso/datos_prueba.py`; el texto anterior de X-01, que decía que el Almacenista no recibe de inicio, estaba atrasado, maestro de la iteración 01, sección 9). La interfaz de la recepción se muestra a quien tiene `traspasos.recibir`, no al rol. `GET /api/traspasos/por-recibir` ya declara su permiso en el router (no es una de las rutas que se verifican en el servicio).
 
 **Pieza con serie pendiente en la ENTREGA (E-29).** Si un renglón entrega una pieza cuyo `numero_serie` es nulo, la evaluación le agrega el motivo `{regla: "E-29", codigo: "SERIE_PENDIENTE", nivel: "AMARILLO", mensaje: "Esta pieza no tiene número de serie registrado."}`. **No bloquea**: `puede_confirmar` no cambia y no pide observación. El renglón trae `pieza.serie_pendiente: true` para que la interfaz ofrezca capturar la serie. Traspaso, recepción y devolución no miran la serie.
 
@@ -972,3 +1006,177 @@ Todos aceptan `formato=csv` y las listas, `pagina` y `tamano`. Las fechas (`desd
 | FEAT-008 | `POST`, `PATCH /api/almacenes`, `POST /api/almacenes/{id}/cierre` y `/reapertura`, `GET /api/almacenes?resumen=true`, `GET /api/tablero/resumen`, `GET /api/tablero/consumo`; `POST /api/trabajadores` sin `numero_empleado` | `almacenes.administrar`; `tablero.ver`; `trabajadores.administrar` |
 | FEAT-003 | **Construido en el servidor** (ver [Puestos y dotación](#puestos-y-dotación)): `GET`, `PUT /api/puestos/{id}/dotacion`, `GET`, `POST`, `PATCH /api/puestos`, `GET /api/trabajadores/{id}/dotacion` | `catalogo.ver`; `catalogo.administrar`; `trabajadores.ver` |
 | FEAT-004 | `PUT /api/almacenes/{id}/minimos`; `POST /api/piezas/{id}/estado` admite mantenimiento y calibración | `inventario.minimos`; `piezas.inspeccionar` |
+
+## Previsto por la iteración 01 (aprobado, sin construir)
+
+Fuente: [documento maestro de la iteración 01](../releases/iteration_01/README.md) (secciones 5.3, 5.4 y la tabla de cambios a endpoints existentes) y los briefs [FEAT-013](../features/FEAT-013-proyectos-y-supervision-por-almacenes.md) a [FEAT-020](../features/FEAT-020-app-android-sin-conexion.md). **Nada de esta sección está construido.** Lo de arriba sigue siendo el contrato del código actual; al construir cada parte, su contrato pasa a la sección que le toca y sale de aquí. Si un brief contradice al maestro, manda el maestro.
+
+### Convenciones que cambian
+
+- **Alcance por conjunto (AC-36 a AC-41, FEAT-013).** Donde arriba dice «el almacén asignado», pasa a ser: las **lecturas** abarcan todos los almacenes del conjunto del usuario (`usuario_almacen`) y un `almacen_id` del conjunto filtra; uno fuera del conjunto se trata como hoy un almacén ajeno (se ignora en el tablero y los reportes, 404 en un detalle). Las **escrituras** se hacen en el almacén activo (`usuario.almacen_id`). Con un solo almacén en el conjunto, nada cambia.
+- **Rutas que verifican el permiso en el servicio** (el router solo exige sesión): las ocho de hoy más `POST /api/autorizaciones` (según `tipo`). `POST /api/sincronizacion/lotes` declara `sincronizacion.operar` en el router, pero el permiso de **cada operación** del lote (`entregas.crear`, `devoluciones.crear`, `traspasos.recibir`, `piezas.inspeccionar`, `compras.solicitar`) se verifica en el servicio contra quien la capturó. `POST /api/trabajadores` declara `trabajadores.administrar` y el servicio exige además `proyectos.asignar`.
+- **Rutas con `requiere_alguno`**: las cuatro de hoy más `GET /api/bitacora` (`bitacora.ver` o `reportes.movimientos`), `PUT /api/usuarios/{id}/almacenes` (`acceso.usuarios` o `almacenes.asignar_personal`) y `GET /api/proyectos` y `GET /api/proyectos/{id}` (`proyectos.ver` o `proyectos.asignar`).
+- **Encabezado `X-App-Version`** (FEAT-020, OF-02): si llega y es menor que `APP_VERSION_MINIMA`, cualquier ruta responde 426 `APP_DESACTUALIZADA`; sin el encabezado (la web) no se revisa. `POST /api/sincronizacion/lotes` acepta el formato de la versión anterior.
+- **Encabezado `X-Dispositivo: <id>.<secreto>`** en las rutas de `/api/sincronizacion/*`: identifica al equipo inscrito.
+- **Costo deducible (T-2 del maestro):** donde un total en pesos cubre un solo artículo con costo, el valor se responde `null` («No se muestra para no revelar el costo de un artículo») para quien no tiene `catalogo.costos`. Aplica a `GET /api/tablero/proyectos`, al `resumen` de `GET /api/vales/{id}` y a `GET /api/trabajadores/{id}/consumo`.
+
+### Permisos nuevos (maestro 5.3)
+
+`proyectos.ver`, `proyectos.administrar`, `proyectos.asignar` (FEAT-013); `despacho.autonomia` (014); `inspecciones.ver` (016); `deudores.ver` (018); `sincronizacion.operar`, `sincronizacion.administrar` (020). `reportes.valor_inventario` ya está disponible en el código y el Supervisor ya lo trae (migración `0009`); la tabla 8.3 de las reglas está atrasada.
+
+### Errores nuevos
+
+| HTTP | `codigo` | Cuándo | FEAT |
+|---|---|---|---|
+| 403 | `ALMACEN_NO_ASIGNADO` | `PUT /api/sesion/almacen` a un almacén que no está en su conjunto (AC-39). | 013 |
+| 409 | `PROYECTO_CERRADO` | Se edita un proyecto cerrado (PR-03). | 013 |
+| 409 | `PROYECTO_CON_VALES` | Se cambia la clave o el almacén de un proyecto que ya usa algún vale (PR-03). | 013 |
+| 409 | `ASIGNACION_REPETIDA` | El trabajador ya tiene una asignación activa a ese proyecto (PR-13). | 013 |
+| 409 | `CON_PROYECTOS_ACTIVOS` | Bloqueo nuevo de AL-03 al inactivar un almacén; `detalles` trae hasta 20 `{id, clave, nombre, fin_estimado}`. Orden de bloqueos: `CON_TRASPASOS_EN_TRANSITO`, `CON_EXISTENCIAS`, `CON_HIJOS_ACTIVOS`, `CON_PROYECTOS_ACTIVOS`, `CON_USUARIOS` (que cuenta a los usuarios activos que lo tienen en su conjunto). | 013 |
+| 422 | `PROYECTO_REQUERIDO` | Falta `proyecto_id` en el alta, el reingreso sin asignación asignable o la ENTREGA de un trabajador con varios proyectos (PR-09, PR-11). | 013 |
+| 422 | `PROYECTO_INVALIDO` | El proyecto no existe, está cerrado, venció (al asignar) o no es de una asignación activa del trabajador (al entregar). | 013 |
+| 409 | `REQUIERE_APROBACION_DESPACHO` | Se confirma una ENTREGA con EPP que pide aprobación y no trae autorización. `detalles: {regla: "DE-01", renglones: [{renglon, codigo}]}`. | 014 |
+| 409 | `APROBACION_INVALIDA` | La autorización de despacho no cubre un renglón. `detalles: {regla: "DE-08", renglones: [{renglon, codigo, causa: RECHAZADO \| NO_INCLUIDO \| CANTIDAD_MAYOR}]}`. | 014 |
+| 409 | `AUTORIZACION_RESUELTA` (cambia) | Trae `detalles: {estado, resuelta_por: {id, nombre} \| null, resuelta_en, medio}` (DE-11). | 014 |
+| 409 | `PIEZA_EN_TRANSITO` | Inspeccionar una pieza en tránsito (P-17). | 016 |
+| 409 | `PIEZA_EN_MANTENIMIENTO` | Inspeccionar una pieza en mantenimiento o calibración (P-17). | 016 |
+| 422 | `FECHA_FUTURA` | Inspección inicial de una ENTRADA con fecha posterior a hoy (P-17, I-03). | 016 |
+| 426 | `APP_DESACTUALIZADA` | `X-App-Version` menor que `APP_VERSION_MINIMA` (OF-02). | 020 |
+| 403 | `DISPOSITIVO_REVOCADO`, `DISPOSITIVO_NO_INSCRITO`, `DISPOSITIVO_DE_OTRO_ALMACEN` | Rutas de sincronización con un equipo revocado, desconocido o de otro almacén. `DISPOSITIVO_REVOCADO` ordena al equipo borrar sus datos. | 020 |
+| 422 | `LOTE_INVALIDO` | La forma del lote no sirve (una operación mal formada dentro de un lote bueno es conflicto `FORMA_INVALIDA`, no error del lote). | 020 |
+| 409 | `CONFLICTO_YA_RESUELTO` | Se resuelve un conflicto de sincronización ya resuelto. | 020 |
+
+### Traslados entre almacenes de tercer nivel (FEAT-015, X-16 a X-21)
+
+| Endpoint | Cambio |
+|---|---|
+| `POST /api/vales/evaluar` (TRASPASO) | Trae `ruta: {clase: HABITUAL \| LATERAL \| NO_HABITUAL \| MISMO, autoriza: NADIE \| ENVIO_PROPIO \| SUPERVISOR_ORIGEN \| ADMINISTRADOR, autorizadores_disponibles}` y, en `motivos` del vale, X-03, X-16, X-17, X-18 o X-20. X-16: amarillo con `pide_observacion: true` (quien envía tiene `autorizaciones.resolver` en el origen). X-17: naranja con `autorizable: true` y, con `autorizacion_id`, `autorizado: true`. X-20: avisos amarillos que no bloquean (nadie en el destino con `traspasos.recibir`; destino sin proyectos activos). X-18 se evalúa antes de la ruta no habitual de X-03. |
+| `POST /api/vales` (TRASPASO) | Acepta `autorizacion_id`. 422 `DATOS_INVALIDOS` con `regla: "X-16"` sin observación; 409 `AUTORIZACION_INVALIDA` (no aprobada, vencida, usada, de otro origen o destino, o que no cubre: después de aprobada solo se pueden **quitar** renglones); 409 `VALE_CAMBIO` con X-17 sin autorizar. El detalle trae `valido.medio = "ENVIO_PROPIO"` en el envío propio. |
+| `POST /api/vales/evaluar` y `POST /api/vales` (RECEPCION) | X-21 en amarillo con `pide_observacion` si quien recibe es quien envió; sin observación, 422 con `regla: "X-21"`. Aplica a todo traspaso. |
+| `GET /api/traspasos/por-recibir` | Cada elemento trae `ruta` (`HABITUAL`, `LATERAL`, `NO_HABITUAL`) y `valido`. |
+| `POST /api/importacion/traspasos/vista-previa` y `POST /api/importacion/traspasos` | La vista previa trae la `ruta` como la evaluación (TR-05: una vez por archivo); la confirmación acepta `autorizacion_id` (X-19). La solicitud lleva solo las filas que no están en rojo; dejar fuera filas después de aprobar es quitar renglones. |
+
+Sin permisos nuevos. Las solicitudes TRASLADO están en «Autorizaciones», abajo.
+
+### Despacho de EPP con aprobación (FEAT-014, DE-01 a DE-16)
+
+| Endpoint | Permiso | Cambio o contrato |
+|---|---|---|
+| `POST /api/vales/evaluar` (ENTREGA) | Según el tipo | Arriba: `requiere_aprobacion_despacho` (bool) y `despacho: {modo: CON_APROBACION \| AUTONOMO_ALMACEN \| AUTONOMO_USUARIO \| SUPERVISOR \| NO_APLICA}`. Por renglón: `es_epp`, `requiere_aprobacion` y, con `autorizacion_id`, `aprobacion` (`APROBADO`, `RECHAZADO`, `NO_INCLUIDO`, `CANTIDAD_MAYOR`, `PENDIENTE` o `null`) y `motivo_rechazo`. `puede_confirmar` es falso si falta la aprobación (DE-02); el nivel del semáforo no cambia. Con una aprobación que ya no cubre (DE-13), `autorizacion_error` lo explica. |
+| `POST /api/vales` (ENTREGA) | Según el tipo | Nuevos 409 `REQUIERE_APROBACION_DESPACHO` y `APROBACION_INVALIDA`. `AUTORIZACION_INVALIDA` queda para la autorización misma (no aprobada, vencida, usada, de otro almacén, trabajador o proyecto, o de un tipo que no corresponde: DESPACHO, o EXCEDENTE si el despacho no la pide). Quien confirma no puede ser quien aprobó (403 `AUTORIZACION_PROPIA`). Si la autonomía se prendió mientras se esperaba, se confirma sin la autorización y esta no se gasta (DE-16). |
+| `GET /api/vales/{id}` | `vales.ver` | Agrega `despacho: {modo: APROBADO \| PROPIO \| AUTONOMO \| null, aprobo: {id, nombre} \| null}`, derivado de `autorizacion_id` y de `movimiento.reglas` (`DE-01`, `DE-07`, `DE-14`). |
+| `PATCH /api/almacenes/{id}/autonomia` | `despacho.autonomia` | `{despacho_epp_con_aprobacion: bool, motivo}`. Responde la ficha del almacén. 422 sin motivo; 404 si no existe; si el valor no cambia, 200 sin auditoría. Auditoría `almacen.autonomia` (antes, después, motivo). |
+| `PATCH /api/usuarios/{id}/autonomia` | `despacho.autonomia` | `{despacho_autonomo: bool, motivo}`. Responde el usuario. 422 sin motivo; 404 si no existe. Auditoría `usuario.autonomia`. |
+
+### Autorizaciones (FEAT-014 y FEAT-015)
+
+| Endpoint | Permiso | Contrato |
+|---|---|---|
+| `POST /api/autorizaciones` | **Sesión; el servicio verifica según `tipo`**: `entregas.crear` para `EXCEDENTE` y `DESPACHO`, `traspasos.operar` para `TRASLADO` | Cuerpo: `{tipo: EXCEDENTE (por omisión) \| DESPACHO \| TRASLADO, id_cliente, trabajador_id? (no en TRASLADO), almacen_id?, proyecto_id?, destino_almacen_id? (solo TRASLADO), motivo?, nota? (hasta 255), renglones: [{codigo, cantidad, observacion?}]}` (1 a 100 renglones). El almacén sale de la sesión; de cada renglón el servidor toma solo `codigo`, `cantidad` y `observacion` y evalúa él mismo. `motivo` obligatorio en EXCEDENTE, en TRASLADO y en un DESPACHO con naranjas; en un DESPACHO sin naranjas se guarda «Despacho de EPP». Un DESPACHO lleva **todos** los renglones de EPP y todos los naranjas del vale; los verdes y amarillos de herramienta viajan como contexto. Responde 201 `{id, tipo, estado: PENDIENTE, vence_en, avisados}` (`avisados`: a cuántos supervisores se mandó aviso, sin decir a quiénes); 200 si el `id_cliente` ya existía con el mismo cuerpo; 409 `CONFLICTO` con otro cuerpo. 422 `RENGLON_NO_AUTORIZABLE` con `detalles: {codigo, regla, nivel, motivos}` por un rojo (A-06), por un `tipo` que no corresponde (`regla: "DE-01"`: el despacho no pide aprobación; `regla: "DE-04"`: se mandó EXCEDENTE y el vale pide despacho) o, en EXCEDENTE, por un renglón que no es naranja. Los avisos se mandan después del commit. |
+| `GET /api/autorizaciones/{id}` | Sesión (como hoy) | Agrega `tipo`, `renglones` con `clase` (`EPP`, `EXCEDENTE`, `CONTEXTO`), `renglones_resueltos`, `nota`, `proyecto`, `trabajador {id, nombre, numero_empleado, tiene_foto}` (`null` en TRASLADO), `almacen {id, clave, nombre}`, `origen` y `destino` (TRASLADO) y `servidor_ahora` (para calcular lo que falta sin el reloj del dispositivo). La ven quien la pidió y quien tiene `autorizaciones.resolver` con el almacén en su conjunto (AC-40). |
+| `GET /api/autorizaciones?estado=&tipo=&almacen_id=` | `autorizaciones.resolver` | De la más antigua a la más nueva, de todos los almacenes del conjunto. Cada elemento agrega `tipo`, `proyecto`, `almacen`, `trabajador.tiene_foto`, `incluye_excedente`, `renglones` con `clase`, `origen`, `destino` y `servidor_ahora`. |
+| `POST /api/autorizaciones/{id}/resolucion` | Sesión (como hoy) | Cuerpo: `{decision?: APROBAR \| RECHAZAR, motivo?, renglones?: [{renglon, decision: APROBAR \| RECHAZAR, motivo?}], usuario?, pin?}`: `decision` (todo) **o** `renglones` (uno por renglón que se resuelve; los de contexto no se mandan). Rechazar pide `motivo` (422 `DATOS_INVALIDOS` con `regla: "DE-06"`). Queda APROBADA si se aprobó al menos un renglón y RECHAZADA si ninguno; al aprobarse, `vence_en` pasa a `resuelta_en` + `AUTORIZACION_VIGENCIA_MINUTOS` (DE-09). Un TRASLADO no acepta `renglones` (422): se aprueba o rechaza completo; con PIN, la sesión de quien envía debe tener `traspasos.operar`. Responde la solicitud con `renglones_resueltos`. Siguen 403 `AUTORIZACION_PROPIA`, 403 `PIN_INCORRECTO`, 429 `DEMASIADOS_INTENTOS` y 409 `AUTORIZACION_RESUELTA` (con detalle). |
+| `POST /api/autorizaciones/resolucion-multiple` | `autorizaciones.resolver` | `{resoluciones: [{id, decision: APROBAR \| RECHAZAR, motivo?}]}`, de 1 a 50, solo desde la sesión (sin PIN). Cada una en su propia transacción, con el reintento ante interbloqueo de la individual. Responde 200 `{resultados: [{id, estado, error: {codigo, mensaje} \| null}]}`. Errores por solicitud: `AUTORIZACION_RESUELTA`, `AUTORIZACION_PROPIA`, `NO_ENCONTRADO` y `RENGLON_NO_AUTORIZABLE` con `regla: "DE-12"` (una que incluye excedente no se aprueba en grupo). |
+| `POST /api/autorizaciones/{id}/retiro` | Sesión; solo quien la pidió | **Solo si se aprueba la decisión abierta 1 de FEAT-014.** Retira una solicitud PENDIENTE: estado `RETIRADA` y aviso de reemplazo. |
+
+### Notificaciones push (FEAT-014, NT-01 a NT-09; módulo `notificaciones`)
+
+| Endpoint | Permiso | Contrato |
+|---|---|---|
+| `GET /api/notificaciones/clave-publica` | Sesión | `{clave_publica}` (VAPID, base64url). 404 `NO_ENCONTRADO` («Los avisos no están configurados en este servidor») si faltan las claves; la pantalla esconde «Activar avisos». |
+| `POST /api/notificaciones/suscripciones` | `autorizaciones.resolver` (con T-4 del maestro, propuesta, también `traspasos.recibir` con `requiere_alguno`) | `{endpoint, keys: {p256dh, auth}}`, como lo entrega el navegador. Liga la suscripción al usuario y a la familia de la sesión. `endpoint` `https` y de 1000 caracteres como máximo (si no, 422). Responde 201 `{id, creada_en}` (200 si ya existía para esa familia). |
+| `DELETE /api/notificaciones/suscripciones/{id}` | Sesión | Revoca una suscripción **propia** (404 si es de otro). 204. |
+| `POST /api/notificaciones/prueba` | `autorizaciones.resolver` | Aviso de prueba a las suscripciones de la familia de la sesión. `{enviadas, fallidas}`. 429 `DEMASIADOS_INTENTOS` antes de 10 s. |
+
+Contenido de un aviso (lo lee el service worker; menos de 4 KB; sin costos, CURP, NSS ni foto): `{evento: NUEVA | RESUELTA | PRUEBA, tipo, autorizacion_id, almacen: {clave, nombre}, pendientes, titulo, cuerpo, url, etiqueta, silencioso}`. Con `pendientes` mayor que 1, `url` es `/autorizaciones`. TTL de 15 minutos. Destinatarios: usuarios activos con `autorizaciones.resolver` y el almacén en su conjunto, menos quien la pidió; el Administrador no recibe por omisión (NT-02). El traslado confirmado manda además un aviso informativo al destino (X-20).
+
+### Proyectos y conjunto de almacenes (FEAT-013, PR-01 a PR-14, AC-36 a AC-41, TB-04 a TB-08; módulo `proyectos`)
+
+Ficha de proyecto: `{id, clave, nombre, almacen: {id, clave, nombre}, inicio, fin_estimado, estado, situacion: VIGENTE | POR_INICIAR | FIN_VENCIDO | CERRADO, cerrado_en, motivo_cierre, trabajadores_asignados}`. Fechas de proyecto en hora del centro de México.
+
+| Endpoint | Permiso | Contrato |
+|---|---|---|
+| `GET /api/proyectos?almacen_id=&situacion=&q=&asignables=` | `proyectos.ver` o `proyectos.asignar` (`requiere_alguno`) | Lista paginada. Con `proyectos.ver`, los de su conjunto (todos con `almacenes.todos`); con `proyectos.asignar` (RH, sin almacén), todos, solo con datos generales, sin consumo ni valor (PR-07). `asignables=true` deja los activos con fin estimado igual o posterior a hoy. |
+| `POST /api/proyectos` | `proyectos.administrar` | `{clave, nombre, almacen_id, inicio, fin_estimado}`. 201 con la ficha; si el almacén no es de tipo `PROYECTO`, la ficha trae `aviso` (no es error). 409 `CLAVE_REPETIDA`, 409 `ALMACEN_CERRADO`, 422 `DATOS_INVALIDOS` (formato, `fin_estimado < inicio` con `regla: "PR-02"`), 404 (almacén). Auditoría `proyecto.crear`. |
+| `GET /api/proyectos/{id}` | `proyectos.ver` o `proyectos.asignar` | Ficha. Fuera del alcance, 404. |
+| `PATCH /api/proyectos/{id}` | `proyectos.administrar` | `{nombre?, inicio?, fin_estimado?, clave?, almacen_id?}`. 409 `PROYECTO_CERRADO`, 409 `PROYECTO_CON_VALES` (clave o almacén). Auditoría `proyecto.editar`. |
+| `POST /api/proyectos/{id}/cierre` | `proyectos.administrar` | `{motivo}` (1 a 500). Termina en la misma transacción todas sus asignaciones activas. 200 con la ficha, `asignaciones_terminadas` y `trabajadores_sin_proyecto`. 409 `CONFLICTO` si ya estaba cerrado. Auditoría `proyecto.cerrar`. |
+| `POST /api/proyectos/{id}/reapertura` | `proyectos.administrar` | `{fin_estimado?, motivo?}`; `fin_estimado` obligatorio si el anterior ya pasó (422). 409 `CONFLICTO` si ya estaba activo; 409 `ALMACEN_CERRADO`. Las asignaciones no se restauran. |
+| `GET /api/trabajadores/{id}/proyectos` | `trabajadores.ver` | Asignaciones activas y terminadas, la más reciente primero. |
+| `POST /api/trabajadores/{id}/proyectos` | `proyectos.asignar` | `{proyecto_id, principal?, inicio?, reemplaza_asignacion_id?}`; con `reemplaza_asignacion_id` es un cambio de proyecto (termina una y abre otra, que hereda `principal`). 201 con las asignaciones. 409 `ASIGNACION_REPETIDA`; 422 `PROYECTO_INVALIDO`; 409 si el trabajador está Inactivo. |
+| `POST /api/trabajadores/{id}/proyectos/{asignacion_id}/termino` | `proyectos.asignar` | 200 con las asignaciones y `queda_sin_proyecto`. 409 `CONFLICTO` si ya estaba terminada. |
+| `POST /api/trabajadores` | `trabajadores.administrar` (y `proyectos.asignar`, en el servicio: 403 sin él) | Acepta `proyecto_id` obligatorio y asignable (422 `PROYECTO_REQUERIDO` o `PROYECTO_INVALIDO`); crea la asignación principal en la misma transacción. `area_obra` deja de pedirse: se llena con el nombre del proyecto. |
+| `POST /api/trabajadores/{id}/periodos` | `trabajadores.administrar` | Acepta `proyecto_id`; obligatorio si el trabajador no tiene asignación activa a un proyecto asignable (PR-11). |
+| `GET /api/trabajadores`, `GET /api/trabajadores/{id}` | `trabajadores.ver` | Cada trabajador trae `proyectos: [{asignacion_id, proyecto: {id, clave, nombre, almacen}, principal}]`. La lista acepta `proyecto_id` y `sin_proyecto=true`. |
+| `POST /api/vales/evaluar`, `POST /api/vales` (ENTREGA) | Según el tipo | Aceptan `proyecto_id`. La evaluación trae `proyecto` (el que se tomará o `null`), `proyectos_del_trabajador` y `pide_proyecto`, y los motivos del vale PR-09 (amarillo, elegir) o PR-10 (amarillo, `pide_observacion`). Al confirmar: 422 `PROYECTO_REQUERIDO`, 422 `PROYECTO_INVALIDO`, 422 `DATOS_INVALIDOS` (observación de PR-10), 409 `VALE_CAMBIO` (el proyecto se cerró o la asignación cambió). Un `proyecto_id` en otro tipo de vale es 422. El detalle del vale trae `proyecto`; la CANCELACION lo hereda. |
+| `PUT /api/usuarios/{id}/almacenes` | `acceso.usuarios` o `almacenes.asignar_personal` (`requiere_alguno`; el límite de AC-41 en el servicio) | `{almacenes: [ids], almacen_activo_id}`: deja el conjunto exactamente así. Con `almacenes.asignar_personal` solo agrega o quita almacenes de su propio conjunto (403 si no). 422 si un almacén no existe o está cerrado, si el activo no está en el conjunto, si el usuario tiene `almacenes.todos` o es RH, o está inactivo. 200 con el renglón de personal (`almacenes`, `almacen_activo`). Auditoría `usuario.almacenes`. |
+| `PATCH /api/usuarios/{id}/almacen` | `almacenes.asignar_personal` | Sin cambio de forma: deja el conjunto con ese único almacén (o vacío con `null`). |
+| `PUT /api/sesion/almacen` | Sesión | `{almacen_id}`: cambia el almacén activo, desde la siguiente petición y en todos sus dispositivos. 200 con la sesión. 403 `ALMACEN_NO_ASIGNADO`, 409 `ALMACEN_CERRADO`, 422 para quien tiene `almacenes.todos`. Un vale capturado en el almacén anterior responde 409 `ALMACEN_CAMBIO`. Auditoría `usuario.almacen_activo`. |
+| `GET /api/sesion`, `POST /api/sesion`, `POST /api/sesion/refresh` | Sesión / Público | Agregan `almacenes` (el conjunto) y `almacen_activo`; `almacen` se conserva igual a `almacen_activo`. |
+| `GET /api/personal`, `GET /api/usuarios` | Sin cambio | Cada renglón trae `almacenes`; `almacen_id` filtra por pertenecer al conjunto. |
+| `GET /api/almacenes?resumen=true` | `almacenes.administrar` | El resumen agrega `proyectos_activos` y `aviso_sin_proyecto` (PR-12: tipo `PROYECTO`, activo, sin proyectos activos); `usuarios` cuenta a quienes lo tienen en su conjunto. |
+| `POST /api/almacenes/{id}/cierre` | `almacenes.administrar` | Bloqueo nuevo `CON_PROYECTOS_ACTIVOS`. |
+| `GET /api/tablero/resumen` | `tablero.ver` | `alcance` agrega `almacenes` (los del conjunto) y `nombre` «Tus 2 almacenes»; agrega `almacenes_sin_proyecto` (solo con `almacenes.administrar`; `null` sin él) y `proyectos_por_vencer` (activos con fin estimado en los próximos 7 días o ya pasado; con `proyectos.ver`, `null` sin él). Con FEAT-016, además `inspecciones_vencidas` e `inspecciones_sin_registro`. |
+| `GET /api/tablero/valor` | `reportes.valor_inventario` | Alcance por conjunto; agrega `unidades_en_almacen`, `unidades_en_resguardo` y `unidades_total` (TB-04). Sigue sin costos unitarios. |
+| `GET /api/tablero/proyectos?desde=&hasta=&almacen_id=&proyecto_id=` | `tablero.ver` y `proyectos.ver` | Uso por proyecto (TB-05 a TB-07): `{alcance, rango, proyectos: [{id, clave, nombre, almacen, inicio, fin_estimado, estado, situacion, trabajadores_asignados, retornables_en_resguardo: {unidades, valor}, consumibles_consumidos: {unidades, valor}, total: {unidades, valor}, articulos_sin_costo, por_categoria}], sin_proyecto: {retornables_en_resguardo, consumibles_consumidos}, generado_en}`. Un proyecto entra si **su almacén** está en el conjunto, sin importar quién entregó. El resguardo cuenta para el proyecto de la última entrega de ese artículo (o pieza). `valor` es cantidad por costo actual y va `null` sin `reportes.valor_inventario` (y por T-2). `por_categoria` solo con `proyecto_id` (hasta 6 y «Otras»). Orden por `total.valor` (o unidades). |
+
+### Inspecciones y avisos de vigencia (FEAT-016, P-09 a P-17)
+
+| Endpoint | Permiso | Contrato |
+|---|---|---|
+| `GET /api/inspecciones/pendientes?estado=&almacen_id=&categoria_id=&q=&ubicacion=&pagina=&tamano=&solo_contar=` | `inspecciones.ver` | `estado`: `VENCIDA`, `POR_VENCER` o `SIN_INSPECCION`. Responde `{conteos: {vencidas, por_vencer, sin_inspeccion, no_aptas, en_mantenimiento, no_aptas_con_trabajador}, elementos: [{pieza: {id, codigo, numero_serie, serie_pendiente, estado}, articulo: {id, codigo, nombre, categoria}, vigente_hasta, dias_restantes, dias_aviso, ubicacion: {tipo, almacen, trabajador, desde, folio, vale_id, destino}, accion: INSPECCIONAR \| PEDIR_DEVOLUCION \| NINGUNA}], total}`; con `solo_contar=true`, solo `conteos`. Alcance por conjunto (AC-37); folio y vale de otro almacén en `null`. Sin costos, CURP ni NSS. Solo lee. |
+| `POST /api/inspecciones/lote` | `piezas.inspeccionar` | `{id_lote, piezas: [{id_cliente, codigo, resultado, puntos, observacion?, foto?}]}`, de 1 a 50 (más, 422). Cada pieza en su propia transacción. 200 `{guardadas, rechazadas, repetidas, resultados: [{id_cliente, codigo, estado: GUARDADA \| REPETIDA \| RECHAZADA, inspeccion?, error?: {codigo, mensaje, regla}}]}`. |
+| `POST /api/piezas/{id}/inspecciones` | `piezas.inspeccionar` | `puntos` obligatorio con las cinco claves; acepta `id_cliente` y `foto` (PNG, JPEG o WebP, hasta 3 MB; adjunto `FOTO_INSPECCION`). La fecha la pone el servidor (un campo de fecha es 422). Nuevos: 422 con `regla: "P-14"` (Apto con un punto Mal sin observación), 409 `PIEZA_EN_TRANSITO`, 409 `PIEZA_EN_MANTENIMIENTO`. Con un `id_cliente` ya guardado, 200 con la misma inspección. Se hace en el almacén activo (AC-38). |
+| `GET /api/piezas/{id}` | `catalogo.ver` | Agrega `vigencia_inspeccion_dias`, `dias_aviso_inspeccion` (resuelto) y su `origen` (`ARTICULO`, `CATEGORIA`, `GENERAL`), `dias_restantes`, `vigencia_si_apta_hoy` e `inspeccion_posible: {puede, motivo, regla}`. El historial trae `puntos` y la foto. |
+| Categorías y artículos (`GET`/`POST`/`PATCH`) | Los de hoy | Campo `dias_aviso_inspeccion` (1 a 90 o `null`; fuera de rango, 422 con `regla: "P-10"`). El artículo devuelve el valor resuelto y su origen; la categoría, `articulos_con_aviso_propio`. |
+| `POST /api/vales` (ENTRADA) | `inventario.entradas` | Inspección inicial con fecha posterior a hoy: 422 `FECHA_FUTURA`. |
+| `GET /api/tablero/resumen` | `tablero.ver` | `inspecciones_por_vencer` con el aviso resuelto de cada artículo (no 7 fijo); nuevos `inspecciones_vencidas` e `inspecciones_sin_registro`. Los tres `null` sin `inspecciones.ver`. |
+
+### Bitácora por vale y PDF (FEAT-017, BT-01 a BT-10)
+
+| Endpoint | Permiso | Contrato |
+|---|---|---|
+| `GET /api/bitacora?desde=&hasta=&almacen_id=&tipo=&usuario_id=&trabajador_id=&proyecto_id=&articulo_id=&pieza=&lote_id=&solo_mios=&pagina=&tamano=&formato=` | `bitacora.ver` o `reportes.movimientos` (`requiere_alguno`) | Un elemento por vale, o por lote si varios vales del alcance comparten `lote_id`; del más reciente al más antiguo; paginado por elemento. Mismo alcance que `GET /api/reportes/movimientos`; un filtro fuera del alcance no devuelve nada. Respuesta `{elementos, total, sin_registros, mensaje}`. Elemento `VALE`: `{clase, id, folio, tipo, tipo_texto, creado_en, almacen, responsable, trabajador, destino, proyecto, vale_origen {id, folio}, cancelacion {id, folio}, renglones, unidades, estado, estado_texto, direccion: ENTRADA \| SALIDA \| EN_CAMINO \| null, direccion_texto, coincidencias, capturado_sin_conexion, capturado_en}`. Elemento `LOTE`: `{clase, lote_id, origen_lote: IMPORTACION \| TRASPASO_EXCEL, creado_en, tipo, almacen, responsable, renglones, unidades, estado_texto, direccion, coincidencias, vales: [{clase, id, folio, estado, renglones, unidades, parte, cancelacion}]}`. `direccion` solo con `almacen_id`. `coincidencias` solo con filtro de artículo, pieza o serie. `formato=csv`: un renglón por vale. Sin costos, CURP ni NSS. |
+| `GET /api/vales/{id}/renglones?q=&pagina=&tamano=` | `vales.ver` | Los renglones del detalle, paginados (`tamano` hasta 500), con el mismo alcance y el mismo 404 que el detalle. `q` (2 caracteres mínimo) busca en código de artículo, código de pieza, nombre y serie. `{elementos, total, sin_registros, mensaje}`. |
+| `GET /api/vales/{id}` | `vales.ver` | Agrega `lote {id, parte, partes, renglones, unidades}` o `null`, `proyecto`, `resumen` (por categoría `{categoria, renglones, unidades}` y, solo con `reportes.valor_inventario`, `valor` por categoría y `valor_total`; nunca por renglón; T-2), `relacionados [{relacion, id, folio, creado_en, texto}]` (`id` y `folio` nulos fuera del alcance), `capturado_sin_conexion` y `capturado_en`. Con `?renglones=false` no trae los renglones. |
+| `POST /api/vales` | Según el tipo | Sigue rechazando `lote_id` (422): el lote lo pone la importación como parámetro interno. |
+| `POST /api/importacion`, `POST /api/importacion/traspasos` | Los de hoy | La respuesta agrega `lote_id` (igual al `id_lote`). |
+
+El PDF del vale, del lote y de las etiquetas se arma en el navegador con los datos de estas rutas: no hay endpoint de PDF. `GET /api/reportes/movimientos` y `GET /api/reportes/usuarios` no cambian.
+
+### Deudores, consumo por trabajador y alto valor (FEAT-018, AV-01 a AV-05, DU-01 a DU-09)
+
+| Endpoint | Permiso | Contrato |
+|---|---|---|
+| `GET /api/deudores?trabajador_id=&almacen_id=&proyecto_id=&categoria_id=&alto_valor=&vigencia=&antiguedad_dias=&q=&pagina=&tamano=&formato=` | `deudores.ver` | Un elemento por trabajador con deuda (retornables en resguardo): `{trabajador {id, numero_empleado, nombre, tiene_foto}, vigente, aviso, proyectos, piezas, unidades, alto_valor, desde, otros_almacenes, renglones}` y arriba `resumen` (las cuatro tarjetas). Con `trabajador_id`, `renglones: [{articulo, pieza, cantidad, desde, vale {id, folio}, proyecto, almacen, alto_valor, requiere_inspeccion}]` (`vale.id` nulo fuera del alcance). Una cosa se le debe al almacén y al proyecto de su entrega más reciente. Alcance (DU-03): con `almacenes.todos`, todo; con `trabajadores.administrar` (RH), todos los trabajadores y deudas; si no, lo que se le debe a su conjunto y, de lo demás, solo el número (`otros_almacenes`). Paginado en la consulta. `formato=csv`: un renglón por cosa debida. Sin costos. |
+| `GET /api/deudores/resumen` | `deudores.ver` | Por almacén y por proyecto: trabajadores con deuda, piezas, unidades, alto valor fuera y no vigentes. Mismos filtros y alcance. `formato=csv`. Sin costos. |
+| `GET /api/trabajadores/{id}/consumo?desde=&hasta=` | `trabajadores.ver` | `{periodo {desde, hasta, origen}, elementos: [{articulo {id, codigo, nombre}, unidad, cantidad, recomendado, por_proyecto: [{proyecto \| null, cantidad}]}], valor_total, valor_por_proyecto}`. Consumibles entregados por todos los almacenes, netos de cancelaciones; periodo por omisión, su contrato vigente (o el último). `valor_total` y `valor_por_proyecto` solo con `reportes.valor_inventario` (y T-2); nunca por artículo. |
+| `GET /api/reportes/consumo` | `reportes.consumo` | Filtro nuevo `proyecto_id`. |
+| Categorías (`GET`, `POST`, `PATCH`) | Los de hoy | Aceptan y devuelven `alto_valor` (cambiarlo pide `catalogo.administrar`, auditoría `categoria.editar`). |
+| Artículo, pieza, `GET /api/seguimiento/*`, tablero | Los de hoy | Devuelven `alto_valor` (booleano, AV-02: marca de la categoría o costo igual o mayor que `ALTO_VALOR_COSTO_MINIMO`) y `alto_valor_motivo` solo con `catalogo.costos` (AV-05). `alto_valor_fuera` del tablero y el filtro `alto_valor` de Seguimiento cuentan alto valor **o** `requiere_inspeccion`, sin leer el nombre de la categoría (AV-04). La vista previa de la importación puede sugerir «Equipo de alto valor» por costo (AV-03). |
+| `GET /api/reportes/adeudos` | `reportes.adeudos` | Sin cambios; la pantalla `/reportes/adeudos` redirige a `/deudores`. |
+
+### Búsqueda y etiquetas (FEAT-019, UX-01 a UX-07)
+
+| Endpoint | Cambio |
+|---|---|
+| `GET /api/busqueda` | Busca trabajadores por palabras en cualquier orden (cada palabra en el nombre; hasta 5), por número de empleado (contiene) y por código de credencial (empieza con); artículos por nombre (palabras), marca y código; piezas por código, serie y nombre del artículo. Orden por relevancia (exacto, empieza, contiene; luego nombre). `tamano` 10 por omisión y 50 como máximo (más, 422). Campos nuevos sin quitar los existentes: `articulos[].retornable`, `en_almacen` y `con_trabajadores` (solo retornables); `piezas[].ubicacion_texto` (el texto de C-13); `trabajadores[].puesto`, `vigencia {vigente, texto}` y `credencial`. Sin costos, CURP ni NSS. |
+| `GET /api/trabajadores?q=` | `q` busca por palabras, igual que la búsqueda. |
+| `GET /api/etiquetas` | Filtros opcionales: `articulo_id` y `lote_id` (solo `piezas`), `alta_desde` y `alta_hasta` (solo `credenciales`, fechas de México sobre `trabajador.creado_en`). Un filtro que no corresponde al tipo es 422. Sigue sin paginar y con `etiquetas.imprimir`. |
+| `GET /api/escaneo/{codigo}` | Sin cambio. |
+
+### App de Android y sincronización (FEAT-020, OF-01 a OF-30; módulo `sincronizacion`)
+
+| Endpoint | Permiso | Contrato |
+|---|---|---|
+| `POST /api/dispositivos` | `sincronizacion.operar` | `{nombre, plataforma: ANDROID, version_app, modelo}`. Inscribe el equipo en el almacén activo de quien lo pide y lo registra en el equipo. 201 `{id, secreto}` (el secreto se entrega **una sola vez**; la base guarda su SHA-256). 409 `ALMACEN_CERRADO`. Auditoría `dispositivo.inscribir`. |
+| `GET /api/dispositivos` | `sincronizacion.administrar` | Equipos de sus almacenes: nombre, quién lo inscribió y cuándo, usuarios registrados, versión, `ultimo_paquete_en`, `ultima_subida_en` y estado («En uso», «Sin contacto hace 30 h», «Revocado»). |
+| `POST /api/dispositivos/{id}/revocacion` | `sincronizacion.administrar` | `{motivo, cerrar_sesiones}`; sin motivo, 422; ya revocado, 409. Con `cerrar_sesiones`, sube `version_sesion` de los usuarios registrados en el equipo. Auditoría `dispositivo.revocar`. |
+| `GET /api/sincronizacion/paquete` | `sincronizacion.operar` + `X-Dispositivo` | El paquete del almacén del equipo (OF-13): JSON con `formato`, `generado_en`, `almacen_id`, `dispositivo_id` y las secciones `almacen`, `usuarios_del_equipo`, `categorias`, `articulos` (activos e inactivos), `codigos`, `piezas`, `existencias`, `trabajadores` (los de proyectos del almacén y de sus hijos, más los que tienen pendientes con él), `traspasos_en_transito`, `proyectos` y `parametros`. Comprimido con `gzip`, `ETag` = SHA-256 del contenido; con `If-None-Match` igual, 304. Nunca trae costos, CURP, NSS, contraseñas, PIN ni sus hashes, firmas ni datos de otros almacenes fuera del resguardo de esos trabajadores. Actualiza `ultimo_paquete_en` y registra al usuario en el equipo. 403 `DISPOSITIVO_REVOCADO`, `DISPOSITIVO_NO_INSCRITO`, `DISPOSITIVO_DE_OTRO_ALMACEN`. Las fotos se piden aparte con `GET /api/trabajadores/{id}/foto` (cambian cuando cambia su `sha256`). |
+| `POST /api/sincronizacion/lotes` | `sincronizacion.operar` + `X-Dispositivo`; el permiso de cada operación, en el servicio, contra quien la capturó | `{lote_id, formato, enviado_en, operaciones: [{id_cliente, secuencia, tipo: ENTREGA \| DEVOLUCION \| RECEPCION \| INSPECCION \| NO_APTA \| SOLICITUD_COMPRA, responsable_id, capturado_en, paquete_huella, evaluacion_local, cuerpo}]}`, hasta `SINCRONIZACION_LOTE_MAXIMO` (20); el `cuerpo` de un vale es el de `POST /api/vales` con `token`, `proyecto_id`, `observacion` y `firma`. Cada operación en su propia transacción y en orden de `secuencia`, por el servicio del módulo dueño (`movimientos`, `inspecciones`, `solicitudes_compra`). 200 `{resultados: [{id_cliente, resultado: GUARDADO \| GUARDADO_CON_AVISOS \| CONFLICTO, folio?, vale_id?, avisos?, conflicto_id?, motivo?}], servidor_ahora}`. Idempotente por `id_cliente` y `huella_cuerpo` (vales) o por `operacion_recibida` (lo demás): reenviar el mismo lote devuelve lo mismo. El responsable es quien capturó (debe estar registrado en el equipo); el almacén, el del equipo. Errores del lote: 401, 403 (`DISPOSITIVO_*`), 413 `CUERPO_MUY_GRANDE` (límite 12 MB), 422 `LOTE_INVALIDO`. Un equipo revocado manda todas sus operaciones a conflicto `DISPOSITIVO_REVOCADO`. Actualiza `ultima_subida_en`; auditoría `sincronizacion.lote`. |
+| `GET /api/sincronizacion/conflictos?estado=&dispositivo_id=&desde=&hasta=` y `GET /api/sincronizacion/conflictos/{id}` | `sincronizacion.administrar` | Conflictos de los equipos de sus almacenes. El detalle trae la operación capturada, la evaluación local, lo que dijo el servidor por renglón y el vale con que chocó. |
+| `POST /api/sincronizacion/conflictos/{id}/resolucion` | `sincronizacion.administrar` | `{accion: REINTENTAR \| GUARDAR_SIN_RENGLONES \| GUARDAR_CON_DIFERENCIAS \| DESCARTAR, renglones?, motivo}`; motivo obligatorio. Lo que guarda lo crea `movimientos` como vale nuevo (con la hora de captura y el responsable originales). 409 `CONFLICTO_YA_RESUELTO`; 403 si quien resuelve capturó la operación. Auditoría `sincronizacion.resolver_conflicto`. |
+| `PATCH /api/almacenes/{id}` | `almacenes.administrar` | Acepta `hora_descarga` (`HH:MM`, hora de México, o `null`). |
+| `GET /api/vales/por-token/{token}` | Como hoy | Si el token no es de un vale pero sí de un conflicto, responde su estado («en revisión», «no se guardó»); si no existe, «pendiente de sincronizar», sin revelar nada más. |
+
+Motivos de conflicto: `EXISTENCIA_INSUFICIENTE`, `PIEZA_EN_OTRA_UBICACION`, `YA_RECIBIDO`, `TRASPASO_CANCELADO`, `CODIGO_DESCONOCIDO`, `TRABAJADOR_NO_EXISTE`, `ALMACEN_CERRADO`, `ID_CLIENTE_OTRO_CUERPO`, `TOKEN_REPETIDO`, `FORMA_INVALIDA`, `USUARIO_NO_REGISTRADO`, `DISPOSITIVO_REVOCADO`, `DEPENDE_DE_CONFLICTO`.

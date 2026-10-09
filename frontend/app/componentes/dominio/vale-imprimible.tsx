@@ -3,6 +3,7 @@ import { cn } from "cn";
 import { BanIcon, PrinterIcon } from "lucide-react";
 
 import { Boton } from "~/componentes/ui/boton";
+import { useImagenAutenticada } from "~/movil/imagen";
 import { CodigoQR, urlDeVale } from "./codigo-qr";
 import { CLASE_IMPRESION, EstiloImpresion } from "./estilo-impresion";
 import { formatearFechaHora } from "./fechas";
@@ -29,8 +30,9 @@ const NOMBRE_CONDICION: Record<Condicion, string> = {
 /** La firma guardada; si la imagen no carga, el vale dice "Firmado en pantalla" en vez de mostrar un icono roto. */
 function ImagenDeFirma({ src, alt }: { src: string; alt: string }) {
   const [fallo, setFallo] = useState(false);
-  if (fallo) return <p className="pb-2 text-sm font-semibold text-neutral-700">Firmado en pantalla</p>;
-  return <img src={src} alt={alt} onError={() => setFallo(true)} className="max-h-full max-w-full object-contain" />;
+  const imagen = useImagenAutenticada(src);
+  if (fallo || !imagen) return <p className="pb-2 text-sm font-semibold text-neutral-700">Firmado en pantalla</p>;
+  return <img src={imagen} alt={alt} onError={() => setFallo(true)} className="max-h-full max-w-full object-contain" />;
 }
 
 /** Leyenda que firma el trabajador al recibir (F-02). La pantalla de firma debe mostrar la misma. */

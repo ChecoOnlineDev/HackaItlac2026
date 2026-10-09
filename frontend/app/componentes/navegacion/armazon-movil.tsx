@@ -27,7 +27,7 @@ export function ArmazonMovil({ contenido }: { contenido?: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
       {enInicio ? null : (
-        <header className="sticky top-0 z-20 flex h-12 items-center gap-2 border-b bg-background/95 px-2 backdrop-blur">
+        <header className="sticky top-0 z-20 flex min-h-12 items-center gap-2 border-b bg-background/95 px-2 py-2 backdrop-blur">
           <Boton variante="texto" onClick={atras} className="text-marino">
             <ArrowLeftIcon aria-hidden="true" />
             Atrás

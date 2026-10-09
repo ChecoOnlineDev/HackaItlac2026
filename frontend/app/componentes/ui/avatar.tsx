@@ -1,5 +1,6 @@
 import { cn } from "cn";
 import { useState } from "react";
+import { useImagenAutenticada } from "~/movil/imagen";
 
 const TAMANOS = {
   sm: "size-8 text-xs",
@@ -26,7 +27,8 @@ export function iniciales(nombre: string): string {
 /** Iniciales del nombre, o su foto si la hay. */
 export function Avatar({ nombre, fotoUrl, tamano = "md", className }: PropiedadesAvatar) {
   const [fallo, setFallo] = useState(false);
-  const mostrarFoto = Boolean(fotoUrl) && !fallo;
+  const imagen = useImagenAutenticada(fotoUrl);
+  const mostrarFoto = Boolean(imagen) && !fallo;
   return (
     <span
       role="img"
@@ -38,7 +40,7 @@ export function Avatar({ nombre, fotoUrl, tamano = "md", className }: Propiedade
       )}
     >
       {mostrarFoto ? (
-        <img src={fotoUrl!} alt="" className="size-full object-cover" onError={() => setFallo(true)} />
+        <img src={imagen} alt="" className="size-full object-cover" onError={() => setFallo(true)} />
       ) : (
         <span aria-hidden="true">{iniciales(nombre)}</span>
       )}

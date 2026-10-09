@@ -32,6 +32,8 @@ frontend/.react-router/
 frontend/.vite/
 frontend/coverage/
 frontend/dist/
+*.jks
+*.keystore
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

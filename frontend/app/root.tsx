@@ -17,6 +17,7 @@ import { EstadoError } from "~/componentes/ui/estado-error";
 import { Toaster } from "~/components/ui/toast";
 import { registrarServiceWorker } from "~/pwa/registrar";
 import { SesionProvider } from "~/sesion/sesion";
+import { IntegracionNativa } from "~/movil/integracion";
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", type: "image/png", href: "/logo-imhotep.png" },
@@ -63,12 +64,12 @@ export default function App() {
     registrarServiceWorker();
   }, []);
   return (
-    <SesionProvider>
+    <IntegracionNativa><SesionProvider>
       <Toaster>
         <BandaSinConexion />
         <Outlet />
       </Toaster>
-    </SesionProvider>
+    </SesionProvider></IntegracionNativa>
   );
 }
 

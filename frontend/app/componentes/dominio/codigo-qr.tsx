@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import { QRCodeSVG } from "qrcode.react";
 import type { ReactNode } from "react";
+import { origenApi } from "~/movil/plataforma";
 
 interface PropiedadesCodigoQR {
   /** Lo que contiene el QR, exactamente (por ejemplo el código de una pieza o la dirección de un vale). */
@@ -73,6 +74,6 @@ export function FolioQR({ folio, valor, texto, tamano = 176, className }: Propie
 
 /** Dirección que abre el vale al escanear su QR (ruta `/v/:token`). */
 export function urlDeVale(token: string): string {
-  const origen = typeof window === "undefined" ? "" : window.location.origin;
+  const origen = origenApi() || (typeof window === "undefined" ? "" : window.location.origin);
   return `${origen}/v/${token}`;
 }

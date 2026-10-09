@@ -1,6 +1,7 @@
 import { QRCodeSVG } from "qrcode.react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { esAppNativa } from "~/movil/plataforma";
 
 import { ALTO_MM, ANCHO_MM, ajustarNombre, type DatosCredencial } from "./credencial-medidas";
 
@@ -218,7 +219,12 @@ export async function etiquetaQrComoPng(datos: { codigo: string; texto: string }
 }
 
 /** Baja el archivo en el navegador. */
-export function descargarBlob(blob: Blob, nombreArchivo: string) {
+export async function descargarBlob(blob: Blob, nombreArchivo: string): Promise<void> {
+  if (esAppNativa()) {
+    const { compartirArchivo } = await import("~/movil/archivos");
+    await compartirArchivo(blob, nombreArchivo);
+    return;
+  }
   const url = URL.createObjectURL(blob);
   const enlace = document.createElement("a");
   enlace.href = url;

@@ -6,6 +6,8 @@
  * Si algo falla, la aplicación arranca igual: nada de esto es necesario para trabajar.
  */
 
+import { esAppNativa } from "~/movil/plataforma";
+
 interface EventoInstalacion extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -42,7 +44,7 @@ export function suscribirInstalacion(f: () => void) {
 
 /** `true` si el navegador ofrece instalar y la aplicación aún no está instalada. */
 export function puedeInstalar(): boolean {
-  return aviso !== null && !instalada;
+  return !esAppNativa() && aviso !== null && !instalada;
 }
 
 /** Muestra el cuadro de instalación del navegador. */
@@ -62,6 +64,7 @@ export async function instalarAplicacion(): Promise<void> {
 
 /** `true` si la aplicación ya corre como instalada (ventana propia). */
 export function yaEstaInstalada(): boolean {
+  if (esAppNativa()) return true;
   if (typeof window === "undefined") return false;
   const standalone = (navigator as Navigator & { standalone?: boolean }).standalone === true;
   return instalada || standalone || window.matchMedia("(display-mode: standalone)").matches;
@@ -76,6 +79,7 @@ export function esDispositivoApple(): boolean {
 
 /** Registra el service worker. Solo en producción y en contexto seguro; nunca lanza error. */
 export function registrarServiceWorker(): void {
+  if (esAppNativa()) return;
   if (!import.meta.env.PROD) return;
   if (typeof window === "undefined" || !window.isSecureContext) return;
   if (!("serviceWorker" in navigator)) return;

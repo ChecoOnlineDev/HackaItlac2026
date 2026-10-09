@@ -70,25 +70,30 @@
 }
 
 :root {
-  --background: #ffffff;
+  --azul-profundo: #102f70;
+  --azul-industrial: #0755a8;
+  --azul-activo: #1769ea;
+  --azul-suave: #e8f1fc;
+  --fondo-aplicacion: #f5f8fd;
+  --background: var(--fondo-aplicacion);
   --foreground: #1f2937;
   --card: #ffffff;
   --card-foreground: #1f2937;
   --popover: #ffffff;
   --popover-foreground: #1f2937;
-  --primary: #0054a6;
+  --primary: var(--azul-industrial);
   --primary-foreground: #ffffff;
-  --secondary: #eef2f7;
-  --secondary-foreground: #1b1f8a;
+  --secondary: var(--azul-suave);
+  --secondary-foreground: var(--azul-profundo);
   --muted: #f3f4f6;
   --muted-foreground: #4b5563;
-  --accent: #e6eef8;
-  --accent-foreground: #1b1f8a;
+  --accent: var(--azul-suave);
+  --accent-foreground: var(--azul-profundo);
   /* Error de formulario o acción destructiva; distinto del rojo del semáforo. */
   --destructive: #991b1b;
   --border: #e2e5ea;
   --input: #8a93a1;
-  --ring: #0054a6;
+  --ring: var(--azul-activo);
   --radius: 0.75rem; /* 12 px */
   --sidebar: #f8fafc;
   --sidebar-foreground: #1f2937;
@@ -99,7 +104,7 @@
   --sidebar-border: #d1d5db;
   --sidebar-ring: #0054a6;
 
-  --marino: #1b1f8a;
+  --marino: var(--azul-profundo);
 
   --semaforo-verde: #15803d;
   --semaforo-amarillo: #ca8a04;
@@ -192,3 +197,58 @@
     animation-duration: 1.4s;
   }
 }
+
+/* Navegación autenticada compartida; independiente de ruta y permisos. */
+.navegacion-imhotep [data-slot="sidebar"] {
+  background: linear-gradient(160deg, var(--azul-profundo), #0a1d50);
+  color: #f4f8ff;
+  border-color: #214e99;
+  --sidebar-accent: #174e9e;
+  --sidebar-accent-foreground: #fff;
+  --sidebar-ring: #80b7ff;
+}
+.navegacion-imhotep [data-slot="sidebar"] .text-marino { color: #fff; }
+.navegacion-imhotep [data-slot="sidebar"] .text-muted-foreground { color: #c2d7f3; }
+.navegacion-imhotep [data-slot="sidebar"] [data-slot="sidebar-menu-button"] { color: #edf4ff; }
+.navegacion-imhotep [data-slot="sidebar"] [data-slot="sidebar-menu-button"][data-active] { background: var(--azul-activo); color: #fff; box-shadow: none; }
+.navegacion-imhotep [data-slot="sidebar"] [data-slot="sidebar-menu-button"][data-active] svg { color: #fff; }
+.navegacion-imhotep [data-slot="sidebar"] button:hover { background: #174e9e; color: white; }
+.navegacion-imhotep [data-slot="sidebar-footer"] { border-color: #ffffff26; }
+.navegacion-imhotep .etiqueta-demo { background: #ffffff0d; border-color: #ffffff26; color: #c2d7f3; }
+.navegacion-imhotep [data-slot="sidebar-footer"] button { background: #ffffff0d; border-color: #ffffff26; color: #fff; }
+.navegacion-imhotep [data-slot="sidebar-inset"] { background: var(--fondo-aplicacion); }
+
+
+
+/* Accesos y superficies compartidas IMHOTEP-003. Se preservan estados semánticos. */
+.acceso-inicio {
+  background: var(--azul-industrial);
+  color: white;
+  border: 1px solid transparent;
+  box-shadow: none;
+}
+.acceso-inicio:hover { background: var(--azul-profundo); }
+.acceso-inicio:focus-visible { outline-color: var(--azul-activo); outline-offset: 4px; }
+.menu-imhotep {
+  background: linear-gradient(160deg, var(--azul-profundo), #0a1d50);
+  color: #f4f8ff;
+  --accent: #174e9e;
+  --accent-foreground: white;
+  --primary: #c2d7f3;
+  --ring: #80b7ff;
+  --border: #ffffff26;
+}
+.menu-imhotep .text-marino { color: white; }
+.menu-imhotep .text-muted-foreground { color: #c2d7f3; }
+.menu-imhotep a[aria-current="page"] { background: var(--azul-activo); color: white; }
+.menu-imhotep button { color: #f4f8ff; }
+.menu-imhotep [data-slot="button"] { background: #ffffff0d; border-color: #ffffff26; }
+.menu-imhotep [role="switch"][aria-checked="true"] { background: var(--azul-activo); }
+.menu-imhotep button:hover { background: #174e9e; }
+[data-slot="input"], [data-slot="textarea"], [data-slot="select-trigger"] { background-color: var(--card); }
+[data-slot="table-header"] { background: var(--azul-suave); color: var(--azul-profundo); }
+[data-slot="tabs-list"][data-variant="default"] { background: var(--azul-suave); }
+[data-slot="tabs-list"][data-variant="default"] [data-slot="tabs-trigger"][data-active] { background: var(--azul-activo); color: white; }
+.menu-imhotep span.bg-primary { background: var(--azul-industrial); color: white; }
+.menu-imhotep .etiqueta-demo { background: #ffffff0d; border-color: #ffffff26; color: #c2d7f3; }
+.navegacion-imhotep .identidad-usuario [role="img"] { background: var(--azul-industrial); color: white; }

@@ -25,7 +25,7 @@ Es la prueba que describe el PDF (p.2), más el caso de alturas:
 
 Corresponde a la prioridad P0 de las [reglas de negocio](reglas-de-negocio.md).
 
-- **Acceso.** Usuario y contraseña. Cinco roles iniciales: Administrador y los cuatro que pide el PDF (almacenista, supervisor de almacén, Compras y RH). Solo el Administrador ve todos los almacenes; los demás roles ven y operan únicamente su almacén asignado, y cada almacén tiene su supervisor (AC-06). No existe un «supervisor general». El servidor verifica permisos por clave y el menú muestra solo lo que el rol permite.
+- **Acceso.** Usuario y contraseña. Cinco roles iniciales: Administrador y los cuatro que pide el PDF (almacenista, supervisor de almacén, Compras y RH). Solo el Administrador ve todos los almacenes; los demás roles ven sus almacenes asignados (lo normal, uno; desde la iteración 01 puede ser un conjunto, AC-36) y operan en su almacén activo, y cada almacén tiene su supervisor (AC-06). No existe un «supervisor general». El servidor verifica permisos por clave y el menú muestra solo lo que el rol permite.
 - **Catálogo configurable.** Categorías con plantilla de reglas; artículos por pieza o por cantidad, retornables o consumibles; requisitos de inspección y de autorización por artículo; inactivar y reactivar con motivo; registro de cambios.
 - **Etiquetas.** Hoja imprimible de QR para credenciales, piezas y estantes.
 - **Trabajadores.** Alta, reingreso y vigencia por periodo de contrato; foto opcional tomada en el alta.
@@ -35,16 +35,29 @@ Corresponde a la prioridad P0 de las [reglas de negocio](reglas-de-negocio.md).
 - **Seguridad.** Inspección de piezas; bloqueo de equipo no apto o sin inspección vigente; ajuste de la vigencia de una inspección por el supervisor o el administrador, con motivo.
 - **Devolución.** Por escaneo de la pieza o desde la lista del trabajador; condición al volver; rechazo de equipo ajeno.
 - **Traspasos.** Salida, tránsito y recepción con QR.
-- **Traspasos por lista de Excel ([FEAT-009](../features/FEAT-009-traspasos-por-lista-de-excel.md)).** *Aprobada por el usuario, sin construir (amplía el alcance).* Quien envía (`traspasos.operar`, de inicio el Supervisor) arma la salida subiendo un `.xlsx` o pegando una tabla, con vista previa y reglas de la captura manual (TR-01 a TR-10); la recepción no cambia de lógica (X-15 solo mejora la interfaz para listas largas).
-- **Recibir traspasos con permiso propio (`traspasos.recibir`).** Aprobado el 7 de octubre de 2026, sin construir. Enviar sigue con `traspasos.operar`; el Supervisor tiene los dos y al Almacenista de un proyecto se le puede dar `traspasos.recibir` desde Roles y permisos (X-01, X-10). Resuelve el pendiente de quién recibe en un proyecto con turnos de 24 horas.
-- **Serie pendiente, código de pieza automático y columna `unidad` en la importación.** Aprobado el 7 de octubre de 2026, sin construir. Una pieza puede entrar sin número de serie (queda pendiente, se entrega con aviso y se completa con `piezas.registrar_serie`); la importación de alta genera el código de pieza que falte y lee una columna `unidad` opcional (I-02, I-15 a I-17, E-29, P-08). Hay un seguimiento y una tarjeta de tablero de piezas con serie pendiente (C-13).
+- **Traspasos por lista de Excel ([FEAT-009](../features/FEAT-009-traspasos-por-lista-de-excel.md)).** *Aprobada por el usuario y construida en el código (commit `ed7ce82`; amplía el alcance). Falta TR-10 y probarla en el entorno desplegado (FEAT-015, lista de verificación).* Quien envía (`traspasos.operar`, de inicio el Supervisor) arma la salida subiendo un `.xlsx` o pegando una tabla, con vista previa y reglas de la captura manual (TR-01 a TR-10); la recepción no cambia de lógica (X-15 solo mejora la interfaz para listas largas).
+- **Recibir traspasos con permiso propio (`traspasos.recibir`).** Aprobado el 7 de octubre de 2026 y construido en el código (commit `ed7ce82`). Enviar sigue con `traspasos.operar`; el Supervisor tiene los dos y al Almacenista de un proyecto se le puede dar `traspasos.recibir` desde Roles y permisos (X-01, X-10). Resuelve el pendiente de quién recibe en un proyecto con turnos de 24 horas.
+- **Serie pendiente, código de pieza automático y columna `unidad` en la importación.** Aprobado el 7 de octubre de 2026 y construido en el código (commit `ed7ce82`). Una pieza puede entrar sin número de serie (queda pendiente, se entrega con aviso y se completa con `piezas.registrar_serie`); la importación de alta genera el código de pieza que falte y lee una columna `unidad` opcional (I-02, I-15 a I-17, E-29, P-08). Hay un seguimiento y una tarjeta de tablero de piezas con serie pendiente (C-13).
 - **Baja.** Pendientes del trabajador, vale de no adeudo y paso a inactivo.
 - **Consulta y reportes.** Escaneo universal, búsqueda por texto, historial de pieza; reportes de existencias, movimientos, adeudos y consumo, con descarga en CSV.
 - **Solicitud de compra urgente.** Cuando falta un equipo o herramienta para un trabajo, el supervisor o el almacenista levanta una solicitud; Compras ve la cola de todos los almacenes (sin ver su inventario), la toma, la compra y la ingresa, y la liga con el vale de entrada que ella misma registra; pendiente, en compra, comprada, ingresada (o rechazada o cancelada). No es una orden de compra: no lleva proveedor, precio ni factura, y no mueve existencias (reglas SC-01 a SC-11).
 - **Administración de almacenes y tablero de inicio ([FEAT-008](../features/FEAT-008-administracion-de-almacenes-y-tablero.md)).** El Administrador da de alta, edita, inactiva y reactiva almacenes desde `/almacenes` (AL-01 a AL-05; un comando de mantenimiento siembra los seis iniciales en una base vacía). El Inicio pasa a ser un tablero con tarjetas y una gráfica de lo más usado (recharts, [ADR-009](../architecture/decisions/ADR-009-graficas-con-recharts.md)): el Administrador ve todos los almacenes con selector; el Supervisor y el Almacenista, solo el suyo (`tablero.ver`, TB-01 a TB-03). El menú se reorganiza en grupos plegables por tarea y la matriz de roles gana un botón por grupo. El número de empleado lo genera el servidor (T-10). La ruta de traspaso que no es padre-hijo la hace solo el Administrador, con observación (X-03). Esto **amplía el alcance** y lo aprobó el usuario el 6 de octubre de 2026.
 - **Tutorial guiado de práctica ([FEAT-010](../features/FEAT-010-tutorial-guiado.md)).** Un interruptor «Tutorial» lleva a la persona por Entregar, Devolver, Consultar y Recibir un traspaso sobre las pantallas reales, con datos ficticios: oscurece y bloquea el resto de la pantalla y resalta con un círculo y una flecha dónde tocar. Funciona en computadora, vista móvil y PWA. Los recorridos salen de los permisos de la sesión. Es solo de interfaz: no llama al servidor, no crea vales ni mueve existencias, y el avance se recuerda únicamente en el dispositivo. Un tipo «Demo» en el servidor quedó descartado. Esto **amplía el alcance** y lo aprobó el usuario el 7 de octubre de 2026.
 - **Corrección.** Cancelación de un vale con sus movimientos inversos, con motivo; cancelar y rehacer con los mismos renglones; y la lista de los movimientos del día de cada usuario.
-- **Aplicación instalable (PWA) sin modo sin conexión.** Se puede instalar en el celular y en la computadora (por HTTPS). Solo guarda en el dispositivo los archivos estáticos de la interfaz y una pantalla de «sin conexión»; la API y los datos de negocio nunca se guardan. El modo sin conexión sigue excluido (ver abajo).
+- **Aplicación instalable (PWA) sin modo sin conexión.** Se puede instalar en el celular y en la computadora (por HTTPS). Solo guarda en el dispositivo los archivos estáticos de la interfaz y una pantalla de «sin conexión»; la API y los datos de negocio nunca se guardan. La web sigue sin modo sin conexión; solo la app de Android del almacenista opera sin conexión (ver la iteración 01, abajo).
+
+### Iteración 01 (plática del 8 de octubre de 2026)
+
+Aprobada por el usuario el 8 de octubre de 2026, sin construir. **Amplía el alcance.** El detalle, las decisiones y el orden de construcción están en [releases/iteration_01/README.md](../releases/iteration_01/README.md).
+
+- **Proyectos y supervisión por almacenes ([FEAT-013](../features/FEAT-013-proyectos-y-supervision-por-almacenes.md)).** El proyecto es una entidad propia, con almacén y periodo; el trabajador se da de alta en un proyecto vigente; cada entrega guarda su proyecto; un almacén de tercer nivel sin proyectos activos genera un aviso para inactivarlo. Un usuario puede tener un conjunto de almacenes (lo normal, uno) y opera en su almacén activo. El Inicio del supervisor muestra el valor del inventario de sus almacenes y el uso por proyecto, en pesos y unidades.
+- **Despacho de EPP con aprobación ([FEAT-014](../features/FEAT-014-despacho-de-epp-con-aprobacion.md)).** Toda entrega de EPP pide la aprobación del supervisor del almacén antes de la firma, con notificación push por la PWA. Un interruptor por almacén y una excepción por almacenista, que solo cambia el Administrador, dan autonomía para despachar sin aprobación.
+- **Traslados entre almacenes de tercer nivel ([FEAT-015](../features/FEAT-015-traslados-entre-almacenes-de-tercer-nivel.md)).** Se permiten con la autorización del supervisor del origen; el destino confirma lo recibido.
+- **Inspecciones y avisos de vigencia ([FEAT-016](../features/FEAT-016-inspecciones-y-alertas-de-vigencia.md)).** Días de aviso configurables (general, categoría y artículo), lista de inspecciones vencidas y por vencer, y un flujo de inspección rehecho para el almacenista.
+- **Bitácora por vale y PDF ([FEAT-017](../features/FEAT-017-bitacora-por-vale-y-pdf.md)).** La bitácora muestra un renglón por vale (o por importación); el detalle del vale ocupa todo el ancho en computadora y se descarga en PDF.
+- **Deudores, resguardo y alto valor ([FEAT-018](../features/FEAT-018-deudores-resguardo-y-alto-valor.md)).** Sección de deudores por almacén y proyecto, con filtro por categoría; consumo por trabajador; alto valor por categoría o por costo mínimo editable.
+- **Búsqueda, etiquetas y diseño por dispositivo ([FEAT-019](../features/FEAT-019-busqueda-etiquetas-y-diseno-por-dispositivo.md)).** Buscadores con espera de 300 ms; etiquetas QR en un PDF con varias por hoja; operación diaria primero celular y administración primero computadora; mejoras estéticas.
+- **App de Android del almacenista y operación sin conexión ([FEAT-020](../features/FEAT-020-app-android-sin-conexion.md), [ADR-014](../architecture/decisions/ADR-014-app-android-con-capacitor.md), [ADR-015](../architecture/decisions/ADR-015-operacion-sin-conexion-del-almacenista.md)).** La misma interfaz empaquetada con Capacitor. Descarga los datos de su almacén y opera sin conexión solo lo que no pide aprobación; sincroniza por lotes y los choques van a un supervisor. Va al final del orden de construcción.
 
 ## Segunda ola
 
@@ -60,9 +73,9 @@ Aparte está [FEAT-006](../features/FEAT-006-control-de-acceso-configurable.md),
 
 ## Excluido explícitamente
 
-- Modo sin conexión y sincronización (la aplicación instalable no lo cambia: sin red no se opera).
-- Aplicación nativa; lectura de huella o cualquier biometría.
-- Notificaciones push, correo, SMS o WhatsApp.
+- Modo sin conexión en la web (la PWA no lo cambia: sin red no se opera). Solo la app de Android del almacenista opera sin conexión, y solo lo que dice FEAT-020; cambió con la iteración 01.
+- Aplicación nativa para iPhone, publicar en tiendas de aplicaciones y una app distinta de la interfaz web (la app de Android es la misma interfaz empaquetada, ADR-014); lectura de huella o cualquier biometría.
+- Notificaciones por correo, SMS o WhatsApp, y notificaciones que mande una tarea programada del servidor. Las notificaciones push por la PWA entraron con la iteración 01 (FEAT-014, [ADR-013](../architecture/decisions/ADR-013-notificaciones-push-por-pwa.md)).
 - Integración con nómina, torniquetes o sistemas de la planta.
 - Cálculo de descuentos, cargos o finiquitos.
 - Órdenes de compra, proveedores y facturas.
@@ -82,14 +95,12 @@ Probable en fases posteriores; hoy no tiene brief.
 - Lista de revisión para el supervisor.
 - Cierre sin devolución y equipo dado por perdido.
 - Reporte de EPP entregado por trabajador.
-- Que un usuario vea un subconjunto de almacenes; hoy ve el suyo o, si es Administrador, todos.
 - Un rol de «supervisor general»: lo cubre el Administrador.
 - Habilitaciones del trabajador, como la capacitación de alturas.
 - Carta de aceptación como requisito del alta.
 - Importación de trabajadores desde Excel.
 - Completar las series de muchas piezas a la vez con un Excel (`codigo pieza`, `serie`): segunda entrega; por ahora se captura pieza por pieza (P-08).
 - Descargar la lista de un traspaso como Excel (TR-10): segunda entrega de FEAT-009.
-- Periodo por apertura de un almacén de proyecto (ciclos al reactivar, con fecha de apertura y de cierre): mientras tanto el reporte de cierre se pide por rango de fechas ([red-de-almacenes-y-flujo.md](red-de-almacenes-y-flujo.md), sección 12.2).
 - Tablero con pestañas por almacén, mínimos y alertas de stock (FEAT-004) y valor del inventario (FEAT-002) dentro del tablero. El tablero básico ya entró con FEAT-008.
 - Entrega de turno entre almacenistas, con conteo y firma de los dos.
 - Solicitud de surtido de un almacén a otro.
@@ -98,7 +109,7 @@ Probable en fases posteriores; hoy no tiene brief.
 ## Restricciones
 
 - **Tiempo.** Tres días previos (4 al 6 de octubre de 2026) y las 24 horas del hackathon (7 y 8 de octubre).
-- **Plataformas.** Navegador web. Chrome en Android es la referencia para el almacenista; computadora para Compras y RH.
+- **Plataformas.** Navegador web. Chrome en Android es la referencia para el almacenista; computadora para Compras, RH y el Administrador. Desde la iteración 01, también la app de Android del almacenista (Android 7 o superior, la misma interfaz, FEAT-020).
 - **Operación manual aceptada.** Usuarios creados por script; etiquetas impresas en papel común; respaldo lanzado a mano.
 - **Calidad mínima.** Permisos verificados en el servidor; estados de carga, vacío y error en cada pantalla; el guion del PDF como prueba automática.
 
@@ -114,7 +125,8 @@ Un evaluador que no conoce el sistema completa el flujo principal desde un celul
 
 ## Riesgos aceptados
 
-- Sin modo sin conexión: si se cae la red, la captura se detiene. El borrador del vale se conserva en el dispositivo.
+- Sin modo sin conexión en la web: si se cae la red, la captura se detiene. El borrador del vale se conserva en el dispositivo. La app de Android opera sin conexión lo que no pide aprobación (FEAT-020); el EPP de un almacén sin autonomía espera a que vuelva la señal.
+- La notificación push no está garantizada: en iPhone llega solo con la PWA instalada en la pantalla de inicio (iOS 16.4 o superior). El contador del menú y la lista de autorizaciones siguen siendo el respaldo (ADR-013).
 - La firma en pantalla es firma electrónica simple; su fuerza depende de la evidencia que la acompaña.
 - Sin administración de usuarios ni de roles en pantalla: el servidor ya permite los usuarios, pero la interfaz no la tiene. La asignación de personal a almacenes sí tiene su pantalla (`/personal`).
 - Los parámetros generales son valores fijos de configuración.

@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">IMHOTEP</string>
+    <string name="webview_desactualizado">Este equipo necesita actualizar Android System WebView. Pide ayuda al área de sistemas para continuar.</string>
+    <string name="title_activity_main">IMHOTEP</string>
+    <string name="package_name">mx.imhotep.almacen</string>
+    <string name="custom_url_scheme">mx.imhotep.almacen</string>
+</resources>
