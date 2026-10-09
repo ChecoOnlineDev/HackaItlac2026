@@ -46,6 +46,12 @@ export default function Proyectos() {
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const fichaPedida = useConsulta((signal) => proyectoId ? apiGet<Proyecto>(`/proyectos/${proyectoId}`, undefined, signal) : Promise.resolve(null), proyectoId);
+  useEffect(() => {
+    if (parametros.get("nuevo") !== "1") return;
+    if (administrar) { setPanel({ tipo: "nuevo" }); setError(null); setDatos({ ...VACIO, inicio: hoyMx() }); }
+    const resto = new URLSearchParams(parametros); resto.delete("nuevo"); setParametros(resto, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [administrar]);
   useEffect(() => { if (fichaPedida.datos) setPanel({ tipo: "ver", proyecto: fichaPedida.datos }); }, [fichaPedida.datos]);
   function abrir(tipo: Panel["tipo"], proyecto?: Proyecto) {
     setPanel({ tipo, proyecto }); setError(null); setMotivo("");
@@ -81,7 +87,7 @@ export default function Proyectos() {
     {fichaPedida.error ? <EstadoError error={fichaPedida.error} alReintentar={fichaPedida.recargar} /> : null}
     {lista.error ? <EstadoError error={lista.error} alReintentar={lista.recargar} /> : null}
     {lista.cargando && !lista.datos ? <Esqueleto tipo="tabla" cantidad={5} /> : null}
-    {lista.datos?.elementos.length === 0 ? <EstadoVacio icono={FolderIcon} titulo="No hay proyectos con estos filtros" descripcion="Crea un proyecto o cambia los filtros." /> : null}
+    {lista.datos?.elementos.length === 0 ? <EstadoVacio icono={FolderIcon} titulo="No hay proyectos con estos filtros" descripcion={administrar ? "Da de alta un proyecto con el botón Nuevo proyecto o cambia los filtros." : "Cambia los filtros o pide a un administrador que dé de alta el proyecto."} /> : null}
     {lista.datos?.elementos.length ? <Table><TableHeader><TableRow>{["Proyecto", "Almacén", "Fechas", "Situación", "Trabajadores", "Acciones"].map((t) => <TableHead key={t}>{t}</TableHead>)}</TableRow></TableHeader><TableBody>{lista.datos.elementos.map((p) => <TableRow key={p.id}><TableCell className="whitespace-normal"><strong>{p.nombre}</strong><p className="text-sm text-muted-foreground">{p.clave}</p></TableCell><TableCell>{p.almacen.nombre}</TableCell><TableCell>{fechaCorta(p.inicio)} al {fechaCorta(p.fin_estimado)}</TableCell><TableCell><Insignia estado={p.estado === "ACTIVO" ? "info" : "neutra"}>{SITUACIONES[p.situacion]}</Insignia></TableCell><TableCell>{p.trabajadores_asignados}</TableCell><TableCell><Boton variante="contorno" onClick={() => abrir("ver", p)}>Ver ficha</Boton></TableCell></TableRow>)}</TableBody></Table> : null}
     {lista.datos && lista.datos.total > 30 ? <nav aria-label="Páginas de proyectos" className="flex items-center gap-3"><Boton disabled={!pagina || lista.cargando} onClick={() => setPagina((p) => p - 1)}>Anterior</Boton><span>Página {pagina + 1}</span><Boton disabled={(pagina + 1) * 30 >= lista.datos.total || lista.cargando} onClick={() => setPagina((p) => p + 1)}>Siguiente</Boton></nav> : null}
     <Hoja abierta={Boolean(panel)} alCambiar={(a) => !a && !guardando && setPanel(null)} titulo={panel?.tipo === "nuevo" ? "Nuevo proyecto" : panel?.tipo === "editar" ? "Editar proyecto" : panel?.tipo === "cerrar" ? "Cerrar proyecto" : panel?.tipo === "reabrir" ? "Reabrir proyecto" : actual?.nombre ?? "Proyecto"} pie={panel && panel.tipo !== "ver" ? <Boton variante={panel.tipo === "cerrar" ? "peligro" : "normal"} cargando={guardando} onClick={() => void guardar()}>{panel.tipo === "cerrar" ? "Confirmar cierre" : "Guardar"}</Boton> : null}>

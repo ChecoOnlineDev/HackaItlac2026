@@ -1,4 +1,6 @@
 import { useEffect, useId } from "react";
+import { Link } from "react-router";
+import { useSesion } from "~/sesion/sesion";
 import { listarProyectos } from "~/api/proyectos";
 import { Label } from "~/components/ui/label";
 import { useConsulta } from "~/componentes/catalogo/usar-consulta";
@@ -10,6 +12,7 @@ export function SelectorProyecto({ valor, alCambiar, deshabilitado, error, exclu
   valor: string; alCambiar: (valor: string) => void; deshabilitado?: boolean; error?: string | null; excluir?: string[]; proponerUnico?: boolean; asignables?: boolean;
 }) {
   const id = useId();
+  const { puede } = useSesion();
   const consulta = useConsulta(async (signal) => {
     const resultado = await listarProyectos({ asignables: asignables || undefined, tamano: 100 }, signal);
     for (let pagina = 2; resultado.elementos.length < resultado.total; pagina++) {
@@ -30,6 +33,7 @@ export function SelectorProyecto({ valor, alCambiar, deshabilitado, error, exclu
     <ListaDesplegable id={id} valor={valor} alCambiar={alCambiar} deshabilitado={deshabilitado || consulta.cargando || disponibles.length === 0} invalido={Boolean(error)} descritoPor={`${id}-ayuda`} marcador={consulta.cargando ? "Cargando proyectos…" : "Elige el proyecto"} opciones={disponibles.map((p) => ({ valor: p.id, texto: `${p.nombre} (${p.clave}) · ${fechaCorta(p.inicio)} al ${fechaCorta(p.fin_estimado)}`, grupo: p.almacen.nombre }))} />
     <p id={`${id}-ayuda`} className="text-sm text-muted-foreground">{!consulta.cargando && !consulta.error && disponibles.length === 0 ? "No hay proyectos disponibles. Pide al administrador que cree o extienda un proyecto." : asignables ? "El proyecto indica en qué almacén trabaja la persona." : "Incluye proyectos vigentes y cerrados."}</p>
     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+    {puede("proyectos.administrar") ? <Link to="/proyectos?nuevo=1" className="w-fit text-sm underline">Dar de alta un proyecto</Link> : null}
     {consulta.error ? <EstadoError error={consulta.error} alReintentar={consulta.recargar} /> : null}
   </div>;
 }

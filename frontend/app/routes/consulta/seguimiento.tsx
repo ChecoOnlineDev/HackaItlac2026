@@ -20,6 +20,7 @@ import {
   OPCIONES_ESTADO,
   OPCIONES_UBICACION,
   TAMANO_SEGUIMIENTO,
+  type PaginaCantidad,
   type PaginaSeguimiento,
 } from "~/componentes/seguimiento/tipos";
 import { Boton } from "~/componentes/ui/boton";
@@ -44,10 +45,28 @@ function tarjetaActiva(ubicacion: string, estado: string): ClaveResumen {
   return "total";
 }
 
+const numeroMx = new Intl.NumberFormat("es-MX");
+
 /** SG-01: Seguimiento tiene dos pestañas, Piezas (con serie) y Por cantidad. La elegida va en `?vista=`. */
 export default function Seguimiento() {
   const [params, setParams] = useSearchParams();
   const vista = params.get("vista") === "cantidad" ? "cantidad" : "piezas";
+
+  // Conteos globales (sin filtros) para el encabezado unificado y las pestañas.
+  const global = useConsulta(
+    async (signal) => {
+      const [p, c] = await Promise.all([
+        apiGet<PaginaSeguimiento>("/seguimiento/piezas", { pagina: 1, tamano: 1 }, signal),
+        apiGet<PaginaCantidad>("/seguimiento/cantidad", { pagina: 1, tamano: 1 }, signal),
+      ]);
+      return { piezas: p.resumen, cantidad: c.resumen };
+    },
+    "global",
+  );
+  const piezasTotal = global.datos?.piezas.total;
+  const piezasResguardo = global.datos?.piezas.en_resguardo ?? 0;
+  const unidades = global.datos?.cantidad.unidades ?? 0;
+  const renglones = global.datos?.cantidad.renglones;
 
   function elegir(nueva: string) {
     setParams(
@@ -62,23 +81,44 @@ export default function Seguimiento() {
     );
   }
 
+  const conteo = (n: number | undefined) =>
+    n === undefined ? null : (
+      <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold tabular-nums text-marino">{numeroMx.format(n)}</span>
+    );
+
   return (
-    <Pantalla titulo="Quién tiene qué" descripcion="Dónde está cada pieza y quién tiene cada herramienta o equipo de protección en resguardo.">
-      <div className="flex flex-col gap-4">
+    <Pantalla titulo="Quién tiene qué" descripcion="Todo lo que debe regresar: dónde está y quién lo tiene, tenga o no código único.">
+      <div className="flex flex-col gap-5">
+        {global.datos ? (
+          <section aria-label="Retornables en resguardo" className="rounded-2xl border bg-card p-4 shadow-xs sm:p-5">
+            <p className="text-sm font-medium text-muted-foreground">Retornables en resguardo de trabajadores</p>
+            <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-3xl font-semibold tabular-nums text-marino">
+              {numeroMx.format(piezasResguardo + unidades)}
+              <span className="text-sm font-normal text-muted-foreground">
+                = {numeroMx.format(piezasResguardo)} {piezasResguardo === 1 ? "pieza con serie" : "piezas con serie"} + {numeroMx.format(unidades)}{" "}
+                {unidades === 1 ? "unidad por cantidad" : "unidades por cantidad"}
+              </span>
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Por pieza = con serie, una por una. Por cantidad = se cuenta, también regresa (marro, cincel, casco, respirador). Los consumibles no
+              regresan y no aparecen aquí.
+            </p>
+          </section>
+        ) : null}
         <Tabs value={vista} onValueChange={(v) => elegir(String(v))}>
-          <TabsList aria-label="Qué mostrar" className="h-auto! w-full sm:w-fit">
-            <TabsTrigger value="piezas" className="min-h-11 flex-1 px-4 text-base sm:flex-none">
-              Piezas
+          <TabsList aria-label="Qué mostrar" className="h-auto! w-full rounded-xl p-1 sm:w-fit">
+            <TabsTrigger value="piezas" className="min-h-11 flex-1 rounded-lg px-5 text-base sm:flex-none">
+              Por pieza{conteo(piezasTotal)}
             </TabsTrigger>
-            <TabsTrigger value="cantidad" className="min-h-11 flex-1 px-4 text-base sm:flex-none">
-              Por cantidad
+            <TabsTrigger value="cantidad" className="min-h-11 flex-1 rounded-lg px-5 text-base sm:flex-none">
+              Por cantidad{conteo(renglones)}
             </TabsTrigger>
           </TabsList>
         </Tabs>
         <p className="text-sm text-muted-foreground">
           {vista === "piezas"
-            ? "Piezas: cada herramienta o equipo con serie, una por una, con dónde está y quién la tiene."
-            : "Por cantidad: lo que se entrega sin serie, como guantes o flexómetros, y cuánto tiene cada trabajador."}
+            ? "Por pieza: cada herramienta o equipo con serie, con dónde está y quién la tiene."
+            : "Por cantidad: lo retornable que se cuenta sin serie, quién lo tiene, cuántos, desde cuándo y con qué vale."}
         </p>
         {vista === "piezas" ? <PestanaPiezas alVerCantidad={() => elegir("cantidad")} /> : <PestanaCantidad />}
       </div>
@@ -225,7 +265,7 @@ function PestanaPiezas({ alVerCantidad }: { alVerCantidad: () => void }) {
             value={texto}
             alCambiar={setTexto}
             claseContenedor="min-w-64"
-            className="h-12 rounded-xl text-base"
+            className="h-12 rounded-xl bg-card text-base shadow-xs"
           />
           <HojaFiltros
             valores={{ estado: valores.estado, ubicacion: valores.ubicacion, almacen: valores.almacen, serie_pendiente: valores.serie_pendiente }}
@@ -290,13 +330,15 @@ function PestanaPiezas({ alVerCantidad }: { alVerCantidad: () => void }) {
           cargando={cargando && Boolean(datos)}
         />
 
-        {porCantidad > 0 && total > 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Además hay {porCantidad} {porCantidad === 1 ? "artículo" : "artículos"} por cantidad en resguardo.{" "}
-            <button type="button" onClick={alVerCantidad} className="inline-flex min-h-10 items-center font-semibold text-primary underline underline-offset-2">
-              Verlos
-            </button>
-          </p>
+        {porCantidad > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-accent px-4 py-3 text-sm">
+            <span>
+              También se rastrean {porCantidad} {porCantidad === 1 ? "artículo retornable" : "artículos retornables"} por cantidad (sin serie).
+            </span>
+            <Boton variante="contorno" className="min-h-11" onClick={alVerCantidad}>
+              Ver por cantidad
+            </Boton>
+          </div>
         ) : null}
 
         {chips.length > 0 ? (
