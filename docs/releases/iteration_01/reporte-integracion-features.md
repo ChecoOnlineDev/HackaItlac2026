@@ -2,9 +2,9 @@
 
 ## Tarea realizada
 
-Implementación local en curso sobre `main`, conservando el trabajo previo de traslados laterales y los cambios locales existentes. El inventario inicial de faltantes está en `estado-features-001-020.md`; es una fotografía de la auditoría inicial, no una certificación del estado final. No se crearon commits ni se hizo push.
+Avances parciales integrados y publicados en `main` (commit `db3f1e8`). El inventario inicial de faltantes está en `estado-features-001-020.md`; es una fotografía de la auditoría inicial, no una certificación del estado final.
 
-Ya están construidos localmente proyectos/asignaciones, alcance por conjunto, mínimos, inspecciones, tablero por proyecto, despacho de EPP, deudores/alto valor, bitácora por vale/lote y búsqueda/etiquetas. FEAT-002 agrega cierre/AJUSTE. FEAT-001 suma sello, comprobante público y firma en papel con reserva de folio, ticket de dos copias y foto obligatoria. FEAT-009 ahora permite descargar una lista de recepción `.xlsx` desde revisión y resultado. FEAT-019 tiene búsqueda por palabras, PDF de etiquetas, ajuste de ancho por dispositivo e insignias compartidas de Compras; conserva criterios administrativos y físicos pendientes. FEAT-020 sigue siendo principalmente el contenedor Android en línea, con primitivas locales de PIN aún sin persistencia ni integración.
+Quedaron construidos proyectos/asignaciones, alcance por conjunto, mínimos, inspecciones, tablero por proyecto, despacho de EPP, deudores/alto valor, bitácora por vale/lote y búsqueda/etiquetas. FEAT-002 agrega cierre/AJUSTE. FEAT-001 suma sello, comprobante público y firma en papel con reserva de folio, ticket de dos copias y foto obligatoria. FEAT-009 ahora permite descargar una lista de recepción `.xlsx` desde revisión y resultado. FEAT-019 tiene búsqueda por palabras, PDF de etiquetas, ajuste de ancho por dispositivo e insignias compartidas de Compras; conserva criterios administrativos y físicos pendientes. FEAT-020 sigue siendo principalmente el contenedor Android en línea, con primitivas locales de PIN aún sin persistencia ni integración.
 
 ## Archivos modificados
 
@@ -36,7 +36,7 @@ Ya están construidos localmente proyectos/asignaciones, alcance por conjunto, m
 
 ## Riesgos o deuda pendiente
 
-Las veinte features no están completas. Quedan criterios y regresiones documentados por feature, recorridos de impresora/cámara/PDF en equipos reales y pruebas de accesibilidad/rendimiento físico. La regresión dirigida de 67 pruebas, el smoke de migración/búsqueda/papel de 12 y las 47 pruebas frontend pasaron. La regresión backend completa no pasó: 2,067 aprobadas, 303 fallidas y 21 errores; hay discrepancias de contratos/permisos y errores de teardown por FK que requieren triage. FEAT-020 no implementa aún inscripción del dispositivo, SQLite cifrada/Keystore, evaluación offline, cola, sincronización, conflictos ni revocación local; las primitivas de PIN tampoco persisten ni se integran con el login. El APK debug se reconstruyó con los cambios recientes, pero no se instaló porque no había dispositivo conectado por ADB. Los cambios siguen locales, sin commit ni push.
+Las veinte features no están completas. Quedan criterios y regresiones documentados por feature, recorridos de impresora/cámara/PDF en equipos reales y pruebas de accesibilidad/rendimiento físico. La regresión dirigida de 67 pruebas, el smoke de migración/búsqueda/papel de 12 y las 47 pruebas frontend pasaron. La regresión backend completa no pasó: 2,067 aprobadas, 303 fallidas y 21 errores; hay discrepancias de contratos/permisos y errores de teardown por FK que requieren triage. FEAT-020 no implementa aún inscripción del dispositivo, SQLite cifrada/Keystore, evaluación offline, cola, sincronización, conflictos ni revocación local; las primitivas de PIN tampoco persisten ni se integran con el login. El APK debug se reconstruyó con los cambios recientes, pero no se instaló porque no había dispositivo conectado por ADB.
 
 ## Documentación actualizada
 
@@ -45,3 +45,7 @@ Contratos de API, modelo de datos, reglas, flujo y reportes específicos. Los co
 ## Siguiente acción
 
 Triagear los 303 fallos y 21 errores de la regresión completa; después cerrar criterios pendientes por feature y decisiones de FEAT-020 antes de continuar la operación offline y validar el APK en un equipo Android.
+
+## Publicación
+
+Commit `db3f1e8` (`feat: integra avances de iteracion 01`) publicado en `origin/main` el 9 de octubre de 2026. Incluye código, migraciones, pruebas y documentación de los avances descritos; el árbol de trabajo quedó limpio después del push.
